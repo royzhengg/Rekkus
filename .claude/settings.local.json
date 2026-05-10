@@ -4,7 +4,20 @@
       "Bash(npx tsc *)",
       "Bash(npx expo *)",
       "Bash(node scripts/create-test-user.js)",
-      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\('deps:', list\\(p.get\\('dependencies',{}\\).keys\\(\\)\\)\\); print\\('devdeps:', list\\(p.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\")"
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\('deps:', list\\(p.get\\('dependencies',{}\\).keys\\(\\)\\)\\); print\\('devdeps:', list\\(p.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\")",
+      "WebFetch(domain:blog.zomato.com)",
+      "WebFetch(domain:www.zomato.com)",
+      "WebFetch(domain:engineeringblog.yelp.com)",
+      "WebFetch(domain:careersatdoordash.com)",
+      "WebSearch",
+      "Bash(xcrun simctl *)",
+      "Bash(ls /Users/royzheng/Desktop/forkyou/ios/ 2>/dev/null || echo \"directory not found\")",
+      "Read(//Users/royzheng/Desktop/forkyou/**)",
+      "Bash(ls /Users/royzheng/Desktop/ | grep -i fork)",
+      "Read(//Users/royzheng/Desktop/**)",
+      "Bash(pod install *)",
+      "Bash(cat \"/Users/royzheng/Library/Application Support/Code/User/settings.json\" 2>/dev/null || echo \"NOT_FOUND\")",
+      "Read(//Users/royzheng/Library/Application Support/Code/User/**)"
     ]
   }
 }

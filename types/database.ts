@@ -11,6 +11,9 @@ export interface Database {
           avatar_url: string | null
           bio: string | null
           website: string | null
+          suburb: string | null
+          city: string | null
+          country: string | null
           created_at: string
           updated_at: string
         }
@@ -21,6 +24,9 @@ export interface Database {
           avatar_url?: string | null
           bio?: string | null
           website?: string | null
+          suburb?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -31,6 +37,9 @@ export interface Database {
           avatar_url?: string | null
           bio?: string | null
           website?: string | null
+          suburb?: string | null
+          city?: string | null
+          country?: string | null
           updated_at?: string
         }
       }
@@ -46,6 +55,8 @@ export interface Database {
           google_place_id: string | null
           cuisine_type: string | null
           price_range: number | null
+          google_rating: number | null
+          google_review_count: number | null
           created_at: string
           updated_at: string
         }
@@ -60,6 +71,8 @@ export interface Database {
           google_place_id?: string | null
           cuisine_type?: string | null
           price_range?: number | null
+          google_rating?: number | null
+          google_review_count?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -74,7 +87,35 @@ export interface Database {
           google_place_id?: string | null
           cuisine_type?: string | null
           price_range?: number | null
+          google_rating?: number | null
+          google_review_count?: number | null
           updated_at?: string
+        }
+      }
+      analytics_events: {
+        Row: {
+          id: string
+          user_id: string | null
+          event_type: string
+          entity_type: string | null
+          entity_id: string | null
+          metadata: Record<string, unknown> | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          event_type: string
+          entity_type?: string | null
+          entity_id?: string | null
+          metadata?: Record<string, unknown> | null
+          created_at?: string
+        }
+        Update: {
+          event_type?: string
+          entity_type?: string | null
+          entity_id?: string | null
+          metadata?: Record<string, unknown> | null
         }
       }
       posts: {
@@ -84,6 +125,10 @@ export interface Database {
           restaurant_id: string | null
           caption: string | null
           rating: number | null
+          food_rating: number | null
+          vibe_rating: number | null
+          cost_rating: number | null
+          cuisine_type: string | null
           created_at: string
           updated_at: string
         }
@@ -93,6 +138,10 @@ export interface Database {
           restaurant_id?: string | null
           caption?: string | null
           rating?: number | null
+          food_rating?: number | null
+          vibe_rating?: number | null
+          cost_rating?: number | null
+          cuisine_type?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -102,6 +151,10 @@ export interface Database {
           restaurant_id?: string | null
           caption?: string | null
           rating?: number | null
+          food_rating?: number | null
+          vibe_rating?: number | null
+          cost_rating?: number | null
+          cuisine_type?: string | null
           updated_at?: string
         }
       }
@@ -193,6 +246,25 @@ export interface Database {
           id?: string
           user_id?: string
           post_id?: string
+        }
+      }
+      saved_locations: {
+        Row: {
+          id: string
+          user_id: string
+          restaurant_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          restaurant_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          restaurant_id?: string
         }
       }
       follows: {

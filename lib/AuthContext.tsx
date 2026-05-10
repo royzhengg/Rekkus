@@ -81,7 +81,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (result.type !== 'success') return null
 
     const url = result.url
-    const params = new URLSearchParams(url.includes('#') ? url.split('#')[1] : url.split('?')[1] ?? '')
+    const params = new URLSearchParams(
+      url.includes('#') ? url.split('#')[1] : (url.split('?')[1] ?? '')
+    )
     const accessToken = params.get('access_token')
     const refreshToken = params.get('refresh_token')
 
@@ -100,7 +102,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signInWithEmail, signUpWithEmail, updateProfile, signInWithGoogle, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading,
+        signInWithEmail,
+        signUpWithEmail,
+        updateProfile,
+        signInWithGoogle,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

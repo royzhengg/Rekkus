@@ -40,6 +40,7 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="post/[id]" />
+              <Stack.Screen name="location/[placeId]" />
               <Stack.Screen name="settings" />
             </Stack>
           </AuthGateProvider>

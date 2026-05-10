@@ -13,16 +13,19 @@ const AuthGateContext = createContext<AuthGateContextValue>({
 export function AuthGateProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
   const [visible, setVisible] = useState(false)
-  const [pendingCallback, setPendingCallback] = useState<(() => void) | null>(null)
+  const [_pendingCallback, setPendingCallback] = useState<(() => void) | null>(null)
 
-  const requireAuth = useCallback((onSuccess?: () => void) => {
-    if (user) {
-      onSuccess?.()
-    } else {
-      setPendingCallback(() => onSuccess ?? null)
-      setVisible(true)
-    }
-  }, [user])
+  const requireAuth = useCallback(
+    (onSuccess?: () => void) => {
+      if (user) {
+        onSuccess?.()
+      } else {
+        setPendingCallback(() => onSuccess ?? null)
+        setVisible(true)
+      }
+    },
+    [user]
+  )
 
   function handleDismiss() {
     setVisible(false)

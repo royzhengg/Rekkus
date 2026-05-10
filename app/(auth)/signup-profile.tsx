@@ -1,6 +1,13 @@
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useMemo } from 'react'
@@ -8,11 +15,20 @@ import { useRouter } from 'expo-router'
 import { Svg, Polyline } from 'react-native-svg'
 import { useThemeColors } from '@/lib/ThemeContext'
 import { useAuth } from '@/lib/AuthContext'
+import { supabase } from '@/lib/supabase'
 
 function ChevronLeft() {
   const colors = useThemeColors()
   return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.text2} strokeWidth={1.5} strokeLinecap="round">
+    <Svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={colors.text2}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+    >
       <Polyline points="15 18 9 12 15 6" />
     </Svg>
   )
@@ -26,24 +42,37 @@ export default function SignupProfileScreen() {
 
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [suburb, setSuburb] = useState('')
+  const [city, setCity] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const canSubmit = username.trim().length >= 3 && displayName.trim().length >= 1
 
-  const cleanUsername = username.toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 30)
+  const cleanUsername = username
+    .toLowerCase()
+    .replace(/[^a-z0-9_.]/g, '')
+    .slice(0, 30)
 
   async function handleFinish() {
     if (!canSubmit || loading) return
     setError('')
     setLoading(true)
     const err = await updateProfile(cleanUsername, displayName.trim())
-    setLoading(false)
     if (err) {
+      setLoading(false)
       setError(err)
-    } else {
-      router.replace('/(tabs)/feed')
+      return
     }
+    const loc = { suburb: suburb.trim() || null, city: city.trim() || null }
+    if (loc.suburb || loc.city) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) await (supabase.from('users') as any).update(loc).eq('id', user.id)
+    }
+    setLoading(false)
+    router.replace('/(tabs)/feed')
   }
 
   return (
@@ -55,8 +84,15 @@ export default function SignupProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.title}>Your profile</Text>
           <Text style={styles.subtitle}>One last step.</Text>
 
@@ -70,7 +106,14 @@ export default function SignupProfileScreen() {
               placeholder="yourhandle"
               placeholderTextColor={colors.text3}
               value={username}
-              onChangeText={t => setUsername(t.toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 30))}
+              onChangeText={t =>
+                setUsername(
+                  t
+                    .toLowerCase()
+                    .replace(/[^a-z0-9_.]/g, '')
+                    .slice(0, 30)
+                )
+              }
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -84,6 +127,30 @@ export default function SignupProfileScreen() {
             placeholderTextColor={colors.text3}
             value={displayName}
             onChangeText={setDisplayName}
+          />
+
+          <Text style={[styles.label, { marginTop: 4 }]}>
+            Suburb <Text style={styles.optional}>(optional)</Text>
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Surry Hills"
+            placeholderTextColor={colors.text3}
+            value={suburb}
+            onChangeText={setSuburb}
+            autoCapitalize="words"
+          />
+
+          <Text style={[styles.label, { marginTop: 4 }]}>
+            City <Text style={styles.optional}>(optional)</Text>
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Sydney"
+            placeholderTextColor={colors.text3}
+            value={city}
+            onChangeText={setCity}
+            autoCapitalize="words"
             returnKeyType="done"
             onSubmitEditing={handleFinish}
           />
@@ -93,10 +160,11 @@ export default function SignupProfileScreen() {
             onPress={handleFinish}
             disabled={!canSubmit || loading}
           >
-            {loading
-              ? <ActivityIndicator color={colors.bg} />
-              : <Text style={styles.primaryBtnText}>Finish</Text>
-            }
+            {loading ? (
+              <ActivityIndicator color={colors.bg} />
+            ) : (
+              <Text style={styles.primaryBtnText}>Finish</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -158,5 +226,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     },
     primaryBtnDisabled: { opacity: 0.4 },
     primaryBtnText: { fontSize: 15, fontWeight: '500', color: c.bg },
+    optional: { fontWeight: '400', color: c.text3 },
   })
 }

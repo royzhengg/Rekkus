@@ -1,6 +1,18 @@
 const _legacy = {
-  light: { text: '#1A1A18', background: '#FAFAF8', tint: '#D4522A', tabIconDefault: '#A8A8A2', tabIconSelected: '#1A1A18' },
-  dark:  { text: '#1A1A18', background: '#FAFAF8', tint: '#D4522A', tabIconDefault: '#A8A8A2', tabIconSelected: '#1A1A18' },
+  light: {
+    text: '#1A1A18',
+    background: '#FAFAF8',
+    tint: '#D4522A',
+    tabIconDefault: '#A8A8A2',
+    tabIconSelected: '#1A1A18',
+  },
+  dark: {
+    text: '#1A1A18',
+    background: '#FAFAF8',
+    tint: '#D4522A',
+    tabIconDefault: '#A8A8A2',
+    tabIconSelected: '#1A1A18',
+  },
 }
 export default _legacy
 
@@ -18,6 +30,9 @@ export const lightColors = {
   success: '#1D9E75',
   warning: '#EF9F27',
   liked: '#E24B4A',
+  errorBg: '#FEF0F0',
+  overlay: 'rgba(0,0,0,0.35)',
+  white: '#FFFFFF',
 }
 
 export const darkColors = {
@@ -34,6 +49,9 @@ export const darkColors = {
   success: '#28C98D',
   warning: '#F5B340',
   liked: '#E24B4A',
+  errorBg: '#3D1A1A',
+  overlay: 'rgba(0,0,0,0.55)' as const,
+  white: '#FFFFFF',
 }
 
 // Static fallback — only for StyleSheet.create at module level in legacy/non-themed code

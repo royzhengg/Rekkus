@@ -5,7 +5,9 @@
 // If sign-in fails with "Email not confirmed", disable email confirmation in the Supabase dashboard:
 //   Authentication → Providers → Email → uncheck "Confirm email", then re-run.
 
-console.warn('[create-test-user] Run against local Supabase (supabase start) — never the live project.\n')
+console.warn(
+  '[create-test-user] Run against local Supabase (supabase start) — never the live project.\n'
+)
 
 // Set SUPABASE_URL and SUPABASE_ANON_KEY to your local instance values from `supabase start`
 const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321'
@@ -42,9 +44,9 @@ async function main() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${access_token}`,
-      'Prefer': 'resolution=merge-duplicates',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${access_token}`,
+      Prefer: 'resolution=merge-duplicates',
     },
     body: JSON.stringify({
       id: user.id,
@@ -71,7 +73,7 @@ async function main() {
 async function signIn() {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
     body: JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD }),
   })
   const data = await res.json()
@@ -79,12 +81,14 @@ async function signIn() {
     if (data.error_code === 'email_not_confirmed') {
       console.error('\nEmail confirmation is still enabled.')
       console.error('Disable it in the Supabase dashboard:')
-      console.error('  1. Open: https://supabase.com/dashboard/project/scwvlqwolfduaalbemzz/auth/providers')
+      console.error(
+        '  1. Open: https://supabase.com/dashboard/project/scwvlqwolfduaalbemzz/auth/providers'
+      )
       console.error('  2. Under "Email", uncheck "Confirm email"')
       console.error('  3. Re-run: node scripts/create-test-user.js')
       process.exit(1)
     }
-    if (data.error_code === 'invalid_credentials') return null  // user doesn't exist yet
+    if (data.error_code === 'invalid_credentials') return null // user doesn't exist yet
     console.error('Sign in failed:', data)
     process.exit(1)
   }
@@ -94,7 +98,7 @@ async function signIn() {
 async function signUp() {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
     body: JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD }),
   })
   const data = await res.json()
@@ -104,4 +108,7 @@ async function signUp() {
   }
 }
 
-main().catch(err => { console.error(err); process.exit(1) })
+main().catch(err => {
+  console.error(err)
+  process.exit(1)
+})

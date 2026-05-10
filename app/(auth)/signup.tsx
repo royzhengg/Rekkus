@@ -1,6 +1,13 @@
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useMemo } from 'react'
@@ -12,7 +19,15 @@ import { useAuth } from '@/lib/AuthContext'
 function ChevronLeft() {
   const colors = useThemeColors()
   return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.text2} strokeWidth={1.5} strokeLinecap="round">
+    <Svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={colors.text2}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+    >
       <Polyline points="15 18 9 12 15 6" />
     </Svg>
   )
@@ -21,12 +36,30 @@ function ChevronLeft() {
 function EyeIcon({ open }: { open: boolean }) {
   const colors = useThemeColors()
   return open ? (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.text3} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={colors.text3}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
       <Circle cx={12} cy={12} r={3} />
     </Svg>
   ) : (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.text3} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={colors.text3}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
       <Path d="M1 1l22 22" />
     </Svg>
@@ -72,8 +105,15 @@ export default function SignupScreen() {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.title}>Create account</Text>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -131,10 +171,11 @@ export default function SignupScreen() {
             onPress={handleContinue}
             disabled={!canSubmit || loading}
           >
-            {loading
-              ? <ActivityIndicator color={colors.bg} />
-              : <Text style={styles.primaryBtnText}>Continue →</Text>
-            }
+            {loading ? (
+              <ActivityIndicator color={colors.bg} />
+            ) : (
+              <Text style={styles.primaryBtnText}>Continue →</Text>
+            )}
           </TouchableOpacity>
 
           <View style={styles.switchRow}>
@@ -163,7 +204,13 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 6, marginLeft: -6 },
     backText: { fontSize: 14, color: c.text2 },
     scroll: { padding: 16, paddingTop: 28 },
-    title: { fontSize: 26, fontWeight: '500', color: c.text, marginBottom: 24, letterSpacing: -0.3 },
+    title: {
+      fontSize: 26,
+      fontWeight: '500',
+      color: c.text,
+      marginBottom: 24,
+      letterSpacing: -0.3,
+    },
     errorText: {
       fontSize: 13,
       color: c.liked,

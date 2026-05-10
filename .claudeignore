@@ -1,0 +1,12 @@
+node_modules
+.expo
+dist
+build
+coverage
+.cache
+.next
+ios/build
+android/build
+*.log
+*.tmp
+.env

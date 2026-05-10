@@ -1,213 +1,387 @@
-# forkyou. — Design Spec for Claude Code
+# Rekkus — Design System
 
-This file defines the design system, component patterns, and screen specifications for the forkyou app.
-Reference this file when building any screen or component.
+Living reference for the design system, component APIs, and screen specs.
+Read this before building any screen or component.
 
 ---
 
-## Colours
+## Colour Tokens
 
-```javascript
-// Use these exact values throughout the app
-export const colors = {
-  bg: '#FAFAF8',          // Main background
-  surface: '#F2F2EF',     // Card backgrounds, input fields
-  surface2: '#E8E8E4',    // Secondary surfaces, borders
-  border: 'rgba(0,0,0,0.08)',   // Subtle borders
-  border2: 'rgba(0,0,0,0.14)',  // More visible borders
+All colours come from `constants/Colors.ts` via `useThemeColors()`. Never hardcode hex values in screens.
 
-  text: '#1A1A18',        // Primary text
-  text2: '#6B6B66',       // Secondary text
-  text3: '#A8A8A2',       // Placeholder / tertiary text
+| Token        | Light              | Dark                     | Usage                     |
+| ------------ | ------------------ | ------------------------ | ------------------------- |
+| `c.bg`       | `#FAFAF8`          | `#141412`                | Screen background         |
+| `c.surface`  | `#F2F2EF`          | `#1E1E1C`                | Cards, inputs             |
+| `c.surface2` | `#E8E8E4`          | `#2A2A28`                | Secondary surfaces        |
+| `c.border`   | `rgba(0,0,0,0.08)` | `rgba(255,255,255,0.08)` | Subtle dividers           |
+| `c.border2`  | `rgba(0,0,0,0.14)` | `rgba(255,255,255,0.14)` | Visible borders           |
+| `c.text`     | `#1A1A18`          | `#F0F0EC`                | Primary text              |
+| `c.text2`    | `#6B6B66`          | `#A8A8A2`                | Secondary text            |
+| `c.text3`    | `#A8A8A2`          | `#6B6B66`                | Placeholders, tertiary    |
+| `c.accent`   | `#D4522A`          | `#E8673D`                | Brand accent              |
+| `c.info`     | `#2A6DD4`          | `#5B93E8`                | Hashtags, links           |
+| `c.success`  | `#1D9E75`          | `#28C98D`                | Cost indicators           |
+| `c.warning`  | `#EF9F27`          | `#F5B340`                | Star ratings              |
+| `c.liked`    | `#E24B4A`          | `#E24B4A`                | Liked heart               |
+| `c.errorBg`  | `#FEF0F0`          | `#3D1A1A`                | Error backgrounds         |
+| `c.overlay`  | `rgba(0,0,0,0.35)` | `rgba(0,0,0,0.55)`       | Photo overlays            |
+| `c.white`    | `#FFFFFF`          | `#FFFFFF`                | Static white (Google btn) |
 
-  accent: '#D4522A',      // Brand accent (wordmark dot, trending ranks)
-  info: '#2A6DD4',        // Hashtags, links, info states
-  success: '#1D9E75',     // Cost dollar signs (green)
-  warning: '#EF9F27',     // Star ratings (amber)
-  liked: '#E24B4A',       // Liked heart (red)
-}
+Image placeholder colours (`imgColors` from `constants/Colors.ts`):
+`warm` · `green` · `blue` · `pink` · `clay` · `sage`
+
+---
+
+## Typography Scale
+
+Import from `constants/Typography.ts`.
+
+```ts
+import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+```
+
+| Token             | Value | Usage                       |
+| ----------------- | ----- | --------------------------- |
+| `fontSize.xs`     | 10    | Timestamps, secondary meta  |
+| `fontSize.sm`     | 11    | Hashtags, badges, labels    |
+| `fontSize.base`   | 13    | Body text, captions         |
+| `fontSize.md`     | 14    | Descriptions, back buttons  |
+| `fontSize.lg`     | 15    | Screen titles, post titles  |
+| `fontSize.xl`     | 16    | Create screen title input   |
+| `fontSize['2xl']` | 18    | Section headings            |
+| `fontSize['3xl']` | 22    | Wordmark (DM Serif Display) |
+
+| Token                 | Value   |
+| --------------------- | ------- |
+| `fontWeight.regular`  | `'400'` |
+| `fontWeight.medium`   | `'500'` |
+| `fontWeight.semibold` | `'600'` |
+| `fontWeight.bold`     | `'700'` |
+
+| Token                | Value |
+| -------------------- | ----- |
+| `lineHeight.tight`   | 16    |
+| `lineHeight.normal`  | 20    |
+| `lineHeight.relaxed` | 24    |
+
+---
+
+## Spacing & Radius Scale
+
+Import from `constants/Spacing.ts`.
+
+```ts
+import { spacing, radius } from '@/constants/Spacing'
+```
+
+| Token        | Value | Usage                     |
+| ------------ | ----- | ------------------------- |
+| `spacing[1]` | 4     | Tight gaps                |
+| `spacing[2]` | 8     | Small gaps                |
+| `spacing[3]` | 12    | Medium gaps               |
+| `spacing[4]` | 16    | Screen horizontal padding |
+| `spacing[5]` | 20    | Section padding           |
+| `spacing[6]` | 24    | Large gaps                |
+| `spacing[8]` | 32    | XL spacing                |
+
+| Token         | Value | Usage                 |
+| ------------- | ----- | --------------------- |
+| `radius.sm`   | 6     | Small chips           |
+| `radius.md`   | 10    | Cards, chips          |
+| `radius.lg`   | 12    | Inputs, modals        |
+| `radius.pill` | 20    | Primary buttons       |
+| `radius.full` | 999   | Avatars, round badges |
+
+---
+
+## Design Library — `components/ui/`
+
+Zero business logic. Purely presentational. Used to enforce visual consistency.
+
+### `ScreenHeader`
+
+```tsx
+import { ScreenHeader } from '@/components/ui/ScreenHeader'
+
+;<ScreenHeader
+  title="@username" // optional — centre text
+  left={<BackButton />} // optional — left slot (60px wide)
+  right={<SettingsIcon />} // optional — right slot (60px wide)
+  border={true} // optional — bottom border (default: true)
+/>
+```
+
+Replaces all 9 × `topBar` style blocks. Height fixed at 56px.
+
+### `FormInput`
+
+```tsx
+import { FormInput } from '@/components/ui/FormInput'
+
+;<FormInput
+  label="Email"
+  value={email}
+  onChangeText={setEmail}
+  placeholder="you@example.com"
+  right={<EyeIcon />} // optional — right slot
+  error="Invalid email" // optional — error message below
+  secureTextEntry
+/>
+```
+
+### `PrimaryButton`
+
+```tsx
+import { PrimaryButton } from '@/components/ui/PrimaryButton'
+
+;<PrimaryButton
+  label="Continue"
+  onPress={handleSubmit}
+  loading={isLoading} // shows ActivityIndicator
+  disabled={!isValid}
+/>
+```
+
+`borderRadius: 20`, `backgroundColor: c.text`, `color: c.bg`.
+
+### `EmptyState`
+
+```tsx
+import { EmptyState } from '@/components/ui/EmptyState'
+
+;<EmptyState
+  title="No posts yet."
+  subtitle="Share your first food experience."
+  icon={<SomeIcon />} // optional
+/>
 ```
 
 ---
 
-## Typography
+## Feature Components — `components/`
 
-- **Font:** System font (San Francisco on iOS, Roboto on Android)
-- **Wordmark only:** DM Serif Display (import via Google Fonts or use expo-google-fonts)
+### `ThumbGrid`
 
-```javascript
-// Font sizes
-const typography = {
-  xs: 10,       // Timestamps, secondary meta
-  sm: 11,       // Hashtags, badges, labels
-  base: 12,     // Comments, captions, small body
-  md: 13,       // Body text, descriptions
-  lg: 14,       // Back buttons, secondary headings
-  xl: 15,       // Screen titles, post titles
-  xxl: 16,      // Create screen title input
-  wordmark: 22, // App name (DM Serif Display)
-}
+3-column thumbnail grid for post collections.
+
+```tsx
+import { ThumbGrid } from '@/components/ThumbGrid'
+
+;<ThumbGrid posts={myPosts} />
+```
+
+Returns `null` for empty arrays — render your own empty state above it.
+
+### `ProfileHeader`
+
+Shared header used in both own profile and other-user profile screens.
+
+```tsx
+import { ProfileHeader } from '@/components/ProfileHeader'
+
+;<ProfileHeader
+  initials="SL"
+  avatarBg="#FBEAF0"
+  avatarColor="#993556"
+  displayName="Sarah Lee"
+  badgeLabel="Local expert" // null → no badge
+  postCount={24}
+  followersLabel="1.4k"
+  followingLabel={312}
+  bio="Sydney food lover."
+  locationLabel="Surry Hills, Sydney"
+  avgFoodRating="4.3" // null → hidden
+  totalLikesLabel="2.1k"
+  savedSpotsCount={8} // optional — own profile only
+/>
+```
+
+### `Avatar`
+
+```tsx
+import { Avatar } from '@/components/Avatar'
+
+;<Avatar username="sarah" size={32} imageUrl={url} />
+```
+
+### `OpenBadge`
+
+```tsx
+import { OpenBadge } from '@/components/OpenBadge'
+
+;<OpenBadge openNow={true} />
+```
+
+### `MapMarker`
+
+Custom Google Maps marker (charcoal pin + optional name label).
+
+```tsx
+import { MapMarker } from '@/components/MapMarker'
+
+;<Marker coordinate={coord} anchor={{ x: 0.5, y: 1 }}>
+  <MapMarker name="Ramen Haus" />
+</Marker>
+```
+
+### `ErrorBoundary`
+
+```tsx
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+
+;<ErrorBoundary fallback={<CustomFallback />}>
+  <ChildScreen />
+</ErrorBoundary>
 ```
 
 ---
 
-## Spacing & Layout
+## Icons
 
-- Screen horizontal padding: **16px**
-- Card border radius: **12px**
-- Small border radius (chips, inputs): **8px**
-- Status bar height: handled by SafeAreaView
-- Top bar height: **56px**
-- Bottom nav height: **72px**
-- Feed grid gap: **6px**
-- Feed grid padding: **8px**
+All icons from `@/components/icons`. Never inline SVGs or define local icon functions in screens.
 
----
+```tsx
+import { HeartIcon, BookmarkIcon, ChevronLeft, PinIcon, ... } from '@/components/icons'
+```
 
-## Bottom Navigation
-
-Five tabs in this exact order:
-1. **Feed** — home icon
-2. **Search** — magnifying glass icon
-3. **Post** (centre) — plus icon inside a 42×42 rounded rectangle (bg: text colour, icon: bg colour)
-4. **Alerts** — bell icon
-5. **Profile** — person icon
-
-Active tab: icon and label use `text` colour
-Inactive tab: icon and label use `text3` colour
-The Post button has no label underneath it.
+Icons accept optional `size` and `color` props. They call `useThemeColors()` internally when no `color` is passed.
 
 ---
 
-## Feed Screen
+## Ratings
 
-- Two-column masonry grid (cards can be different heights)
-- Two tabs at top: **Following** (chronological) and **Discover** (algorithmic)
-- Each post card contains:
-  - Photo placeholder (3:4 ratio for standard, 3:5 for tall cards)
-  - Post title — 2 lines max, font size 11.5, color: text
-  - Creator avatar (16×16 circle with initials) + username
-  - Like count with small heart icon
-  - Card border radius: 10px
-  - Card background: surface
-  - Card border: 0.5px border
+```tsx
+import { Stars, Dollars, PostRatingStrip } from '@/components/RatingDisplay'
 
----
+// Compact strip for post cards
+<PostRatingStrip food={post.food} vibe={post.vibe} cost={post.cost} />
 
-## Full Post View
+// Individual
+<Stars value={4.5} />
+<Dollars value={2} />
+```
 
-Layout from top to bottom:
-1. Back button bar (56px height) with "Back" text and chevron left, three-dot menu on right
-2. Photo area — 4:3 aspect ratio, full width, dot indicators for multiple photos
-3. Actions bar — like (heart), comment (speech bubble), save (bookmark), share (nodes) on left; Follow pill button on right
-4. Scrollable content:
-   - Creator avatar (32px) + handle + timestamp
-   - Post title (15px, weight 500)
-   - Body text (13px, color: text2, line height 1.65)
-   - Ratings row — three chips side by side: Food (stars ★), Vibe (stars ★), Cost (dollar signs $)
-     - Stars: filled = #EF9F27, empty = surface2
-     - Dollar signs: filled = #1D9E75, empty = surface2
-     - 5 stars max for Food and Vibe, 4 dollar signs max for Cost
-   - Location pill — pin icon + restaurant name, tappable
-   - Hashtags — color: info (#2A6DD4)
-5. Comments section
-6. Comment input bar pinned to bottom
-
-**Social action states:**
-- Liked: heart filled red (#E24B4A)
-- Saved: bookmark filled text colour
-- Following: pill background surface, text text2
+Never render emoji ratings or `'$'.repeat(n)` in JSX.
 
 ---
 
-## Search Screen
+## Analytics
 
-**Default state (no query):**
-- Search bar at top (inside surface background, 12px border radius)
-- Horizontal scrollable category chips below search bar
-  - Active chip: background text, color bg
-  - Inactive chip: background surface, color text2
-- "Trending now" section with numbered list (1-3 in accent colour, rest in text3)
+All tracking goes through `lib/analytics.ts`. Never call `supabase.from('analytics_events')` directly.
 
-**Results state:**
-- Results label: "X posts for [query]"
-- Same two-column grid as feed
-- Empty state if no results
+```ts
+import { analytics } from '@/lib/analytics'
 
-Live search as user types — results update instantly.
-
-**Category chips (in order):**
-🍜 Ramen, ☀️ Brunch, 🥟 Dumplings, 🌙 Date night, 💸 Cheap eats, 🍣 Japanese, 🍔 Burgers
+analytics.viewPost(user?.id ?? null, postId)
+analytics.likePost(user.id, postId)
+analytics.search(user?.id ?? null, query, results.length)
+analytics.screen(user?.id ?? null, 'Feed')
+```
 
 ---
 
-## Create Review Screen
+## Feature Flags
 
-One scrollable screen — no steps or multi-page flow.
+```ts
+import { isEnabled } from '@/lib/featureFlags'
 
-Top bar: Cancel button (left), "New review" title (centre), Post button (right, disabled until title has 3+ chars)
+if (isEnabled('directMessages')) { ... }
+```
 
-Sections in order:
-1. **Photo upload area** — dashed border, 4:3 ratio, tap to open image picker. After adding photos: show thumbnail strip with remove buttons and an add-more button.
-2. **Title input** — large text input (16px, weight 500), placeholder "Give your review a title…", 100 char limit with counter
-3. **Divider**
-4. **Body input** — multiline text area (13px), placeholder describing the experience
-5. **Divider**
-6. **Ratings row** — three chips side by side:
-   - Food: 5 tappable stars (tap to fill up to that star)
-   - Vibe: 5 tappable stars
-   - Cost: 4 tappable dollar signs
-7. **Location input** — tap to open bottom sheet modal with search. Shows "Add location (optional)". Once selected shows restaurant name with pin icon and a clear button.
-8. **Hashtag input** — type tag + press space/enter to add as a blue pill token. Tap × on token to remove.
-
-**Location modal:**
-- Bottom sheet that slides up
-- Search field to filter restaurants
-- List of results — tap to select and dismiss modal
-- Data source: restaurants table in Supabase
+Edit `lib/featureFlags.ts` to toggle features. Add new flags there before building gated features.
 
 ---
 
-## Profile Screen
+## Services Layer
 
-**Top bar:** @username (centre), Settings icon (right)
+All Supabase queries go through `lib/services/`. Never query supabase directly from a screen.
 
-**Header section:**
-- Avatar: 72×72 circle with initials
-- Stats row: Posts / Followers / Following (numbers tappable)
-- Display name (14px, weight 500)
-- Bio text (12px, color text2)
-- Location tag with pin icon (11px, color text3)
-- Action buttons: Edit profile (flex 1) + Share button with share icon
-
-**Three tabs (icon only, no labels):**
-- Grid icon → Posts tab: 3-column photo grid, square thumbnails
-- Bookmark icon → Saved tab: same 3-column grid
-- Heart icon → Liked tab: same 3-column grid
-- Empty state for each tab if no content
-
-**Other user's profile** (when viewing someone else):
-- Same layout but Edit/Share replaced with Follow button + Message button
-- No Saved or Liked tabs (private) — only Posts tab
+```ts
+import { likePost, fetchUserLikes } from '@/lib/services/posts'
+import { fetchProfile, updateProfile } from '@/lib/services/users'
+import { fetchComments, addComment } from '@/lib/services/comments'
+```
 
 ---
 
-## Non-user / Shared Link View
+## Theme Pattern
 
-When a non-logged-in user opens a shared post link:
-- Show full post content (photos, title, body, ratings, location, hashtags)
-- Show creator profile — allow browsing their other posts
-- Show restaurant reviews as teaser only (2-3 visible, rest blurred with sign-up prompt)
-- Block: likes, saves, comments, follow, search, discovery feed
-- Show sign-up prompt when user tries to interact: "Join forkyou to like, save and discover more"
+```tsx
+const c = useThemeColors()
+const styles = useMemo(() => makeStyles(c), [c])
+
+function makeStyles(c: ReturnType<typeof useThemeColors>) {
+  return StyleSheet.create({ ... })
+}
+```
+
+Never use module-level `StyleSheet.create` with colour tokens.
+
+---
+
+## SafeAreaView Edges
+
+```tsx
+// Root tab screens
+<SafeAreaView edges={['top', 'bottom']}>
+
+// Inner screens (pushed onto stack)
+<SafeAreaView edges={['top']}>
+```
+
+---
+
+## Navigation
+
+- **Stack:** post detail, location detail, user profile, settings
+- **Tabs:** Feed, Search, Post, Alerts, Profile
+- Back navigation uses `router.back()` — never hardcode routes for back
+- Deep link params via `useLocalSearchParams()`
+
+---
+
+## Screen Specs
+
+### Bottom Navigation
+
+Five tabs: Feed · Search · Post (centre, no label) · Alerts · Profile
+
+Active: `c.text`. Inactive: `c.text3`. Post button: 42×42 rounded rect, `bg: c.text`, icon `c.bg`.
+
+### Feed
+
+Two-column masonry grid. Tabs: Following (chronological) · Discover (algorithmic).
+Card: photo (3:4), title 2-line, creator avatar 16px + username, like count. `borderRadius: 10`, `border: 0.5`.
+
+### Post Detail
+
+56px top bar → 4:3 photo → actions bar → creator block → title → body → ratings → location pill → hashtags → comments → pinned comment input.
+
+### Search
+
+Default: search bar + category chips + trending list.
+Active: result count label + 2-col grid (same as feed).
+
+### Create Review
+
+Single scroll: photo upload → title → body → ratings (Food/Vibe/Cost) → location → hashtags.
+Post button disabled until title ≥ 3 chars.
+
+### Profile (own)
+
+Top bar: `@handle` + Settings. Header: avatar 72px + stats + name + bio + location + Edit/Share. Tabs: Posts · Saved · Liked.
+
+### Profile (other user)
+
+Same header. Actions: Follow + Message. Tab: Posts only.
 
 ---
 
 ## Key UX Patterns
 
-- **Navigation:** Stack navigation for post view (push/pop). Tab navigation for main screens.
-- **Back navigation:** Post view opened from profile returns to profile, from feed returns to feed, from search returns to search.
-- **Loading states:** Use skeleton placeholders (surface2 background, animated shimmer) not spinners.
-- **Error states:** Toast notification at bottom of screen, auto-dismisses after 3 seconds.
-- **Empty states:** Icon + two lines of text, centred, generous padding.
-- **Haptics:** Light haptic on like, save. Medium haptic on post submit.
+- **Loading:** skeleton placeholders (`c.surface2` background), not spinners
+- **Errors:** toast at bottom, auto-dismiss 3s
+- **Empty states:** `EmptyState` component — icon + title + subtitle, generous padding
+- **Haptics:** light on like/save; medium on post submit
+- **Auth gate:** `requireAuth()` before any write — never hard-redirect guests
