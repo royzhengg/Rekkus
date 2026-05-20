@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react'
 import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native'
-import { useThemeColors } from '@/lib/ThemeContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { spacing } from '@/constants/Spacing'
+import { radius } from '@/constants/Radius'
+import { fontSize, fontWeight } from '@/constants/Typography'
 
 type Props = TextInputProps & {
   label?: string
@@ -31,17 +34,17 @@ export function FormInput({ label, right, error, style, ...props }: Props) {
 
 function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
-    wrap: { gap: 6 },
-    label: { fontSize: 13, fontWeight: '500', color: c.text },
+    wrap: { gap: spacing.px6 },
+    label: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: c.text },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: c.surface,
-      borderRadius: 12,
+      borderRadius: radius.md3,
     },
-    input: { flex: 1, fontSize: 14, color: c.text, paddingHorizontal: 14, paddingVertical: 12 },
-    inputWithRight: { paddingRight: 8 },
-    right: { paddingRight: 12 },
-    error: { fontSize: 12, color: c.liked },
+    input: { flex: 1, fontSize: fontSize.md, color: c.text, paddingHorizontal: spacing.px14, paddingVertical: spacing[3] },
+    inputWithRight: { paddingRight: spacing[2] },
+    right: { paddingRight: spacing[3] },
+    error: { fontSize: fontSize.bodySm, color: c.liked },
   })
 }

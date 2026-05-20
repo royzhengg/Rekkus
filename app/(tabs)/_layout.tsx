@@ -1,7 +1,7 @@
 import React from 'react'
 import { Tabs } from 'expo-router'
 import { TabBarPostButton } from '@/components/TabBarPostButton'
-import { useThemeColors } from '@/lib/ThemeContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { Svg, Circle, Path, Polyline, Line } from 'react-native-svg'
 
 const HomeIcon = React.memo(function HomeIcon({ color }: { color: string }) {
@@ -108,11 +108,11 @@ export default function TabLayout() {
         options={{ title: 'Search', tabBarIcon: ({ color }) => <SearchIcon color={color} /> }}
       />
       <Tabs.Screen
-        name="post"
+        name="create"
         options={{ title: '', tabBarButton: props => <TabBarPostButton {...props} /> }}
       />
       <Tabs.Screen
-        name="places"
+        name="restaurants"
         options={{ title: 'Places', tabBarIcon: ({ color }) => <MapPinIcon color={color} /> }}
       />
       <Tabs.Screen
@@ -120,6 +120,8 @@ export default function TabLayout() {
         options={{ title: 'Profile', tabBarIcon: ({ color }) => <PersonIcon color={color} /> }}
       />
       <Tabs.Screen name="alerts" options={{ href: null }} />
+      <Tabs.Screen name="post" options={{ href: null }} />
+      <Tabs.Screen name="places" options={{ href: null }} />
     </Tabs>
   )
 }

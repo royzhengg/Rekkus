@@ -4,11 +4,10 @@ import { supabase } from '../supabase'
 
 export type AlertItem = {
   id: string
-  type: 'like' | 'comment' | 'follow'
+  type: 'like' | 'comment' | 'follow' | 'comment_reply'
   actorUsername: string
   actorName: string | null
   postId?: string
-  commentText?: string
   createdAt: string
 }
 
@@ -54,10 +53,11 @@ export function useAlerts(user: User | null) {
             .limit(50),
           (supabase.from('comments') as any)
             .select(
-              'id, created_at, user_id, post_id, content, actor:users!comments_user_id_fkey(username, full_name)'
+              'id, created_at, user_id, post_id, parent_id, actor:users!comments_user_id_fkey(username, full_name)'
             )
             .in('post_id', postIds)
             .neq('user_id', user.id)
+            .is('parent_id', null)
             .order('created_at', { ascending: false })
             .limit(50),
         ])
@@ -80,7 +80,36 @@ export function useAlerts(user: User | null) {
             actorUsername: row.actor?.username ?? 'unknown',
             actorName: row.actor?.full_name ?? null,
             postId: row.post_id,
-            commentText: row.content,
+            createdAt: row.created_at,
+          })
+        }
+      }
+
+      // Replies to my comments
+      const { data: myComments } = await (supabase.from('comments') as any)
+        .select('id')
+        .eq('user_id', user.id)
+        .is('parent_id', null)
+
+      const myCommentIds: string[] = myComments?.map((c: any) => c.id) ?? []
+
+      if (myCommentIds.length > 0) {
+        const { data: repliesData } = await (supabase.from('comments') as any)
+          .select(
+            'id, created_at, user_id, post_id, parent_id, actor:users!comments_user_id_fkey(username, full_name)'
+          )
+          .in('parent_id', myCommentIds)
+          .neq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(50)
+
+        for (const row of repliesData ?? []) {
+          items.push({
+            id: `reply-${row.id}`,
+            type: 'comment_reply',
+            actorUsername: row.actor?.username ?? 'unknown',
+            actorName: row.actor?.full_name ?? null,
+            postId: row.post_id,
             createdAt: row.created_at,
           })
         }

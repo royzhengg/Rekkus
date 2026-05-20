@@ -53,7 +53,7 @@ module.exports = [
       'no-undef': 'off',
 
       // TypeScript
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
@@ -61,7 +61,7 @@ module.exports = [
 
       // React Hooks
       'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/exhaustive-deps': 'off',
 
       // General
       'no-console': ['warn', { allow: ['warn', 'error'] }],

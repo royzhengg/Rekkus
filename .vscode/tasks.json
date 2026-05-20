@@ -1,0 +1,35 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Rekkus: Ops Summary",
+      "type": "npm",
+      "script": "ops:summary",
+      "problemMatcher": []
+    },
+    {
+      "label": "Rekkus: Hygiene Check",
+      "type": "npm",
+      "script": "check:hygiene",
+      "problemMatcher": []
+    },
+    {
+      "label": "Rekkus: Release Check",
+      "type": "npm",
+      "script": "check:release",
+      "problemMatcher": []
+    },
+    {
+      "label": "Rekkus: Typecheck",
+      "type": "npm",
+      "script": "typecheck",
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "Rekkus: Lint",
+      "type": "npm",
+      "script": "lint",
+      "problemMatcher": "$eslint-stylish"
+    }
+  ]
+}

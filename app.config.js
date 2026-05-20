@@ -1,13 +1,20 @@
+const appEnv = process.env.EXPO_PUBLIC_APP_ENV ?? "development";
 const googleMapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+const suffix =
+  appEnv === "staging" ? ".staging" : appEnv === "beta" ? ".beta" : "";
+const schemeSuffix =
+  appEnv === "staging" ? "-staging" : appEnv === "beta" ? "-beta" : "";
+const displaySuffix =
+  appEnv === "staging" ? " Staging" : appEnv === "beta" ? " Beta" : "";
 
 export default {
   expo: {
-    name: "Rekkus",
+    name: `Rekkus${displaySuffix}`,
     slug: "rekkus",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "rekkus",
+    scheme: `rekkus${schemeSuffix}`,
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     splash: {
@@ -17,9 +24,17 @@ export default {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.anonymous.rekkus",
+      bundleIdentifier: `com.anonymous.rekkus${suffix}`,
       config: {
         googleMapsApiKey: googleMapsKey,
+      },
+      infoPlist: {
+        NSPhotoLibraryUsageDescription:
+          "Allow Rekkus to access your photos so you can share them in posts and messages.",
+        NSCameraUsageDescription:
+          "Allow Rekkus to use your camera to take photos and videos.",
+        NSMicrophoneUsageDescription:
+          "Allow Rekkus to use your microphone to record videos.",
       },
     },
     android: {
@@ -29,7 +44,7 @@ export default {
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
-      package: "com.anonymous.rekkus",
+      package: `com.anonymous.rekkus${suffix}`,
       config: {
         googleMaps: {
           apiKey: googleMapsKey,
@@ -44,24 +59,50 @@ export default {
     plugins: [
       "expo-router",
       "expo-sqlite",
+      "react-native-compressor",
       [
-        "expo-location",
+        "expo-notifications",
         {
-          locationWhenInUsePermission:
-            "Allow Rekkus to use your location for nearby search results.",
+          color: "#000000",
         },
       ],
       [
-        "react-native-maps",
+        "expo-location",
         {
-          googleMapsApiKey: googleMapsKey,
-          iosGoogleMapsApiKey: googleMapsKey,
-          androidGoogleMapsApiKey: googleMapsKey,
+          locationAlwaysAndWhenInUsePermission:
+            "Allow Rekkus to use your location for nearby search results.",
+          locationWhenInUsePermission:
+            "Allow Rekkus to use your location for nearby search results.",
+          isIosBackgroundLocationEnabled: false,
+        },
+      ],
+      [
+        "expo-image-picker",
+        {
+          photosPermission:
+            "Allow Rekkus to access your photos so you can share them in posts and messages.",
+          cameraPermission:
+            "Allow Rekkus to use your camera to take photos and videos.",
+        },
+      ],
+      [
+        "expo-camera",
+        {
+          cameraPermission:
+            "Allow Rekkus to use your camera to take photos and videos.",
+          microphonePermission:
+            "Allow Rekkus to use your microphone to record videos.",
+          recordAudioAndroid: true,
         },
       ],
     ],
     experiments: {
       typedRoutes: true,
+    },
+    extra: {
+      eas: {
+        projectId: "e5fdfa50-263d-4b18-b095-193d912a6b56",
+      },
     },
   },
 };

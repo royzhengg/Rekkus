@@ -1,9 +1,14 @@
 import { useMemo } from 'react'
-import { usePosts } from '../PostsContext'
+import { usePosts } from '../contexts/PostsContext'
+import { useAuth } from '../contexts/AuthContext'
 import { useSearchHistory } from './useSearchHistory'
-import type { Post } from '../data'
+import { useTopicFollows } from './useTopicFollows'
+import { useTrendingData } from './useTrendingData'
+import { useUserLocation } from './useUserLocation'
+import type { Post } from '@/types/domain'
 import type { CuisineAffinities } from './useSearchHistory'
 import { parseLikes } from '../utils/format'
+import { distanceBoost, haversineKm } from '../utils/geo'
 
 function cityFromLocation(location: string): string {
   return location.toLowerCase().includes('melbourne') ? 'Melbourne' : 'Sydney'
@@ -11,18 +16,31 @@ function cityFromLocation(location: string): string {
 
 function computeDiscoverScore(
   post: Post,
-  userCity: string,
-  cuisineAffinities: CuisineAffinities
+  userCity: string | null,
+  cuisineAffinities: CuisineAffinities,
+  topics: string[],
+  trendingPostIds: string[],
+  coords: { lat: number; lng: number } | null
 ): number {
   const likes = parseLikes(post.likes)
-  const isLocal = cityFromLocation(post.location) === userCity
+  const isLocal = userCity !== null && cityFromLocation(post.location) === userCity
   const trendingLocal = isLocal ? likes * 0.35 : 0
-  const nearby = isLocal ? post.food * 0.3 : 0
+  const nearby =
+    coords && post.lat != null && post.lng != null
+      ? distanceBoost(haversineKm(coords.lat, coords.lng, post.lat, post.lng)) * 0.6
+      : isLocal
+        ? post.food * 0.3
+        : 0
   const quality = post.food >= 4.0 ? post.food * 0.25 : 0
   const global = likes * 0.1
   const cuisine = (post.cuisine_type ?? '').toLowerCase()
   const personalised = (cuisineAffinities[cuisine] ?? 0) * 1.5
-  return trendingLocal + nearby + quality + global + personalised
+  const topicBoost = topics.some(t => cuisine.includes(t) || post.title.toLowerCase().includes(t))
+    ? 2
+    : 0
+  const trendingBoost = post.dbId && trendingPostIds.includes(post.dbId) ? 4 : 0
+  const completeness = (post.imageUrl ? 0.5 : 0) + (post.restaurantId ? 0.5 : 0) + (post.body ? 0.5 : 0)
+  return trendingLocal + nearby + quality + global + personalised + topicBoost + trendingBoost + completeness
 }
 
 function applyCuisineDiversity(posts: Post[]): Post[] {
@@ -53,16 +71,34 @@ function applyCuisineDiversity(posts: Post[]): Post[] {
 
 export function useDiscover(excludeIds: Set<number> = new Set()): Post[] {
   const { posts } = usePosts()
+  const { user } = useAuth()
   const { cuisineAffinities } = useSearchHistory()
-  // TODO: replace 'Sydney' with useUserLocation().city once GPS is wired
-  const userCity = 'Sydney'
+  const topics = useTopicFollows(user?.id)
+  const { trendingPostIds } = useTrendingData()
+  const userLocation = useUserLocation()
+  // Use city from manual location label; GPS users ('Current location') rely on
+  // the coords-based nearby boost in computeDiscoverScore instead.
+  const userCity =
+    userLocation.label && userLocation.label !== 'Current location'
+      ? cityFromLocation(userLocation.label)
+      : null
 
   return useMemo(() => {
     const candidates = posts.filter(p => !excludeIds.has(p.id))
     const scored = candidates
-      .map(p => ({ post: p, score: computeDiscoverScore(p, userCity, cuisineAffinities) }))
+      .map(p => ({
+        post: p,
+        score: computeDiscoverScore(
+          p,
+          userCity,
+          cuisineAffinities,
+          topics,
+          trendingPostIds,
+          userLocation.coords
+        ),
+      }))
       .sort((a, b) => b.score - a.score)
       .map(s => s.post)
     return applyCuisineDiversity(scored)
-  }, [posts, cuisineAffinities, excludeIds])
+  }, [posts, cuisineAffinities, excludeIds, topics, trendingPostIds, userLocation.coords, userCity])
 }

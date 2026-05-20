@@ -1,7 +1,10 @@
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native'
 import { useRouter } from 'expo-router'
-import { useThemeColors } from '@/lib/ThemeContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useMemo } from 'react'
+import { spacing } from '@/constants/Spacing'
+import { radius } from '@/constants/Radius'
+import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 
 interface Props {
   visible: boolean
@@ -40,50 +43,50 @@ export function AuthPromptModal({ visible, onDismiss }: Props) {
 
 function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
-    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+    backdrop: { flex: 1, backgroundColor: c.overlay },
     sheet: {
       backgroundColor: c.bg,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
+      borderTopLeftRadius: radius.pill,
+      borderTopRightRadius: radius.pill,
       borderTopWidth: 0.5,
       borderTopColor: c.border,
-      paddingHorizontal: 16,
-      paddingBottom: 36,
+      paddingHorizontal: spacing[4],
+      paddingBottom: spacing.px36,
     },
     handle: {
       width: 36,
       height: 4,
       backgroundColor: c.surface2,
-      borderRadius: 2,
+      borderRadius: radius.xxs,
       alignSelf: 'center',
-      marginTop: 10,
-      marginBottom: 24,
+      marginTop: spacing.px10,
+      marginBottom: spacing[6],
     },
     headline: {
       fontFamily: 'DMSerifDisplay-Regular',
-      fontSize: 26,
+      fontSize: fontSize['5xl'],
       color: c.text,
-      marginBottom: 6,
+      marginBottom: spacing.px6,
       letterSpacing: -0.3,
     },
     dot: { color: c.accent },
-    sub: { fontSize: 14, color: c.text2, marginBottom: 28, lineHeight: 20 },
+    sub: { fontSize: fontSize.md, color: c.text2, marginBottom: spacing.px28, lineHeight: lineHeight.normal },
     primaryBtn: {
       backgroundColor: c.text,
-      borderRadius: 20,
-      paddingVertical: 14,
+      borderRadius: radius.pill,
+      paddingVertical: spacing.px14,
       alignItems: 'center',
-      marginBottom: 10,
+      marginBottom: spacing.px10,
     },
-    primaryBtnText: { fontSize: 15, fontWeight: '500', color: c.bg },
+    primaryBtnText: { fontSize: fontSize.lg, fontWeight: fontWeight.medium, color: c.bg },
     secondaryBtn: {
       backgroundColor: c.surface,
-      borderRadius: 20,
-      paddingVertical: 14,
+      borderRadius: radius.pill,
+      paddingVertical: spacing.px14,
       alignItems: 'center',
       borderWidth: 0.5,
       borderColor: c.border2,
     },
-    secondaryBtnText: { fontSize: 15, fontWeight: '500', color: c.text },
+    secondaryBtnText: { fontSize: fontSize.lg, fontWeight: fontWeight.medium, color: c.text },
   })
 }

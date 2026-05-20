@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { useThemeColors } from '@/lib/ThemeContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight } from '@/constants/Typography'
 
 type Props = {
   title?: string
@@ -33,13 +35,13 @@ function makeStyles(c: ReturnType<typeof useThemeColors>, border: boolean) {
       height: 56,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
+      paddingHorizontal: spacing[4],
       borderBottomWidth: border ? 0.5 : 0,
       borderBottomColor: c.border,
     },
     side: { width: 60, alignItems: 'flex-start' },
     sideRight: { width: 60, alignItems: 'flex-end' },
-    title: { flex: 1, fontSize: 15, fontWeight: '500', color: c.text, textAlign: 'center' },
+    title: { flex: 1, fontSize: fontSize.lg, fontWeight: fontWeight.medium, color: c.text, textAlign: 'center' },
     flex: { flex: 1 },
   })
 }

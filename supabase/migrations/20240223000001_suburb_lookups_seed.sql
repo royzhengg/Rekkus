@@ -1,0 +1,20 @@
+-- suburb_lookups seed migration
+-- Source: schappim/australian-postcodes (GitHub, MIT-style licence, ~16k rows)
+-- Table was created in 20240223000000_search_enrichment.sql
+--
+-- To import:
+--   1. Download CSV: https://github.com/schappim/australian-postcodes/raw/master/postcodes.csv
+--   2. In Supabase Studio → Table Editor → suburb_lookups → Import CSV
+--      OR run: psql $DATABASE_URL -c "\copy public.suburb_lookups(name, state, postcode, lat, lng) FROM 'postcodes.csv' CSV HEADER"
+--   3. The unique index on (lower(name), state) prevents duplicates on re-import.
+--
+-- CSV columns: id,postcode,locality,state,long,lat,dc,type,status,sa3,sa3name,sa4,sa4name,region,country
+-- Map as: locality→name, state→state, postcode→postcode, long→lng, lat→lat
+
+-- This migration intentionally contains no data INSERT — the CSV import is a manual
+-- one-time operation done outside the migration runner. The table and indexes are
+-- already created in 20240223000000_search_enrichment.sql.
+--
+-- Once imported, verify with:
+--   select count(*) from public.suburb_lookups;   -- expect ~15,000+
+--   select * from public.suburb_lookups where lower(name) = 'newtown' limit 5;

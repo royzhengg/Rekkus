@@ -1,0 +1,95 @@
+name: Ops Checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '17 2 * * *'
+    - cron: '29 3 * * 1'
+    - cron: '41 4 1 * *'
+    - cron: '53 5 1 1,4,7,10 *'
+
+jobs:
+  ops:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Docs
+        run: npm run check:docs
+
+      - name: Hygiene
+        run: npm run check:hygiene
+
+      - name: Architecture
+        run: npm run check:architecture
+
+      - name: Tokens
+        run: npm run check:tokens
+
+      - name: Dark mode
+        run: npm run check:darkmode
+
+      - name: Accessibility
+        run: npm run check:a11y
+
+      - name: Ops
+        run: npm run check:ops
+
+      - name: Compliance
+        run: npm run check:compliance
+
+      - name: Data inventory
+        run: npm run check:data-inventory
+
+      - name: Providers
+        run: npm run check:providers
+
+      - name: Privacy
+        run: npm run check:privacy
+
+      - name: RLS
+        run: npm run check:rls
+
+      - name: Audit
+        run: npm run check:audit
+
+      - name: ISO
+        run: npm run check:iso
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Release readiness
+        if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+        run: npm run check:release
+
+      - name: Dependency audit
+        if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+        run: npm run check:deps
+
+      - name: Write ops summary
+        if: always()
+        run: npm run ops:report
+
+      - name: Upload ops summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ops-summary
+          path: .temp/ops

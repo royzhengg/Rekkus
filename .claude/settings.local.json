@@ -17,7 +17,50 @@
       "Read(//Users/royzheng/Desktop/**)",
       "Bash(pod install *)",
       "Bash(cat \"/Users/royzheng/Library/Application Support/Code/User/settings.json\" 2>/dev/null || echo \"NOT_FOUND\")",
-      "Read(//Users/royzheng/Library/Application Support/Code/User/**)"
+      "Read(//Users/royzheng/Library/Application Support/Code/User/**)",
+      "Bash(supabase functions *)",
+      "Bash(npm run *)",
+      "Bash(curl -s https://scwvlqwolfduaalbemzz.supabase.co/rest/v1/rpc/get_or_create_direct_conversation -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjd3ZscXdvbGZkdWFhbGJlbXp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4OTE4NjksImV4cCI6MjA5MzQ2Nzg2OX0.gKGQJ5FPiaiy26i-DtFQ_3RMsPWvipZie2bctSdREMg' -H 'Content-Type: application/json' -d '{\"target_user_id\":\"00000000-0000-0000-0000-000000000000\"}')",
+      "Bash(grep -E \"\\\\.tsx?$\")",
+      "Bash(node -e \"const eslint = require\\('eslint'\\); console.log\\(eslint.ESLint?.version, Object.keys\\(eslint\\)\\)\")",
+      "Bash(node -e \"require\\('levn'\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"require\\('./node_modules/eslint/lib/linter/linter.js'\\); console.log\\('ok'\\)\")",
+      "Bash(npm --version)",
+      "Bash(node -e \"const r = require\\('./node_modules/@humanwhocodes/retry'\\); console.log\\(Object.keys\\(r\\)\\)\")",
+      "Bash(xxd node_modules/@humanwhocodes/retry/dist/retrier.cjs)",
+      "Bash(npx eslint *)",
+      "Bash(node -e \"const eu = require\\('./node_modules/eslint-utils'\\); console.log\\(Object.keys\\(eu\\).filter\\(k => k.includes\\('Ref'\\)\\)\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('exports', {}\\), indent=2\\)\\)\")",
+      "Bash(xxd node_modules/@eslint-community/eslint-utils/index.js)",
+      "Bash(python3 -c ' *)",
+      "Bash(npm ls *)",
+      "Bash(xargs ls -lh)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"AGENTS.md is the canonical operator guide for this repo. Read it at the start of every session and follow its Authority Order, Execution Principles, Repo Rules, Engineering Rules, Documentation Rules, Backlog Rules, AI Rules, and Required Checks. Path: /Users/royzheng/Desktop/Rekkus/AGENTS.md\"}}'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/royzheng/Desktop/Rekkus && failed=0; output=''; run_check() { label=$1; cmd=$2; out=$(eval \"$cmd\" 2>&1); code=$?; if [ $code -ne 0 ]; then output=\"${output}\\n=== ${label} ===${out}\"; failed=1; fi; }; run_check typecheck 'npm run typecheck'; run_check lint 'npm run lint'; run_check check:search 'npm run check:search'; run_check check:audit 'npm run check:audit'; run_check check:admin-platform 'npm run check:admin-platform'; run_check check:hygiene 'npm run check:hygiene'; run_check check:docs 'npm run check:docs'; if [ $failed -ne 0 ]; then printf '%s' \"$output\"; exit 2; fi",
+            "timeout": 120,
+            "statusMessage": "Running typecheck & lint...",
+            "asyncRewake": true
+          }
+        ]
+      }
     ]
   }
 }

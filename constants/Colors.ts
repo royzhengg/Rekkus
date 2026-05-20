@@ -31,8 +31,15 @@ export const lightColors = {
   warning: '#EF9F27',
   liked: '#E24B4A',
   errorBg: '#FEF0F0',
+  errorText: '#B91C1C',
   overlay: 'rgba(0,0,0,0.35)',
   white: '#FFFFFF',
+  actionInfo: '#3B82F6',
+  actionMute: '#6B7280',
+  actionDelete: '#EF4444',
+  actionSuccess: '#22C55E',
+  ratingBg: '#FAEEDA',
+  ratingText: '#854F0B',
 }
 
 export const darkColors = {
@@ -50,8 +57,15 @@ export const darkColors = {
   warning: '#F5B340',
   liked: '#E24B4A',
   errorBg: '#3D1A1A',
+  errorText: '#F87171',
   overlay: 'rgba(0,0,0,0.55)' as const,
   white: '#FFFFFF',
+  actionInfo: '#5B93E8',
+  actionMute: '#9CA3AF',
+  actionDelete: '#F87171',
+  actionSuccess: '#34D399',
+  ratingBg: '#2A2015',
+  ratingText: '#D4A030',
 }
 
 // Static fallback — only for StyleSheet.create at module level in legacy/non-themed code

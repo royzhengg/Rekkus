@@ -1,8 +1,11 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { useThemeColors } from '@/lib/ThemeContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { Avatar } from './Avatar'
 import { PinIcon } from './icons'
+import { spacing } from '@/constants/Spacing'
+import { radius } from '@/constants/Radius'
+import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 
 type Props = {
   initials: string
@@ -100,33 +103,33 @@ export function ProfileHeader({
 
 function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
-    avatarBlock: { alignItems: 'center', paddingTop: 28, paddingBottom: 4, paddingHorizontal: 20 },
-    displayName: { fontSize: 17, fontWeight: '600', color: c.text, marginBottom: 8, marginTop: 12 },
+    avatarBlock: { alignItems: 'center', paddingTop: spacing.px28, paddingBottom: spacing[1], paddingHorizontal: spacing[5] },
+    displayName: { fontSize: fontSize.title, fontWeight: fontWeight.semibold, color: c.text, marginBottom: spacing[2], marginTop: spacing[3] },
     badge: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: c.surface,
-      borderRadius: 12,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
+      borderRadius: radius.md3,
+      paddingHorizontal: spacing.px10,
+      paddingVertical: spacing[1],
     },
-    badgeDot: { fontSize: 11, color: c.accent },
-    badgeText: { fontSize: 11, color: c.text2 },
+    badgeDot: { fontSize: fontSize.sm, color: c.accent },
+    badgeText: { fontSize: fontSize.sm, color: c.text2 },
     statsCard: {
       flexDirection: 'row',
       backgroundColor: c.surface,
-      borderRadius: 14,
-      marginHorizontal: 20,
-      marginTop: 20,
+      borderRadius: radius.lg,
+      marginHorizontal: spacing[5],
+      marginTop: spacing[5],
     },
-    statCol: { flex: 1, alignItems: 'center', paddingVertical: 14 },
-    statDivider: { width: 0.5, backgroundColor: c.border, marginVertical: 10 },
-    statNum: { fontSize: 18, fontWeight: '700', color: c.text, letterSpacing: -0.3 },
-    statLabel: { fontSize: 10, color: c.text3, marginTop: 2 },
-    bioBlock: { paddingHorizontal: 20, paddingTop: 16, gap: 8 },
-    bio: { fontSize: 12, color: c.text2, lineHeight: 18 },
-    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    locationText: { fontSize: 11, color: c.text3 },
-    foodStats: { fontSize: 13, color: c.text3, paddingHorizontal: 20, paddingTop: 12 },
+    statCol: { flex: 1, alignItems: 'center', paddingVertical: spacing.px14 },
+    statDivider: { width: 0.5, backgroundColor: c.border, marginVertical: spacing.px10 },
+    statNum: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: c.text, letterSpacing: -0.3 },
+    statLabel: { fontSize: fontSize.xs, color: c.text3, marginTop: spacing.px2 },
+    bioBlock: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[2] },
+    bio: { fontSize: fontSize.bodySm, color: c.text2, lineHeight: lineHeight.small },
+    locationRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+    locationText: { fontSize: fontSize.sm, color: c.text3 },
+    foodStats: { fontSize: fontSize.base, color: c.text3, paddingHorizontal: spacing[5], paddingTop: spacing[3] },
   })
 }

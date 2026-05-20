@@ -1,5 +1,9 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { colors } from '@/constants/Colors'
+import { spacing } from '@/constants/Spacing'
+import { radius } from '@/constants/Radius'
+import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 
 type State = { error: Error | null }
 
@@ -35,15 +39,15 @@ export class ErrorBoundary extends React.Component<
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  title: { fontSize: 16, fontWeight: '600', color: '#1A1A18' },
-  msg: { fontSize: 13, color: '#6B6B66', textAlign: 'center', lineHeight: 20 },
+  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing[8], gap: spacing[3] },
+  title: { fontSize: fontSize.xl, fontWeight: fontWeight.semibold, color: colors.text },
+  msg: { fontSize: fontSize.base, color: colors.text2, textAlign: 'center', lineHeight: lineHeight.normal },
   btn: {
-    marginTop: 8,
-    backgroundColor: '#1A1A18',
-    borderRadius: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    marginTop: spacing[2],
+    backgroundColor: colors.text,
+    borderRadius: radius.pill,
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[6],
   },
-  btnText: { fontSize: 14, fontWeight: '500', color: '#FAFAF8' },
+  btnText: { fontSize: fontSize.md, fontWeight: fontWeight.medium, color: colors.bg },
 })

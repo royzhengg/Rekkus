@@ -1,5 +1,6 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
+import { fontWeight } from '@/constants/Typography'
 
 type Props = {
   initials: string
@@ -24,5 +25,5 @@ export const Avatar = React.memo(function Avatar({ initials, bg, color, size = 4
 
 const styles = StyleSheet.create({
   circle: { alignItems: 'center', justifyContent: 'center' },
-  text: { fontWeight: '600' },
+  text: { fontWeight: fontWeight.semibold },
 })

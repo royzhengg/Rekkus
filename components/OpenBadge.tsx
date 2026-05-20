@@ -1,7 +1,14 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { spacing } from '@/constants/Spacing'
+import { radius } from '@/constants/Radius'
+import { fontSize, fontWeight } from '@/constants/Typography'
 
 export const OpenBadge = React.memo(function OpenBadge({ openNow }: { openNow: boolean }) {
+  const colors = useThemeColors()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+
   return (
     <View style={[styles.badge, openNow ? styles.open : styles.closed]}>
       <Text style={[styles.text, openNow ? styles.textOpen : styles.textClosed]}>
@@ -11,11 +18,13 @@ export const OpenBadge = React.memo(function OpenBadge({ openNow }: { openNow: b
   )
 })
 
-const styles = StyleSheet.create({
-  badge: { borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
-  open: { backgroundColor: '#E6F4EA' },
-  closed: { backgroundColor: '#FDECEA' },
-  text: { fontSize: 11, fontWeight: '500' },
-  textOpen: { color: '#1E7E34' },
-  textClosed: { color: '#C62828' },
-})
+function makeStyles(c: ReturnType<typeof useThemeColors>) {
+  return StyleSheet.create({
+    badge: { borderRadius: radius.xs, paddingHorizontal: spacing.px6, paddingVertical: spacing.px2 },
+    open: { backgroundColor: `${c.success}18` },
+    closed: { backgroundColor: `${c.actionDelete}18` },
+    text: { fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    textOpen: { color: c.success },
+    textClosed: { color: c.actionDelete },
+  })
+}
