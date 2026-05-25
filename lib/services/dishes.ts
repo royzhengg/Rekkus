@@ -72,8 +72,8 @@ export async function findOrCreateDish(params: {
   const { data, error } = await supabase.rpc('find_or_create_dish', {
     p_name:          params.name.trim(),
     p_restaurant_id: params.restaurantId,
-    p_cuisine_type:  params.cuisineType ?? null,
-    p_created_by:    params.userId ?? null,
+    p_cuisine_type:  params.cuisineType ?? undefined,
+    p_created_by:    params.userId ?? undefined,
     p_context:       params.context ?? null,
   })
   if (error) throw error

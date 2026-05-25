@@ -46,7 +46,8 @@ for (const token of ['deleted_at', 'deleted_reason']) {
 
 requireTerms('lib/services/moderation.ts', ['submitContentReport', 'blockUser', 'unblockUser', 'fetchBlockedUserIds', 'abuseSignal'], 'failure')
 requireTerms('lib/analytics.ts', ['abuseSignal', 'abuse_signal', 'target_type'], 'failure')
-requireTerms('features/posts/PostDetailScreen.tsx', ['submitContentReport', 'blockUser', 'Report post', 'Report creator', 'Block creator'], 'failure', 'features/posts/PostDetailSheets.tsx')
+requireTerms('features/posts/PostDetailScreen.tsx', ['Report post', 'Report creator', 'Block creator'], 'failure', 'features/posts/PostDetailSheets.tsx')
+requireTerms('features/posts/postDetailUtils.ts', ['submitContentReport', 'blockUser'], 'failure')
 requireTerms('features/profile/UserProfileScreen.tsx', ['submitContentReport', 'blockUser', 'Report profile', 'Block user'], 'failure')
 requireTerms(
   'docs/moderation/MODERATION_OPERATIONS.md',

@@ -368,14 +368,15 @@ function cacheRestaurantGoogleData(restaurantId, data) {
 }
 async function fetchRestaurantPostRatings(restaurantId) {
     const { data } = await supabase_1.supabase.from('posts')
-        .select('food_rating, vibe_rating, cost_rating, created_at, best_dish')
+        .select('food_rating, vibe_rating, cost_rating, created_at, best_dish, dish_id')
         .eq('restaurant_id', restaurantId)
         .limit(100);
     return (data ?? []).filter((row) => typeof row.created_at === 'string' &&
         (row.food_rating === null || typeof row.food_rating === 'number') &&
         (row.vibe_rating === null || typeof row.vibe_rating === 'number') &&
         (row.cost_rating === null || typeof row.cost_rating === 'number') &&
-        (row.best_dish === null || typeof row.best_dish === 'string'));
+        (row.best_dish === null || typeof row.best_dish === 'string') &&
+        (row.dish_id === null || typeof row.dish_id === 'string'));
 }
 async function fetchIsLocationSaved(userId, restaurantId) {
     const { data } = await supabase_1.supabase.from('saved_locations')

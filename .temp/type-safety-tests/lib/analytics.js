@@ -114,6 +114,8 @@ exports.analytics = {
     viewPost: (userId, postId) => void track(userId, { event_type: 'post_view', entity_type: 'post', entity_id: postId }),
     likePost: (userId, postId) => void track(userId, { event_type: 'post_like', entity_type: 'post', entity_id: postId }),
     savePost: (userId, postId) => void track(userId, { event_type: 'post_save', entity_type: 'post', entity_id: postId }),
+    viewDish: (userId, dishId) => void track(userId, { event_type: 'dish_view', entity_type: 'dish', entity_id: dishId }),
+    saveDish: (userId, dishId) => void track(userId, { event_type: 'dish_save', entity_type: 'dish', entity_id: dishId }),
     dwellPost: (userId, postId, durationMs) => void track(userId, {
         event_type: 'post_dwell',
         entity_type: 'post',

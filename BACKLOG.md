@@ -105,6 +105,16 @@ Goal: make future search faster, cheaper, and easier to reason about.
 
 ---
 
+## Operational Debt
+
+Goal: make the repo easier to operate as the company grows.
+
+| Status | Priority | ID                      | Item                         | Why It Matters                                                                                             | Dependencies                                                       | Burden | Problem                                                                                                                                                                 | Suggested AI Command                                                                                                                                                                                                                       | Implementations                                                                                                                                                                                                                                         | Implementation Type |
+| ------ | -------- | ----------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| [x]    | P1       | <a id="b-074"></a>B-074 | Dead-code detection via Knip | Unused files and exports accumulate silently; blocking CI on new dead code keeps the codebase trustworthy. | `scripts/ops/check-dead-code.js`, `package.json`, `knip.config.ts` | Low    | Replace naive basename-matching check with Knip (module-graph analysis). Phase 1 blocks CI on unused files; phase 2 extends to unused exports once baseline is cleaned. | Do: update `knip.config.ts` baseline (remove `ignoreFiles` entries as dead files are deleted), then remove `exports`/`types` from `exclude` to enable export-level enforcement; run `npm run check:dead-code` and `npm run check:hygiene`. | Phase 1 shipped: `knip` devDep, `knip.config.ts`, `check:dead-code` script, JSON adapter. Phase 2 shipped 2026-05-25 (B-513): export/type enforcement live; `ignoreIssues` per-file baseline; `check-dead-code.js` surfaces export names in ops report. | guardrail           |
+
+---
+
 ## Observability
 
 Goal: prevent silent operational failure and reduce founder cognitive load.
@@ -129,19 +139,9 @@ Goal: keep the app cheap, reliable, and scalable without premature enterprise sy
 
 ---
 
-## Operational Debt
-
-Goal: make the repo easier to operate as the company grows.
-
----
-
 ## Technical Debt
 
 Goal: keep the codebase clean and ready from day one.
-
-| Status | Priority | ID                      | Item                         | Why It Matters                                                                                             | Dependencies                                                       | Burden | Problem                                                                                                                                                                 | Suggested AI Command                                                                                                                                                                                                                       | Implementations                                                                                                                                                                                                                                         | Implementation Type |
-| ------ | -------- | ----------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| [x]    | P1       | <a id="b-074"></a>B-074 | Dead-code detection via Knip | Unused files and exports accumulate silently; blocking CI on new dead code keeps the codebase trustworthy. | `scripts/ops/check-dead-code.js`, `package.json`, `knip.config.ts` | Low    | Replace naive basename-matching check with Knip (module-graph analysis). Phase 1 blocks CI on unused files; phase 2 extends to unused exports once baseline is cleaned. | Do: update `knip.config.ts` baseline (remove `ignoreFiles` entries as dead files are deleted), then remove `exports`/`types` from `exclude` to enable export-level enforcement; run `npm run check:dead-code` and `npm run check:hygiene`. | Phase 1 shipped: `knip` devDep, `knip.config.ts`, `check:dead-code` script, JSON adapter. Phase 2 shipped 2026-05-25 (B-513): export/type enforcement live; `ignoreIssues` per-file baseline; `check-dead-code.js` surfaces export names in ops report. | guardrail           |
 
 ## MVP — Stability & Infrastructure Foundation
 

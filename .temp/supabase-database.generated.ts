@@ -107,41 +107,6 @@ export type Database = {
           },
         ]
       }
-      collection_audit_events: {
-        Row: {
-          collection_id: string
-          context: Json | null
-          created_at: string
-          event_type: string
-          id: string
-          user_id: string | null
-        }
-        Insert: {
-          collection_id: string
-          context?: Json | null
-          created_at?: string
-          event_type: string
-          id?: string
-          user_id?: string | null
-        }
-        Update: {
-          collection_id?: string
-          context?: Json | null
-          created_at?: string
-          event_type?: string
-          id?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "collection_audit_events_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       collection_items: {
         Row: {
           collection_id: string
@@ -2347,45 +2312,6 @@ export type Database = {
           },
         ]
       }
-      saved_dishes: {
-        Row: {
-          created_at: string
-          dish_id: string
-          id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          dish_id: string
-          id?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          dish_id?: string
-          id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "saved_dishes_dish_id_fkey"
-            columns: ["dish_id"]
-            isOneToOne: false
-            referencedRelation: "dishes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "saved_dishes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       saves: {
         Row: {
           created_at: string
@@ -2616,38 +2542,6 @@ export type Database = {
           },
         ]
       }
-      user_profile_audit_events: {
-        Row: {
-          context: Json | null
-          created_at: string
-          event_type: string
-          id: string
-          user_id: string | null
-        }
-        Insert: {
-          context?: Json | null
-          created_at?: string
-          event_type: string
-          id?: string
-          user_id?: string | null
-        }
-        Update: {
-          context?: Json | null
-          created_at?: string
-          event_type?: string
-          id?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_profile_audit_events_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_trust_profiles: {
         Row: {
           last_reviewed_at: string | null
@@ -2749,14 +2643,6 @@ export type Database = {
         Args: { p_conversation_id: string }
         Returns: undefined
       }
-      add_saved_target_to_collection: {
-        Args: {
-          p_collection_id: string
-          p_target_id: string
-          p_target_type: string
-        }
-        Returns: undefined
-      }
       create_group_conversation: {
         Args: { p_avatar_url?: string; p_member_ids: string[]; p_name: string }
         Returns: string
@@ -2835,14 +2721,6 @@ export type Database = {
         Args: { p_context?: Json; p_event_type: string }
         Returns: undefined
       }
-      record_collection_audit_event: {
-        Args: {
-          p_collection_id: string
-          p_context?: Json
-          p_event_type: string
-        }
-        Returns: undefined
-      }
       record_content_lifecycle_event: {
         Args: {
           p_context?: Json
@@ -2850,10 +2728,6 @@ export type Database = {
           p_entity_type: string
           p_event_type: string
         }
-        Returns: undefined
-      }
-      record_profile_audit_event: {
-        Args: { p_context?: Json; p_event_type: string }
         Returns: undefined
       }
       record_restaurant_provider_snapshot: {
@@ -2948,7 +2822,6 @@ export type Database = {
               name: string
               open_now: boolean
               rank: number
-              suburb: string | null
             }[]
           }
         | {
@@ -2971,7 +2844,6 @@ export type Database = {
               name: string
               open_now: boolean
               rank: number
-              suburb: string | null
             }[]
           }
         | {
@@ -3042,14 +2914,6 @@ export type Database = {
         }[]
       }
       unpin_message: { Args: { p_message_id: string }; Returns: undefined }
-      unsave_target: {
-        Args: {
-          p_remove_collection_memberships?: boolean
-          p_target_id: string
-          p_target_type: string
-        }
-        Returns: undefined
-      }
     }
     Enums: {
       [_ in never]: never

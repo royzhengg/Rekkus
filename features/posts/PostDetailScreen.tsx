@@ -33,8 +33,7 @@ import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useCollectionPicker } from '@/lib/hooks/useCollectionPicker'
 import { routes } from '@/lib/routes'
 import { fetchTargetCollectionItems, unsaveTarget } from '@/lib/services/collections'
-import { addPostComment, reportComment as reportCommentService } from '@/lib/services/comments'
-import { blockUser, submitContentReport } from '@/lib/services/moderation'
+import { addPostComment } from '@/lib/services/comments'
 import {
   addPostReaction,
   deletePost,
@@ -51,12 +50,10 @@ import { navigateToRestaurantFromPost } from '@/lib/utils/restaurantNavigation'
 import { PostActionsBar } from './PostActionsBar'
 import { PostComments } from './PostComments'
 import { PostDetailSheets } from './PostDetailSheets'
-import { geocodeLocation, usePostNavigation, useResolvedPost } from './postDetailUtils'
+import { geocodeLocation, usePostNavigation, usePostSafetyActions, useResolvedPost } from './postDetailUtils'
 import { PostReactionBar } from './PostReactionBar'
 import { PostRestaurantCard } from './PostRestaurantCard'
 import type { TextInput } from 'react-native'
-
-type OperationError = { title: string; message: string }
 
 export default function PostDetailScreen() {
   const { postId, id } = useLocalSearchParams<{ postId?: string; id?: string }>()
@@ -89,13 +86,23 @@ export default function PostDetailScreen() {
   const [safetySheet, setSafetySheet] = useState(false)
   const [shareSheet, setShareSheet] = useState(false)
   const [noticeSheet, setNoticeSheet] = useState<{ title: string; subtitle?: string } | null>(null)
-  const [operationError, setOperationError] = useState<OperationError | null>(null)
+  const [operationError, setOperationError] = useState<{ title: string; message: string } | null>(null)
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false)
   const [collectionPickerVisible, setCollectionPickerVisible] = useState(false)
   const [confirmCollectionUnsave, setConfirmCollectionUnsave] = useState(false)
   const [creatorUserId, setCreatorUserId] = useState<string | null>(null)
   const isOwner = !!user?.id && !!resolvedPost?.userId && user.id === resolvedPost.userId
   const collectionPicker = useCollectionPicker(user?.id, 'post', resolvedPost?.dbId)
+
+  const { handleSafetyAction, reportComment } = usePostSafetyActions({
+    user,
+    requireAuth,
+    resolvedPost,
+    router,
+    setDeleteConfirmVisible,
+    setOperationError,
+    setNoticeSheet,
+  })
 
   const commentInputRef = useRef<TextInput>(null)
   const scrollRef = useRef<ScrollView>(null)
@@ -323,76 +330,6 @@ export default function PostDetailScreen() {
         message: 'Check your connection and try again.',
       })
     }
-  }
-
-  // Safety actions: Report post | Report creator | Block creator
-  async function handleSafetyAction(value: string) {
-    if (!user || !resolvedPost) {
-      requireAuth()
-      return
-    }
-
-    if (value === 'edit_post' && resolvedPost.dbId) {
-      router.push(routes.createPost({ intent: 'edit', postId: resolvedPost.dbId, nonce: String(Date.now()) }))
-      return
-    }
-
-    if (value === 'delete_post') {
-      setDeleteConfirmVisible(true)
-      return
-    }
-
-    if (value === 'report_post') {
-      if (!resolvedPost.dbId) {
-        setOperationError({ title: 'Not available', message: 'Demo posts cannot be reported.' })
-        return
-      }
-      const err = await submitContentReport({
-        reporterId: user.id,
-        targetType: 'post',
-        targetId: resolvedPost.dbId,
-        reason: 'inappropriate_or_spam',
-        sourceSurface: 'post_detail',
-      })
-      if (err) setOperationError({ title: 'Report failed', message: err })
-      else setNoticeSheet({ title: 'Report received', subtitle: 'Thanks. We will review this post.' })
-      return
-    }
-
-    const creatorId = await fetchUserIdByUsername(resolvedPost.creator)
-    if (!creatorId) {
-      setOperationError({ title: 'Not available', message: 'We could not find this user right now.' })
-      return
-    }
-
-    if (value === 'report_user') {
-      const err = await submitContentReport({
-        reporterId: user.id,
-        targetType: 'user',
-        targetId: creatorId,
-        reason: 'profile_or_behavior_issue',
-        sourceSurface: 'post_detail',
-      })
-      if (err) setOperationError({ title: 'Report failed', message: err })
-      else setNoticeSheet({ title: 'Report received', subtitle: 'Thanks. We will review this profile.' })
-      return
-    }
-
-    if (value === 'block_user') {
-      const err = await blockUser(user.id, creatorId)
-      if (err) setOperationError({ title: 'Block failed', message: err })
-      else setNoticeSheet({ title: 'User blocked', subtitle: 'You will have a record of this block for moderation review.' })
-    }
-  }
-
-  async function reportComment(commentId: string) {
-    if (!user) {
-      requireAuth()
-      return
-    }
-    const err = await reportCommentService(commentId, user.id)
-    if (err) setOperationError({ title: 'Report failed', message: err })
-    else setNoticeSheet({ title: 'Report received', subtitle: 'Thanks. We will review this comment.' })
   }
 
   async function submitComment() {
