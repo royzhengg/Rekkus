@@ -77,7 +77,7 @@ export function parseSearchQuery(raw: string): ParsedQuery {
 
     for (const n of [3, 2]) {
       for (let i = 0; i <= allWords.length - n; i++) {
-        if ([...Array(n)].some((_, j) => removedIndices.has(i + j))) continue
+        if (Array.from({ length: n }).some((_, j) => removedIndices.has(i + j))) continue
         const phrase = allWords.slice(i, i + n).join(' ')
         if (phraseSources.includes(phrase)) {
           detectedPhrases.push(phrase)
@@ -92,11 +92,14 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     const locationTerms: string[] = []
     const locationRemoved = new Set<number>()
     for (let i = 0; i < remaining.length; i++) {
-      if (LOCATION_INDICATORS.has(remaining[i])) {
+      const word = remaining[i]
+      if (word && LOCATION_INDICATORS.has(word)) {
         locationRemoved.add(i)
         let j = i + 1
-        while (j < remaining.length && !LOCATION_INDICATORS.has(remaining[j])) {
-          locationTerms.push(remaining[j])
+        while (j < remaining.length) {
+          const locationWord = remaining[j]
+          if (!locationWord || LOCATION_INDICATORS.has(locationWord)) break
+          locationTerms.push(locationWord)
           locationRemoved.add(j)
           j++
         }
@@ -110,7 +113,10 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     const occasionRemoved = new Set<number>()
     // Check bigrams first
     for (let i = 0; i < remaining.length - 1; i++) {
-      const bigram = `${remaining[i]} ${remaining[i + 1]}`
+      const first = remaining[i]
+      const second = remaining[i + 1]
+      if (!first || !second) continue
+      const bigram = `${first} ${second}`
       const occasion = OCCASION_SYNONYMS[bigram]
       if (occasion) {
         occasionTerms.push(occasion)
@@ -121,7 +127,9 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     // Then singles
     for (let i = 0; i < remaining.length; i++) {
       if (occasionRemoved.has(i)) continue
-      const occasion = OCCASION_SYNONYMS[remaining[i]]
+      const word = remaining[i]
+      if (!word) continue
+      const occasion = OCCASION_SYNONYMS[word]
       if (occasion) {
         occasionTerms.push(occasion)
         occasionRemoved.add(i)
@@ -133,7 +141,10 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     const dietaryTerms: string[] = []
     const dietaryRemoved = new Set<number>()
     for (let i = 0; i < remaining.length - 1; i++) {
-      const bigram = `${remaining[i]} ${remaining[i + 1]}`
+      const first = remaining[i]
+      const second = remaining[i + 1]
+      if (!first || !second) continue
+      const bigram = `${first} ${second}`
       if (DIETARY_TERMS[bigram]) {
         dietaryTerms.push(...DIETARY_TERMS[bigram])
         dietaryRemoved.add(i)
@@ -142,8 +153,11 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     }
     for (let i = 0; i < remaining.length; i++) {
       if (dietaryRemoved.has(i)) continue
-      if (DIETARY_TERMS[remaining[i]]) {
-        dietaryTerms.push(...DIETARY_TERMS[remaining[i]])
+      const word = remaining[i]
+      if (!word) continue
+      const dietary = DIETARY_TERMS[word]
+      if (dietary) {
+        dietaryTerms.push(...dietary)
         dietaryRemoved.add(i)
       }
     }
@@ -153,8 +167,9 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     const qualityTerms: string[] = []
     const qualityRemoved = new Set<number>()
     for (let i = 0; i < remaining.length; i++) {
-      if (QUALITY_TERMS.has(remaining[i])) {
-        qualityTerms.push(remaining[i])
+      const word = remaining[i]
+      if (word && QUALITY_TERMS.has(word)) {
+        qualityTerms.push(word)
         qualityRemoved.add(i)
       }
     }

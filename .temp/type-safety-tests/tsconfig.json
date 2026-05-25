@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "module": "CommonJS",
+    "target": "ES2022",
+    "moduleResolution": "Node",
+    "baseUrl": "/Users/royzheng/Desktop/Rekkus",
+    "paths": {
+      "@/*": [
+        "*"
+      ]
+    },
+    "rootDir": "/Users/royzheng/Desktop/Rekkus",
+    "outDir": "/Users/royzheng/Desktop/Rekkus/.temp/type-safety-tests",
+    "esModuleInterop": true,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "/Users/royzheng/Desktop/Rekkus/tests/type-safety/**/*.ts",
+    "/Users/royzheng/Desktop/Rekkus/lib/utils/safeJson.ts",
+    "/Users/royzheng/Desktop/Rekkus/lib/utils/routeParams.ts",
+    "/Users/royzheng/Desktop/Rekkus/lib/services/googlePlacesGuards.ts",
+    "/Users/royzheng/Desktop/Rekkus/lib/services/messaging/guards.ts",
+    "/Users/royzheng/Desktop/Rekkus/lib/services/postUploadGuards.ts",
+    "/Users/royzheng/Desktop/Rekkus/lib/services/postDrafts/guards.ts",
+    "/Users/royzheng/Desktop/Rekkus/lib/services/posts/guards.ts",
+    "/Users/royzheng/Desktop/Rekkus/lib/services/searchGuards.ts",
+    "/Users/royzheng/Desktop/Rekkus/lib/services/moderationGuards.ts",
+    "/Users/royzheng/Desktop/Rekkus/supabase/functions/_shared/guards.ts"
+  ]
+}

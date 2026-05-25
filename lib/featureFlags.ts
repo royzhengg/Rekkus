@@ -1,21 +1,11 @@
+import { analytics } from '@/lib/analytics'
+import { supabase } from '@/lib/supabase'
+import { isRecord } from '@/lib/utils/safeJson'
+
+const FEATURE_FLAG_OVERRIDE_TTL_MS = 60_000
+
 const flags = {
-  // Feed
-  discoverFeed: {
-    enabled: true,
-    owner: 'Feed',
-    state: 'active',
-    createdAt: '2024-01-01',
-    reviewAt: '2026-08-01',
-    description: 'Enables the Discover feed surface.',
-  },
-  followingFeed: {
-    enabled: true,
-    owner: 'Feed',
-    state: 'active',
-    createdAt: '2024-01-01',
-    reviewAt: '2026-08-01',
-    description: 'Enables the following-based feed surface.',
-  },
+  // Create
   mixedMediaPosts: {
     enabled: true,
     owner: 'Create',
@@ -57,33 +47,7 @@ const flags = {
     description: 'Enables multiple recoverable create-post drafts.',
   },
 
-  // Places
-  mapView: {
-    enabled: true,
-    owner: 'Places',
-    state: 'active',
-    createdAt: '2024-01-01',
-    reviewAt: '2026-08-01',
-    description: 'Enables map-based place discovery.',
-  },
-  savedPlaces: {
-    enabled: true,
-    owner: 'Places',
-    state: 'active',
-    createdAt: '2024-01-01',
-    reviewAt: '2026-08-01',
-    description: 'Enables saved place surfaces.',
-  },
-
   // Social
-  comments: {
-    enabled: true,
-    owner: 'Social',
-    state: 'active',
-    createdAt: '2024-01-01',
-    reviewAt: '2026-08-01',
-    description: 'Enables post comments and replies.',
-  },
   directMessages: {
     enabled: true,
     owner: 'Social',
@@ -92,6 +56,14 @@ const flags = {
     reviewAt: '2026-08-01',
     description: 'Direct messaging: 1:1 and group conversations with rich media support.',
   },
+  gifSearch: {
+    enabled: true,
+    owner: 'Social',
+    state: 'active',
+    createdAt: '2026-05-22',
+    reviewAt: '2026-08-22',
+    description: 'GIF search via Giphy in direct messages. Kill-switch independent of directMessages. Requires EXPO_PUBLIC_GIPHY_* key; degrades gracefully without one.',
+  },
   notifications: {
     enabled: true,
     owner: 'Social',
@@ -99,16 +71,6 @@ const flags = {
     createdAt: '2024-01-01',
     reviewAt: '2026-08-01',
     description: 'Enables push notification registration and sends.',
-  },
-
-  // Onboarding
-  signupProfile: {
-    enabled: true,
-    owner: 'Auth',
-    state: 'active',
-    createdAt: '2024-01-01',
-    reviewAt: '2026-08-01',
-    description: 'Enables the signup profile completion step.',
   },
 
   // Search enrichment
@@ -148,6 +110,67 @@ const flags = {
 
 export type FeatureFlag = keyof typeof flags
 
+let overrideCache: Partial<Record<FeatureFlag, boolean>> = {}
+let overrideFetchedAt = 0
+let overrideRefresh: Promise<void> | null = null
+
+function isFeatureFlag(value: string): value is FeatureFlag {
+  return Object.prototype.hasOwnProperty.call(flags, value)
+}
+
+function parseOverrideResponse(value: unknown): Partial<Record<FeatureFlag, boolean>> {
+  const next: Partial<Record<FeatureFlag, boolean>> = {}
+  if (!isRecord(value) || !Array.isArray(value.overrides)) {
+    analytics.actionError(null, 'runtime_boundary', 'feature_flag_response_invalid')
+    return next
+  }
+  let hasInvalidRow = false
+  for (const row of value.overrides) {
+    if (!isRecord(row) || typeof row.flag_name !== 'string') {
+      hasInvalidRow = true
+      continue
+    }
+    if (!isFeatureFlag(row.flag_name) || typeof row.enabled !== 'boolean') {
+      hasInvalidRow = true
+      continue
+    }
+    if (row.expires_at !== null && row.expires_at !== undefined && typeof row.expires_at !== 'string') {
+      hasInvalidRow = true
+      continue
+    }
+    if (typeof row.expires_at === 'string' && Date.parse(row.expires_at) <= Date.now()) continue
+    next[row.flag_name] = row.enabled
+  }
+  if (hasInvalidRow) analytics.actionError(null, 'runtime_boundary', 'feature_flag_row_invalid')
+  return next
+}
+
 export function isEnabled(flag: FeatureFlag): boolean {
+  const override = overrideCache[flag]
+  if (typeof override === 'boolean') return override
   return flags[flag].enabled
+}
+
+export async function refreshFeatureFlagOverrides(force = false): Promise<void> {
+  if (!force && Date.now() - overrideFetchedAt < FEATURE_FLAG_OVERRIDE_TTL_MS) return
+  if (overrideRefresh) return overrideRefresh
+
+  overrideRefresh = (async () => {
+    try {
+      const response = await supabase.functions.invoke<unknown>('feature-flags', {
+        method: 'GET',
+      })
+      const data = response.data
+      if (response.error) return
+      overrideCache = parseOverrideResponse(data)
+      overrideFetchedAt = Date.now()
+    } catch {
+      analytics.actionError(null, 'refresh_feature_flags', 'network_error')
+      // Feature flags must fall back to code defaults during incidents or network failures.
+    } finally {
+      overrideRefresh = null
+    }
+  })()
+
+  return overrideRefresh
 }

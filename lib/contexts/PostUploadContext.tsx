@@ -1,17 +1,21 @@
-import React, { createContext, useContext, useMemo, useState } from 'react'
-import type { PostMediaAsset } from '@/types/domain'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { analytics } from '@/lib/analytics'
+import { reportInvalidBoundary } from '@/lib/services/boundaryTelemetry'
+import { isPostUploadJobList } from '@/lib/services/postUploadGuards'
+import { parseJsonWithGuard } from '@/lib/utils/safeJson'
+import type { PostMediaAsset } from '@/types/domain'
 
 export type PostUploadJobStatus = 'preparing' | 'uploading' | 'publishing' | 'posted' | 'failed'
 
 export type PostUploadJob = {
   id: string
   title: string
-  coverUri?: string
+  coverUri?: string | undefined
   progress: number
   status: PostUploadJobStatus
-  error?: string | null
-  media?: PostMediaAsset[]
+  error?: string | null | undefined
+  media?: PostMediaAsset[] | undefined
 }
 
 type ContextValue = {
@@ -32,8 +36,32 @@ const PostUploadContext = createContext<ContextValue>({
   clearJob: () => {},
 })
 
+const RECOVERY_KEY = 'rekkus:post-upload-jobs:v1'
+
 export function PostUploadProvider({ children }: { children: React.ReactNode }) {
   const [jobs, setJobs] = useState<PostUploadJob[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    AsyncStorage.getItem(RECOVERY_KEY).then(raw => {
+      if (!raw || cancelled) return
+      const parsed = parseJsonWithGuard(raw, isPostUploadJobList)
+      if (parsed) setJobs(parsed.map(job => job.status === 'posted' ? job : { ...job, status: 'failed', error: job.error ?? 'Upload interrupted. Try again from drafts.' }))
+      else reportInvalidBoundary('post_upload_recovery_invalid')
+    }).catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const recoverable = jobs.filter(job => job.status !== 'posted')
+    if (recoverable.length === 0) {
+      AsyncStorage.removeItem(RECOVERY_KEY).catch(() => {})
+      return
+    }
+    AsyncStorage.setItem(RECOVERY_KEY, JSON.stringify(recoverable)).catch(() => {})
+  }, [jobs])
 
   const value = useMemo<ContextValue>(() => ({
     jobs,

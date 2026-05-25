@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router'
 import React, { useState, useMemo } from 'react'
 import {
   View,
@@ -9,16 +10,17 @@ import {
   Alert,
   Linking,
 } from 'react-native'
+import Animated from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { ChevronRight, ArrowLeft } from '@/components/icons'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight } from '@/constants/Typography'
+import { PRIVACY_POLICY_URL, TERMS_URL } from '@/features/settings/PrivacyDataScreen'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useSettings } from '@/lib/contexts/SettingsContext'
-import { PRIVACY_POLICY_URL, TERMS_URL } from '@/features/settings/PrivacyDataScreen'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { usePressScale } from '@/lib/hooks/usePressScale'
 
 function RowLink({
   label,
@@ -31,14 +33,23 @@ function RowLink({
 }) {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const press = usePressScale()
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {sublabel ? <Text style={styles.rowSublabel}>{sublabel}</Text> : null}
-      </View>
-      <ChevronRight />
-    </TouchableOpacity>
+    <Animated.View style={press.animatedStyle}>
+      <TouchableOpacity
+        style={styles.row}
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        activeOpacity={1}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowLabel}>{label}</Text>
+          {sublabel ? <Text style={styles.rowSublabel}>{sublabel}</Text> : null}
+        </View>
+        <ChevronRight />
+      </TouchableOpacity>
+    </Animated.View>
   )
 }
 
@@ -143,11 +154,11 @@ export default function SettingsScreen() {
       {
         text: 'Sign out',
         style: 'destructive',
-        onPress: async () => {
+        onPress: () => { void (async () => {
           setSigningOut(true)
           await signOut()
           router.replace('/(tabs)/feed')
-        },
+        })() },
       },
     ])
   }
@@ -159,6 +170,8 @@ export default function SettingsScreen() {
           onPress={() => router.back()}
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
           <ArrowLeft />
         </TouchableOpacity>
@@ -258,7 +271,8 @@ export default function SettingsScreen() {
           <RowLink
             label="Privacy and data"
             sublabel="Policy, terms, export, deletion"
-            onPress={() => router.push('/settings/privacy-data' as any)}
+
+            onPress={() => router.push('/settings/privacy-data')}
           />
           <Divider />
           <RowLink label="Privacy policy" onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} />

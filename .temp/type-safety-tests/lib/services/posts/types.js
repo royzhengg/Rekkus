@@ -1,0 +1,60 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.mapRowToPost = mapRowToPost;
+const format_1 = require("@/lib/utils/format");
+function mapRowToPost(row, index) {
+    const palette = (0, format_1.avatarPalette)(row.username);
+    const name = row.full_name ?? row.username;
+    return {
+        id: index + 1,
+        dbId: row.id,
+        userId: row.user_id,
+        title: row.caption ?? '',
+        body: row.caption ?? '',
+        creator: row.username,
+        initials: name.slice(0, 2).toUpperCase(),
+        avatarBg: palette.bg,
+        avatarColor: palette.color,
+        likes: '0',
+        imgKey: 'warm',
+        imageUrl: row.media.find(item => (item.media_type ?? 'image') === 'image')?.processed_url ?? row.photo_url ?? undefined,
+        videoUrl: row.media.find(item => item.media_type === 'video')?.processed_url ?? row.media.find(item => item.media_type === 'video')?.url ?? undefined,
+        mediaType: row.media[0]?.media_type ?? (row.photo_url ? 'image' : undefined),
+        media: row.media.map(item => ({
+            id: item.id,
+            localId: item.id ?? item.url,
+            uri: item.processed_url ?? item.url,
+            type: item.media_type ?? 'image',
+            mimeType: item.mime_type ?? null,
+            processedUrl: item.processed_url ?? item.url,
+            thumbnailUrl: item.thumbnail_url ?? null,
+            durationMs: item.duration_ms ?? null,
+            width: item.width ?? null,
+            height: item.height ?? null,
+            sizeBytes: item.size_bytes ?? null,
+            processingStatus: item.processing_status ?? 'ready',
+            processingError: item.processing_error ?? null,
+        })),
+        createdAt: row.created_at ?? undefined,
+        lastEditedAt: row.last_edited_at ?? undefined,
+        editCount: row.edit_count ?? undefined,
+        tall: false,
+        tags: [],
+        location: row.restaurant_name ?? '',
+        food: row.food_rating ?? 0,
+        vibe: row.vibe_rating ?? 0,
+        cost: row.cost_rating ?? 0,
+        tasteVerdict: row.taste_verdict ?? undefined,
+        valueVerdict: row.value_verdict ?? undefined,
+        occasionTags: row.occasion_tags ?? [],
+        cuisine_type: row.cuisine_type ?? undefined,
+        best_dish: row.best_dish ?? undefined,
+        dishTags: row.dish_tags ?? undefined,
+        dishId: row.dish_id ?? undefined,
+        restaurantId: row.restaurant_id ?? undefined,
+        placeId: row.restaurant_place_id ?? undefined,
+        lat: row.restaurant_lat ?? undefined,
+        lng: row.restaurant_lng ?? undefined,
+        address: row.restaurant_address ?? undefined,
+    };
+}

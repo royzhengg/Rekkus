@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
 import * as Location from 'expo-location'
+import { useCallback, useEffect, useState } from 'react'
 
 type Coords = { lat: number; lng: number }
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'manual' | 'error'
@@ -82,7 +82,7 @@ export function useUserLocation(options: { autoRequest?: boolean } = {}) {
 
   useEffect(() => {
     if (options.autoRequest && !coords) {
-      requestLocation()
+      void requestLocation()
     }
   }, [coords, options.autoRequest, requestLocation])
 

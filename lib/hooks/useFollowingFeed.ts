@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
-import { usePosts } from '../contexts/PostsContext'
-import { useAuth } from '../contexts/AuthContext'
-import { fetchFollowedUsernames } from '../services/users'
 import type { Post } from '@/types/domain'
+import { useAuth } from '../contexts/AuthContext'
+import { usePosts } from '../contexts/PostsContext'
+import { fetchFollowedUsernames } from '../services/users'
 import { parseLikes } from '../utils/format'
 
 function computeFollowingScore(post: Post): number {
@@ -26,8 +26,8 @@ export function useFollowingFeed(): { posts: Post[]; isLoaded: boolean } {
       setFollowedUsernames([])
       return
     }
-    fetchFollowedUsernames(user.id).then(setFollowedUsernames)
-  }, [user?.id])
+    void fetchFollowedUsernames(user.id).then(setFollowedUsernames)
+  }, [user])
 
   const filtered = useMemo(() => {
     if (!followedUsernames) return []

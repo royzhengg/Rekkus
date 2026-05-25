@@ -1,3 +1,5 @@
+import { useRouter } from 'expo-router'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -9,14 +11,13 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useMemo } from 'react'
-import { useRouter } from 'expo-router'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { useAuth } from '@/lib/contexts/AuthContext'
 import { ArrowLeft } from '@/components/icons'
-import { spacing } from '@/constants/Spacing'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export default function ForgotPasswordScreen() {
   const router = useRouter()
@@ -47,7 +48,7 @@ export default function ForgotPasswordScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
           <ArrowLeft />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Reset password</Text>
@@ -78,7 +79,7 @@ export default function ForgotPasswordScreen() {
                 Enter your email address and we'll send you a link to reset your password.
               </Text>
 
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              {error ? <ErrorMessage message={error} /> : null}
 
               <Text style={styles.label}>Email</Text>
               <TextInput
@@ -136,15 +137,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     },
     subtitle: { fontSize: fontSize.md, color: c.text2, lineHeight: lineHeight.normal, marginBottom: spacing.px28 },
     emailHighlight: { color: c.text, fontWeight: fontWeight.medium },
-    errorText: {
-      fontSize: fontSize.base,
-      color: c.liked,
-      backgroundColor: c.errorBg,
-      borderRadius: radius.sm3,
-      padding: spacing.px10,
-      marginBottom: spacing[4],
-      lineHeight: lineHeight.small,
-    },
     label: { fontSize: fontSize.bodySm, fontWeight: fontWeight.medium, color: c.text2, marginBottom: spacing.px6 },
     input: {
       backgroundColor: c.surface,

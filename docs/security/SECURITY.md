@@ -16,10 +16,13 @@ This document tracks Rekkus security controls, risks, and ISO 27001-readiness. I
 | Data | Classification | Notes |
 | --- | --- | --- |
 | Public posts, restaurant metadata, public profiles | Public app data | Publicly readable by design |
-| Saves, collections, topic follows, settings, push tokens, auth identities | User-private/shareable | RLS scoped to owner; collection rows may be unlisted/public-readable only when visibility allows |
+| Saves (`saves`, `saved_locations`, `saved_dishes`), collections, topic follows, settings, push tokens, auth identities | User-private/shareable | RLS scoped to owner; collection rows may be unlisted/public-readable only when visibility allows |
 | Analytics events | Internal telemetry | Avoid sensitive content in metadata |
 | Restaurant observations, sources, aliases, provider cache | Source-attributed data | Must preserve provenance, retention, attribution, and audit rules |
 | Restaurant audit events and privacy requests | Compliance evidence | Minimized, access-controlled, and retained by policy |
+| `auth_audit_events` | Compliance evidence (ISO A.12.4.1) | Permanent retention; service-role only; written via `record_auth_audit_event` SECURITY DEFINER RPC |
+| `content_lifecycle_events` | Compliance evidence | Post/comment creation/deletion; no FK on entity_id — survives cascade delete; service-role only |
+| `platform_audit_events_view` | Unified compliance read surface | UNION ALL over all domain audit tables; query via service-role for incident investigation and compliance evidence |
 | Direct message body and attachments | User-private | Accessible only to conversation participants via RLS; body nulled on user delete |
 | Message audit rows (deleted_at, sender_id, conversation_id) | Compliance evidence | Retained after body is nulled; participant-only RLS |
 | Supabase service role, SMTP/Resend secrets | Secret | Backend/Supabase only |
@@ -31,23 +34,30 @@ This document tracks Rekkus security controls, risks, and ISO 27001-readiness. I
 - Users can only mutate their own rows unless a specific policy says otherwise.
 - Edge Functions derive actor identity from JWT, not request body.
 - Edge Functions validate payloads before service-role reads/writes.
+- Malformed privileged Edge Function requests are rejected before service-role access; invalid-boundary signals never include raw request or provider content.
 - Uploads validate type, size, and user-scoped path.
 - Media pipeline rules live in [MEDIA_PIPELINE.md](MEDIA_PIPELINE.md).
 - Auth/email actions have cooldowns or provider rate limits.
 - Analytics and notification events are deduped/throttled where practical.
 - No raw tokens, reset links, passwords, or service errors are logged.
 - Canonical restaurant changes, provider refreshes, moderation/admin actions, privacy requests, and async jobs must produce audit evidence.
+- Authentication events (login, logout, OAuth) must be recorded in `auth_audit_events` via SECURITY DEFINER RPC — not only in `analytics_events` (90-day retention is insufficient for ISO compliance).
+- Content creation and deletion events must be recorded in `content_lifecycle_events` via SECURITY DEFINER RPC — entity_id carries no FK so records survive cascade deletes.
+- All domain audit tables are unified under `platform_audit_events_view` (ADR 0011). The `check:audit` guardrail enforces that every `*_audit_events` table is present in the view.
 - New data/provider features must pass the compliance, data inventory, RLS, audit, provider, privacy, and ISO checks before release.
+- Saved-library writes use owner-scoped rows. Collection adds atomically establish the target bookmark; confirmed unsave removes owned memberships and the bookmark together so private intent does not drift.
 - Public beta requires a monitored vulnerability disclosure path with scope, expected response time, and escalation to incident handling.
 
 ## Auth And Email Cooldowns
 
 Auth and email-like actions must use provider rate limits plus app-side cooldowns where practical:
 
+- Login attempts: 10s per-email cooldown after each failed attempt (client-side UX guard; GoTrue is the primary backend control).
 - Signup attempts use a 30-second local cooldown per normalized email.
 - Password reset uses a 60-second local cooldown per normalized email.
 - Onboarding anomalies are tracked through privacy-safe analytics events without storing email, password, token, or reset-link payloads.
 - Resend/Supabase email volume remains part of release and cost review before public beta.
+- **Roy action — verify before beta:** Check Supabase dashboard → Auth → Rate Limits. Confirm per-IP and per-email login attempt limits are configured (GoTrue default: ~5 failed attempts per 15 minutes per email). Enable CAPTCHA (HCaptcha) in Auth → Settings if brute-force risk is elevated at scale.
 
 ## Moderation And Abuse Foundation
 

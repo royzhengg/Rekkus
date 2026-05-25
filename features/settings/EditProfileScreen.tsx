@@ -1,3 +1,5 @@
+import * as ImagePicker from 'expo-image-picker'
+import { useRouter } from 'expo-router'
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   View,
@@ -5,23 +7,22 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Image,
   ScrollView,
   ActivityIndicator,
   Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import * as ImagePicker from 'expo-image-picker'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { ArrowLeft, CameraIcon } from '@/components/icons'
+import { CachedImage } from '@/components/ui/CachedImage'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight } from '@/constants/Typography'
+import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { uploadAvatarImage, validatePickedAvatarImage } from '@/lib/services/media'
 import { fetchProfile, updateProfile as updateUserProfile } from '@/lib/services/users'
-import { analytics } from '@/lib/analytics'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight } from '@/constants/Typography'
 
 export default function EditProfileScreen() {
   const router = useRouter()
@@ -39,10 +40,11 @@ export default function EditProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
-    fetchProfile(user.id)
+    void fetchProfile(user.id)
       .then(data => {
         if (data) {
           setUsername(data.username ?? '')
@@ -57,6 +59,7 @@ export default function EditProfileScreen() {
   }, [user])
 
   async function pickAvatar() {
+    setError(null)
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') {
       Alert.alert('Permission required', 'Allow photo library access to update your avatar.')
@@ -72,7 +75,7 @@ export default function EditProfileScreen() {
       const validatedUri = validatePickedAvatarImage(result.assets[0])
       if (!validatedUri) {
         analytics.uploadFailure(user?.id ?? null, 'avatar_picker', 'validation_rejected', 1)
-        Alert.alert('Unsupported image', 'Choose a JPEG, PNG, or WebP image under 5 MB.')
+        setError('Choose a JPEG, PNG, or WebP image under 5 MB.')
         return
       }
       setAvatarUri(validatedUri)
@@ -86,7 +89,7 @@ export default function EditProfileScreen() {
       return await uploadAvatarImage(user.id, uri)
     } catch (error) {
       analytics.uploadFailure(user.id, 'avatar_upload', 'storage_upload_error')
-      Alert.alert('Upload failed', error instanceof Error ? error.message : 'Please try again.')
+      setError(error instanceof Error ? error.message : 'Please try again.')
       return null
     } finally {
       setUploading(false)
@@ -95,6 +98,7 @@ export default function EditProfileScreen() {
 
   async function handleSave() {
     if (!user) return
+    setError(null)
     setLoading(true)
     let finalAvatarUrl = avatarUrl
     if (avatarUri) finalAvatarUrl = await uploadAvatar(avatarUri)
@@ -104,7 +108,7 @@ export default function EditProfileScreen() {
       .slice(0, 30)
     const error = await updateAuthProfile(cleanUsername, displayName)
     if (error) {
-      Alert.alert('Error', error)
+      setError(error)
       setLoading(false)
       return
     }
@@ -117,7 +121,7 @@ export default function EditProfileScreen() {
         country: country.trim() || null,
       })
     } catch (profileError) {
-      Alert.alert('Error', profileError instanceof Error ? profileError.message : 'Could not update profile.')
+      setError(profileError instanceof Error ? profileError.message : 'Could not update profile.')
       setLoading(false)
       return
     }
@@ -126,6 +130,7 @@ export default function EditProfileScreen() {
   }
 
   const canSave = username.trim().length > 0 && displayName.trim().length > 0
+  const avatarSourceUri = avatarUri ?? avatarUrl
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -134,6 +139,8 @@ export default function EditProfileScreen() {
           onPress={() => router.back()}
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
           <ArrowLeft />
         </TouchableOpacity>
@@ -154,8 +161,8 @@ export default function EditProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.avatarSection}>
           <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} style={styles.avatarWrap}>
-            {avatarUri || avatarUrl ? (
-              <Image source={{ uri: avatarUri ?? avatarUrl! }} style={styles.avatar} />
+            {avatarSourceUri ? (
+              <CachedImage source={{ uri: avatarSourceUri }} style={styles.avatar} />
             ) : (
               <View
                 style={[
@@ -180,6 +187,7 @@ export default function EditProfileScreen() {
         </View>
 
         <View style={styles.form}>
+          {error ? <ErrorMessage title="Could not update profile" message={error} /> : null}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Username</Text>
             <View style={styles.inputWrap}>

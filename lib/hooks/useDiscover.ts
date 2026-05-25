@@ -1,14 +1,14 @@
 import { useMemo } from 'react'
-import { usePosts } from '../contexts/PostsContext'
-import { useAuth } from '../contexts/AuthContext'
+import type { Post } from '@/types/domain'
 import { useSearchHistory } from './useSearchHistory'
 import { useTopicFollows } from './useTopicFollows'
 import { useTrendingData } from './useTrendingData'
 import { useUserLocation } from './useUserLocation'
-import type { Post } from '@/types/domain'
-import type { CuisineAffinities } from './useSearchHistory'
+import { useAuth } from '../contexts/AuthContext'
+import { usePosts } from '../contexts/PostsContext'
 import { parseLikes } from '../utils/format'
 import { distanceBoost, haversineKm } from '../utils/geo'
+import type { CuisineAffinities } from './useSearchHistory'
 
 function cityFromLocation(location: string): string {
   return location.toLowerCase().includes('melbourne') ? 'Melbourne' : 'Sydney'
@@ -48,12 +48,14 @@ function applyCuisineDiversity(posts: Post[]): Post[] {
   const deferred: Post[] = []
 
   for (const post of posts) {
-    const last2 = result.slice(-2)
-    const sameStreak =
-      last2.length === 2 &&
-      post.cuisine_type &&
-      last2[0].cuisine_type === post.cuisine_type &&
-      last2[1].cuisine_type === post.cuisine_type
+      const last2 = result.slice(-2)
+      const first = last2[0]
+      const second = last2[1]
+      const sameStreak =
+        last2.length === 2 &&
+        post.cuisine_type &&
+        first?.cuisine_type === post.cuisine_type &&
+        second?.cuisine_type === post.cuisine_type
 
     if (sameStreak) {
       deferred.push(post)
@@ -61,7 +63,8 @@ function applyCuisineDiversity(posts: Post[]): Post[] {
       result.push(post)
       // inject a deferred post of a different cuisine to break any future streak
       const injectIdx = deferred.findIndex(d => d.cuisine_type !== post.cuisine_type)
-      if (injectIdx !== -1) result.push(deferred.splice(injectIdx, 1)[0])
+      const injected = injectIdx !== -1 ? deferred.splice(injectIdx, 1)[0] : undefined
+      if (injected) result.push(injected)
     }
   }
 

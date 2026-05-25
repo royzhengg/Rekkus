@@ -1,13 +1,14 @@
 import { useMemo } from 'react'
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { usePostUploadQueue } from '@/lib/contexts/PostUploadContext'
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { CheckIcon, CloseIcon, ImagePlaceholder } from '@/components/icons'
-import { spacing } from '@/constants/Spacing'
+import { CachedImage } from '@/components/ui/CachedImage'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { usePostUploadQueue } from '@/lib/contexts/PostUploadContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
-export function PostUploadProgress() {
+export function PostUploadProgress({ onGoToDraft }: { onGoToDraft: () => void }) {
   const { jobs, clearJob } = usePostUploadQueue()
   const c = useThemeColors()
   const styles = useMemo(() => makeStyles(c), [c])
@@ -30,7 +31,7 @@ export function PostUploadProgress() {
     <View style={[styles.wrap, failed && styles.wrapFailed]}>
       <View style={styles.thumb}>
         {job.coverUri ? (
-          <Image source={{ uri: job.coverUri }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+          <CachedImage source={{ uri: job.coverUri }} style={StyleSheet.absoluteFillObject} />
         ) : (
           <ImagePlaceholder size={18} color={c.text3} />
         )}
@@ -42,10 +43,26 @@ export function PostUploadProgress() {
             <Text style={[styles.title, failed && styles.titleFailed]}>{label}</Text>
           </View>
           {failed && (
-            <TouchableOpacity style={styles.dismissBtn} onPress={() => clearJob(job.id)} hitSlop={8}>
-              <CloseIcon size={8} color={c.liked} />
-              <Text style={styles.retry}>Dismiss</Text>
-            </TouchableOpacity>
+            <View style={styles.failedActions}>
+              <TouchableOpacity
+                style={styles.goToDraftBtn}
+                onPress={() => { clearJob(job.id); onGoToDraft() }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Go to draft to retry posting"
+              >
+                <Text style={styles.goToDraftText}>Go to draft</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.dismissXBtn}
+                onPress={() => clearJob(job.id)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss upload error"
+              >
+                <CloseIcon size={8} color={c.liked} />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
         <Text style={styles.sub} numberOfLines={1}>{job.error ?? job.title}</Text>
@@ -97,16 +114,15 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     title: { fontSize: fontSize.base, fontWeight: fontWeight.extrabold, color: c.text },
     titleFailed: { color: c.liked },
     sub: { fontSize: fontSize.bodySm, color: c.text3 },
-    dismissBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.px5,
+    failedActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+    goToDraftBtn: {
       borderRadius: radius.md4,
       paddingHorizontal: spacing[2],
       paddingVertical: spacing.px5,
       backgroundColor: `${c.liked}0D`,
     },
-    retry: { fontSize: fontSize.bodySm, fontWeight: fontWeight.extrabold, color: c.liked },
+    goToDraftText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.extrabold, color: c.liked },
+    dismissXBtn: { padding: spacing.px5 },
     bar: { height: 4, borderRadius: radius.xxs, backgroundColor: c.border, overflow: 'hidden' },
     barFill: { height: '100%', borderRadius: radius.xxs, backgroundColor: c.accent },
     barFillFailed: { backgroundColor: c.liked },

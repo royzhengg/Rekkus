@@ -1,10 +1,11 @@
 import React from 'react'
 import { View, Text } from 'react-native'
 import { Svg, Path, Circle } from 'react-native-svg'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { spacing } from '@/constants/Spacing'
+import { elevation } from '@/constants/Elevation'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export const MapMarker = React.memo(function MapMarker({ name }: { name?: string }) {
   const c = useThemeColors()
@@ -19,10 +20,7 @@ export const MapMarker = React.memo(function MapMarker({ name }: { name?: string
             paddingVertical: spacing.px3,
             marginBottom: spacing.px3,
             maxWidth: 120,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.15,
-            shadowRadius: 3,
+            ...elevation.xs,
           }}
         >
           <Text

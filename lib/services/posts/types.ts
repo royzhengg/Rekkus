@@ -1,0 +1,190 @@
+import { avatarPalette } from '@/lib/utils/format'
+import type { DishTag, Post, PostMediaAsset, PostMediaProcessingStatus, RekkusOccasionTag, RekkusTasteVerdict, RekkusValueVerdict } from '@/types/domain'
+
+export type SavedPostRow = {
+  id: string
+  user_id: string
+  caption: string | null
+  food_rating: number | null
+  vibe_rating: number | null
+  cost_rating: number | null
+  cuisine_type: string | null
+  best_dish: string | null
+  dish_id: string | null
+  dish_tags: { photoIndex: number; x: number; y: number; name: string }[] | null
+  restaurant_id: string | null
+  photo_url: string | null
+  media: Array<{
+    id?: string
+    url: string
+    deleted_at?: string | null
+    media_type?: 'image' | 'video' | null
+    processed_url?: string | null
+    thumbnail_url?: string | null
+    mime_type?: string | null
+    duration_ms?: number | null
+    width?: number | null
+    height?: number | null
+    size_bytes?: number | null
+    processing_status?: PostMediaProcessingStatus | null
+    processing_error?: string | null
+    order_index?: number | null
+  }>
+  taste_verdict?: RekkusTasteVerdict | null
+  value_verdict?: RekkusValueVerdict | null
+  occasion_tags?: RekkusOccasionTag[]
+  username: string
+  full_name: string | null
+  avatar_url: string | null
+  restaurant_name: string | null
+  restaurant_address: string | null
+  restaurant_lat: number | null
+  restaurant_lng: number | null
+  restaurant_place_id: string | null
+  created_at?: string | null
+  last_edited_at?: string | null
+  edit_count?: number | null
+}
+
+export type PostEditEventType =
+  | 'edit_started'
+  | 'edit_saved'
+  | 'edit_discarded'
+  | 'edit_conflict'
+  | 'media_replaced'
+
+export type PostCommentRow = {
+  id: string
+  content: string
+  created_at: string | null
+  parent_id: string | null
+  users: { username: string; full_name: string | null } | null
+}
+
+export type PostReactionType = 'helpful' | 'love' | 'thanks' | 'oh_no'
+
+export type PostSocialState = {
+  likeCount: number
+  comments: PostCommentRow[]
+  reactionCounts: Record<string, number>
+  myReactions: PostReactionType[]
+  liked: boolean
+  saved: boolean
+  locationSaved: boolean
+}
+
+export type UpdatePostPayload = {
+  caption?: string | null
+  restaurantId?: string | null
+  foodRating?: number | null
+  vibeRating?: number | null
+  costRating?: number | null
+  tasteVerdict?: RekkusTasteVerdict | null
+  valueVerdict?: RekkusValueVerdict | null
+  occasionTags?: RekkusOccasionTag[]
+  cuisineType?: string | null
+  bestDish?: string | null
+  dishId?: string | null
+  dishTags?: DishTag[]
+  media?: PostMediaAsset[]
+  userId: string
+  expectedEditCount?: number | null
+}
+
+export type RawPostPhoto = {
+  id: string
+  url: string
+  deleted_at: string | null
+  media_type: 'image' | 'video' | null
+  processed_url: string | null
+  thumbnail_url: string | null
+  mime_type: string | null
+  duration_ms: number | null
+  width: number | null
+  height: number | null
+  size_bytes: number | null
+  processing_status: PostMediaProcessingStatus | null
+  processing_error: string | null
+  order_index: number | null
+}
+
+export type RawPost = {
+  id: string
+  user_id: string
+  deleted_at?: string | null
+  caption: string | null
+  food_rating: number | null
+  vibe_rating: number | null
+  cost_rating: number | null
+  cuisine_type: string | null
+  best_dish: string | null
+  dish_id: string | null
+  dish_tags: { photoIndex: number; x: number; y: number; name: string }[] | null
+  restaurant_id: string | null
+  taste_verdict: RekkusTasteVerdict | null
+  value_verdict: RekkusValueVerdict | null
+  occasion_tags: RekkusOccasionTag[] | null
+  created_at: string | null
+  last_edited_at: string | null
+  edit_count: number | null
+  users: { username: string; full_name: string | null; avatar_url: string | null } | null
+  post_photos: RawPostPhoto[] | null
+  restaurants: { name: string; address: string | null; latitude: number | null; longitude: number | null; google_place_id: string | null } | null
+}
+
+export function mapRowToPost(row: SavedPostRow, index: number): Post {
+  const palette = avatarPalette(row.username)
+  const name = row.full_name ?? row.username
+  return {
+    id: index + 1,
+    dbId: row.id,
+    userId: row.user_id,
+    title: row.caption ?? '',
+    body: row.caption ?? '',
+    creator: row.username,
+    initials: name.slice(0, 2).toUpperCase(),
+    avatarBg: palette.bg,
+    avatarColor: palette.color,
+    likes: '0',
+    imgKey: 'warm',
+    imageUrl: row.media.find(item => (item.media_type ?? 'image') === 'image')?.processed_url ?? row.photo_url ?? undefined,
+    videoUrl: row.media.find(item => item.media_type === 'video')?.processed_url ?? row.media.find(item => item.media_type === 'video')?.url ?? undefined,
+    mediaType: row.media[0]?.media_type ?? (row.photo_url ? 'image' : undefined),
+    media: row.media.map(item => ({
+      id: item.id,
+      localId: item.id ?? item.url,
+      uri: item.processed_url ?? item.url,
+      type: item.media_type ?? 'image',
+      mimeType: item.mime_type ?? null,
+      processedUrl: item.processed_url ?? item.url,
+      thumbnailUrl: item.thumbnail_url ?? null,
+      durationMs: item.duration_ms ?? null,
+      width: item.width ?? null,
+      height: item.height ?? null,
+      sizeBytes: item.size_bytes ?? null,
+      processingStatus: item.processing_status ?? 'ready',
+      processingError: item.processing_error ?? null,
+    })),
+    createdAt: row.created_at ?? undefined,
+    lastEditedAt: row.last_edited_at ?? undefined,
+    editCount: row.edit_count ?? undefined,
+    tall: false,
+    tags: [],
+    location: row.restaurant_name ?? '',
+    food: row.food_rating ?? 0,
+    vibe: row.vibe_rating ?? 0,
+    cost: row.cost_rating ?? 0,
+    tasteVerdict: row.taste_verdict ?? undefined,
+    valueVerdict: row.value_verdict ?? undefined,
+    occasionTags: row.occasion_tags ?? [],
+    cuisine_type: row.cuisine_type ?? undefined,
+    best_dish: row.best_dish ?? undefined,
+    dishTags: row.dish_tags ?? undefined,
+    dishId: row.dish_id ?? undefined,
+    restaurantId: row.restaurant_id ?? undefined,
+    placeId: row.restaurant_place_id ?? undefined,
+    lat: row.restaurant_lat ?? undefined,
+    lng: row.restaurant_lng ?? undefined,
+    address: row.restaurant_address ?? undefined,
+  }
+}

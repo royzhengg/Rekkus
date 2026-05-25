@@ -1,24 +1,26 @@
 import React, { useEffect, useMemo } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Svg, Path, Circle, Line } from 'react-native-svg'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { useAuth } from '@/lib/contexts/AuthContext'
-import { useAuthGate } from '@/lib/contexts/AuthGateContext'
-import { useAlerts, type AlertItem } from '@/lib/hooks/useAlerts'
-import { avatarPalette } from '@/lib/utils/format'
 import { BellIcon } from '@/components/icons'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { spacing } from '@/constants/Spacing'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useAlerts, type AlertItem } from '@/lib/hooks/useAlerts'
+import { avatarPalette } from '@/lib/utils/format'
 
 function toInitials(username: string, name: string | null) {
   if (name) {
     const parts = name.trim().split(' ')
     return parts.length >= 2
-      ? (parts[0][0] + parts[1][0]).toUpperCase()
-      : parts[0].slice(0, 2).toUpperCase()
+      ? `${parts[0]?.[0] ?? ''}${parts[1]?.[0] ?? ''}`.toUpperCase()
+      : (parts[0] ?? '').slice(0, 2).toUpperCase()
   }
   return username.slice(0, 2).toUpperCase()
 }
@@ -147,11 +149,11 @@ export default function AlertsScreen() {
   const { requireAuth } = useAuthGate()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  const { alerts, loading, refreshing, refresh, error } = useAlerts(user)
+  const { alerts, loading, refreshing, refresh, error } = useAlerts(user?.id)
 
   useEffect(() => {
     if (!user) requireAuth()
-  }, [user])
+  }, [user, requireAuth])
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -159,13 +161,20 @@ export default function AlertsScreen() {
         <Text style={styles.title}>Alerts</Text>
       </View>
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.text3} />
-        </View>
+        <>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton width={38} height={38} radius={radius.xl2} />
+              <View style={{ flex: 1, gap: spacing[2] }}>
+                <Skeleton width="65%" height={14} />
+                <Skeleton width="40%" height={12} />
+              </View>
+            </View>
+          ))}
+        </>
       ) : error ? (
         <View style={styles.center}>
-          <Text style={styles.emptyTitle}>Could not load alerts</Text>
-          <Text style={styles.emptyBody}>{error}</Text>
+          <ErrorMessage title="Could not load alerts" message={error} />
         </View>
       ) : alerts.length === 0 ? (
         <ScrollView
@@ -245,5 +254,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     rowUsername: { fontWeight: fontWeight.semibold, color: c.text },
     rowTime: { fontSize: fontSize.xs, color: c.text3 },
     rowIcon: { flexShrink: 0 },
+    skeletonRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[4], paddingVertical: spacing.px14, gap: spacing[3] },
   })
 }

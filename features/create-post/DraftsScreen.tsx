@@ -1,20 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { CopyIcon, ChevronLeft, ImagePlaceholder, TrashIcon } from '@/components/icons'
+import { CachedImage } from '@/components/ui/CachedImage'
+import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { isEnabled } from '@/lib/featureFlags'
+import { routes } from '@/lib/routes'
 import {
   deleteCreatePostDraft,
   duplicateCreatePostDraft,
   listSavedCreatePostDrafts,
   type CreatePostDraftSummary,
 } from '@/lib/services/postDrafts'
-import { CopyIcon, ChevronLeft, ImagePlaceholder, TrashIcon } from '@/components/icons'
-import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight } from '@/constants/Typography'
 
 export default function DraftsScreen() {
   const router = useRouter()
@@ -24,17 +27,19 @@ export default function DraftsScreen() {
   const [drafts, setDrafts] = useState<CreatePostDraftSummary[]>([])
   const [deleteDraftId, setDeleteDraftId] = useState<string | null>(null)
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setDrafts(await listSavedCreatePostDrafts(user?.id))
-  }
+  }, [user?.id])
 
   useEffect(() => {
-    if (user?.id) refresh()
-  }, [user?.id])
+    if (user?.id) void refresh()
+  }, [user?.id, refresh])
+
+  if (!isEnabled('draftList')) return null
 
   async function removeDraft(id: string) {
     await deleteCreatePostDraft(id)
-    refresh()
+    void refresh()
   }
 
   return (
@@ -59,11 +64,11 @@ export default function DraftsScreen() {
             <TouchableOpacity
               key={draft.id}
               style={styles.row}
-              onPress={() => router.replace({ pathname: '/(tabs)/create', params: { draftId: draft.id } })}
+              onPress={() => router.replace(routes.draftEdit(draft.id))}
             >
               <View style={styles.thumb}>
                 {draft.coverUri ? (
-                  <Image source={{ uri: draft.coverUri }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                  <CachedImage source={{ uri: draft.coverUri }} style={StyleSheet.absoluteFillObject} />
                 ) : (
                   <ImagePlaceholder size={18} />
                 )}
@@ -79,9 +84,8 @@ export default function DraftsScreen() {
               <View style={styles.actions}>
                 <TouchableOpacity
                   style={styles.actionPill}
-                  onPress={async () => {
-                    await duplicateCreatePostDraft(draft.id)
-                    refresh()
+                  onPress={() => {
+                    void duplicateCreatePostDraft(draft.id).then(() => refresh())
                   }}
                 >
                   <CopyIcon size={12} color={c.accent} />
@@ -106,7 +110,7 @@ export default function DraftsScreen() {
         ]}
         onSelect={value => {
           if (value === 'delete' && deleteDraftId) {
-            removeDraft(deleteDraftId)
+            void removeDraft(deleteDraftId)
           }
         }}
         onDismiss={() => setDeleteDraftId(null)}

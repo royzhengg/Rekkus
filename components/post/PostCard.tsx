@@ -1,39 +1,92 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { useRouter } from 'expo-router'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated'
 import { Avatar } from '@/components/Avatar'
 import { BookmarkIcon, HeartIcon, PinIcon } from '@/components/icons'
 import { PostMediaCarousel } from '@/components/post/PostMediaCarousel'
 import { PostPicksSummary } from '@/components/post/PostPicksSummary'
-import type { Post } from '@/types/domain'
-import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { DUR_FAST, DUR_MID, SPRING_SNAPPY } from '@/lib/animations'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { haptic } from '@/lib/haptics'
+import { usePressScale } from '@/lib/hooks/usePressScale'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
+import type { Post } from '@/types/domain'
+
+const DOUBLE_TAP_MS = 280
 
 type Props = {
   post: Post
-  compact?: boolean
+  compact?: boolean | undefined
+  onPressPost: (post: Post) => void
+  onPressCreator: (username: string) => void
+  onPressTag?: ((tag: string) => void) | undefined
+  onDoubleTapLike?: (() => void) | undefined
+  onLongPressPost?: (() => void) | undefined
 }
 
-export function PostCard({ post, compact }: Props) {
-  const router = useRouter()
+export function PostCard({ post, compact, onPressPost, onPressCreator, onPressTag, onDoubleTapLike, onLongPressPost }: Props) {
   const c = useThemeColors()
   const styles = useMemo(() => makeStyles(c), [c])
+  const press = usePressScale()
+  const reduceMotion = useReducedMotion()
+  const lastTapMs = useRef(0)
+  const heartOpacity = useSharedValue(0)
+  const heartScale = useSharedValue(0.3)
+  const heartStyle = useAnimatedStyle(() => ({
+    opacity: heartOpacity.value,
+    transform: [{ scale: heartScale.value }],
+  }))
+
+  function handlePress() {
+    if (onDoubleTapLike) {
+      const now = Date.now()
+      const delta = now - lastTapMs.current
+      lastTapMs.current = now
+      if (delta < DOUBLE_TAP_MS) {
+        lastTapMs.current = 0
+        onDoubleTapLike()
+        void haptic.light()
+        heartOpacity.value = 1
+        heartScale.value = 0.3
+        heartScale.value = withSpring(1.2, SPRING_SNAPPY, () => {
+          heartScale.value = withTiming(1, { duration: DUR_FAST })
+        })
+        heartOpacity.value = withDelay(700, withTiming(0, { duration: DUR_MID }))
+        return
+      }
+    }
+    onPressPost(post)
+  }
 
   return (
-    <TouchableOpacity
-      style={[styles.card, compact && styles.cardCompact]}
-      activeOpacity={0.92}
-      onPress={() => router.push(`/posts/${post.dbId || post.id}`)}
+    <Animated.View
+      {...(!reduceMotion ? { entering: FadeInDown.duration(DUR_MID).springify() } : {})}
+      style={press.animatedStyle}
     >
-      <PostMediaCarousel post={post} compact={compact} height={compact ? 188 : undefined} />
+      <TouchableOpacity
+        style={[styles.card, compact && styles.cardCompact]}
+        activeOpacity={1}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        onPress={handlePress}
+        onLongPress={onLongPressPost}
+        delayLongPress={380}
+      >
+      <View style={styles.mediaWrap}>
+        <PostMediaCarousel post={post} compact={compact} height={compact ? 188 : undefined} />
+        {onDoubleTapLike != null && (
+          <Animated.View style={[styles.heartOverlay, heartStyle]} pointerEvents="none">
+            <HeartIcon filled size={80} />
+          </Animated.View>
+        )}
+      </View>
       <View style={styles.body}>
         <TouchableOpacity
           style={styles.creatorRow}
-          onPress={() =>
-            router.push({ pathname: '/user/[username]', params: { username: post.creator } })
-          }
+          onPress={() => onPressCreator(post.creator)}
           activeOpacity={0.75}
         >
           <Avatar initials={post.initials} bg={post.avatarBg} color={post.avatarColor} size={24} />
@@ -62,7 +115,15 @@ export function PostCard({ post, compact }: Props) {
         {post.tags.length > 0 && (
           <View style={styles.tags}>
             {post.tags.slice(0, 3).map(tag => (
-              <Text key={tag} style={styles.tag}>#{tag}</Text>
+              <TouchableOpacity
+                key={tag}
+                onPress={() => onPressTag?.(tag)}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`Search for #${tag}`}
+              >
+                <Text style={styles.tag}>#{tag}</Text>
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -74,12 +135,19 @@ export function PostCard({ post, compact }: Props) {
           <BookmarkIcon size={13} inactiveColor={c.text3} />
         </View>
       </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   )
 }
 
 function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
+    mediaWrap: { position: 'relative' },
+    heartOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     card: {
       overflow: 'hidden',
       backgroundColor: c.bg,

@@ -48,6 +48,8 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | hashtags | Product | Public taxonomy | User/system | Retained while referenced | Not user-private | Public select, authenticated insert |
 | post_hashtags | Product | Public post metadata | User | Follows post lifetime | Included through posts | Public select, owner mutation |
 | restaurants | Product/Data | Canonical public restaurant data | Rekkus/user/provider/admin | Retained while restaurant exists | Not user-owned except submitted observations | Public select, controlled mutation |
+| dishes | Product/Data | Canonical public dish-at-restaurant identity | Rekkus/user/post backfill | Retained while referenced | Not user-private | Public select, authenticated creation through bounded workflow |
+| dish_audit_events | Security | Dish canonicalisation audit evidence | System/user workflow | Compliance audit retention | Minimized; not normal public export | Direct client access denied; internal review |
 | cuisine_aliases | Product/Data | Public taxonomy | Rekkus/system | Retained while search taxonomy exists | Not user-owned | Public select, migration/admin write |
 | suburb_aliases | Product/Data | Public local discovery taxonomy | Rekkus/system | Retained while local search taxonomy exists | Not user-owned | Public select, migration/admin write |
 | suburb_lookups | Product/Data | Public locality lookup metadata | Public/open locality data and admin seed | Retained while local search taxonomy exists | Not user-owned | Public select, migration/admin seed |
@@ -67,10 +69,12 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | moderation_appeals | Trust/Safety | Appeal record | User/admin | Manual review/audit retention | Appellant-linked rows included | Appellant insert/select, admin/service review |
 | user_trust_profiles | Trust/Safety | Private trust/restriction state | System/admin | Account lifetime or review expiry | Included where user-linked | Owner select, admin/service write |
 | privacy_requests | Security | User-private legal request | User/support | Legal retention | User visible | Owner RLS |
-| analytics_events | Analytics | Internal telemetry | User behavior/system | Time-window review, aggregate later | De-identify or delete link when required | Insert own, aggregate/public read |
+| analytics_events | Analytics | Internal telemetry | User behavior/system | 90-day raw retention, aggregate later | De-identify or delete link when required | Insert own, aggregate/public read |
+| feature_flag_overrides | Operations | Emergency feature flag rollback state | Engineering/admin | Until flag retirement or incident closure | Internal only | Service-role only |
 | saved_locations | Product | User-private saved restaurant intent | User | Account lifetime | Included | Owner RLS |
+| saved_dishes | Product | User-private canonical dish intent | User | Account lifetime | Included | Owner RLS |
 | collections | Product | User-private/shareable collection metadata | User | Account lifetime unless deleted | Included | Owner RLS; unlisted/public select |
-| collection_items | Product | User-private/shareable collection membership | User | Account lifetime unless deleted | Included | Owner RLS via collection; unlisted/public select |
+| collection_items | Product | User-private/shareable dish/post/place organisation | User | Account lifetime unless deleted | Included | Owner RLS via collection; unlisted/public select; atomic add/confirmed unsave RPCs |
 | user_topic_follows | Product | User-private taste/interest preference | User | Account lifetime unless deleted | Included | Owner RLS |
 | conversations | Product/Messaging | Private conversation container | User | Account lifetime unless deleted | Included | Participant RLS |
 | conversation_participants | Product/Messaging | Private conversation membership and read state | User | Account lifetime unless deleted | Included | Participant RLS |
@@ -201,8 +205,15 @@ Audit automatically or through controlled service paths:
 - security incident actions
 - provider kill-switch changes
 - async job runs, failures, and retries
+- dish audit (dish graph creation, merge, update via `dish_audit_events`)
+- auth audit (login, logout, OAuth, password change via `auth_audit_events` — permanent retention, ISO A.12.4.1)
+- content lifecycle (post/comment creation and deletion via `content_lifecycle_events` — no FK, survives cascade delete)
+- user profile audit (username, avatar, bio, display name changes via `user_profile_audit_events` — context stores field names only, never values; ISO A.12.4 gap closure, B-517)
+- collection audit (collection create, rename, delete, item add/remove, visibility change via `collection_audit_events` — no FK on collection_id so records survive collection deletion; B-518)
 
 Audit records should include actor type, actor ID where available, action, entity type, entity ID, before/after summary, source/provider, reason, request/job ID, timestamp, compliance category, and rollback reference. Do not store secrets, raw private exports, unnecessary PII, or restricted provider payloads in audit logs.
+
+All domain audit tables are unified under `platform_audit_events_view` (see ADR 0011). Query via service-role for cross-domain compliance evidence. The `check:audit` guardrail ensures every `*_audit_events` table is present in the view.
 
 ## ISO Readiness Map
 

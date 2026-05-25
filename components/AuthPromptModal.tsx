@@ -1,24 +1,24 @@
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native'
-import { useRouter } from 'expo-router'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useMemo } from 'react'
-import { spacing } from '@/constants/Spacing'
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 interface Props {
   visible: boolean
   onDismiss: () => void
+  onCreateAccount: () => void
+  onSignIn: () => void
 }
 
-export function AuthPromptModal({ visible, onDismiss }: Props) {
-  const router = useRouter()
+export function AuthPromptModal({ visible, onDismiss, onCreateAccount, onSignIn }: Props) {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
-  function goTo(path: '/(auth)/welcome' | '/(auth)/login') {
+  function run(action: () => void) {
     onDismiss()
-    router.push(path)
+    action()
   }
 
   return (
@@ -30,10 +30,10 @@ export function AuthPromptModal({ visible, onDismiss }: Props) {
           Join Rekkus<Text style={styles.dot}>.</Text>
         </Text>
         <Text style={styles.sub}>Like, save, and discover more.</Text>
-        <TouchableOpacity style={styles.primaryBtn} onPress={() => goTo('/(auth)/welcome')}>
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => run(onCreateAccount)}>
           <Text style={styles.primaryBtnText}>Create account</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryBtn} onPress={() => goTo('/(auth)/login')}>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={() => run(onSignIn)}>
           <Text style={styles.secondaryBtnText}>Sign in</Text>
         </TouchableOpacity>
       </View>

@@ -26,7 +26,8 @@ Industry reference: Yelp, Google Maps, Xiaohongshu, and Zomato all use a two-tie
 | `id`          | UUID             | Primary key                          |
 | `user_id`     | UUID (nullable)  | Null for anonymous events            |
 | `event_type`  | TEXT             | See event types below                |
-| `entity_type` | TEXT (nullable)  | `'restaurant'` / `'post'` / `'user'` |
+| `event_version` | INTEGER        | Schema version for this event shape  |
+| `entity_type` | TEXT (nullable)  | `'restaurant'` / `'post'` / `'user'` / `'collection'` / `'dish'` |
 | `entity_id`   | UUID (nullable)  | ID of the entity being acted on      |
 | `metadata`    | JSONB (nullable) | Flexible extra data per event type   |
 | `created_at`  | TIMESTAMPTZ      | Event timestamp                      |
@@ -37,6 +38,9 @@ Industry reference: Yelp, Google Maps, Xiaohongshu, and Zomato all use a two-tie
 - All rows are publicly readable for aggregate trend queries
 - Events must stay privacy-safe: do not store raw secrets, reset links, passwords, emails, phone numbers, private notes, raw provider payloads, or precise location unless a Compliance Impact explicitly approves it.
 - App code must route event writes through `lib/analytics.ts`. Provider/cache infrastructure may write from approved service boundaries only. `npm run check:observability` flags direct screen/hook writes to `analytics_events`.
+- `event_version` defaults to `1`. Increment it only when the meaning or metadata shape of an existing `event_type` changes in a way that historical queries must distinguish.
+- `sampleRate` is allowed only at the `lib/analytics.ts` boundary. High-volume diagnostic events may sample below `1.0`; product-critical conversion, safety, auth, upload failure, and moderation events must not be sampled.
+- Raw user-linked `analytics_events` rows are retained for 90 days, then deleted by the `analytics-retention` Edge Function. Longer-lived trend/search surfaces must use aggregate or de-identified rows, not raw event history.
 
 ### Indexes
 
@@ -60,10 +64,12 @@ Industry reference: Yelp, Google Maps, Xiaohongshu, and Zomato all use a two-tie
 | `post_view`                        | `post`                         | post.id       | null                                                                                                 | User opens a post detail page                            |
 | `post_like`                        | `post`                         | post.id       | null                                                                                                 | User likes a post                                        |
 | `post_save`                        | `post`                         | post.id       | null                                                                                                 | User saves a post                                        |
+| `dish_view`                        | `dish`                         | dish.id       | null                                                                                                 | User opens a canonical dish detail page                  |
+| `dish_save`                        | `dish`                         | dish.id       | null                                                                                                 | User bookmarks a canonical dish                          |
 | `post_dwell`                       | `post`                         | post.id       | `{ duration_ms }`                                                                                    | User stays on a post detail page for 3s+                 |
 | `post_comment`                     | `post`                         | post.id       | null                                                                                                 | User comments or replies on a post                       |
 | `restaurant_revisit`               | `restaurant`                   | restaurant.id | `{ source }`                                                                                         | User opens a restaurant from saved/post context          |
-| `collection_interaction`           | `collection`                   | collection.id | `{ action, filter_type, filter_id }`                                                                 | User selects collection/staff-pick/saved-intent controls |
+| `collection_interaction`           | `collection`                   | collection.id | `{ action, target_type, filter_type, filter_id }`                                                    | User creates/changes collections or selects saved filters |
 | `feed_diagnostic`                  | null                           | null          | `{ action, feed_tab, visible_count, result_count }`                                                  | Feed view/refresh diagnostic signal                      |
 | `provider_cache_hit`               | `restaurant`                   | restaurant.id | `{ provider, feature }`                                                                              | Provider cache serves a restaurant/place request         |
 | `provider_cache_miss`              | `restaurant`                   | restaurant.id | `{ provider, feature }`                                                                              | Local/provider cache cannot serve a request              |
@@ -116,6 +122,8 @@ Industry reference: Yelp, Google Maps, Xiaohongshu, and Zomato all use a two-tie
 | `action_error`                     | null                           | null          | `{ action, error_class }`                                                                            | Recoverable app action fails                             |
 
 Events are **fire-and-forget** — tracked with `.then(() => {})` and never block navigation or UI.
+
+`feed_diagnostic` is sampled at 10% because it can become high-volume at scale and is used for operational trend shape, not per-user product truth.
 
 > **Messaging privacy rule**: Message body, sender identity, and recipient identity must never appear in analytics event payloads. Use `conversation_id` as the only linking key.
 > **Comment privacy rule**: Comment text must not appear in analytics, push notifications, or alert summaries. UI alerts say that someone commented or replied, then route users to the post/comment context.
@@ -213,6 +221,36 @@ final_score = text_score           ← tiered token matching
 ```
 
 Higher score = appears earlier in results. Nothing is hard-excluded.
+
+---
+
+## Analytics events vs. platform audit events
+
+These two systems are **strictly separate** and serve different purposes:
+
+| Dimension | `analytics_events` | Audit tables + `platform_audit_events_view` |
+|---|---|---|
+| Purpose | Behavioural signals for ranking, trending, product features | Compliance evidence, incident investigation, ISO readiness |
+| Retention | 90 days (auto-deleted by `analytics-retention` Edge Function) | Permanent — no retention job touches audit tables |
+| Access | Public read for aggregates; authenticated insert own rows | Service-role only (source-table RLS blocks client access) |
+| Write path | Direct client INSERT via `analytics.track()` | `SECURITY DEFINER` RPC only (`record_auth_audit_event`, `record_content_lifecycle_event`, etc.) |
+| Append-only | No (rows can be superseded via retention job) | Yes — no UPDATE/DELETE policies on any audit table |
+| Example | `post_like`, `search_query`, `post_view` | `login_email_success`, `post_deleted`, `dish_created` |
+
+**Never use `analytics_events` as a compliance source.** Auth events stored there have 90-day auto-deletion and are insufficient for ISO A.12.4.1.
+
+### Audit tables unified in `platform_audit_events_view`
+
+| Source table | Domain |
+|---|---|
+| `auth_audit_events` | Authentication lifecycle (ISO A.12.4.1) |
+| `content_lifecycle_events` | Post/comment creation and deletion |
+| `dish_audit_events` | Dish graph changes |
+| `moderation_actions` | Content moderation (hide, ban, restore, warn) |
+| `post_edit_events` | Post edit lifecycle (field names only, never content) |
+| `restaurant_audit_events` | Restaurant compliance and data-quality events |
+
+Query the view via service-role for cross-domain incident investigation. See [ADR 0011](../../docs/adr/0011-unified-audit-view.md).
 
 ---
 

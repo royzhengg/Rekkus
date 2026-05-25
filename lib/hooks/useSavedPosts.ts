@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef } from 'react'
 import { useFocusEffect } from 'expo-router'
-import { fetchSavedPostsPage, mapRowToPost } from '../services/posts'
-import { readOfflineCache, writeOfflineCache } from '../services/offlineCache'
+import { useState, useCallback, useRef } from 'react'
 import type { Post } from '@/types/domain'
+import { readOfflineCache, writeOfflineCache } from '../services/offlineCache'
+import { fetchSavedPostsPage, mapRowToPost } from '../services/posts'
+import { isCachedPostList } from '../services/posts/guards'
 
 const firstPageCacheKey = (userId: string) => `saved-posts:${userId}:first-page`
 
@@ -23,17 +24,17 @@ export function useSavedPosts(userId: string | undefined) {
     }
     setLoading(true)
     setError(null)
-    const cached = await readOfflineCache<Post[]>(firstPageCacheKey(userId))
+    const cached = await readOfflineCache(firstPageCacheKey(userId), isCachedPostList)
     if (cached) setSavedPosts(cached)
     try {
       const { rows, nextCursor } = await fetchSavedPostsPage(userId, null)
       const mapped = rows.map((r, i) => mapRowToPost(r, i))
       setSavedPosts(mapped)
-      writeOfflineCache(firstPageCacheKey(userId), mapped)
+      void writeOfflineCache(firstPageCacheKey(userId), mapped)
       cursorRef.current = nextCursor
       setHasMore(nextCursor !== null)
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to load saved posts')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load saved posts')
     }
     setLoading(false)
   }, [userId])
@@ -49,7 +50,9 @@ export function useSavedPosts(userId: string | undefined) {
       })
       cursorRef.current = nextCursor
       setHasMore(nextCursor !== null)
-    } catch {}
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load more saved posts')
+    }
     setLoadingMore(false)
   }, [userId, loadingMore])
 
@@ -61,16 +64,18 @@ export function useSavedPosts(userId: string | undefined) {
       const { rows, nextCursor } = await fetchSavedPostsPage(userId, null)
       const mapped = rows.map((r, i) => mapRowToPost(r, i))
       setSavedPosts(mapped)
-      writeOfflineCache(firstPageCacheKey(userId), mapped)
+      void writeOfflineCache(firstPageCacheKey(userId), mapped)
       cursorRef.current = nextCursor
       setHasMore(nextCursor !== null)
-    } catch {}
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to refresh saved posts')
+    }
     setRefreshing(false)
   }, [userId])
 
   useFocusEffect(
     useCallback(() => {
-      fetchFirst()
+      void fetchFirst()
     }, [fetchFirst])
   )
 

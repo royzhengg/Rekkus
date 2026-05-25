@@ -1,4 +1,5 @@
 import { Redirect, useLocalSearchParams } from 'expo-router'
+import { routeParamsObject, routeParamString } from '@/lib/utils/routeParams'
 
 export default function LegacyRestaurantDetailRedirect() {
   const params = useLocalSearchParams<{
@@ -8,12 +9,14 @@ export default function LegacyRestaurantDetailRedirect() {
     lat?: string
     lng?: string
   }>()
+  const placeId = routeParamString(params.placeId) ?? 'none'
+  const forwarded = routeParamsObject(params, ['placeId', 'name', 'address', 'lat', 'lng'])
 
   return (
     <Redirect
       href={{
         pathname: '/restaurants/[restaurantId]',
-        params: { ...params, restaurantId: params.placeId },
+        params: { ...forwarded, restaurantId: placeId },
       }}
     />
   )

@@ -1,13 +1,13 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { useRouter } from 'expo-router'
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { Text, View, StyleSheet } from 'react-native'
-import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { EditIcon, PlusIcon } from '@/components/icons'
+import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
+import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { listCreatePostDraftSummaries } from '@/lib/services/postDrafts'
-import { analytics } from '@/lib/analytics'
 
 type CreateLauncherContextValue = {
   openCreateLauncher: () => void
@@ -30,7 +30,7 @@ export function CreateLauncherProvider({ children }: { children: React.ReactNode
     router.push({
       pathname: '/(tabs)/create',
       params: { intent: 'new', nonce: String(Date.now()) },
-    } as any)
+    } as never)
   }, [router])
 
   const openCreateLauncher = useCallback(() => {

@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -27,53 +29,20 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Docs
-        run: npm run check:docs
-
-      - name: Hygiene
-        run: npm run check:hygiene
-
-      - name: Architecture
-        run: npm run check:architecture
-
-      - name: Tokens
-        run: npm run check:tokens
-
-      - name: Dark mode
-        run: npm run check:darkmode
-
-      - name: Accessibility
-        run: npm run check:a11y
-
-      - name: Ops
-        run: npm run check:ops
-
-      - name: Compliance
-        run: npm run check:compliance
-
-      - name: Data inventory
-        run: npm run check:data-inventory
-
-      - name: Providers
-        run: npm run check:providers
-
-      - name: Privacy
-        run: npm run check:privacy
-
-      - name: RLS
-        run: npm run check:rls
-
-      - name: Audit
-        run: npm run check:audit
-
-      - name: ISO
-        run: npm run check:iso
-
       - name: Typecheck
         run: npm run typecheck
 
       - name: Lint
         run: npm run lint
+
+      - name: Hygiene
+        run: npm run check:hygiene
+
+      - name: Dead-code candidates
+        run: npm run check:dead-code
+
+      - name: Stale feature flags
+        run: npm run check:stale-flags
 
       - name: Release readiness
         if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'

@@ -1,3 +1,5 @@
+import { useRouter } from 'expo-router'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -10,15 +12,14 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useMemo } from 'react'
-import { useRouter } from 'expo-router'
 import { Svg, Polyline, Path, Circle } from 'react-native-svg'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { useAuth } from '@/lib/contexts/AuthContext'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
-import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { isValidPassword, passwordMinLengthMessage, passwordsMatch as doPasswordsMatch } from '@/lib/utils/validation'
 
 function ChevronLeft() {
   const colors = useThemeColors()
@@ -84,8 +85,8 @@ export default function SignupScreen() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const passwordsMatch = password === confirm
-  const canSubmit = email.trim().length > 0 && password.length >= 8 && passwordsMatch
+  const passwordsMatch = doPasswordsMatch(password, confirm)
+  const canSubmit = email.trim().length > 0 && isValidPassword(password) && passwordsMatch
 
   async function handleContinue() {
     if (!canSubmit || loading) return
@@ -138,13 +139,18 @@ export default function SignupScreen() {
           <View style={styles.inputWrap}>
             <TextInput
               style={styles.inputInner}
-              placeholder="At least 8 characters"
+              placeholder={passwordMinLengthMessage()}
               placeholderTextColor={colors.text3}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
             />
-            <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={styles.eyeBtn}>
+            <TouchableOpacity
+              onPress={() => setShowPassword(v => !v)}
+              style={styles.eyeBtn}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+            >
               <EyeIcon open={showPassword} />
             </TouchableOpacity>
           </View>
@@ -161,7 +167,12 @@ export default function SignupScreen() {
               returnKeyType="done"
               onSubmitEditing={handleContinue}
             />
-            <TouchableOpacity onPress={() => setShowConfirm(v => !v)} style={styles.eyeBtn}>
+            <TouchableOpacity
+              onPress={() => setShowConfirm(v => !v)}
+              style={styles.eyeBtn}
+              accessibilityRole="button"
+              accessibilityLabel={showConfirm ? 'Hide password confirmation' : 'Show password confirmation'}
+            >
               <EyeIcon open={showConfirm} />
             </TouchableOpacity>
           </View>

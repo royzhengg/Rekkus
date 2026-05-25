@@ -35,6 +35,7 @@ Media pipeline governance protects upload quality, user safety, and storage cost
 - Preserve originals only when a rollback, moderation, or future reprocessing need is explicitly documented with retention and cleanup.
 - Compression now starts on device through `lib/services/postMediaProcessing.ts` and `react-native-compressor`; oversized images are compressed to feed-safe dimensions and oversized videos are compressed with a bounded bitrate/size target before upload where possible.
 - Server processing is additive and future-proofed through `supabase/functions/process-post-media`. The v1 function is an orchestrator/lightweight fallback that can later dispatch to a dedicated worker without changing app-facing post media types.
+- `process-post-media` rejects malformed `mediaIds` request bodies with `400` before any service-role media access.
 
 ## Variants
 

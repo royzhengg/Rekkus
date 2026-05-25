@@ -1,17 +1,23 @@
-import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
+import { useRouter, useLocalSearchParams  } from 'expo-router'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { useRouter } from 'expo-router'
-import { useLocalSearchParams } from 'expo-router'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { ChevronLeft } from '@/components/icons'
-import { usePosts } from '@/lib/contexts/PostsContext'
+import StepDetails from '@/components/post-create/StepDetails'
+import StepMedia from '@/components/post-create/StepMedia'
+import StepReview from '@/components/post-create/StepReview'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
+import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
-import StepMedia from '@/components/post-create/StepMedia'
-import StepDetails from '@/components/post-create/StepDetails'
-import StepReview from '@/components/post-create/StepReview'
-import type { SelectedPlace } from '@/lib/services/restaurants'
+import { usePosts } from '@/lib/contexts/PostsContext'
+import { usePostUploadQueue } from '@/lib/contexts/PostUploadContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { tasteToLegacyFood, valueToLegacyCost } from '@/lib/dataSources/rekkusPicks'
+import { routes } from '@/lib/routes'
+import { findOrCreateDish } from '@/lib/services/dishes'
+import type { CreatePostDraft, CreatePostDraftStatus } from '@/lib/services/postDrafts'
 import {
   clearCreatePostDraft,
   listCreatePostDraftSummaries,
@@ -21,25 +27,15 @@ import {
   saveCreatePostDraftRemote,
   saveCreatePostDraft,
 } from '@/lib/services/postDrafts'
-import type { CreatePostDraft, CreatePostDraftStatus } from '@/lib/services/postDrafts'
-import { usePostUploadQueue } from '@/lib/contexts/PostUploadContext'
 import { enqueueServerMediaProcessing } from '@/lib/services/postMediaProcessing'
-import { tasteToLegacyFood, valueToLegacyCost } from '@/lib/dataSources/rekkusPicks'
-import type { DishTag, PostMedia, RekkusOccasionTag, RekkusTasteVerdict, RekkusValueVerdict } from '@/types/domain'
-import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { createPost, loadPostForEditing, recordPostEditEvent, updatePost } from '@/lib/services/posts'
-import { analytics } from '@/lib/analytics'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import type { SelectedPlace } from '@/lib/services/restaurants'
+import type { DishTag, PostMedia, RekkusOccasionTag, RekkusTasteVerdict, RekkusValueVerdict } from '@/types/domain'
+import { makeStyles } from './CreatePostScreen.styles'
+import { CreatePostSheets, type DraftNotice, type SaveDraftMode } from './CreatePostSheets'
 
 type Step = 1 | 2 | 3
 type EntryMode = 'loading' | 'choosing' | 'editing'
-type SaveDraftMode = 'update' | 'new'
-type DraftNotice = {
-  title: string
-  subtitle: string
-}
 
 export default function PostScreen() {
   const router = useRouter()
@@ -67,9 +63,9 @@ export default function PostScreen() {
   const [leaveConfirmVisible, setLeaveConfirmVisible] = useState(false)
   const [editConflictVisible, setEditConflictVisible] = useState(false)
   const [editBaselineCount, setEditBaselineCount] = useState<number | null>(null)
+  const [retryPostAvailable, setRetryPostAvailable] = useState(false)
   const ignoreNextChooserDismiss = useRef(false)
   const isEditingPost = intent === 'edit' && !!postId
-
   // Step 1 state
   const [media, setMedia] = useState<PostMedia[]>([])
   const [title, setTitle] = useState('')
@@ -111,11 +107,11 @@ export default function PostScreen() {
     if (!user) requireAuth()
   }, [user, requireAuth])
 
-  async function refreshDraftSummaries() {
+  const refreshDraftSummaries = useCallback(async () => {
     if (!user?.id) return []
     const items = await listCreatePostDraftSummaries()
     return items
-  }
+  }, [user?.id])
 
   useEffect(() => {
     if (!user?.id) return
@@ -133,15 +129,15 @@ export default function PostScreen() {
     }
     if (intent === 'new') return
     if (intent === 'choose') {
-      refreshDraftSummaries().then(items => {
+      void refreshDraftSummaries().then(items => {
         setEntryMode(items.length > 0 ? 'choosing' : 'editing')
       })
       return
     }
-    refreshDraftSummaries().then(items => {
+    void refreshDraftSummaries().then(items => {
       setEntryMode(items.length > 0 ? 'choosing' : 'editing')
     })
-  }, [draftId, intent, nonce, user?.id, isEditingPost])
+  }, [draftId, intent, nonce, user?.id, isEditingPost, refreshDraftSummaries])
 
   function applyDraftToForm(draft: CreatePostDraft) {
     setCurrentDraftId(draft.remoteId ?? draft.id)
@@ -167,7 +163,7 @@ export default function PostScreen() {
   useEffect(() => {
     if (!draftId) return
     let mounted = true
-    loadCreatePostDraft(draftId).then(draft => {
+    void loadCreatePostDraft(draftId).then(draft => {
       if (!mounted || !draft) return
       applyDraftToForm(draft)
     })
@@ -179,7 +175,7 @@ export default function PostScreen() {
   useEffect(() => {
     if (!isEditingPost || !postId || !user?.id) return
     let mounted = true
-    loadPostForEditing(postId).then(post => {
+    void loadPostForEditing(postId).then(post => {
       if (!mounted || !post) return
       setMedia(post.media ?? [])
       setTitle(post.title ?? '')
@@ -214,44 +210,7 @@ export default function PostScreen() {
     }
   }, [isEditingPost, postId, user?.id])
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!hasDraftContent) return
-      if (entryMode !== 'editing') return
-      if (isEditingPost) return
-      if (currentDraftStatus === 'saved') return
-      saveCreatePostDraft(buildDraft()).then(saved => {
-        setCurrentDraftId(saved.remoteId ?? saved.id)
-        setCurrentDraftStatus(saved.status)
-        refreshDraftSummaries()
-      })
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [
-    hasDraftContent,
-    media,
-    title,
-    selectedPlace,
-    dishTags,
-    foodRating,
-    vibeRating,
-    costRating,
-    tasteVerdict,
-    valueVerdict,
-    occasionTags,
-    body,
-    bestDish,
-    cuisineType,
-    hashtags,
-    hashtagInput,
-    entryMode,
-    currentDraftStatus,
-    isEditingPost,
-  ])
-
-  if (!user) return null
-
-  function buildDraft(): CreatePostDraft {
+  const buildDraft = useCallback((): CreatePostDraft => {
     return {
       media,
       id: currentDraftId,
@@ -274,7 +233,31 @@ export default function PostScreen() {
       hashtagInput,
       updatedAt: new Date().toISOString(),
     }
-  }
+  }, [media, currentDraftId, user?.id, currentDraftStatus, title, selectedPlace, dishTags, foodRating, vibeRating, costRating, tasteVerdict, valueVerdict, occasionTags, body, bestDish, cuisineType, hashtags, hashtagInput])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!hasDraftContent) return
+      if (entryMode !== 'editing') return
+      if (isEditingPost) return
+      if (currentDraftStatus === 'saved') return
+      void saveCreatePostDraft(buildDraft()).then(saved => {
+        setCurrentDraftId(saved.remoteId ?? saved.id)
+        setCurrentDraftStatus(saved.status)
+        void refreshDraftSummaries()
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [
+    hasDraftContent,
+    entryMode,
+    currentDraftStatus,
+    isEditingPost,
+    buildDraft,
+    refreshDraftSummaries,
+  ])
+
+  if (!user) return null
 
   function handleBack() {
     if (entryMode === 'choosing') {
@@ -333,7 +316,7 @@ export default function PostScreen() {
       setSaveSheetVisible(true)
       return
     }
-    saveDraftWithMode('update')
+    void saveDraftWithMode('update')
   }
 
   async function saveDraftWithMode(mode: SaveDraftMode, options: { showConfirmation?: boolean } = {}) {
@@ -385,7 +368,8 @@ export default function PostScreen() {
         })
         analytics.postEdit(user.id, postId, 'saved')
         setPosting(false)
-        router.replace(`/posts/${postId}` as any)
+
+        router.replace(routes.postDetail(postId))
       } catch (error) {
         setPosting(false)
         const message = error instanceof Error ? error.message : ''
@@ -416,6 +400,21 @@ export default function PostScreen() {
       uploadQueue.updateJob(jobId, { status: 'uploading', progress: 0.45 })
       await enqueueServerMediaProcessing(media)
       uploadQueue.updateJob(jobId, { status: 'publishing', progress: 0.84 })
+      let dishId: string | null = null
+      if (bestDish.trim() && selectedPlace?.restaurantId) {
+        try {
+          dishId = await findOrCreateDish({
+            name: bestDish.trim(),
+            restaurantId: selectedPlace.restaurantId,
+            cuisineType: cuisineType || null,
+            userId: user.id,
+            context: { source: 'post_creation' },
+          })
+        } catch {
+          // Intentional non-blocking fallback: post publishes without dish_id.
+          // Dish graph link can be repaired later (B-289). // B-282
+        }
+      }
       await createPost({
         userId: user.id,
         caption: title.trim() || null,
@@ -428,6 +427,7 @@ export default function PostScreen() {
         occasionTags,
         cuisineType: cuisineType || null,
         bestDish: bestDish.trim() || null,
+        dishId,
         dishTags,
         media,
       })
@@ -441,11 +441,19 @@ export default function PostScreen() {
       console.error('[handlePost]', err)
       uploadQueue.failJob(jobId, 'post_failed')
       setPosting(false)
+      setRetryPostAvailable(true)
       setDraftNotice({
         title: 'Could not publish post',
-        subtitle: 'Your draft is still here. Check your connection and try again.',
+        subtitle: 'Tap "Try again" or check your connection and tap Post.',
       })
     }
+  }
+
+  function handleRetryPost() {
+    uploadQueue.jobs.filter(j => j.status === 'failed').forEach(j => uploadQueue.clearJob(j.id))
+    setRetryPostAvailable(false)
+    setDraftNotice(null)
+    void handlePost()
   }
 
   const STEP_TITLES: Record<Step, string> = {
@@ -460,6 +468,11 @@ export default function PostScreen() {
         <View style={styles.choiceHeader}>
           <Text style={styles.choiceTitle}>Create</Text>
         </View>
+        <EmptyState
+          loading
+          title="Opening create"
+          subtitle="Checking for saved drafts."
+        />
       </SafeAreaView>
     )
   }
@@ -485,7 +498,8 @@ export default function PostScreen() {
               return
             }
             if (value === 'all') {
-              router.push('/create/drafts' as any)
+
+              router.push('/create/drafts')
               return
             }
           }}
@@ -501,11 +515,39 @@ export default function PostScreen() {
     )
   }
 
+  const sheetProps = {
+    colors: c, saveSheetVisible, setSaveSheetVisible, draftNotice, setDraftNotice,
+    leaveConfirmVisible, setLeaveConfirmVisible, editConflictVisible, setEditConflictVisible,
+    isEditingPost, onSaveDraft: saveDraftWithMode, onDraftDone: () => router.replace('/(tabs)/feed'),
+    ...(retryPostAvailable ? { onRetryPost: handleRetryPost } : {}),
+    onDiscard: async () => {
+      if (isEditingPost && postId && user?.id) recordPostEditEvent(postId, user.id, 'edit_discarded').catch(() => {})
+      if (currentDraftId) await clearCreatePostDraft(currentDraftId)
+      clearForm()
+      router.replace('/(tabs)/feed')
+    },
+    onReviewLatest: () => { if (postId) router.replace(routes.postDetail(postId)) },
+    onSaveConflictDraft: () => saveDraftWithMode('new', { showConfirmation: true }),
+    onDiscardConflict: async () => {
+      if (postId && user?.id) recordPostEditEvent(postId, user.id, 'edit_discarded').catch(() => {})
+      clearForm()
+      if (postId) router.replace(routes.postDetail(postId))
+    },
+  }
+  const mediaProps = { media, setMedia, title, setTitle, selectedPlace, setSelectedPlace, cuisineType, dishTags, setDishTags }
+  const detailsProps = { foodRating, setFoodRating, vibeRating, setVibeRating, costRating, setCostRating, tasteVerdict, setTasteVerdict, valueVerdict, setValueVerdict, occasionTags, setOccasionTags, body, setBody, bestDish, setBestDish, cuisineType, setCuisineType, hashtags, setHashtags, hashtagInput, setHashtagInput }
+  const reviewProps = { title, body, media, selectedPlace, foodRating, vibeRating, costRating, tasteVerdict, valueVerdict, occasionTags, cuisineType, bestDish, hashtags, onEditBasics: () => setStep(1), onEditDetails: () => setStep(2), onPost: handlePost, primaryLabel: isEditingPost ? 'Save changes' : 'Post review', posting, onSaveDraft: openSaveDraftOptions, savingDraft }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Top bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={handleBack}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel={step === 1 ? 'Cancel post creation' : 'Go back'}
+        >
           <ChevronLeft size={16} />
           <Text style={styles.backText}>{step === 1 ? 'Cancel' : 'Back'}</Text>
         </TouchableOpacity>
@@ -553,266 +595,16 @@ export default function PostScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {step === 1 && (
-          <StepMedia
-            media={media}
-            setMedia={setMedia}
-            title={title}
-            setTitle={setTitle}
-            selectedPlace={selectedPlace}
-            setSelectedPlace={setSelectedPlace}
-            cuisineType={cuisineType}
-            dishTags={dishTags}
-            setDishTags={setDishTags}
-          />
+          <StepMedia {...mediaProps} />
         )}
         {step === 2 && (
-          <StepDetails
-            foodRating={foodRating}
-            setFoodRating={setFoodRating}
-            vibeRating={vibeRating}
-            setVibeRating={setVibeRating}
-            costRating={costRating}
-            setCostRating={setCostRating}
-            tasteVerdict={tasteVerdict}
-            setTasteVerdict={setTasteVerdict}
-            valueVerdict={valueVerdict}
-            setValueVerdict={setValueVerdict}
-            occasionTags={occasionTags}
-            setOccasionTags={setOccasionTags}
-            body={body}
-            setBody={setBody}
-            bestDish={bestDish}
-            setBestDish={setBestDish}
-            cuisineType={cuisineType}
-            setCuisineType={setCuisineType}
-            hashtags={hashtags}
-            setHashtags={setHashtags}
-            hashtagInput={hashtagInput}
-            setHashtagInput={setHashtagInput}
-          />
+          <StepDetails {...detailsProps} />
         )}
         {step === 3 && (
-          <StepReview
-            title={title}
-            body={body}
-            media={media}
-            selectedPlace={selectedPlace}
-            foodRating={foodRating}
-            vibeRating={vibeRating}
-            costRating={costRating}
-            tasteVerdict={tasteVerdict}
-            valueVerdict={valueVerdict}
-            occasionTags={occasionTags}
-            cuisineType={cuisineType}
-            bestDish={bestDish}
-            hashtags={hashtags}
-            onEditBasics={() => setStep(1)}
-            onEditDetails={() => setStep(2)}
-            onPost={handlePost}
-            primaryLabel={isEditingPost ? 'Save changes' : 'Post review'}
-            posting={posting}
-            onSaveDraft={openSaveDraftOptions}
-            savingDraft={savingDraft}
-          />
+          <StepReview {...reviewProps} />
         )}
       </KeyboardAvoidingView>
-      <RekkusActionSheet
-        visible={saveSheetVisible}
-        title="Save draft"
-        subtitle="Update this draft, or keep it unchanged and save a new version."
-        options={[
-          { label: 'Save draft', value: 'update' },
-          { label: 'Save as new draft', value: 'new' },
-        ]}
-        onSelect={value => saveDraftWithMode(value as SaveDraftMode)}
-        onDismiss={() => setSaveSheetVisible(false)}
-      />
-      <RekkusActionSheet
-        visible={draftNotice != null}
-        title={draftNotice?.title}
-        subtitle={draftNotice?.subtitle}
-        options={[
-          { label: 'Keep editing', value: 'keep' },
-          { label: 'Done', value: 'done' },
-        ]}
-        onSelect={value => {
-          if (value === 'done') router.replace('/(tabs)/feed')
-        }}
-        onDismiss={() => setDraftNotice(null)}
-      />
-      <RekkusActionSheet
-        visible={leaveConfirmVisible}
-        title={isEditingPost ? 'Discard edits?' : 'Leave this post?'}
-        subtitle={isEditingPost ? 'Your changes are not saved yet.' : 'Save this as a draft, or discard it before leaving.'}
-        options={[
-          { label: 'Keep editing', value: 'keep' },
-          ...(!isEditingPost ? [{ label: 'Save draft', value: 'save', accentColor: c.accent }] : []),
-          { label: 'Discard', value: 'discard', destructive: true },
-        ]}
-        onSelect={async value => {
-          if (value === 'keep') return
-          if (value === 'save') {
-            await saveDraftWithMode('update', { showConfirmation: false })
-            router.replace('/(tabs)/feed')
-            return
-          }
-          if (value === 'discard') {
-            if (isEditingPost && postId && user?.id) {
-              recordPostEditEvent(postId, user.id, 'edit_discarded').catch(() => {})
-            }
-            if (currentDraftId) await clearCreatePostDraft(currentDraftId)
-            clearForm()
-            router.replace('/(tabs)/feed')
-          }
-        }}
-        onDismiss={() => setLeaveConfirmVisible(false)}
-      />
-      <RekkusActionSheet
-        visible={editConflictVisible}
-        title="Review latest changes"
-        subtitle="This post changed while you were editing. Your edits are still here."
-        options={[
-          { label: 'Review latest', value: 'latest', accentColor: c.accent },
-          { label: 'Save as draft', value: 'draft' },
-          { label: 'Discard changes', value: 'discard', destructive: true },
-        ]}
-        onSelect={async value => {
-          if (value === 'latest' && postId) {
-            router.replace(`/posts/${postId}` as any)
-            return
-          }
-          if (value === 'draft') {
-            await saveDraftWithMode('new', { showConfirmation: true })
-            return
-          }
-          if (value === 'discard') {
-            if (postId && user?.id) {
-              recordPostEditEvent(postId, user.id, 'edit_discarded').catch(() => {})
-            }
-            clearForm()
-            if (postId) router.replace(`/posts/${postId}` as any)
-          }
-        }}
-        onDismiss={() => setEditConflictVisible(false)}
-      />
+      <CreatePostSheets {...sheetProps} />
     </SafeAreaView>
   )
-}
-
-function makeStyles(c: ReturnType<typeof useThemeColors>) {
-  return StyleSheet.create({
-    container: { flex: 1, backgroundColor: c.bg },
-    choiceHeader: {
-      minHeight: 56,
-      justifyContent: 'center',
-      paddingHorizontal: spacing[5],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    choiceTitle: { fontSize: fontSize['2.5xl'], fontWeight: fontWeight.extrabold, color: c.text },
-    choiceScroll: { flex: 1 },
-    choiceContent: { padding: spacing[5], paddingBottom: spacing.px40, gap: spacing[3] },
-    newPostCard: {
-      borderRadius: radius.sm3,
-      backgroundColor: c.text,
-      paddingHorizontal: spacing.px18,
-      paddingVertical: spacing[4],
-    },
-    newPostTitle: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.bg },
-    newPostSub: { fontSize: fontSize.base, color: c.bg, opacity: 0.68, marginTop: spacing.px3 },
-    choiceSectionHeader: {
-      marginTop: spacing.px10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    choiceSectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
-    choiceSectionAction: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: c.accent },
-    choiceDraftRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing[3],
-      paddingVertical: spacing.px10,
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    choiceThumb: {
-      width: 52,
-      height: 52,
-      borderRadius: radius.sm3,
-      backgroundColor: c.surface2,
-      overflow: 'hidden',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    choiceDraftInfo: { flex: 1 },
-    choiceDraftTitle: { fontSize: fontSize.md, fontWeight: fontWeight.extrabold, color: c.text },
-    choiceDraftMeta: { fontSize: fontSize.bodySm, color: c.text3, marginTop: spacing.px3 },
-    topBar: {
-      height: 56,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing[4],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    backBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing[1],
-      minHeight: 40,
-      paddingHorizontal: spacing[0],
-      marginLeft: -spacing.px6,
-      width: 96,
-    },
-    backText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text2 },
-    centerWrap: { alignItems: 'center', gap: spacing[1] },
-    stepTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
-    dots: { flexDirection: 'row', gap: spacing.px5 },
-    dot: {
-      width: 6,
-      height: 6,
-      borderRadius: radius.tiny,
-      backgroundColor: c.border2,
-    },
-    dotActive: { width: 18, backgroundColor: c.accent },
-    rightActions: {
-      width: 96,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      gap: spacing.px2,
-    },
-    draftsText: {
-      fontSize: fontSize.bodySm,
-      fontWeight: fontWeight.semibold,
-      color: c.text2,
-    },
-    saveText: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.bold,
-      color: c.accent,
-    },
-    saveTextDisabled: { color: c.text3, opacity: 0.55 },
-    headerAction: {
-      minWidth: 42,
-      minHeight: 40,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    nextBtn: {
-      minWidth: 42,
-      minHeight: 40,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    nextBtnDisabled: { opacity: 0.5 },
-    nextBtnText: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.bold,
-      color: c.accent,
-    },
-    nextBtnTextDisabled: { color: c.text3 },
-  })
 }

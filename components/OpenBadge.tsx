@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export const OpenBadge = React.memo(function OpenBadge({ openNow }: { openNow: boolean }) {
   const colors = useThemeColors()

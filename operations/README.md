@@ -9,12 +9,12 @@ Operations docs own release flow, beta readiness, operational cadence, support, 
 - [FOUNDER_OS.md](FOUNDER_OS.md): founder command center and operational control-plane strategy
 - [CURRENT_STATE.md](CURRENT_STATE.md): living priorities, blockers, release state, and risks
 - [OPERATIONAL_CADENCE.md](OPERATIONAL_CADENCE.md): daily, weekly, monthly, and quarterly review rhythm
-- [OBSERVABILITY.md](OBSERVABILITY.md): visibility targets before dashboards exist
+- [OBSERVABILITY.md](OBSERVABILITY.md): Sentry crash/error reporting and visibility targets before dashboards exist
 - [ADMIN_PLATFORM.md](ADMIN_PLATFORM.md): internal admin control matrix for moderation, support, restaurant data, flags, and dashboards
 - [AUTOMATION.md](AUTOMATION.md): automation philosophy, maturity model, and roadmap
 - [DATA_MODE.md](DATA_MODE.md): mock, mixed, and live data-mode boundaries
 - [COSTS.md](COSTS.md): provider cost ownership, review gates, and quota readiness
-- [FEATURE_FLAGS.md](FEATURE_FLAGS.md): feature flag metadata, lifecycle, stale-flag handling, and rollback expectations
+- [FEATURE_FLAGS.md](FEATURE_FLAGS.md): feature flag metadata, Supabase emergency overrides, stale-flag handling, and rollback expectations
 - [EXPERIMENTS.md](EXPERIMENTS.md): measurable experiment registry with expiry and rollback criteria
 - [JOBS.md](JOBS.md): retry, max-attempt, and human override policy for future background jobs
 - [RISK_REVIEW.md](RISK_REVIEW.md): reversibility, blast-radius, burden, observability, and human override review

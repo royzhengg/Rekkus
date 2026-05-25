@@ -1,17 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
-import type { User } from '@supabase/supabase-js'
-import { supabase } from '../supabase'
+import { fetchAlerts, type AlertItem } from '../services/alerts'
 
-export type AlertItem = {
-  id: string
-  type: 'like' | 'comment' | 'follow' | 'comment_reply'
-  actorUsername: string
-  actorName: string | null
-  postId?: string
-  createdAt: string
-}
+export type { AlertItem } from '../services/alerts'
 
-export function useAlerts(user: User | null) {
+export function useAlerts(userId: string | null | undefined) {
   const [alerts, setAlerts] = useState<AlertItem[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -19,7 +11,7 @@ export function useAlerts(user: User | null) {
 
   const load = useCallback(
     async (isRefresh: boolean) => {
-      if (!user) {
+      if (!userId) {
         setLoading(false)
         return
       }
@@ -27,126 +19,20 @@ export function useAlerts(user: User | null) {
       else setLoading(true)
       setError(null)
 
-      const { data: myPosts, error: postsError } = await (supabase.from('posts') as any)
-        .select('id')
-        .eq('user_id', user.id)
-
-      if (postsError) {
-        setError(postsError.message)
-        if (isRefresh) setRefreshing(false)
-        else setLoading(false)
-        return
+      try {
+        const items: AlertItem[] = await fetchAlerts(userId)
+        setAlerts(items)
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : 'Could not load alerts')
       }
-
-      const postIds: string[] = myPosts?.map((p: any) => p.id) ?? []
-      const items: AlertItem[] = []
-
-      if (postIds.length > 0) {
-        const [likesRes, commentsRes] = await Promise.all([
-          (supabase.from('likes') as any)
-            .select(
-              'id, created_at, user_id, post_id, actor:users!likes_user_id_fkey(username, full_name)'
-            )
-            .in('post_id', postIds)
-            .neq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(50),
-          (supabase.from('comments') as any)
-            .select(
-              'id, created_at, user_id, post_id, parent_id, actor:users!comments_user_id_fkey(username, full_name)'
-            )
-            .in('post_id', postIds)
-            .neq('user_id', user.id)
-            .is('parent_id', null)
-            .order('created_at', { ascending: false })
-            .limit(50),
-        ])
-
-        for (const row of likesRes.data ?? []) {
-          items.push({
-            id: `like-${row.id}`,
-            type: 'like',
-            actorUsername: row.actor?.username ?? 'unknown',
-            actorName: row.actor?.full_name ?? null,
-            postId: row.post_id,
-            createdAt: row.created_at,
-          })
-        }
-
-        for (const row of commentsRes.data ?? []) {
-          items.push({
-            id: `comment-${row.id}`,
-            type: 'comment',
-            actorUsername: row.actor?.username ?? 'unknown',
-            actorName: row.actor?.full_name ?? null,
-            postId: row.post_id,
-            createdAt: row.created_at,
-          })
-        }
-      }
-
-      // Replies to my comments
-      const { data: myComments } = await (supabase.from('comments') as any)
-        .select('id')
-        .eq('user_id', user.id)
-        .is('parent_id', null)
-
-      const myCommentIds: string[] = myComments?.map((c: any) => c.id) ?? []
-
-      if (myCommentIds.length > 0) {
-        const { data: repliesData } = await (supabase.from('comments') as any)
-          .select(
-            'id, created_at, user_id, post_id, parent_id, actor:users!comments_user_id_fkey(username, full_name)'
-          )
-          .in('parent_id', myCommentIds)
-          .neq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(50)
-
-        for (const row of repliesData ?? []) {
-          items.push({
-            id: `reply-${row.id}`,
-            type: 'comment_reply',
-            actorUsername: row.actor?.username ?? 'unknown',
-            actorName: row.actor?.full_name ?? null,
-            postId: row.post_id,
-            createdAt: row.created_at,
-          })
-        }
-      }
-
-      const { data: followRows, error: followsError } = await (supabase.from('follows') as any)
-        .select(
-          'id, created_at, follower_id, actor:users!follows_follower_id_fkey(username, full_name)'
-        )
-        .eq('following_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50)
-
-      if (followsError) {
-        setError(followsError.message)
-      } else {
-        for (const row of followRows ?? []) {
-          items.push({
-            id: `follow-${row.id}`,
-            type: 'follow',
-            actorUsername: row.actor?.username ?? 'unknown',
-            actorName: row.actor?.full_name ?? null,
-            createdAt: row.created_at,
-          })
-        }
-      }
-
-      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      setAlerts(items)
       if (isRefresh) setRefreshing(false)
       else setLoading(false)
     },
-    [user?.id]
+    [userId]
   )
 
   useEffect(() => {
-    load(false)
+    void load(false)
   }, [load])
 
   return { alerts, loading, refreshing, refresh: (isRefresh = true) => load(isRefresh), error }

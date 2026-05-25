@@ -1,30 +1,32 @@
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
-  Image,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useLocalSearchParams, useRouter } from 'expo-router'
 import Animated, { FadeIn, FadeInRight } from 'react-native-reanimated'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { ArrowLeft, CheckIcon, CloseIcon, SearchIcon } from '@/components/icons'
+import { CachedImage } from '@/components/ui/CachedImage'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { routes } from '@/lib/routes'
 import {
   createGroupConversation,
   getOrCreateDirectConversation,
 } from '@/lib/services/messaging'
 import { fetchFollowedUsersBasic, searchUsersBasic } from '@/lib/services/users'
-import { ArrowLeft, CheckIcon, CloseIcon, SearchIcon } from '@/components/icons'
 import { avatarPalette } from '@/lib/utils/format'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 
 type Person = {
   user_id: string
@@ -38,8 +40,8 @@ function initials(username: string, name: string | null) {
   if (name) {
     const parts = name.trim().split(/\s+/)
     return parts.length > 1
-      ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-      : parts[0].slice(0, 2).toUpperCase()
+      ? `${parts[0]?.[0] ?? ''}${parts[1]?.[0] ?? ''}`.toUpperCase()
+      : (parts[0] ?? '').slice(0, 2).toUpperCase()
   }
   return username.slice(0, 2).toUpperCase()
 }
@@ -67,6 +69,7 @@ export default function NewConversationScreen() {
   const [searching, setSearching] = useState(false)
   const [acting, setActing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [operationError, setOperationError] = useState<{ title: string; message: string } | null>(null)
   const searchRef = useRef<TextInput>(null)
   const followedIds = useRef<Set<string>>(new Set())
 
@@ -80,9 +83,9 @@ export default function NewConversationScreen() {
     followedIds.current = new Set(people.map(p => p.user_id))
     setSuggestions(people)
     setLoadingSuggestions(false)
-  }, [user?.id])
+  }, [user])
 
-  useEffect(() => { loadSuggestions() }, [loadSuggestions])
+  useEffect(() => { void loadSuggestions() }, [loadSuggestions])
 
   // Search all users on the platform
   const handleSearch = useCallback(async (query: string) => {
@@ -96,7 +99,7 @@ export default function NewConversationScreen() {
     const results: Person[] = rows.map(r => ({ ...r, isFollowed: followedIds.current.has(r.user_id) }))
     setSearchResults(results)
     setSearching(false)
-  }, [user?.id])
+  }, [user])
 
   function toggleSelect(person: Person) {
     setSelected(prev => {
@@ -115,33 +118,33 @@ export default function NewConversationScreen() {
   async function handleStartDM() {
     if (!user || selected.size !== 1 || acting) return
     setActing(true)
+    setOperationError(null)
     const targetId = Array.from(selected)[0]
+    if (!targetId) {
+      setActing(false)
+      return
+    }
     const { conversationId, error } = await getOrCreateDirectConversation(user.id, targetId)
     setActing(false)
     if (error || !conversationId) {
-      Alert.alert('Could not start conversation', error ?? 'Please try again.')
+      setOperationError({ title: 'Could not start conversation', message: error ?? 'Please try again.' })
       return
     }
-    router.replace({
-      pathname: '/messages/[conversationId]',
-      params: { conversationId, ...shareParams },
-    } as any)
+    router.replace(routes.conversation(conversationId, shareParams))
   }
 
   async function handleCreateGroup() {
     const name = groupName.trim()
     if (!name || selected.size < 2 || !user || acting) return
     setActing(true)
+    setOperationError(null)
     const { conversationId, error } = await createGroupConversation(name, Array.from(selected))
     setActing(false)
     if (error || !conversationId) {
-      Alert.alert('Could not create group', error ?? 'Please try again.')
+      setOperationError({ title: 'Could not create group', message: error ?? 'Please try again.' })
       return
     }
-    router.replace({
-      pathname: '/messages/[conversationId]',
-      params: { conversationId, ...shareParams },
-    } as any)
+    router.replace(routes.conversation(conversationId, shareParams))
   }
 
   const displayList = searchQuery.trim() ? searchResults : suggestions
@@ -164,7 +167,7 @@ export default function NewConversationScreen() {
       >
         <View style={styles.avatarWrap}>
           {item.avatar_url ? (
-            <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+            <CachedImage source={{ uri: item.avatar_url }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, { backgroundColor: palette.bg }]}>
               <Text style={[styles.avatarText, { color: palette.color }]}>
@@ -202,7 +205,12 @@ export default function NewConversationScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <ArrowLeft />
         </TouchableOpacity>
         <Text style={styles.title}>
@@ -222,6 +230,10 @@ export default function NewConversationScreen() {
           <View style={{ width: 70 }} />
         )}
       </View>
+
+      {operationError ? (
+        <ErrorMessage title={operationError.title} message={operationError.message} style={{ marginHorizontal: spacing[4] }} />
+      ) : null}
 
       {/* Group name input — appears when 2+ selected */}
       {selectedCount >= 2 ? (
@@ -272,7 +284,11 @@ export default function NewConversationScreen() {
             autoCorrect={false}
           />
           {searchQuery.length > 0 ? (
-            <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]) }}>
+            <TouchableOpacity
+              onPress={() => { setSearchQuery(''); setSearchResults([]) }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear people search"
+            >
               <CloseIcon size={13} color={colors.text3} />
             </TouchableOpacity>
           ) : null}
@@ -286,9 +302,17 @@ export default function NewConversationScreen() {
 
       {/* List */}
       {loadingSuggestions && !searchQuery.trim() ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.text3} />
-        </View>
+        <>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton width={44} height={44} radius={radius.full} />
+              <View style={{ flex: 1, gap: spacing[2] }}>
+                <Skeleton width="60%" height={14} />
+                <Skeleton width="40%" height={12} />
+              </View>
+            </View>
+          ))}
+        </>
       ) : (
         <FlatList
           data={displayList}
@@ -463,5 +487,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       justifyContent: 'center',
     },
     checkboxSelected: { backgroundColor: c.accent, borderColor: c.accent },
+    skeletonRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[4], paddingVertical: spacing[3], gap: spacing[3] },
   })
 }

@@ -1,12 +1,12 @@
+import { useRouter } from 'expo-router'
 import React, { useMemo } from 'react'
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
 import { ArrowLeft, ChevronRight } from '@/components/icons'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export const PRIVACY_POLICY_URL = 'https://rekkus.com/privacy'
 export const TERMS_URL = 'https://rekkus.com/terms'
@@ -55,6 +55,8 @@ export default function PrivacyDataScreen() {
           onPress={() => router.back()}
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
           <ArrowLeft />
         </TouchableOpacity>

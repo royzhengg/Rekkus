@@ -1,16 +1,16 @@
-import type { Router } from 'expo-router'
 import type { SavedLocation } from '@/lib/hooks/useSavedLocations'
+import type { Router } from 'expo-router'
 
 /** Used when navigating from a post — passes the Supabase UUID as restaurantId so
  *  RestaurantDetailScreen can resolve the canonical google_place_id via FK lookup,
  *  rather than trusting the denormalised restaurant_place_id field on the post row. */
 export interface RestaurantNavTarget {
-  restaurantId?: string // Supabase UUID (preferred)
-  placeId?: string      // Google Places ID (fallback / supplementary)
+  restaurantId?: string | undefined // Supabase UUID (preferred)
+  placeId?: string | undefined      // Google Places ID (fallback / supplementary)
   name: string
-  address?: string
-  lat?: number
-  lng?: number
+  address?: string | undefined
+  lat?: number | undefined
+  lng?: number | undefined
 }
 
 export function buildRestaurantNavParams(t: RestaurantNavTarget) {

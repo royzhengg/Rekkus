@@ -1,3 +1,4 @@
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   View,
@@ -5,22 +6,23 @@ import {
   TouchableOpacity,
   StyleSheet,
   Linking,
-  Image,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated'
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps'
-import { useThemeColors, useIsDarkMode } from '@/lib/contexts/ThemeContext'
-import { DARK_MAP_STYLE } from '@/constants/mapStyles'
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { ChevronLeft, PhoneIcon } from '@/components/icons'
 import { MapMarker } from '@/components/MapMarker'
-import { Stars, Vibes, Dollars } from '@/components/RatingDisplay'
 import { OpenBadge } from '@/components/OpenBadge'
+import { Stars, Vibes, Dollars } from '@/components/RatingDisplay'
+import { CachedImage } from '@/components/ui/CachedImage'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
-import { spacing } from '@/constants/Spacing'
+import { elevation } from '@/constants/Elevation'
+import { DARK_MAP_STYLE } from '@/constants/mapStyles'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { useThemeColors, useIsDarkMode } from '@/lib/contexts/ThemeContext'
+import { routeParamNumber, routeParamString } from '@/lib/utils/routeParams'
 
 export default function RestaurantMapScreen() {
   const {
@@ -57,14 +59,19 @@ export default function RestaurantMapScreen() {
   const isDark = useIsDarkMode()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
-  const parsedLat = parseFloat(lat)
-  const parsedLng = parseFloat(lng)
-  const isOpen = openNow === 'true'
-  const hasOpenInfo = openNow === 'true' || openNow === 'false'
-  const gRating = googleRating ? parseFloat(googleRating) : null
-  const fFood = avgFood ? parseFloat(avgFood) : null
-  const fVibe = avgVibe ? parseFloat(avgVibe) : null
-  const fCost = avgCost ? parseFloat(avgCost) : null
+  const displayName = routeParamString(name) ?? ''
+  const displayPhone = routeParamString(phone) ?? ''
+  const displayPhotoUrl = routeParamString(photoUrl) ?? ''
+  const displayTodayHours = routeParamString(todayHours) ?? ''
+  const parsedLat = routeParamNumber(lat) ?? 0
+  const parsedLng = routeParamNumber(lng) ?? 0
+  const openNowParam = routeParamString(openNow)
+  const isOpen = openNowParam === 'true'
+  const hasOpenInfo = openNowParam === 'true' || openNowParam === 'false'
+  const gRating = routeParamNumber(googleRating)
+  const fFood = routeParamNumber(avgFood)
+  const fVibe = routeParamNumber(avgVibe)
+  const fCost = routeParamNumber(avgCost)
   const hasRekkusRatings = fFood != null || fVibe != null || fCost != null
 
   const [cardVisible, setCardVisible] = useState(false)
@@ -93,7 +100,7 @@ export default function RestaurantMapScreen() {
   const slideY = useSharedValue(300)
   useEffect(() => {
     slideY.value = withSpring(cardVisible ? 0 : 300, { damping: 20, stiffness: 180 })
-  }, [cardVisible])
+  }, [cardVisible, slideY])
   const cardStyle = useAnimatedStyle(() => ({ transform: [{ translateY: slideY.value }] }))
 
   const openInMaps = useCallback(() => {
@@ -102,16 +109,16 @@ export default function RestaurantMapScreen() {
 
   const openSelectedMap = useCallback((provider: string) => {
     if (provider === 'apple')
-      Linking.openURL(
-        `https://maps.apple.com/?q=${encodeURIComponent(name)}&ll=${parsedLat},${parsedLng}`
+      void Linking.openURL(
+        `https://maps.apple.com/?q=${encodeURIComponent(displayName)}&ll=${parsedLat},${parsedLng}`
       )
     if (provider === 'google')
-      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${parsedLat},${parsedLng}`)
-  }, [name, parsedLat, parsedLng])
+      void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${parsedLat},${parsedLng}`)
+  }, [displayName, parsedLat, parsedLng])
 
   const callPhone = useCallback(() => {
-    if (phone) Linking.openURL(`tel:${phone.replace(/\s/g, '')}`)
-  }, [phone])
+    if (displayPhone) void Linking.openURL(`tel:${displayPhone.replace(/\s/g, '')}`)
+  }, [displayPhone])
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -121,7 +128,7 @@ export default function RestaurantMapScreen() {
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {name}
+          {displayName}
         </Text>
         <View style={{ width: 60 }} />
       </View>
@@ -168,12 +175,12 @@ export default function RestaurantMapScreen() {
       <Animated.View style={[styles.card, cardStyle]} pointerEvents={cardVisible ? 'auto' : 'none'}>
         <View style={styles.cardHandle} />
 
-        {!!photoUrl && (
-          <Image source={{ uri: photoUrl }} style={styles.cardPhoto} resizeMode="cover" />
+        {!!displayPhotoUrl && (
+          <CachedImage source={{ uri: displayPhotoUrl }} style={styles.cardPhoto} />
         )}
 
         <Text style={styles.cardName} numberOfLines={1}>
-          {name}
+          {displayName}
         </Text>
 
         <View style={styles.cardMeta}>
@@ -205,16 +212,21 @@ export default function RestaurantMapScreen() {
           </View>
         )}
 
-        {!!todayHours && (
+        {!!displayTodayHours && (
           <Text style={styles.cardHours} numberOfLines={1}>
-            {todayHours}
+            {displayTodayHours}
           </Text>
         )}
 
-        {!!phone && (
-          <TouchableOpacity style={styles.phoneRow} onPress={callPhone}>
+        {!!displayPhone && (
+          <TouchableOpacity
+            style={styles.phoneRow}
+            onPress={callPhone}
+            accessibilityRole="button"
+            accessibilityLabel="Call restaurant"
+          >
             <PhoneIcon />
-            <Text style={styles.phoneText}>{phone}</Text>
+            <Text style={styles.phoneText}>{displayPhone}</Text>
           </TouchableOpacity>
         )}
 
@@ -230,7 +242,7 @@ export default function RestaurantMapScreen() {
       <RekkusActionSheet
         visible={mapsSheetVisible}
         title="Open in Maps"
-        subtitle={name}
+        subtitle={displayName}
         options={[
           { label: 'Apple Maps', value: 'apple' },
           { label: 'Google Maps', value: 'google' },
@@ -271,10 +283,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingTop: spacing[3],
       paddingBottom: spacing.px36,
       gap: spacing[1],
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
+      ...elevation.sm,
     },
     cardHandle: {
       width: 36,
@@ -320,10 +329,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       backgroundColor: c.bg,
       borderRadius: radius.md,
       overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
+      ...elevation.sm,
     },
     zoomBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
     zoomBtnText: { fontSize: fontSize['3xl'], fontWeight: fontWeight.light, color: c.text, lineHeight: lineHeight.display },

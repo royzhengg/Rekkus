@@ -1,3 +1,4 @@
+import { useState, useMemo, useRef } from 'react'
 import {
   View,
   Text,
@@ -10,14 +11,14 @@ import {
   Platform,
   Animated,
   PanResponder,
+  type GestureResponderEvent,
 } from 'react-native'
-import { useState, useMemo, useRef } from 'react'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { CloseIcon } from '@/components/icons'
-import type { DishTag } from '@/types/domain'
-import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import type { DishTag } from '@/types/domain'
 
 interface Props {
   tags: DishTag[]
@@ -93,6 +94,8 @@ function DraggableChip({ tag, absoluteIndex, size, editable, onRemove, onMove, s
         <TouchableOpacity
           onPress={() => stateRef.current.onRemove(stateRef.current.absoluteIndex)}
           hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${tag.name} tag`}
         >
           <CloseIcon size={7} color="rgba(255,255,255,0.9)" /* check:tokens-ignore */ />
         </TouchableOpacity>
@@ -120,7 +123,7 @@ export default function DishTagOverlay({
     [tags, photoIndex]
   )
 
-  function handleTap(e: any) {
+  function handleTap(e: GestureResponderEvent) {
     if (!editable || !size.width) return
     const x = e.nativeEvent.locationX / size.width
     const y = e.nativeEvent.locationY / size.height

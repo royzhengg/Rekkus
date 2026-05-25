@@ -40,6 +40,20 @@ for (const term of requiredJobTerms) {
   }
 }
 
+const jobManifest = exists('operations/JOB_MANIFEST.md') ? readText('operations/JOB_MANIFEST.md') : ''
+for (const term of [
+  'analytics-retention',
+  'Schedule',
+  'Required secret',
+  'Manual trigger',
+  'Success payload',
+  'Alert owner',
+]) {
+  if (!new RegExp(term, 'i').test(jobManifest)) {
+    failures.push(`operations/JOB_MANIFEST.md must include ${term} for scheduled job evidence.`)
+  }
+}
+
 if (exists('lib/analytics.ts')) {
   const analytics = readText('lib/analytics.ts')
   for (const token of ['sanitizeAnalyticsMetadata', 'SAFE_METADATA_KEYS', 'SENSITIVE_VALUE_PATTERN']) {

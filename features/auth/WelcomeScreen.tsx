@@ -1,12 +1,12 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { Svg, Path } from 'react-native-svg'
-import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 function GoogleIcon() {
   return (
@@ -60,6 +60,9 @@ export default function WelcomeScreen() {
         <TouchableOpacity style={styles.googleBtn} onPress={() => router.push('/(auth)/login')}>
           <GoogleIcon />
           <Text style={styles.googleBtnText}>Continue with Google</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/(auth)/forgot-password')}>
+          <Text style={styles.forgotText}>Forgot password?</Text>
         </TouchableOpacity>
         <Text style={styles.terms}>
           By continuing you agree to our <Text style={styles.termsLink}>terms</Text> and{' '}
@@ -115,6 +118,8 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       borderColor: c.border2,
     },
     googleBtnText: { fontSize: fontSize.lg, fontWeight: fontWeight.medium, color: c.text },
+    forgotBtn: { alignItems: 'center', paddingVertical: spacing[2] },
+    forgotText: { fontSize: fontSize.md, fontWeight: fontWeight.medium, color: c.info },
     terms: { fontSize: fontSize.sm, color: c.text3, textAlign: 'center', lineHeight: lineHeight.tight, marginTop: spacing[1] },
     termsLink: { color: c.info },
   })

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   View,
   Text,
@@ -7,17 +8,16 @@ import {
   useWindowDimensions,
   ActivityIndicator,
 } from 'react-native'
-import { useMemo } from 'react'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { PostPicksSummary } from '@/components/post/PostPicksSummary'
+import { Avatar } from '@/components/Avatar'
 import { BookmarkIcon, CheckIcon, EditIcon, ImagePlaceholder, PinIcon, VideoIcon } from '@/components/icons'
 import { PostMediaCarousel } from '@/components/post/PostMediaCarousel'
-import { Avatar } from '@/components/Avatar'
-import type { PostMedia, RekkusOccasionTag, RekkusTasteVerdict, RekkusValueVerdict } from '@/types/domain'
-import type { SelectedPlace } from '@/lib/services/restaurants'
-import { spacing } from '@/constants/Spacing'
+import { PostPicksSummary } from '@/components/post/PostPicksSummary'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import type { SelectedPlace } from '@/lib/services/restaurants'
+import type { PostMedia, RekkusOccasionTag, RekkusTasteVerdict, RekkusValueVerdict } from '@/types/domain'
 
 type Props = {
   title: string
@@ -27,9 +27,9 @@ type Props = {
   foodRating: number
   vibeRating: number
   costRating: number
-  tasteVerdict?: RekkusTasteVerdict
-  valueVerdict?: RekkusValueVerdict
-  occasionTags?: RekkusOccasionTag[]
+  tasteVerdict?: RekkusTasteVerdict | undefined
+  valueVerdict?: RekkusValueVerdict | undefined
+  occasionTags?: RekkusOccasionTag[] | undefined
   cuisineType: string
   bestDish: string
   hashtags: string[]
@@ -37,7 +37,7 @@ type Props = {
   onEditDetails: () => void
   onPost: () => void
   onSaveDraft: () => void
-  primaryLabel?: string
+  primaryLabel?: string | undefined
   posting: boolean
   savingDraft: boolean
 }
@@ -161,11 +161,21 @@ export default function StepReview({
       {/* Edit + post */}
       <View style={styles.footer}>
         <View style={styles.editRow}>
-          <TouchableOpacity style={styles.editBtn} onPress={onEditBasics}>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={onEditBasics}
+            accessibilityRole="button"
+            accessibilityLabel="Edit media"
+          >
             <EditIcon size={14} color={c.text2} />
             <Text style={styles.editBtnText}>Edit media</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.editBtn} onPress={onEditDetails}>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={onEditDetails}
+            accessibilityRole="button"
+            accessibilityLabel="Edit review details"
+          >
             <EditIcon size={14} color={c.text2} />
             <Text style={styles.editBtnText}>Edit review</Text>
           </TouchableOpacity>
@@ -175,6 +185,8 @@ export default function StepReview({
           onPress={onSaveDraft}
           disabled={savingDraft || posting}
           activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel="Save draft"
         >
           <BookmarkIcon size={15} inactiveColor={c.text2} />
           <Text style={styles.saveDraftText}>{savingDraft ? 'Saving draft…' : 'Save draft'}</Text>

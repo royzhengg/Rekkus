@@ -7,8 +7,9 @@ export function todayHoursIndex(): number {
   return (new Date().getDay() + 6) % 7
 }
 
+const DEFAULT_AVATAR_PALETTE = { bg: '#FBEAF0', color: '#993556' }
 const AVATAR_PALETTES = [
-  { bg: '#FBEAF0', color: '#993556' },
+  DEFAULT_AVATAR_PALETTE,
   { bg: '#E1F5EE', color: '#0F6E56' },
   { bg: '#E6F1FB', color: '#185FA5' },
   { bg: '#FAEEDA', color: '#854F0B' },
@@ -17,5 +18,5 @@ const AVATAR_PALETTES = [
 ]
 
 export function avatarPalette(username: string): { bg: string; color: string } {
-  return AVATAR_PALETTES[username.charCodeAt(0) % AVATAR_PALETTES.length]
+  return AVATAR_PALETTES[username.charCodeAt(0) % AVATAR_PALETTES.length] ?? DEFAULT_AVATAR_PALETTE
 }

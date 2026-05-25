@@ -13,9 +13,11 @@ Use this file to navigate Rekkus quickly.
 - Documentation governance: `docs/GOVERNANCE.md`
 - Durable decisions: `docs/adr/README.md`
 - Release: `operations/RELEASE.md`
+- Observability/crashes: `operations/OBSERVABILITY.md`, `lib/services/crashReporting.ts`
+- Feature flags: `operations/FEATURE_FLAGS.md`, `lib/featureFlags.ts`, `supabase/functions/feature-flags`
 - Product behavior: `product/README.md`, `product/FEATURES.md`, `product/SEARCH.md`, `product/FEED.md`
 - Design: `design/README.md`, `design/DESIGN_SPEC.md`, `design/UI_LIBRARY.md`, `design/UX_Copywriting_Guide.md`
-- Analytics behavior: `docs/analytics/ANALYTICS.md`
+- Analytics behavior: `docs/analytics/ANALYTICS.md`, `lib/analytics.ts`, `supabase/functions/analytics-retention`
 
 ## Code Ownership
 
@@ -33,6 +35,12 @@ Use this file to navigate Rekkus quickly.
 - `types/`: domain and generated database types.
 - `supabase/`: migrations and Edge Functions.
 - `scripts/`: local guardrails and maintenance checks.
+
+### Post Create
+
+- **Components**: `components/post-create/StepMedia.tsx`, `components/post-create/StepDetails.tsx`, `components/post-create/StepReview.tsx`
+- **Hooks**: `lib/hooks/useRestaurantSearch.ts` (debounced DB+Google autocomplete, nearby fetch, place details + upsert orchestration)
+- **Services**: `lib/services/restaurants.ts`, `lib/services/media.ts`, `lib/services/postMediaProcessing.ts`
 
 ### Direct Messaging
 
@@ -54,6 +62,8 @@ Use this file to navigate Rekkus quickly.
 - Add product behavior: update `product/FEATURES.md` and the relevant domain doc.
 - Add design/component/copy behavior: update the relevant doc in `design/`.
 - Add risky backend/security behavior: update `docs/security/SECURITY.md`, `operations/RELEASE.md`, and `BACKLOG.md`.
+- Add crash/error behavior: update `operations/OBSERVABILITY.md`, `docs/architecture/ARCHITECTURE.md`, and Sentry release/source-map checks.
+- Add analytics behavior: update `docs/analytics/ANALYTICS.md`, `lib/analytics.ts`, and retention/versioning checks.
 - Add a durable architecture/provider/data/security decision: create an ADR in `docs/adr/`.
 - Add discovered work: insert it into `BACKLOG.md` by priority and section.
 

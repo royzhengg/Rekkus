@@ -1,7 +1,7 @@
-import { supabase } from '@/lib/supabase'
-import { notify } from '@/lib/services/notifications'
 import { analytics } from '@/lib/analytics'
 import { submitContentReport } from '@/lib/services/moderation'
+import { notify } from '@/lib/services/notifications'
+import { supabase } from '@/lib/supabase'
 
 export type Comment = {
   id: string
@@ -12,13 +12,15 @@ export type Comment = {
 }
 
 export async function fetchComments(postId: string): Promise<Comment[]> {
-  const { data } = await (supabase.from('comments') as any)
+  const { data } = await supabase.from('comments')
     .select('id, content, created_at, parent_id, users(username, full_name)')
     .eq('post_id', postId)
     .is('deleted_at', null)
     .order('created_at', { ascending: true })
     .limit(500)
-  return data ?? []
+  return (data ?? [])
+    .filter(row => row.created_at != null)
+    .map(row => ({ ...row, created_at: row.created_at ?? new Date(0).toISOString() }))
 }
 
 export async function fetchPostComments(postId: string): Promise<Comment[]> {
@@ -28,6 +30,12 @@ export async function fetchPostComments(postId: string): Promise<Comment[]> {
 export async function deleteComment(commentId: string): Promise<void> {
   const { error } = await supabase.rpc('delete_comment', { p_comment_id: commentId })
   if (error) throw error
+  void supabase.rpc('record_content_lifecycle_event', {
+    p_entity_type: 'comment',
+    p_entity_id: commentId,
+    p_event_type: 'deleted',
+    p_context: { source: 'user_action' },
+  })
 }
 
 export async function deleteOwnComment(commentId: string): Promise<void> {
@@ -35,7 +43,7 @@ export async function deleteOwnComment(commentId: string): Promise<void> {
 }
 
 export async function addComment(postId: string, userId: string, content: string): Promise<void> {
-  const { error } = await (supabase.from('comments') as any).insert({ post_id: postId, user_id: userId, content })
+  const { error } = await supabase.from('comments').insert({ post_id: postId, user_id: userId, content })
   if (error) throw error
   notify({ type: 'comment', actorId: userId, postId })
   analytics.commentPost(userId, postId)
@@ -60,7 +68,7 @@ export async function addReply(
   content: string,
   parentCommentId: string
 ): Promise<void> {
-  const { error } = await (supabase.from('comments') as any).insert({
+  const { error } = await supabase.from('comments').insert({
     post_id: postId,
     user_id: userId,
     content,

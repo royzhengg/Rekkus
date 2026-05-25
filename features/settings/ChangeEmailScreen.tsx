@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router'
 import React, { useState, useMemo } from 'react'
 import {
   View,
@@ -9,14 +10,15 @@ import {
   Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { ArrowLeft } from '@/components/icons'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/lib/contexts/AuthContext'
-import { spacing } from '@/constants/Spacing'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { getCurrentUser, reauthenticate, updateEmail } from '@/lib/services/auth'
+import { hasCurrentPassword } from '@/lib/utils/validation'
 
 export default function ChangeEmailScreen() {
   const router = useRouter()
@@ -28,34 +30,39 @@ export default function ChangeEmailScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const canSave = newEmail.trim().includes('@') && password.length >= 6
+  const canSave = newEmail.trim().includes('@') && hasCurrentPassword(password)
 
   async function handleSave() {
     setError(null)
     setLoading(true)
-    const {
-      data: { user: currentUser },
-    } = await supabase.auth.getUser()
+    let currentUser
+    try {
+      currentUser = await getCurrentUser()
+    } catch {
+      setError("We couldn't verify your identity. Please try again.")
+      setLoading(false)
+      return
+    }
     if (!currentUser?.email) {
       setError("We couldn't verify your identity. Please try again.")
       setLoading(false)
       return
     }
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: currentUser.email,
-      password,
-    })
-    if (signInError) {
+    try {
+      await reauthenticate(currentUser.email, password)
+    } catch {
       setError("That password doesn't match. Please try again.")
       setLoading(false)
       return
     }
-    const { error: updateError } = await supabase.auth.updateUser({ email: newEmail })
-    setLoading(false)
-    if (updateError) {
-      setError(updateError.message)
+    try {
+      await updateEmail(newEmail)
+    } catch (updateError) {
+      setLoading(false)
+      setError(updateError instanceof Error ? updateError.message : 'Failed to update email.')
       return
     }
+    setLoading(false)
     Alert.alert(
       'Verify your new email',
       `We've sent a confirmation link to ${newEmail}. Tap it to complete the change.`,
@@ -70,6 +77,8 @@ export default function ChangeEmailScreen() {
           onPress={() => router.back()}
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
           <ArrowLeft />
         </TouchableOpacity>
@@ -78,11 +87,7 @@ export default function ChangeEmailScreen() {
       </View>
 
       <View style={styles.form}>
-        {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
+        {error ? <ErrorMessage message={error} /> : null}
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Current email</Text>
@@ -174,7 +179,5 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     },
     primaryBtnDisabled: { opacity: 0.4 },
     primaryBtnText: { fontSize: fontSize.lg, fontWeight: fontWeight.medium, color: c.bg },
-    errorBox: { backgroundColor: c.errorBg, borderRadius: radius.md, padding: spacing[3] },
-    errorText: { fontSize: fontSize.base, color: c.liked },
   })
 }

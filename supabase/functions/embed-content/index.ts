@@ -1,4 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  embedTable,
+  isPostTextRow,
+  isRecord,
+  isRestaurantTextRow,
+  postToText,
+  restaurantToText,
+  type EmbedTable,
+} from '../_shared/guards.ts'
 
 // Generates 384-dim embeddings via Supabase's built-in gte-small model (free, no API key)
 // and stores them on posts/restaurants for semantic search fallback.
@@ -9,60 +18,58 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // Backfill: POST /functions/v1/embed-content with body { type: 'backfill', entity_type: 'post' | 'restaurant' }
 // to embed all existing rows that have embedding IS NULL.
 
+function requireEnv(name: string): string {
+  const value = Deno.env.get(name)
+  if (!value) throw new Error(`Missing required environment variable: ${name}`)
+  return value
+}
+
 const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  requireEnv('SUPABASE_URL'),
+  requireEnv('SUPABASE_SERVICE_ROLE_KEY')
 )
 
 async function embedText(text: string): Promise<number[]> {
   const model = new Supabase.ai.Session('gte-small')
   const result = await model.run(text, { mean_pool: true, normalize: true })
-  return result as number[]
-}
-
-function postToText(post: { best_dish?: string | null; caption?: string | null; cuisine_type?: string | null }): string {
-  return [post.best_dish, post.caption, post.cuisine_type]
-    .filter(Boolean)
-    .join(' ')
-    .trim()
-}
-
-function restaurantToText(r: { name?: string | null; cuisine_type?: string | null; suburb?: string | null; city?: string | null }): string {
-  return [r.name, r.cuisine_type, r.suburb, r.city]
-    .filter(Boolean)
-    .join(' ')
-    .trim()
+  if (!Array.isArray(result) || !result.every(value => typeof value === 'number')) {
+    throw new Error('Embedding model returned invalid vector')
+  }
+  return result
 }
 
 Deno.serve(async (req) => {
   try {
-    const body = await req.json()
+    const body: unknown = await req.json()
 
     // DB webhook trigger path
-    if (body.type === 'INSERT' || body.type === 'UPDATE') {
-      const { table, record } = body
-      if (!record?.id) return new Response('ok', { status: 200 })
+    if (isRecord(body) && (body.type === 'INSERT' || body.type === 'UPDATE')) {
+      const { table: rawTable, record } = body
+      const table = embedTable(rawTable)
+      if (!table) return new Response('unsupported table', { status: 200 })
+      if (!isRecord(record) || typeof record.id !== 'string') return new Response('ok', { status: 200 })
 
       let text = ''
       if (table === 'posts') {
+        if (!isPostTextRow(record)) return new Response('ok', { status: 200 })
         text = postToText(record)
-      } else if (table === 'restaurants') {
-        text = restaurantToText(record)
       } else {
-        return new Response('unsupported table', { status: 200 })
+        if (!isRestaurantTextRow(record)) return new Response('ok', { status: 200 })
+        text = restaurantToText(record)
       }
 
       if (!text) return new Response('no text', { status: 200 })
 
       const embedding = await embedText(text)
-      await supabase.from(table).update({ embedding }).eq('id', record.id)
+      const { error } = await supabase.from(table).update({ embedding }).eq('id', record.id)
+      if (error) throw error
       return new Response('embedded', { status: 200 })
     }
 
     // Backfill path: embed all rows where embedding IS NULL
-    if (body.type === 'backfill') {
-      const { entity_type } = body
-      const table = entity_type === 'restaurant' ? 'restaurants' : 'posts'
+    if (isRecord(body) && body.type === 'backfill') {
+      const entityType = isRecord(body) ? body.entity_type : null
+      const table: EmbedTable = entityType === 'restaurant' ? 'restaurants' : 'posts'
 
       let processed = 0
       let from = 0
@@ -83,11 +90,15 @@ Deno.serve(async (req) => {
         if (error || !data || data.length === 0) break
 
         for (const row of data) {
-          const text = table === 'posts' ? postToText(row as any) : restaurantToText(row as any)
+          const text =
+            table === 'posts'
+              ? isPostTextRow(row) ? postToText(row) : ''
+              : isRestaurantTextRow(row) ? restaurantToText(row) : ''
           if (!text) continue
           try {
             const embedding = await embedText(text)
-            await supabase.from(table).update({ embedding }).eq('id', row.id)
+            const { error } = await supabase.from(table).update({ embedding }).eq('id', row.id)
+            if (error) throw error
             processed++
           } catch {
             // Skip rows that fail; they can be retried

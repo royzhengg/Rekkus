@@ -23,14 +23,17 @@ function requireTerms(file, terms, mode = 'warning') {
   }
 }
 
-requireTerms('lib/hooks/useSearch.ts', ['fetchPlaceAutocompleteJson', 'shouldUseProviderFallback', 'expand_search_cuisines'], 'failure')
+// fetchPlaceAutocompleteJson and shouldUseProviderFallback remain in useSearch.ts
+// expand_search_cuisines moved to lib/services/search.ts in B-509
+requireTerms('lib/hooks/useSearch.ts', ['fetchPlaceAutocompleteJson', 'shouldUseProviderFallback'], 'failure')
+requireTerms('lib/services/search.ts', ['expand_search_cuisines'], 'failure')
 requireTerms('lib/services/googlePlaces.ts', ['CACHE_TTL_MS', 'MIN_AUTOCOMPLETE_LENGTH', 'inflight', 'cacheStatus', 'estimatedCostClass'], 'failure')
 requireTerms(
   'docs/security/MEDIA_PIPELINE.md',
   ['Provider Photo Policy', 'Aggressive image compression', 'Thumbnail generation', 'Lazy image loading', 'CDN caching strategy', 'Storage growth monitoring'],
   'failure',
 )
-requireTerms('operations/COSTS.md', ['Storage Growth Monitor', 'API Cost Dashboard', 'CDN/egress', 'largest users by storage footprint'], 'failure')
+requireTerms('operations/COSTS.md', ['Storage Growth Monitor', 'API Cost Dashboard', 'CDN/egress', 'largest users by storage footprint', 'Key Rotation', 'Giphy'], 'failure')
 requireTerms('docs/architecture/CACHE_GOVERNANCE.md', ['Google Places', 'TTL', 'stale', 'owner'], 'failure')
 
 printResult(

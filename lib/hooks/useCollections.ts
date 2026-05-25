@@ -11,8 +11,6 @@ export function useCollections(userId: string | undefined, restaurantIds: string
   const [items, setItems] = useState<CollectionItem[]>([])
   const [loading, setLoading] = useState(false)
 
-  const restaurantKey = restaurantIds.slice().sort().join(',')
-
   const refresh = useCallback(async () => {
     if (!userId) {
       setCollections([])
@@ -25,10 +23,10 @@ export function useCollections(userId: string | undefined, restaurantIds: string
     setCollections(nextCollections)
     setItems(nextItems)
     setLoading(false)
-  }, [restaurantKey, userId])
+  }, [userId, restaurantIds])
 
   useEffect(() => {
-    refresh()
+    void refresh()
   }, [refresh])
 
   return { collections, items, loading, refresh }

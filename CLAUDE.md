@@ -8,6 +8,9 @@ Claude-specific reminders:
 - Minimize unrelated repo scanning.
 - Preserve existing architecture and behavior unless the task explicitly changes them.
 - Do not introduce new dependencies, broad rewrites, or parallel systems without explicit approval.
+- Never silence TypeScript with `as any`, `@ts-ignore`, `@ts-nocheck`, or eslint disables; explained `@ts-expect-error` is exceptional. Use `unknown`, guards, generated Supabase types, and typed wrappers.
+- Avoid non-null assertions and empty catches in runtime code; narrow values and document intentional fallbacks.
+- Run `test:type-safety` after changing unsafe-input guards, provider parsing, scanner rules, or Edge Function payload guards.
 
 ## End-of-task checklist (required before finishing any implementation)
 
@@ -27,5 +30,6 @@ After completing any code change, do all of the following that apply:
 
 **Checks** — run the checks that match the change (see AGENTS.md Required Checks). The Stop hook runs them automatically, but fix any failures before handing back.
 
-**Learning** — if a decision, tradeoff, or gotcha was non-obvious, record it in `docs/LESSONS.md` under the right section rather than leaving it only in the conversation.
+Use `npm run validate` for normal implementation passes and `npm run validate:full` before PR-ready handoff.
 
+**Learning** — if a decision, tradeoff, or gotcha was non-obvious, record it in the relevant `docs/lessons/<topic>.md` file and add/update the one-liner in `docs/LESSONS.md` rather than leaving it only in the conversation.

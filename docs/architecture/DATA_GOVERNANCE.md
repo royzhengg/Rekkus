@@ -10,7 +10,7 @@ Canonical entity IDs are immutable UUIDs. A real-world entity can gain aliases, 
 | --- | --- |
 | User | `user_id` |
 | Restaurant | `restaurant_id` |
-| Dish | `dish_id` when dish entities ship; dish tags remain text until then |
+| Dish | `dish_id`; unlinked dish-tag/free-text display remains non-canonical |
 | Review/post | `review_id` or current `post_id` until review naming is migrated |
 | Collection | `collection_id` when collections ship |
 
@@ -30,6 +30,8 @@ Canonical entity IDs are immutable UUIDs. A real-world entity can gain aliases, 
 | Repair history | `data_repair_events` | Malformed restaurant, post, dish, and user repair reports. |
 | Analytics | `analytics_events` | Privacy-safe event log only. |
 | Post edit audit | `post_edit_events` | Privacy-minimized owner edit evidence; field names/count only. |
+| Dish bookmark intent | `saved_dishes` | Owner-private save state for a canonical dish. |
+| Saved organisation | `collection_items` | Membership only; collection-add atomically ensures the corresponding base save exists. |
 
 ## Audit And History Rules
 
@@ -39,6 +41,7 @@ Canonical entity IDs are immutable UUIDs. A real-world entity can gain aliases, 
 - Restaurant claims and transfers need ownership history before restaurant owner workflows scale.
 - Duplicate cleanup must preserve alias and merge history so old links and references remain explainable.
 - Repair workflows should record actor, reason, affected entity, before/after categories, and rollback path.
+- B-283 canonicalisation backfills only posts with a canonical restaurant and non-empty `best_dish`, and records bounded `dish_audit_events` context; UI never guesses links from display text.
 - Admin platform restaurant actions must use `restaurant_merge_events`, `restaurant_ownership_events`, `restaurant_audit_events`, and `data_repair_events` as the operational evidence path before any custom dashboard writes directly to canonical data.
 - `scripts/ops/check-audit.js` validates audit/history table coverage, service helper evidence, and the absence of broad update/delete policies on append-only history tables.
 

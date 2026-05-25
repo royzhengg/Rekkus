@@ -1,17 +1,47 @@
 // react-native-compressor is a native module unavailable in Expo Go / unlinked builds.
 // Dynamic require + try-catch is intentional — do NOT convert to a static import.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let CompressorImage: any = null
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let CompressorVideo: any = null
+type CompressorImageModule = {
+  compress: (
+    uri: string,
+    options: { compressionMethod: 'auto'; maxWidth: number; maxHeight: number; quality: number }
+  ) => Promise<string>
+}
+
+type CompressorVideoModule = {
+  compress: (
+    uri: string,
+    options: {
+      compressionMethod: 'manual'
+      maxSize: number
+      bitrate: number
+      minimumFileSizeForCompress: number
+    },
+    onProgress?: (progress: number) => void
+  ) => Promise<string>
+}
+
+type CompressorModule = {
+  Image?: CompressorImageModule
+  Video?: CompressorVideoModule
+}
+
+function isCompressorModule(value: unknown): value is CompressorModule {
+  return typeof value === 'object' && value !== null
+}
+
+let CompressorImage: CompressorImageModule | null = null
+let CompressorVideo: CompressorVideoModule | null = null
 try {
-  const mod = require('react-native-compressor')
-  CompressorImage = mod.Image
-  CompressorVideo = mod.Video
+  const mod: unknown = require('react-native-compressor')
+  if (!isCompressorModule(mod)) throw new Error('Invalid compressor module')
+  CompressorImage = mod.Image ?? null
+  CompressorVideo = mod.Video ?? null
 } catch {
   // Not linked — Expo Go or dev build without native module; compression skipped
 }
+import { isEnabled } from '@/lib/featureFlags'
 import { MEDIA_LIMITS, validatePickedPostMedia } from '@/lib/services/media'
+import type { ValidatedPostMedia } from '@/lib/services/media'
 import type { PostMediaAsset, PostMediaProcessingStatus } from '@/types/domain'
 
 type PickedAsset = {
@@ -24,10 +54,12 @@ type PickedAsset = {
   height?: number | null
 }
 
+type PreparedAsset = ValidatedPostMedia & PickedAsset
+
 export type PreparedMediaResult = {
   media: PostMediaAsset[]
   rejectedCount: number
-  error?: string | null
+  error?: string | null | undefined
 }
 
 export type MediaProgress = {
@@ -48,12 +80,12 @@ function shouldCompressVideo(asset: PickedAsset): boolean {
   return !!asset.fileSize && asset.fileSize > 18 * 1024 * 1024
 }
 
-async function prepareImage(asset: PickedAsset, onProgress?: (progress: MediaProgress) => void): Promise<PostMediaAsset> {
+async function prepareImage(asset: PreparedAsset, onProgress?: (progress: MediaProgress) => void): Promise<PostMediaAsset> {
   const id = localId()
   onProgress?.({ localId: id, status: 'preparing', progress: 0.15 })
-  let uri = asset.uri!
+  let uri = asset.uri
   try {
-    if (CompressorImage && shouldCompressImage(asset)) {
+    if (CompressorImage && shouldCompressImage(asset) && isEnabled('hybridMediaProcessing')) {
       uri = await CompressorImage.compress(uri, {
         compressionMethod: 'auto',
         maxWidth: 1600,
@@ -62,7 +94,7 @@ async function prepareImage(asset: PickedAsset, onProgress?: (progress: MediaPro
       })
     }
   } catch {
-    uri = asset.uri!
+    uri = asset.uri
   }
   onProgress?.({ localId: id, status: 'ready', progress: 1 })
   return {
@@ -79,12 +111,12 @@ async function prepareImage(asset: PickedAsset, onProgress?: (progress: MediaPro
   }
 }
 
-async function prepareVideo(asset: PickedAsset, onProgress?: (progress: MediaProgress) => void): Promise<PostMediaAsset> {
+async function prepareVideo(asset: PreparedAsset, onProgress?: (progress: MediaProgress) => void): Promise<PostMediaAsset> {
   const id = localId()
   onProgress?.({ localId: id, status: 'preparing', progress: 0.05 })
-  let uri = asset.uri!
+  let uri = asset.uri
   try {
-    if (CompressorVideo && shouldCompressVideo(asset)) {
+    if (CompressorVideo && shouldCompressVideo(asset) && isEnabled('hybridMediaProcessing')) {
       uri = await CompressorVideo.compress(
         uri,
         {
@@ -96,11 +128,11 @@ async function prepareVideo(asset: PickedAsset, onProgress?: (progress: MediaPro
         (progress: number) => onProgress?.({ localId: id, status: 'preparing', progress })
       )
     }
-  } catch (e: any) {
+  } catch (e) {
     if (asset.fileSize && asset.fileSize > MEDIA_LIMITS.maxPostVideoBytes) {
       return {
         localId: id,
-        uri: asset.uri!,
+        uri: asset.uri,
         type: 'video',
         mimeType: asset.mimeType ?? null,
         sizeBytes: asset.fileSize ?? null,
@@ -108,10 +140,10 @@ async function prepareVideo(asset: PickedAsset, onProgress?: (progress: MediaPro
         width: asset.width ?? null,
         height: asset.height ?? null,
         processingStatus: 'failed',
-        processingError: e?.message ?? 'Video compression failed.',
+        processingError: e instanceof Error ? e.message : 'Video compression failed.',
       }
     }
-    uri = asset.uri!
+    uri = asset.uri
   }
   onProgress?.({ localId: id, status: 'ready', progress: 1 })
   return {
@@ -140,7 +172,7 @@ export async function preparePostMedia(
     return {
       media: existingMedia,
       rejectedCount: validation.rejectedCount,
-      error: validation.error,
+      error: validation.error ?? null,
     }
   }
 
@@ -149,11 +181,10 @@ export async function preparePostMedia(
     if (accepted.type === 'video' && existingVideos + prepared.filter(item => item.type === 'video').length >= MEDIA_LIMITS.maxPostVideos) {
       continue
     }
-    const source = assets.find(asset => asset.uri === accepted.uri) ?? accepted
     prepared.push(
       accepted.type === 'video'
-        ? await prepareVideo(source, onProgress)
-        : await prepareImage(source, onProgress)
+        ? await prepareVideo(accepted, onProgress)
+        : await prepareImage(accepted, onProgress)
     )
   }
   const next = [...existingMedia, ...prepared].slice(0, MEDIA_LIMITS.maxPostMedia)

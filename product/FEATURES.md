@@ -195,16 +195,17 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
   - Posts section: compact rows (60×60 thumbnail, creator, title, ratings, likes)
   - Post sort — `RekkusActionSheet`: Most liked (default), Newest, Oldest
   - **Recency-weighted Rekkus ratings**: posts within last 90 days count 2×; shows "(based on recent reviews)" when recent posts exist
-  - **Most mentioned dishes**: aggregated from `best_dish` field on posts; shown as "Dishes: X · Y · Z" in ratings card
+  - **Most mentioned dishes**: aggregated from `best_dish` on posts; mentions with canonical `dish_id` open dish detail, while unlinked legacy text stays display-only.
   - Header: back button, navigation icon (→ full-screen map), bookmark icon (save/unsave)
 - **Restaurant map screen** (`restaurants/[restaurantId]/map.tsx`):
   - Full-screen Google Maps with single pin
   - Tap pin → Reanimated bottom card slides up: name, ⭐ Google rating, Open/Closed badge, Rekkus ratings, phone
   - "Open in Maps" → `RekkusActionSheet` (Apple Maps / Google Maps)
   - Tap map to dismiss card (debounced to avoid marker/map press conflict)
-- `saved_locations` Supabase table (user_id + restaurant_id, RLS) with `want_to_try` / `been_here` intent status
-- Collections foundation: `collections` and `collection_items` support named restaurant/post boards with private, unlisted, public, and staff-pick metadata plus share slugs.
-- Places tab filters saved restaurants by All, Want to try, Been here, or named collections in both list and map views.
+- Canonical dish detail pages (`/dishes/[dishId]`) show first-party linked-post imagery/evidence, the canonical restaurant, bookmarking, and collection actions; no provider image lookup or free-text canonical guessing.
+- `Saved` is the visible tab destination: overview first, then Dishes, Places, Posts, and Collections drill-ins. `Saved > Places` retains list/map, intent status, permission, and post-visit prompt behaviour.
+- `saved_locations` stores private saved restaurant intent; `saved_dishes` stores private canonical dish bookmarks; post bookmarks remain in `saves`.
+- Collections organise saved content and can contain canonical dishes, posts, and restaurants. Adding an item ensures its bookmark exists; confirmed unsave removes its collection memberships atomically.
 - Map selected-place card can toggle a saved restaurant between Want to try and Been here.
 - `restaurants` table with canonical Rekkus IDs plus first-party provenance, verification status, source/alias/cache/observation/audit tables, and user-created restaurant RPC for self-reliant restaurant identity.
 - `food_rating`, `vibe_rating`, `cost_rating` columns on `posts` table (migration `20240110000000_post_ratings.sql`)
@@ -214,11 +215,11 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 - Full-width `PostMediaCarousel` supports mixed photos/videos with compatibility fallback for old image/video fields
 - Supabase-first post lookup by UUID when opened from a deep link or refreshed live feed/search row
 - Post detail tracks post view, like/save/comment, dwell time, and restaurant revisit signals through privacy-safe analytics.
-- Compact like / comment / save / share action bar with optimistic rollback notices on write failures
+- Compact like / comment / save / share action bar with optimistic rollback and inline `ErrorMessage` feedback on write failures
 - Follow pill button
 - Rekkus Picks summary appears near the top when available. Post detail no longer shows legacy Food/Vibe/Cost cards; old numeric fields remain compatibility data for rendering/search fallbacks.
 - Owners can open **Edit post** from the post options sheet. Edits reuse the Create composer, save to the same post ID, and record privacy-minimized edit evidence.
-- Location pill with bookmark icon — save location directly from post; geocode failures show an in-app notice
+- Location pill with bookmark icon — save location directly from post; geocode failures show inline `ErrorMessage` feedback
 - Tappable hashtag pills open Search with the tag prefilled
 - Shared post message cards route back to Post Detail
 - **Reactions row**: Helpful 👍 / Love This ❤️ / Thanks 🙏 / Oh No 😬 — stored in `post_reactions` table, toggleable, auth-gated

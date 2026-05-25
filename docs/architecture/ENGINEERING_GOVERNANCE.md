@@ -51,7 +51,9 @@ If a change creates a new owner boundary, update this map and [../../REPO_MAP.md
 - Record durable provider, architecture, data, release, or security decisions as ADRs.
 - Follow [NAMING.md](NAMING.md) for route, table, event, file, and product-language names.
 - Follow [PERFORMANCE.md](PERFORMANCE.md) when touching lists, maps, images, startup, or provider-heavy flows.
-- Keep `npm run lint` focused on actionable errors while Supabase service typing is still maturing; broad `any` and hook-dependency cleanup should be tracked as explicit debt instead of warning noise.
+- `npm run lint` is a fatal-warning gate for actionable hygiene: unused imports, duplicate imports, unsafe typing, TypeScript suppression policy, non-null assertions, restricted imports, hooks rules, and console usage.
+- `check:risk-guardrails` fails empty catches, deep relative imports, and untracked TODO/FIXME/HACK markers; `check:architecture` ratchets oversized shared files through backlog-linked allowlists.
+- `check:stale-flags` blocks unreferenced feature flags and supports only backlog-linked ratchets if existing debt is discovered. Fatal floating-promise, misused-promise, and exhaustive hook-dependency rules are active and must remain clean.
 
 ---
 
@@ -84,8 +86,8 @@ When considering a new top-level folder, first ask whether an existing owner can
 | Change Type | Checks |
 | --- | --- |
 | Docs only | `npm run check:docs`, `npm run check:hygiene` |
-| TypeScript or React Native | Docs checks plus `npm run lint`, `npm run typecheck` |
+| TypeScript or React Native | Docs checks plus `npm run lint`, `npm run typecheck`, `npm run check:unsafe-any`, `npm run check:risk-guardrails`, `npm run check:circular-deps` |
 | Native config, route, or environment | `npm run check:platform`, `npm run check:release` |
 | Release or migration flow | `npm run check:release` |
 | Mobile performance-sensitive flow | `npm run check:hygiene`, `npm run typecheck`, targeted device smoke test |
-| Security/backend behavior | `npm run check:hygiene`, `npm run typecheck`, relevant manual RLS/release checks |
+| Security/backend behavior | `npm run check:hygiene`, `npm run check:architecture`, `npm run typecheck`, relevant manual RLS/release checks |

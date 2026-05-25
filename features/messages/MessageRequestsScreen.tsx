@@ -1,28 +1,29 @@
+import { useRouter } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { ArrowLeft } from '@/components/icons'
+import { CachedImage } from '@/components/ui/CachedImage'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { routes } from '@/lib/routes'
 import {
   fetchMessageRequests,
   acceptMessageRequest,
   declineMessageRequest,
   type ConversationSummary,
 } from '@/lib/services/messaging'
-import { ArrowLeft } from '@/components/icons'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 
 function richTypePreview(msg: { message_type: string; body: string | null }): string {
   switch (msg.message_type) {
@@ -53,14 +54,15 @@ export default function MessageRequestsScreen() {
     const data = await fetchMessageRequests(user.id)
     setRequests(data)
     setLoading(false)
-  }, [user?.id])
+  }, [user])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void load() }, [load])
 
   async function handleAccept(conversationId: string) {
     await acceptMessageRequest(conversationId)
     setRequests(prev => prev.filter(r => r.id !== conversationId))
-    router.push({ pathname: '/messages/[conversationId]', params: { conversationId } } as any)
+
+    router.push(routes.conversation(conversationId))
   }
 
   async function handleDecline(conversationId: string) {
@@ -69,10 +71,10 @@ export default function MessageRequestsScreen() {
       {
         text: 'Decline',
         style: 'destructive',
-        onPress: async () => {
+        onPress: () => { void (async () => {
           await declineMessageRequest(conversationId)
           setRequests(prev => prev.filter(r => r.id !== conversationId))
-        },
+        })() },
       },
     ])
   }
@@ -83,11 +85,12 @@ export default function MessageRequestsScreen() {
       <View style={styles.row}>
         <TouchableOpacity
           style={styles.rowMain}
-          onPress={() => router.push({ pathname: '/messages/[conversationId]', params: { conversationId: item.id } } as any)}
+
+          onPress={() => router.push(routes.conversation(item.id))}
           activeOpacity={0.7}
         >
           {item.participant.avatar_url ? (
-            <Image source={{ uri: item.participant.avatar_url }} style={styles.avatar} />
+            <CachedImage source={{ uri: item.participant.avatar_url }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarFallback]}>
               <Text style={styles.avatarInitial}>
@@ -115,7 +118,12 @@ export default function MessageRequestsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <ArrowLeft />
         </TouchableOpacity>
         <Text style={styles.title}>Message requests</Text>
@@ -123,9 +131,17 @@ export default function MessageRequestsScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.text3} />
-        </View>
+        <>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton width={44} height={44} radius={radius.full} />
+              <View style={{ flex: 1, gap: spacing[2] }}>
+                <Skeleton width="60%" height={14} />
+                <Skeleton width="40%" height={12} />
+              </View>
+            </View>
+          ))}
+        </>
       ) : (
         <FlatList
           data={requests}
@@ -207,5 +223,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       borderColor: c.border,
     },
     declineLabel: { fontSize: fontSize.base, color: c.text },
+    skeletonRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[4], paddingVertical: spacing[3], gap: spacing[3] },
   })
 }

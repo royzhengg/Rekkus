@@ -99,21 +99,26 @@ Accessibility rule: icon-only buttons need an accessible label or adjacent visib
 
 ## UI Primitives — `@/components/ui/`
 
+`CollectionPickerSheet` (`components/CollectionPickerSheet.tsx`) is the shared presentation surface for adding a saved target to an existing private collection or starting a new one. It receives collections and callbacks only; async writes remain in hooks/services.
+
 Zero business logic. Theme-aware via `useThemeColors()`.
 
 | Component | File | When to use |
 |---|---|---|
 | `ScreenHeader` | `ui/ScreenHeader` | 56 px top bar. Props: `title`, `left` (slot), `right` (slot) |
 | `FormInput` | `ui/FormInput` | Labelled text input. Props: `label`, `right` (slot), `error` |
-| `ErrorMessage` | `ui/ErrorMessage` | Shared themed error box. Props: `message`, `style?` |
+| `ErrorMessage` | `ui/ErrorMessage` | Shared accessible error box. Props: `message`, `title?`, `style?` |
 | `IconButton` | `ui/IconButton` | Icon-only actions with a minimum 44x44pt hit area. Props: `children`, `onPress`, `accessibilityLabel`, `size?`, `variant?`, `style?`, `disabled?` |
 | `PrimaryButton` | `ui/PrimaryButton` | Primary CTA. Props: `label`, `onPress`, `loading?`, `disabled?` |
 | `Chip` | `ui/Chip` | Selectable filters, quick starts, and compact pill actions. Props: `label`, `onPress`, `selected?`, `variant?`, `leading?`, `detail?`, `disabled?` |
-| `EmptyState` | `ui/EmptyState` | All empty / error placeholders. Props: `icon`, `title`, `subtitle` |
+| `EmptyState` | `ui/EmptyState` | Empty / error placeholders and shape-less blocking loading. Props: `icon`, `title`, `subtitle`, `loading?` |
+| `Skeleton` | `ui/Skeleton` | Content-shaped loading placeholders for screen/list loading states. |
 | `RekkusActionSheet` | `ui/RekkusActionSheet` | Rekkus bottom-sheet chooser for sort, map app, cuisine, create launchers, post options, confirmations, and other action lists. Supports descriptions, icons, accents, tile rows, loading, selected, and destructive states. |
 
 Use `IconButton` for compact icon-only controls instead of raw `TouchableOpacity`; it preserves 34-40px visual buttons while adding hitSlop for a 44pt touch target.
+Use `ErrorMessage` for routine load and mutation failures. Do not create inline error boxes, failure alerts, or dismiss-only error sheets; an action sheet is appropriate only when failure recovery includes a real action such as retry or review.
 Use `Chip` instead of screen-local `*Pill` / `*Chip` styles. Use `EmptyState` instead of inline empty markup.
+Loading has three canonical surfaces: use `ActivityIndicator` for action, row, or pagination waits; use `Skeleton` / `SkeletonText` when the final content shape is predictable; use `<EmptyState loading>` only for blocking full-screen waits with no meaningful silhouette yet. For list screens, render 3–4 skeleton rows (`{ flexDirection: 'row', gap }` with avatar circle + two text lines). Never render a centered bare `<ActivityIndicator>` for an initial screen/content load — `check:design` will fail CI.
 
 ### `RekkusActionSheet`
 
@@ -137,7 +142,7 @@ import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 
 Behavior: themed `Modal`, slide animation, backdrop dismiss, Android back support via `onRequestClose`, safe-area bottom padding, selected option checkmark, and scroll support for long option lists.
 
-Supported patterns: one-button notice, two-button confirmation, destructive confirmation, picker list, selected-state list, loading row, icon row, and tile actions. Use accent colours for positive actions and the destructive style only for irreversible or safety-sensitive actions.
+Supported patterns: informational/success notice, two-button confirmation, destructive confirmation, picker list, selected-state list, loading row, icon row, tile actions, and failure recovery with an explicit next action. Routine failures render through `ErrorMessage`, not a dismiss-only sheet. Use accent colours for positive actions and the destructive style only for irreversible or safety-sensitive actions.
 
 ---
 
@@ -151,7 +156,8 @@ Supported patterns: one-button notice, two-button confirmation, destructive conf
 | `PostMediaCarousel` | Shared image/video carousel for feed, detail, and share preview; shows video and count badges |
 | `PostPicksSummary` | Compact Taste/Value/Occasion summary for every post surface |
 | `ThumbGrid` | 3-col thumbnail grid for post collections with video/carousel badges |
-| `PostUploadProgress` | Compact publish job row with thumbnail, status, progress, failed dismiss state |
+| `PostCardSkeleton` | Feed-level content-shaped loading placeholder (`components/post/PostCardSkeleton`). Use when `!followingLoaded`. Never use `ActivityIndicator` for feed content loading — only for action buttons and pagination footers. |
+| `PostUploadProgress` | Compact publish job row with thumbnail, status, and progress. Failed state shows "Go to draft" (navigates to create screen + clears job) and a dismiss X. |
 | `RatingDisplay` | Stars, Vibes, Dollars, PostRatingStrip, compact RatingInputRow |
 | `OpenBadge` | Open / closed status badge |
 | `MapMarker` | Custom Google Maps marker |
@@ -159,6 +165,19 @@ Supported patterns: one-button notice, two-button confirmation, destructive conf
 | `AuthPromptModal` | Guest-to-auth prompt modal |
 
 Post action chips and draft/upload rows should use hairline borders, white/light fills, compact 11-13px labels, and accent/destructive color only for active, successful, or irreversible states.
+
+### Messaging Components — `features/messages/`
+
+Extracted from ConversationScreen (ARCH-005). All accept `colors: ReturnType<typeof useThemeColors>`.
+
+| Component | File | When to use |
+| --- | --- | --- |
+| `ConversationHeader` | `ConversationHeader.tsx` | Top bar for a conversation: back button, avatar, title/subtitle, search toggle, options dots. Switches to search input when `searchMode` is true. |
+| `MessageList` | `MessageList.tsx` | Both FlatLists (main thread + search results), pinned-message banner, shared-media strip, typing indicator bar. Pass `listRef` and `isAtBottom` refs from the coordinator. |
+| `MessageInput` | `MessageInput.tsx` | Compose bar with attachment tray, GIF picker, location sheet, saved-place picker. Owns all send/media state. Expose `focus()` via `ref={messageInputRef}`. |
+| `MessageActions` | `MessageActions.tsx` | Floating emoji-reaction overlay + iOS-style action card + forward picker + delete confirm sheet. Owns its own modal state. Open via `actionsRef.current.open(msg, pageY)`. |
+| `MessageBubble` | `MessageBubble.tsx` | Single message bubble with reply context, reactions row, attachments, and timestamp. Also exports `messageTime`, `dateLabel`, `activeStatusLabel`, `richTypePreview`, `buildMessageItems`. |
+| `TypingDots` | `TypingDots.tsx` | Staggered three-dot bounce animation shown in the typing indicator bar. |
 
 ---
 

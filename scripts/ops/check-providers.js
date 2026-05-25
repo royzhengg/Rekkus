@@ -25,6 +25,15 @@ for (const term of missingTerms('docs/security/COMPLIANCE.md', [
   failures.push(`Provider governance must include ${term}.`)
 }
 
+for (const term of missingTerms('operations/COSTS.md', [
+  'Key Rotation',
+  'Google Maps',
+  'Google Places',
+  'Giphy',
+])) {
+  failures.push(`Provider cost governance must include ${term}.`)
+}
+
 const googlePlaces = readText('lib/services/googlePlaces.ts')
 for (const token of ['fields', 'sessionToken', 'inflight', 'MIN_AUTOCOMPLETE_LENGTH', 'logProviderUsage']) {
   if (!googlePlaces.includes(token)) warnings.push(`lib/services/googlePlaces.ts should include ${token}.`)

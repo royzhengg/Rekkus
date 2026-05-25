@@ -1,35 +1,13 @@
-import { useState, useCallback } from 'react'
 import { useFocusEffect } from 'expo-router'
-import { supabase } from '../supabase'
+import { useState, useCallback } from 'react'
 import { readOfflineCache, writeOfflineCache } from '../services/offlineCache'
+import {
+  fetchSavedLocationsForUser,
+  isSavedLocationList,
+  type SavedLocation,
+} from '../services/restaurants'
 
-export type SavedLocation = {
-  id: string
-  restaurant_id: string
-  created_at: string
-  save_status: 'want_to_try' | 'been_here'
-  restaurants: {
-    name: string
-    address: string | null
-    latitude: number | null
-    longitude: number | null
-    google_place_id: string | null
-  } | null
-}
-
-const SAVED_LOCATION_SELECT =
-  'id, restaurant_id, created_at, save_status, restaurants(name, address, latitude, longitude, google_place_id)'
-
-const LEGACY_SAVED_LOCATION_SELECT =
-  'id, restaurant_id, created_at, restaurants(name, address, latitude, longitude, google_place_id)'
-
-function withDefaultSaveStatus(rows: unknown): SavedLocation[] {
-  if (!Array.isArray(rows)) return []
-  return rows.map(row => ({
-    ...(row as Omit<SavedLocation, 'save_status'>),
-    save_status: (row as Partial<SavedLocation>).save_status ?? 'want_to_try',
-  }))
-}
+export type { SavedLocation } from '../services/restaurants'
 
 export function useSavedLocations(userId: string | undefined) {
   const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([])
@@ -40,28 +18,15 @@ export function useSavedLocations(userId: string | undefined) {
     if (!userId) return
     setError(null)
     const cacheKey = `saved-locations:${userId}:first-page`
-    const cached = await readOfflineCache<SavedLocation[]>(cacheKey)
+    const cached = await readOfflineCache(cacheKey, isSavedLocationList)
     if (cached) setSavedLocations(cached)
-    const query = (select: string) =>
-      (supabase.from('saved_locations') as any)
-        .select(select)
-        .eq('user_id', userId)
-        .limit(100)
-
-    let { data, error: fetchError } = await query(SAVED_LOCATION_SELECT)
-    if (fetchError?.message?.includes('save_status')) {
-      const legacy = await query(LEGACY_SAVED_LOCATION_SELECT)
-      data = withDefaultSaveStatus(legacy.data)
-      fetchError = legacy.error
-    }
-    if (fetchError) {
-      setError(fetchError.message)
+    try {
+      const nextSavedLocations = await fetchSavedLocationsForUser(userId)
+      setSavedLocations(nextSavedLocations)
+      void writeOfflineCache(cacheKey, nextSavedLocations)
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : 'Could not load saved locations')
       return
-    }
-    if (data) {
-      const normalized = withDefaultSaveStatus(data)
-      setSavedLocations(normalized)
-      writeOfflineCache(cacheKey, normalized)
     }
   }, [userId])
 
@@ -73,7 +38,7 @@ export function useSavedLocations(userId: string | undefined) {
 
   useFocusEffect(
     useCallback(() => {
-      fetch()
+      void fetch()
     }, [fetch])
   )
 

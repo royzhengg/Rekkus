@@ -18,6 +18,9 @@ Source-of-truth ownership and engineering constraints live in [ENGINEERING_GOVER
 | Email      | Resend (production SMTP only)              |
 | Maps       | Google Maps (`react-native-maps` 1.27.2)   |
 | Places API | Google Places REST (no library)            |
+| Analytics  | Supabase `analytics_events` with event versioning, sampling, and 90-day raw retention |
+| Crash/error reporting | Sentry React Native for Expo/EAS source maps |
+| Feature flags | Code defaults in `lib/featureFlags.ts` plus Supabase emergency overrides |
 | Animations | `react-native-reanimated`                  |
 | Images     | `expo-image-picker`                        |
 | Media prep | `react-native-compressor` + Supabase Edge Function orchestration |
@@ -57,11 +60,11 @@ lib/                  App logic layer
   services/           Supabase API wrappers (posts.ts, users.ts, comments.ts, restaurants.ts)
   mocks/              Local/demo data only
   utils/              Pure helpers (format.ts, geo.ts)
-  analytics.ts        Analytics abstraction (track / screen / identify)
-  featureFlags.ts     Feature flag checks (isEnabled)
+  analytics.ts        Analytics abstraction (versioning, sampling, privacy-safe writes)
+  featureFlags.ts     Feature flag checks (isEnabled) + override refresh
   config.ts           Env vars — single source of truth (never raw process.env in screens)
   supabase.ts         Typed Supabase client
-  routes.ts           Route builders and canonical route names
+  routes/             Typed route builder functions (postDetail, restaurantDetail, userProfile, conversation, search, createPost, etc.)
 
 constants/
   Colors.ts           Colour tokens (lightColors, darkColors, imgColors)
@@ -103,12 +106,16 @@ Keep iOS and Android supported together. Before release or native config changes
 Canonical routes use plural domain names:
 
 - Create tab: `/(tabs)/create`
-- Places tab implementation: `/(tabs)/restaurants` with visible label `Places`
+- Saved tab implementation: `/(tabs)/saved`, with `section=places` hosting the existing places list/map surface
 - Post detail: `/posts/[postId]`
+- Dish detail: `/dishes/[dishId]`
+- Collection detail: `/collections/[collectionId]`
 - Restaurant detail: `/restaurants/[restaurantId]`
 - Restaurant map: `/restaurants/[restaurantId]/map`
 
-Legacy `/post/[id]`, `/location/[placeId]`, `/(tabs)/post`, and `/(tabs)/places` routes are temporary redirect wrappers only.
+Legacy `/post/[id]`, `/location/[placeId]`, `/(tabs)/post`, `/(tabs)/places`, and `/(tabs)/restaurants` routes are redirect wrappers only.
+
+All dynamic route construction must go through typed helpers in `lib/routes/`. Never construct routes as raw strings or inline `{ pathname, params }` objects in `features/` or `components/` — a rename or param change silently breaks navigation otherwise. See B-504.
 
 ## Data modes
 
@@ -183,6 +190,8 @@ Security controls live in [../security/SECURITY.md](../security/SECURITY.md). En
 | Supabase API call               | `lib/services/`    |
 | Env variable                    | `lib/config.ts`    |
 | Analytics call                  | `lib/analytics.ts` |
+
+Contexts and hooks own React lifecycle/state orchestration only. Supabase reads, writes, auth subscriptions, and provider-owned types are exposed through typed `lib/services/` contracts.
 | Colour / font / spacing token   | `constants/`       |
 
 ---
@@ -224,15 +233,17 @@ Mounted in `app/_layout.tsx` from outermost to innermost:
 | `comments`                    | post_id + user_id + content                                                                    |
 | `post_reactions`              | post_id + user_id + reaction_type (helpful/love/thanks/oh_no)                                  |
 | `saved_locations`             | restaurant_id + user_id junction with saved intent status                                      |
+| `saved_dishes`                | dish_id + user_id private canonical-dish bookmark junction                                     |
 | `collections`                 | User-owned named boards with private/unlisted/public/staff-pick visibility metadata            |
-| `collection_items`            | Restaurant/post membership rows for collections                                                |
+| `collection_items`            | Restaurant/post/dish membership rows for collections; RPC add ensures base bookmark            |
 | `user_topic_follows`          | User-owned cuisine/interest follows for onboarding and discovery                               |
 | `conversations`               | Private-message conversation containers                                                        |
 | `conversation_participants`   | Participant membership and read state for private conversations                                |
 | `messages`                    | Participant-only private message bodies                                                        |
 | `user_settings`               | Per-user toggle preferences (notifications, privacy)                                           |
 | `push_tokens`                 | Expo push tokens for notifications                                                             |
-| `analytics_events`            | Raw event log (event_type, entity_type, entity_id)                                             |
+| `analytics_events`            | Raw event log (event_type, event_version, entity_type, entity_id) with 90-day retention        |
+| `feature_flag_overrides`      | Service-role emergency overrides for code-defined feature flags                                |
 
 All tables have RLS enabled. Policies follow the pattern: public SELECT, authenticated INSERT/UPDATE/DELETE on own rows.
 
@@ -278,24 +289,31 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 | `20240224000000_trending_searches.sql`               | Trending search aggregation and discovery support                                                                 |
 | `20240225000000_pgvector_semantic.sql`               | Semantic-search foundation using pgvector-compatible storage                                                      |
 | `20240226000000_search_history_aggregate.sql`        | Per-user recent search-history aggregate RPC for scalable discovery personalization                               |
+| `20240227000000_auth_user_trigger.sql`               | Auth user trigger and backfill for public user skeleton rows                                                      |
+| `20240228000000_ops_hardening.sql`                   | Feature flag overrides, analytics event versioning, and retention index                                           |
+| `20260526000003_dish_details_saved_library.sql`      | Private saved dishes, mixed collection targets/RPCs, and deterministic canonical dish post backfill              |
 
 ---
 
 ## Key hooks
 
-| Hook                | File                             | Purpose                                                                                      |
-| ------------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
-| `useSearch`         | `lib/hooks/useSearch.ts`         | BM25-style scoring; debounced Supabase + local merge; backend cuisine fallback               |
-| `useDiscover`       | `lib/hooks/useDiscover.ts`       | Deterministic Discover ranking from quality, nearby, trending, topics, and diversity signals |
-| `useSavedLocations` | `lib/hooks/useSavedLocations.ts` | Restaurant join; refreshes on tab focus                                                      |
-| `useCollections`    | `lib/hooks/useCollections.ts`    | User collections plus restaurant collection membership for Places filters                    |
-| `useTopicFollows`   | `lib/hooks/useTopicFollows.ts`   | User cuisine/interest follows for onboarding seeded discovery                                |
-| `useSavedPosts`     | `lib/hooks/useSavedPosts.ts`     | Cursor-based Supabase pagination                                                             |
-| `useLikedPosts`     | `lib/hooks/useLikedPosts.ts`     | Cursor-based Supabase pagination                                                             |
-| `usePagedList`      | `lib/hooks/usePagedList.ts`      | Generic client-side slicer (`visible`, `hasMore`, `loadMore`)                                |
-| `useAlerts`         | `lib/hooks/useAlerts.ts`         | Likes + comments in parallel; pull-to-refresh                                                |
-| `useFollowingFeed`  | `lib/hooks/useFollowingFeed.ts`  | Follows-based post feed                                                                      |
-| `useDiscover`       | `lib/hooks/useDiscover.ts`       | Discover feed (trending, popular places)                                                     |
+| Hook | File | Purpose |
+| --- | --- | --- |
+| `useSearch` | `lib/hooks/useSearch.ts` | BM25-style scoring; debounced Supabase + local merge; backend cuisine fallback |
+| `useDiscover` | `lib/hooks/useDiscover.ts` | Deterministic Discover ranking from quality, nearby, trending, topics, and diversity signals |
+| `useSavedLocations` | `lib/hooks/useSavedLocations.ts` | Restaurant join; refreshes on tab focus |
+| `useCollections` | `lib/hooks/useCollections.ts` | User collections plus restaurant collection membership for Places filters |
+| `useTopicFollows` | `lib/hooks/useTopicFollows.ts` | User cuisine/interest follows for onboarding seeded discovery |
+| `useSavedPosts` | `lib/hooks/useSavedPosts.ts` | Cursor-based Supabase pagination |
+| `useSavedDishes` | `lib/hooks/useSavedDishes.ts` | Private saved canonical dishes |
+| `useDishDetail` | `lib/hooks/useDishDetail.ts` | Dish entity, save/membership state, and cursor-paginated evidence posts |
+| `useCollectionPicker` | `lib/hooks/useCollectionPicker.ts` | Private collection create/add orchestration |
+| `useLikedPosts` | `lib/hooks/useLikedPosts.ts` | Cursor-based Supabase pagination |
+| `usePagedList` | `lib/hooks/usePagedList.ts` | Generic client-side slicer (`visible`, `hasMore`, `loadMore`) |
+| `useAlerts` | `lib/hooks/useAlerts.ts` | Likes + comments in parallel; pull-to-refresh |
+| `useRestaurantSearch` | `lib/hooks/useRestaurantSearch.ts` | Debounced DB+Google autocomplete, nearby fetch, place details + upsert; extracted from StepMedia (B-506) |
+| `useFollowingFeed` | `lib/hooks/useFollowingFeed.ts` | Follows-based post feed |
+| `useDiscover` | `lib/hooks/useDiscover.ts` | Discover feed (trending, popular places) |
 
 ---
 
@@ -344,9 +362,12 @@ Documented in full in [../../design/DESIGN_SPEC.md](../../design/DESIGN_SPEC.md)
 | ------------------------- | ---------------------------------------- |
 | `constants/Colors.ts`     | `lightColors`, `darkColors`, `imgColors` |
 | `constants/Typography.ts` | `fontSize`, `fontWeight`, `lineHeight`   |
+| `constants/Elevation.ts`  | shadow/elevation presets                 |
 | `constants/Spacing.ts`    | `spacing`, `radius`                      |
 
 Always access colours via `useThemeColors()`. Never hardcode theme colours.
+
+`scripts/check-architecture.sh` enforces the 600 LOC hard limit for `features/` and `lib/hooks/`, reports soft LOC budgets for `features/`, `lib/hooks/`, `components/`, and `lib/services/`, and blocks direct Supabase/provider imports in `app/`, `features/`, `lib/hooks/`, and `lib/contexts/`. Any temporary exception must remain backlog-linked and is rejected once its forbidden import disappears.
 
 Use `components/ui/RekkusActionSheet` for in-app choice/action lists such as sort controls, cuisine pickers, and map app selection. Avoid `ActionSheetIOS` unless a future flow has a specific platform-native requirement and an Android equivalent.
 

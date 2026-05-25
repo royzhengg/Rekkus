@@ -1,18 +1,20 @@
 import { useFonts } from 'expo-font'
+import * as Linking from 'expo-linking'
 import { Stack, useRouter } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import 'react-native-reanimated'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import * as Linking from 'expo-linking'
-import { PostsProvider } from '@/lib/contexts/PostsContext'
 import { AuthProvider, useAuth } from '@/lib/contexts/AuthContext'
 import { AuthGateProvider } from '@/lib/contexts/AuthGateContext'
-import { SettingsProvider } from '@/lib/contexts/SettingsContext'
-import { PostUploadProvider } from '@/lib/contexts/PostUploadContext'
 import { CreateLauncherProvider } from '@/lib/contexts/CreateLauncherContext'
+import { PostsProvider } from '@/lib/contexts/PostsContext'
+import { PostUploadProvider } from '@/lib/contexts/PostUploadContext'
+import { SettingsProvider } from '@/lib/contexts/SettingsContext'
+import { refreshFeatureFlagOverrides } from '@/lib/featureFlags'
+import { restoreSession } from '@/lib/services/auth'
+import { initializeCrashReporting, withCrashReporting } from '@/lib/services/crashReporting'
 import { registerPushToken } from '@/lib/services/notifications'
-import { supabase } from '@/lib/supabase'
 
 export { ErrorBoundary } from 'expo-router'
 
@@ -20,13 +22,14 @@ export const unstable_settings = {
   initialRouteName: '(tabs)',
 }
 
-SplashScreen.preventAutoHideAsync()
+void SplashScreen.preventAutoHideAsync()
+initializeCrashReporting()
 
 function PushRegistrar() {
   const { user } = useAuth()
   useEffect(() => {
-    if (user) registerPushToken(user.id)
-  }, [user?.id])
+    if (user) void registerPushToken(user.id)
+  }, [user])
   return null
 }
 
@@ -41,22 +44,34 @@ function DeepLinkHandler() {
       const refreshToken = params.get('refresh_token')
       const type = params.get('type')
       if (accessToken && refreshToken && type === 'recovery') {
-        await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        await restoreSession(accessToken, refreshToken)
         router.replace('/(auth)/reset-password')
       }
     }
 
-    Linking.getInitialURL().then(url => { if (url) handleUrl(url) })
-    const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url))
+    void Linking.getInitialURL().then(url => { if (url) void handleUrl(url) })
+    const sub = Linking.addEventListener('url', ({ url }) => { void handleUrl(url) })
     return () => sub.remove()
+  }, [router])
+
+  return null
+}
+
+function FeatureFlagOverrideRefresher() {
+  useEffect(() => {
+    void refreshFeatureFlagOverrides(true)
+    const interval = setInterval(() => {
+      void refreshFeatureFlagOverrides()
+    }, 60_000)
+    return () => clearInterval(interval)
   }, [])
 
   return null
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [loaded, error] = useFonts({
-    'DMSerifDisplay-Regular': require('../assets/fonts/DMSerifDisplay-Regular.ttf'),
+    'DMSerifDisplay-Regular': require('../assets/fonts/DMSerifDisplay-Regular.ttf') as number,
   })
 
   useEffect(() => {
@@ -64,12 +79,13 @@ export default function RootLayout() {
   }, [error])
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync()
+    if (loaded) void SplashScreen.hideAsync()
   }, [loaded])
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     {loaded ? <AuthProvider>
+      <FeatureFlagOverrideRefresher />
       <PushRegistrar />
       <DeepLinkHandler />
       <PostsProvider>
@@ -81,6 +97,8 @@ export default function RootLayout() {
                   <Stack.Screen name="(tabs)" />
                   <Stack.Screen name="(auth)" />
                   <Stack.Screen name="posts/[postId]" />
+                  <Stack.Screen name="dishes/[dishId]" />
+                  <Stack.Screen name="collections/[collectionId]" />
                   <Stack.Screen name="post/[id]" />
                   <Stack.Screen name="location/[placeId]" />
                   <Stack.Screen name="settings" />
@@ -96,3 +114,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   )
 }
+
+export default withCrashReporting(RootLayout)

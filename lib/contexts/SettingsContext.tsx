@@ -1,30 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { analytics } from '@/lib/analytics'
+import { DEFAULT_SETTINGS, fetchSettings, updateSettings, type Settings } from '@/lib/services/settings'
 import { useAuth } from './AuthContext'
-
-interface Settings {
-  notif_likes: boolean
-  notif_comments: boolean
-  notif_followers: boolean
-  notif_mentions: boolean
-  notif_messages: boolean
-  private_account: boolean
-  allow_comments: boolean
-  allow_tags: boolean
-  theme_mode: 'light' | 'dark' | 'system'
-}
-
-const DEFAULTS: Settings = {
-  notif_likes: true,
-  notif_comments: true,
-  notif_followers: true,
-  notif_mentions: true,
-  notif_messages: true,
-  private_account: false,
-  allow_comments: true,
-  allow_tags: true,
-  theme_mode: 'system',
-}
 
 interface SettingsContextValue {
   settings: Settings
@@ -33,28 +10,31 @@ interface SettingsContextValue {
 }
 
 const SettingsContext = createContext<SettingsContextValue>({
-  settings: DEFAULTS,
+  settings: DEFAULT_SETTINGS,
   loading: false,
   updateSetting: async () => {},
 })
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
-  const [settings, setSettings] = useState<Settings>(DEFAULTS)
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!user) {
-      setSettings(DEFAULTS)
+      setSettings(DEFAULT_SETTINGS)
+      setLoading(false)
       return
     }
     setLoading(true)
-    ;(supabase.from('user_settings') as any)
-      .select('*')
-      .eq('id', user.id)
-      .single()
-      .then(({ data }: { data: Partial<Settings> | null }) => {
-        if (data) setSettings({ ...DEFAULTS, ...data })
+    void fetchSettings(user.id)
+      .then(nextSettings => {
+        setSettings(nextSettings)
+      })
+      .catch(() => {
+        analytics.actionError(user.id, 'load_settings', 'provider_error')
+      })
+      .finally(() => {
         setLoading(false)
       })
   }, [user])
@@ -63,11 +43,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const next = { ...settings, [key]: value }
     setSettings(next)
     if (!user) return
-    await (supabase.from('user_settings') as any).upsert({
-      id: user.id,
-      ...next,
-      updated_at: new Date().toISOString(),
-    })
+    try {
+      await updateSettings(user.id, next)
+    } catch {
+      analytics.actionError(user.id, 'update_settings', 'provider_error')
+    }
   }
 
   return (

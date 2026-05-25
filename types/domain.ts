@@ -1,10 +1,36 @@
+export type Dish = {
+  id: string
+  name: string
+  restaurantId?: string | undefined
+  cuisineType?: string | undefined
+}
+
+export type DishDetail = Dish & {
+  restaurant?: {
+    id: string
+    name: string
+    address?: string | undefined
+    placeId?: string | undefined
+    lat?: number | undefined
+    lng?: number | undefined
+  } | undefined
+}
+
+export type SavedDish = DishDetail & {
+  savedAt: string
+  representativeImageUrl?: string | undefined
+}
+
+export type SavedLibrarySection = 'overview' | 'dishes' | 'places' | 'posts' | 'collections'
+export type CollectionTargetType = 'dish' | 'restaurant' | 'post'
+
 export type DishTag = {
   photoIndex: number
   x: number
   y: number
   name: string
-  mediaLocalId?: string
-  mediaId?: string
+  mediaLocalId?: string | undefined
+  mediaId?: string | undefined
 }
 export type PostMediaType = 'image' | 'video'
 export type PostMediaProcessingStatus =
@@ -18,22 +44,22 @@ export type PostMediaProcessingStatus =
   | 'processing'
 
 export type PostMediaAsset = {
-  id?: string
+  id?: string | undefined
   localId: string
   uri: string
   type: PostMediaType
-  mimeType?: string | null
-  originalUrl?: string | null
-  processedUrl?: string | null
-  thumbnailUrl?: string | null
-  durationMs?: number | null
-  width?: number | null
-  height?: number | null
-  sizeBytes?: number | null
-  processingStatus?: PostMediaProcessingStatus
-  processingError?: string | null
-  isCover?: boolean
-  storagePath?: string | null
+  mimeType?: string | null | undefined
+  originalUrl?: string | null | undefined
+  processedUrl?: string | null | undefined
+  thumbnailUrl?: string | null | undefined
+  durationMs?: number | null | undefined
+  width?: number | null | undefined
+  height?: number | null | undefined
+  sizeBytes?: number | null | undefined
+  processingStatus?: PostMediaProcessingStatus | undefined
+  processingError?: string | null | undefined
+  isCover?: boolean | undefined
+  storagePath?: string | null | undefined
 }
 export type PostMedia = PostMediaAsset
 
@@ -59,13 +85,13 @@ export type RekkusOccasionTag =
 export type CuisineOption = {
   label: string
   value: string
-  aliases?: string[]
+  aliases?: string[] | undefined
 }
 
 export interface Post {
   id: number
   dbId: string
-  userId?: string
+  userId?: string | undefined
   title: string
   body: string
   creator: string
@@ -74,39 +100,40 @@ export interface Post {
   avatarColor: string
   likes: string
   imgKey: string
-  imageUrl?: string
-  videoUrl?: string
-  mediaType?: PostMediaType
-  media?: PostMediaAsset[]
-  createdAt?: string
-  lastEditedAt?: string
-  editCount?: number
+  imageUrl?: string | undefined
+  videoUrl?: string | undefined
+  mediaType?: PostMediaType | undefined
+  media?: PostMediaAsset[] | undefined
+  createdAt?: string | undefined
+  lastEditedAt?: string | undefined
+  editCount?: number | undefined
   tall: boolean
   tags: string[]
   location: string
   food: number
   vibe: number
   cost: number
-  tasteVerdict?: RekkusTasteVerdict
-  valueVerdict?: RekkusValueVerdict
-  occasionTags?: RekkusOccasionTag[]
-  cuisine_type?: string
-  best_dish?: string
-  restaurantId?: string
-  placeId?: string
-  lat?: number
-  lng?: number
-  address?: string
-  dishTags?: DishTag[]
+  tasteVerdict?: RekkusTasteVerdict | undefined
+  valueVerdict?: RekkusValueVerdict | undefined
+  occasionTags?: RekkusOccasionTag[] | undefined
+  cuisine_type?: string | undefined
+  best_dish?: string | undefined
+  restaurantId?: string | undefined
+  placeId?: string | undefined
+  lat?: number | undefined
+  lng?: number | undefined
+  address?: string | undefined
+  dishTags?: DishTag[] | undefined
+  dishId?: string | undefined
 }
 
 export interface Restaurant {
   name: string
   suburb: string
-  lat?: number
-  lng?: number
-  placeId?: string
-  address?: string
+  lat?: number | undefined
+  lng?: number | undefined
+  placeId?: string | undefined
+  address?: string | undefined
 }
 
 export interface MockUser {

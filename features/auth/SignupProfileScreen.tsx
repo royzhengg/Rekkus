@@ -1,3 +1,5 @@
+import { useRouter } from 'expo-router'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -10,17 +12,17 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useMemo } from 'react'
-import { useRouter } from 'expo-router'
 import { Svg, Polyline } from 'react-native-svg'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { useAuth } from '@/lib/contexts/AuthContext'
-import { supabase } from '@/lib/supabase'
-import { analytics } from '@/lib/analytics'
-import { ONBOARDING_TOPICS, saveTopicFollows } from '@/lib/services/topics'
-import { spacing } from '@/constants/Spacing'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight } from '@/constants/Typography'
+import { analytics } from '@/lib/analytics'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { getCurrentUser } from '@/lib/services/auth'
+import { ONBOARDING_TOPICS, saveTopicFollows } from '@/lib/services/topics'
+import { updateProfile as updateUserProfile } from '@/lib/services/users'
 
 function ChevronLeft() {
   const colors = useThemeColors()
@@ -72,18 +74,13 @@ export default function SignupProfileScreen() {
       return
     }
     const loc = { suburb: suburb.trim() || null, city: city.trim() || null }
-    if (loc.suburb || loc.city) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (user) await (supabase.from('users') as any).update(loc).eq('id', user.id)
-    }
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (user) {
-      await saveTopicFollows(user.id, selectedTopics, 'onboarding')
-      analytics.onboardingStep(user.id, 'interest_onboarding', 'success')
+    const currentUser = await getCurrentUser()
+    if (currentUser) {
+      if (loc.suburb || loc.city) {
+        await updateUserProfile(currentUser.id, loc)
+      }
+      await saveTopicFollows(currentUser.id, selectedTopics, 'onboarding')
+      analytics.onboardingStep(currentUser.id, 'interest_onboarding', 'success')
     }
     setLoading(false)
     router.replace('/(tabs)/feed')
@@ -116,7 +113,7 @@ export default function SignupProfileScreen() {
           <Text style={styles.title}>Your profile</Text>
           <Text style={styles.subtitle}>One last step.</Text>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {error ? <ErrorMessage message={error} /> : null}
 
           <Text style={styles.label}>Username</Text>
           <View style={styles.usernameWrap}>
@@ -227,15 +224,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     scroll: { padding: spacing[4], paddingTop: spacing.px28 },
     title: { fontSize: fontSize['5xl'], fontWeight: fontWeight.medium, color: c.text, marginBottom: spacing[1], letterSpacing: -0.3 },
     subtitle: { fontSize: fontSize.md, color: c.text2, marginBottom: spacing.px28 },
-    errorText: {
-      fontSize: fontSize.base,
-      color: c.liked,
-      backgroundColor: c.errorBg,
-      borderRadius: radius.sm3,
-      padding: spacing.px10,
-      marginBottom: spacing[4],
-      lineHeight: lineHeight.small,
-    },
     label: { fontSize: fontSize.bodySm, fontWeight: fontWeight.medium, color: c.text2, marginBottom: spacing.px6 },
     usernameWrap: {
       flexDirection: 'row',

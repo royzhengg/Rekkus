@@ -1,6 +1,6 @@
 import { useColorScheme, type ColorSchemeName } from 'react-native'
-import { useSettings } from './SettingsContext'
 import { lightColors, darkColors } from '@/constants/Colors'
+import { useSettings } from './SettingsContext'
 
 export type ColorTokens = typeof lightColors
 

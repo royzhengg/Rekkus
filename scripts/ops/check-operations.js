@@ -110,12 +110,21 @@ function checkBacklog(rows) {
     result.failures.push(`BACKLOG.md contains duplicate ID ${id}.`)
   }
 
-  rows.forEach((row, index) => {
-    const expected = `B-${String(index + 1).padStart(3, '0')}`
-    if (row.id !== expected) {
-      result.failures.push(`BACKLOG.md row ${index + 1} must be ${expected}; found ${row.id}.`)
+  // IDs must be in ascending order; gaps are allowed (completed rows may be deleted).
+  let prevIdNum = 0
+  rows.forEach((row) => {
+    const match = /^B-(\d+)$/.exec(row.id)
+    if (!match) {
+      result.failures.push(`${row.id} has an invalid ID format; expected B-NNN.`)
+      return
     }
-    const anchor = `id="b-${String(index + 1).padStart(3, '0')}"`
+    const idNum = parseInt(match[1], 10)
+    if (idNum <= prevIdNum) {
+      result.failures.push(`${row.id} is out of order (previous was B-${String(prevIdNum).padStart(3, '0')}).`)
+    }
+    prevIdNum = idNum
+    // Anchor must self-reference the row's own ID (not a positional offset)
+    const anchor = `id="b-${match[1]}"`
     if (!row.line.includes(anchor)) {
       result.failures.push(`${row.id} anchor must match ${anchor}.`)
     }
@@ -163,7 +172,7 @@ function checkBacklog(rows) {
 }
 
 function isDocsPolicyOrRestructureItem(row) {
-  return /\.md|docs?|documentation|restructure|governance|policy|strategy|plan|template|index|readme|adr|cadence|current-state|observability|foundation|maturity|requirements|review|taxonomy|debt/i.test(
+  return /\.md|docs?|documentation|restructure|governance|policy|strategy|plan|template|index|readme|adr|cadence|current-state|observability|foundation|maturity|requirements|review|taxonomy|debt|audit|extract|split|refactor/i.test(
     `${row.item} ${row.why}`,
   )
 }

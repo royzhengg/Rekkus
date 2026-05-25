@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const { canonicalRegistryFailures } = require('./lib/canonical-registry-rules')
 
 const repoRoot = path.resolve(__dirname, '..')
 const skipDirs = new Set(['.git', '.expo', 'node_modules', 'Pods', 'build'])
@@ -49,6 +50,14 @@ walk(repoRoot, (filePath) => {
     }
   }
 })
+
+const agentsSource = fs.readFileSync(path.join(repoRoot, 'AGENTS.md'), 'utf8')
+failures.push(
+  ...canonicalRegistryFailures(agentsSource, adrPath => {
+    const absolute = path.join(repoRoot, adrPath)
+    return fs.existsSync(absolute) ? fs.readFileSync(absolute, 'utf8') : null
+  }),
+)
 
 if (failures.length > 0) {
   console.error('Markdown link checks failed:')

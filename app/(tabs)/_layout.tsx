@@ -1,8 +1,8 @@
-import React from 'react'
 import { Tabs } from 'expo-router'
+import React from 'react'
+import { Svg, Circle, Path, Polyline, Line } from 'react-native-svg'
 import { TabBarPostButton } from '@/components/TabBarPostButton'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { Svg, Circle, Path, Polyline, Line } from 'react-native-svg'
 
 const HomeIcon = React.memo(function HomeIcon({ color }: { color: string }) {
   return (
@@ -40,7 +40,7 @@ const SearchIcon = React.memo(function SearchIcon({ color }: { color: string }) 
   )
 })
 
-const MapPinIcon = React.memo(function MapPinIcon({ color }: { color: string }) {
+const SavedIcon = React.memo(function SavedIcon({ color }: { color: string }) {
   return (
     <Svg
       width={22}
@@ -52,8 +52,7 @@ const MapPinIcon = React.memo(function MapPinIcon({ color }: { color: string }) 
       strokeLinejoin="round"
       stroke={color}
     >
-      <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-      <Circle cx={12} cy={10} r={3} />
+      <Path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
     </Svg>
   )
 })
@@ -112,8 +111,8 @@ export default function TabLayout() {
         options={{ title: '', tabBarButton: props => <TabBarPostButton {...props} /> }}
       />
       <Tabs.Screen
-        name="restaurants"
-        options={{ title: 'Places', tabBarIcon: ({ color }) => <MapPinIcon color={color} /> }}
+        name="saved"
+        options={{ title: 'Saved', tabBarIcon: ({ color }) => <SavedIcon color={color} /> }}
       />
       <Tabs.Screen
         name="profile"
@@ -122,6 +121,7 @@ export default function TabLayout() {
       <Tabs.Screen name="alerts" options={{ href: null }} />
       <Tabs.Screen name="post" options={{ href: null }} />
       <Tabs.Screen name="places" options={{ href: null }} />
+      <Tabs.Screen name="restaurants" options={{ href: null }} />
     </Tabs>
   )
 }

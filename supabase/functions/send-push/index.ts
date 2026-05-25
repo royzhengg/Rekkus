@@ -1,15 +1,29 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  isNotificationActorRow,
+  isNotificationSettingsRow,
+  isNotificationUserIdRow,
+  isPushTokenRow,
+  parseNotifyPayload,
+} from '../_shared/guards.ts'
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
+
+function requireEnv(name: string): string {
+  const value = Deno.env.get(name)
+  if (!value) throw new Error(`Missing required environment variable: ${name}`)
+  return value
+}
+
 
 Deno.serve(async (req: Request) => {
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) return new Response('Unauthorized', { status: 401 })
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+    const supabaseUrl = requireEnv('SUPABASE_URL')
+    const serviceKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY')
+    const anonKey = requireEnv('SUPABASE_ANON_KEY')
 
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -21,20 +35,19 @@ Deno.serve(async (req: Request) => {
     if (authError || !user) return new Response('Unauthorized', { status: 401 })
 
     const admin = createClient(supabaseUrl, serviceKey)
-    const payload = await req.json().catch(() => null)
-    const { type, postId, followedId, commentId, conversationId, messageId } = payload ?? {}
+    const payload = parseNotifyPayload(await req.json().catch(() => null))
+    if (!payload) return new Response('Bad request', { status: 400 })
+    const { type, postId, followedId, commentId, conversationId, messageId } = payload
     const actorId = user.id
 
-    if (!['like', 'comment', 'follow', 'comment_reply', 'message'].includes(type)) {
-      return new Response('Bad request', { status: 400 })
-    }
-
-    const { data: actor } = await admin
+    const { data: actorData, error: actorError } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', actorId)
       .single()
-    if (!actor) return new Response('OK', { status: 200 })
+    if (actorError) return new Response('OK', { status: 200 })
+    if (!isNotificationActorRow(actorData)) return new Response('OK', { status: 200 })
+    const actor = actorData
 
     let recipientId: string | null = null
     if (type === 'like' || type === 'comment') {
@@ -50,12 +63,13 @@ Deno.serve(async (req: Request) => {
           .maybeSingle()
         if (!like) return new Response('OK', { status: 200 })
       }
-      const { data: post } = await admin
+      const { data: postData, error: postError } = await admin
         .from('posts')
         .select('user_id')
         .eq('id', postId)
         .single()
-      recipientId = (post as any)?.user_id ?? null
+      if (postError) return new Response('OK', { status: 200 })
+      recipientId = isNotificationUserIdRow(postData) ? postData.user_id : null
     } else if (type === 'follow') {
       if (!followedId || typeof followedId !== 'string') {
         return new Response('Bad request', { status: 400 })
@@ -72,12 +86,13 @@ Deno.serve(async (req: Request) => {
       if (!commentId || typeof commentId !== 'string') {
         return new Response('Bad request', { status: 400 })
       }
-      const { data: parentComment } = await admin
+      const { data: parentCommentData, error: parentCommentError } = await admin
         .from('comments')
         .select('user_id')
         .eq('id', commentId)
         .single()
-      recipientId = (parentComment as any)?.user_id ?? null
+      if (parentCommentError) return new Response('OK', { status: 200 })
+      recipientId = isNotificationUserIdRow(parentCommentData) ? parentCommentData.user_id : null
     } else if (type === 'message') {
       if (
         !conversationId ||
@@ -96,7 +111,7 @@ Deno.serve(async (req: Request) => {
         .single()
       if (!message) return new Response('OK', { status: 200 })
 
-      const { data: participant } = await admin
+      const { data: participantData, error: participantError } = await admin
         .from('conversation_participants')
         .select('user_id')
         .eq('conversation_id', conversationId)
@@ -104,40 +119,45 @@ Deno.serve(async (req: Request) => {
         .neq('user_id', actorId)
         .limit(1)
         .maybeSingle()
-      recipientId = (participant as any)?.user_id ?? null
+      if (participantError) return new Response('OK', { status: 200 })
+      recipientId = isNotificationUserIdRow(participantData) ? participantData.user_id : null
     }
 
     if (!recipientId || recipientId === actorId) return new Response('OK', { status: 200 })
 
-    const { data: settings } = await admin
+    const { data: settingsData, error: settingsError } = await admin
       .from('user_settings')
       .select('notif_likes, notif_comments, notif_followers, notif_mentions, notif_messages')
       .eq('id', recipientId)
       .maybeSingle()
+    if (settingsError) return new Response('OK', { status: 200 })
+    const settings = isNotificationSettingsRow(settingsData) ? settingsData : null
 
     const notificationAllowed =
       type === 'like'
-        ? ((settings as any)?.notif_likes ?? true)
+        ? (settings?.notif_likes ?? true)
         : type === 'comment'
-          ? ((settings as any)?.notif_comments ?? true)
+          ? (settings?.notif_comments ?? true)
           : type === 'comment_reply'
-            ? ((settings as any)?.notif_comments ?? true)
+            ? (settings?.notif_comments ?? true)
             : type === 'follow'
-              ? ((settings as any)?.notif_followers ?? true)
+              ? (settings?.notif_followers ?? true)
               : type === 'message'
-                ? ((settings as any)?.notif_messages ?? true)
+                ? (settings?.notif_messages ?? true)
                 : true
 
     if (!notificationAllowed) return new Response('OK', { status: 200 })
 
-    const { data: tokens } = await admin
+    const { data: tokensData, error: tokensError } = await admin
       .from('push_tokens')
       .select('token')
       .eq('user_id', recipientId)
+    if (tokensError) return new Response('OK', { status: 200 })
+    const tokens = (tokensData ?? []).filter(isPushTokenRow)
 
     if (!tokens?.length) return new Response('OK', { status: 200 })
 
-    const actorName = (actor as any).full_name ?? `@${(actor as any).username}`
+    const actorName = actor.full_name ?? `@${actor.username}`
     let body = ''
     if (type === 'like') body = `${actorName} liked your post`
     else if (type === 'comment') body = `${actorName} commented on your post`
@@ -145,7 +165,7 @@ Deno.serve(async (req: Request) => {
     else if (type === 'comment_reply') body = `${actorName} replied to your comment`
     else if (type === 'message') body = 'You have a new message'
 
-    const messages = (tokens as { token: string }[]).map(({ token }) => ({
+    const messages = tokens.map(({ token }) => ({
       to: token,
       title: 'Rekkus',
       body,

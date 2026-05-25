@@ -1,4 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { parseModerateContentPayload } from '../_shared/guards.ts'
+
+function requireEnv(name: string): string {
+  const value = Deno.env.get(name)
+  if (!value) throw new Error(`Missing required environment variable: ${name}`)
+  return value
+}
 
 // Keyword blocklist for text content moderation
 const BLOCKED_KEYWORDS = [
@@ -109,9 +116,9 @@ Deno.serve(async (req: Request) => {
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) return new Response('Unauthorized', { status: 401 })
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+  const supabaseUrl = requireEnv('SUPABASE_URL')
+  const serviceKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const anonKey = requireEnv('SUPABASE_ANON_KEY')
 
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authHeader } },
@@ -121,14 +128,9 @@ Deno.serve(async (req: Request) => {
 
   const admin = createClient(supabaseUrl, serviceKey)
 
-  let payload: {
-    messageType: string
-    body?: string
-    mediaHash?: string
-    conversationId: string
-  }
+  let payload: ReturnType<typeof parseModerateContentPayload>
   try {
-    payload = await req.json()
+    payload = parseModerateContentPayload(await req.json())
   } catch {
     return new Response(JSON.stringify({ safe: false, reason: 'invalid_request' }), {
       status: 400,
@@ -136,14 +138,14 @@ Deno.serve(async (req: Request) => {
     })
   }
 
-  const { messageType, body, mediaHash, conversationId } = payload
-
-  if (!conversationId || typeof conversationId !== 'string') {
+  if (!payload) {
     return new Response(JSON.stringify({ safe: false, reason: 'invalid_request' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     })
   }
+
+  const { messageType, body, mediaHash, conversationId } = payload
 
   // Determine if new account (throttle applies)
   const { data: userRow } = await admin

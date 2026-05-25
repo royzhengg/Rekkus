@@ -14,6 +14,7 @@ Cost governance keeps provider usage visible before spend becomes an emergency.
 | Expo Push | Notification volume | Beta cohort review | Product |
 | Storage | Uploaded media, variants, and CDN egress | Media release review | Engineering |
 | AI | Summaries, automation, future ranking assistance | Feature launch review | Operations |
+| Sentry | Crash/error event volume and source-map storage | Beta/prod release review | Engineering |
 
 ## Guardrails
 
@@ -25,6 +26,18 @@ Cost governance keeps provider usage visible before spend becomes an emergency.
 - `operations/RELEASE.md` must include quota and cost review gates for beta and production.
 - `npm run check:ops`, `npm run check:providers`, and `npm run check:compliance` validate provider coverage and release-gate language.
 - Cost rows in `BACKLOG.md` stay open until a measurable guardrail or review surface exists.
+
+## GIF Provider
+
+**Decision (2026-05-22, ADR-0004):** Keep Giphy. GIF search is active in direct messages (`lib/services/gifs.ts`) and gated by the `gifSearch` feature flag so it can be disabled at runtime without a release.
+
+**Tenor evaluation:** Tenor API v2 (2022+) requires a Google Cloud API key — it is not free without an API key as previously assumed. No net benefit over Giphy; migration cost > any gain.
+
+**Kill switch:** Set `gifSearch: false` in `feature_flag_overrides` (Supabase) to hide the GIF button immediately without a release.
+
+## Key Rotation
+
+Google Maps, Google Places, and Giphy keys rotate annually, immediately after suspected exposure, and immediately after team/member/vendor access changes. Roy owns provider-console restrictions until evidence is recorded: iOS bundle/package restrictions for Maps, API restrictions and quota alerts for Places, and dashboard restrictions/rotation for Giphy. Rotation evidence belongs in the release note, current-state note, or incident note; secrets never belong in markdown.
 
 ## Review Cadence
 
@@ -60,6 +73,7 @@ Owner: Operations, with Engineering responsible for provider instrumentation.
 Minimum API cost dashboard requirements before public beta:
 
 - Google Places autocomplete/details fallback volume by feature and cache state.
+- Google Maps, Google Places, and Giphy key rotation/restriction status.
 - Supabase database, auth, Edge Function, storage, and egress usage.
 - Resend transactional email volume for auth/support flows.
 - Expo Push notification volume and failure rate.

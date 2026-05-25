@@ -1,9 +1,9 @@
+import { useRouter } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   StyleSheet,
   Text,
   TextInput,
@@ -11,15 +11,18 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { ArrowLeft, CheckIcon, CloseIcon } from '@/components/icons'
+import { CachedImage } from '@/components/ui/CachedImage'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { routes } from '@/lib/routes'
 import { createGroupConversation } from '@/lib/services/messaging'
 import { fetchFollowedUsersBasic } from '@/lib/services/users'
-import { ArrowLeft, CheckIcon, CloseIcon } from '@/components/icons'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight } from '@/constants/Typography'
 
 type Contact = {
   user_id: string
@@ -40,15 +43,16 @@ export default function CreateGroupScreen() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [operationError, setOperationError] = useState<string | null>(null)
 
   const loadContacts = useCallback(async () => {
     if (!user) return
     setLoading(true)
     setContacts(await fetchFollowedUsersBasic(user.id))
     setLoading(false)
-  }, [user?.id])
+  }, [user])
 
-  useEffect(() => { loadContacts() }, [loadContacts])
+  useEffect(() => { void loadContacts() }, [loadContacts])
 
   const filteredContacts = useMemo(() => {
     const q = searchQuery.toLowerCase()
@@ -81,6 +85,7 @@ export default function CreateGroupScreen() {
     }
 
     setCreating(true)
+    setOperationError(null)
     const { conversationId, error } = await createGroupConversation(
       name,
       Array.from(selected)
@@ -88,11 +93,11 @@ export default function CreateGroupScreen() {
     setCreating(false)
 
     if (error || !conversationId) {
-      Alert.alert('Could not create group', error ?? 'Please try again.')
+      setOperationError(error ?? 'Please try again.')
       return
     }
 
-    router.replace({ pathname: '/messages/[conversationId]', params: { conversationId } } as any)
+    router.replace(routes.conversation(conversationId))
   }
 
   function renderItem({ item }: { item: Contact }) {
@@ -101,7 +106,7 @@ export default function CreateGroupScreen() {
       <TouchableOpacity style={styles.contactRow} onPress={() => toggleSelect(item.user_id)} activeOpacity={0.7}>
         <View style={styles.avatarContainer}>
           {item.avatar_url ? (
-            <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+            <CachedImage source={{ uri: item.avatar_url }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarFallback]}>
               <Text style={styles.avatarInitial}>
@@ -131,7 +136,7 @@ export default function CreateGroupScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
           <ArrowLeft />
         </TouchableOpacity>
         <Text style={styles.title}>New group</Text>
@@ -145,6 +150,9 @@ export default function CreateGroupScreen() {
             : <Text style={styles.createLabel}>Create</Text>}
         </TouchableOpacity>
       </View>
+      {operationError ? (
+        <ErrorMessage title="Could not create group" message={operationError} style={{ marginHorizontal: spacing[4] }} />
+      ) : null}
 
       <View style={styles.groupNameRow}>
         <TextInput
@@ -187,9 +195,17 @@ export default function CreateGroupScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.text3} />
-        </View>
+        <>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton width={44} height={44} radius={radius.full} />
+              <View style={{ flex: 1, gap: spacing[2] }}>
+                <Skeleton width="60%" height={14} />
+                <Skeleton width="40%" height={12} />
+              </View>
+            </View>
+          ))}
+        </>
       ) : (
         <FlatList
           data={filteredContacts}
@@ -324,5 +340,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       justifyContent: 'center',
     },
     checkboxSelected: { backgroundColor: c.text, borderColor: c.text },
+    skeletonRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[4], paddingVertical: spacing[3], gap: spacing[3] },
   })
 }

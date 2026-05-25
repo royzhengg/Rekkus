@@ -10,7 +10,7 @@ export function useTopicFollows(userId: string | undefined) {
       setTopics([])
       return
     }
-    fetchTopicFollows(userId).then(next => {
+    void fetchTopicFollows(userId).then(next => {
       if (!cancelled) setTopics(next)
     })
     return () => {

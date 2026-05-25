@@ -6,16 +6,17 @@ Retention should come from repeat food utility: saved intent, revisits, collecti
 
 ## Loops
 
-- Save place or post -> revisit intent -> post/review prompt.
+- Save dish, place, or post -> revisit intent -> post/review prompt.
 - Search/discover -> save -> stronger taste graph.
 - Follow useful reviewer -> better feed -> more saves.
 - Restaurant visit -> review -> denser local content.
 
 ## Current Retention Surfaces
 
-- Saved places in Places tab.
+- Saved overview for dishes, places, posts, and collections.
+- Saved places map/list and post-visit prompt inside `Saved > Places`.
 - Post-visit prompt near saved locations.
-- Saved and liked profile grids.
+- Liked profile grid; Profile Saved action opens the unified Saved destination.
 - Alerts for likes, comments, follows, and replies.
 
 ## Signals
@@ -34,4 +35,3 @@ DM conversations create ongoing return loops outside the feed. Group chats drive
 - Avoid empty engagement loops that do not improve food decisions.
 - Prefer utility reminders over noisy notifications.
 - Keep retention work compatible with privacy and user-owned data.
-

@@ -40,31 +40,67 @@ function walk(relativeRoot, visitor) {
 }
 
 for (const root of scanRoots) {
-  walk(root, (filePath) => {
+  walk(root, filePath => {
     if (!/\.[jt]sx?$/.test(filePath)) {
       return
     }
 
     const source = fs.readFileSync(filePath, 'utf8')
-    const matched = iosOnlyPatterns.find((pattern) => source.includes(pattern))
+    const matched = iosOnlyPatterns.find(pattern => source.includes(pattern))
 
     if (matched) {
       failures.push(
-        `${path.relative(repoRoot, filePath)} uses ${matched}; use RekkusActionSheet or a guarded Platform.OS branch.`,
+        `${path.relative(repoRoot, filePath)} uses ${matched}; use RekkusActionSheet or a guarded Platform.OS branch.`
       )
     }
   })
 }
 
 for (const root of duplicateRoots) {
-  walk(root, (filePath) => {
+  walk(root, filePath => {
     const relativePath = path.relative(repoRoot, filePath)
     const parts = relativePath.split(path.sep)
 
-    if (parts.some((part) => duplicateNamePattern.test(part))) {
+    if (parts.some(part => duplicateNamePattern.test(part))) {
       failures.push(`${relativePath} looks like a duplicate generated/backup artifact.`)
     }
   })
+}
+
+const appConfig = fs.existsSync(path.join(repoRoot, 'app.config.js'))
+  ? fs.readFileSync(path.join(repoRoot, 'app.config.js'), 'utf8')
+  : ''
+for (const token of ['buildNumber', 'versionCode']) {
+  if (!appConfig.includes(token)) {
+    failures.push(`app.config.js must include ${token} for app upgrade/release tracking.`)
+  }
+}
+
+for (const token of [
+  'process.env.SENTRY_ORG',
+  'process.env.SENTRY_PROJECT',
+  'organization: sentryOrganization',
+  'project: sentryProject',
+]) {
+  if (!appConfig.includes(token)) {
+    failures.push(`app.config.js must configure Sentry build metadata through ${token}.`)
+  }
+}
+
+const appEnv = process.env.EXPO_PUBLIC_APP_ENV
+const sentryEnabled = process.env.EXPO_PUBLIC_SENTRY_ENABLED === 'true'
+const requiresSentryConfig =
+  appEnv === 'production' || ((appEnv === 'staging' || appEnv === 'beta') && sentryEnabled)
+
+if (requiresSentryConfig) {
+  for (const variable of ['EXPO_PUBLIC_SENTRY_DSN', 'SENTRY_ORG', 'SENTRY_PROJECT']) {
+    if (!process.env[variable]) {
+      failures.push(`${appEnv} builds must set ${variable} for Sentry reporting and source maps.`)
+    }
+  }
+}
+if (appEnv === 'production' && !sentryEnabled) {
+  failures.push('production builds must set EXPO_PUBLIC_SENTRY_ENABLED=true.')
 }
 
 if (failures.length > 0) {

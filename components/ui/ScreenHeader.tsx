@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 type Props = {
   title?: string

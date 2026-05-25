@@ -1,7 +1,7 @@
-import { useState, useCallback, useRef } from 'react'
 import { useFocusEffect } from 'expo-router'
-import { fetchLikedPostsPage, mapRowToPost } from '../services/posts'
+import { useState, useCallback, useRef } from 'react'
 import type { Post } from '@/types/domain'
+import { fetchLikedPostsPage, mapRowToPost } from '../services/posts'
 
 export function useLikedPosts(userId: string | undefined) {
   const [likedPosts, setLikedPosts] = useState<Post[]>([])
@@ -23,8 +23,8 @@ export function useLikedPosts(userId: string | undefined) {
       setLikedPosts(rows.map((r, i) => mapRowToPost(r, i)))
       cursorRef.current = nextCursor
       setHasMore(nextCursor !== null)
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to load liked posts')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load liked posts')
     }
   }, [userId])
 
@@ -39,7 +39,9 @@ export function useLikedPosts(userId: string | undefined) {
       })
       cursorRef.current = nextCursor
       setHasMore(nextCursor !== null)
-    } catch {}
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load more liked posts')
+    }
     setLoadingMore(false)
   }, [userId, loadingMore])
 
@@ -52,13 +54,15 @@ export function useLikedPosts(userId: string | undefined) {
       setLikedPosts(rows.map((r, i) => mapRowToPost(r, i)))
       cursorRef.current = nextCursor
       setHasMore(nextCursor !== null)
-    } catch {}
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to refresh liked posts')
+    }
     setRefreshing(false)
   }, [userId])
 
   useFocusEffect(
     useCallback(() => {
-      fetchFirst()
+      void fetchFirst()
     }, [fetchFirst])
   )
 

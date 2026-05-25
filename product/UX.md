@@ -43,7 +43,7 @@ Search should feel compact until the user expresses intent. Keep the input prima
 
 - Use concrete food language over generic social-platform copy.
 - Avoid overclaiming AI, personalization, or recommendation quality before the graph supports it.
-- Use "Places" for the visible restaurant tab unless product direction changes.
+- Use "Saved" for the visible saved-content tab; keep places as the map/list drill-in rather than a directory-first destination.
 - Keep error messages actionable and calm.
 
 ## Related Docs
@@ -51,3 +51,10 @@ Search should feel compact until the user expresses intent. Keep the input prima
 - [../design/DESIGN_SPEC.md](../design/DESIGN_SPEC.md)
 - [../design/UI_LIBRARY.md](../design/UI_LIBRARY.md)
 - [../design/UX_Copywriting_Guide.md](../design/UX_Copywriting_Guide.md)
+
+## Food-First Surface Rule
+
+- Feed, Search, Saved, and post detail must lead with dishes, saves, creator taste, and specific local food context.
+- Place metadata supports the food decision; it should not make the product feel like a generic directory unless the user opens a place utility surface.
+- Zero-state and new-user surfaces should send people toward immediate food content: nearby dishes, saved-worthy posts, and useful taste guides.
+- Avoid directory energy: do not lead with generic place lists, follower counts, or review-platform language when dish or save intent can lead.

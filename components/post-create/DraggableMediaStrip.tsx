@@ -1,3 +1,4 @@
+import { useMemo, useRef, useState } from 'react'
 import {
   Animated,
   Image,
@@ -8,13 +9,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { useMemo, useRef, useState } from 'react'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { CloseIcon, ImagePlaceholder, VideoIcon } from '@/components/icons'
-import type { PostMedia } from '@/types/domain'
-import { spacing } from '@/constants/Spacing'
+import { elevation } from '@/constants/Elevation'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import type { PostMedia } from '@/types/domain'
 
 const ITEM_WIDTH = 132
 const ITEM_HEIGHT = 176
@@ -25,7 +26,7 @@ type Props = {
   media: PostMedia[]
   onChange: (media: PostMedia[]) => void
   onRemove: (index: number) => void
-  onAdd?: () => void
+  onAdd?: (() => void) | undefined
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -84,6 +85,7 @@ export default function DraggableMediaStrip({ media, onChange, onRemove, onAdd }
           if (to !== i) {
             const next = [...mediaRef.current]
             const [item] = next.splice(i, 1)
+            if (!item) return
             next.splice(to, 0, item)
             onChangeRef.current(next)
           }
@@ -155,7 +157,13 @@ export default function DraggableMediaStrip({ media, onChange, onRemove, onAdd }
                 <Text style={styles.coverBadgeText}>Cover</Text>
               </View>
             )}
-            <TouchableOpacity style={styles.mediaRemove} onPress={() => onRemove(index)} hitSlop={8}>
+            <TouchableOpacity
+              style={styles.mediaRemove}
+              onPress={() => onRemove(index)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove media ${index + 1}`}
+            >
               <CloseIcon size={8} color="#fff" /* check:tokens-ignore */ />
             </TouchableOpacity>
             <View style={styles.mediaIndex}>
@@ -197,11 +205,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     },
     draggingTile: {
       opacity: 0.88,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.22,
-      shadowRadius: 12,
-      elevation: 10,
+      ...elevation.lg,
     },
     mediaTileImage: { width: '100%', height: '100%' },
     mediaTileVideo: {

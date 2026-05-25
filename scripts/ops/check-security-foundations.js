@@ -7,15 +7,16 @@ const failures = []
 const warnings = []
 const schema = readSchemaSource()
 
-function requireTerms(file, terms, mode = 'warning') {
+function requireTerms(file, terms, mode = 'warning', companion = null) {
   if (!exists(file)) {
     failures.push(`${file} is required for security foundation checks.`)
     return
   }
   const source = readText(file)
+  const companionSource = companion && exists(companion) ? readText(companion) : ''
   for (const term of terms) {
     const pattern = term instanceof RegExp ? term : new RegExp(term, 'i')
-    if (!pattern.test(source)) {
+    if (!pattern.test(source) && !pattern.test(companionSource)) {
       const label = term instanceof RegExp ? term.source : term
       const message = `${file} must include security foundation coverage for "${label}".`
       if (mode === 'failure') failures.push(message)
@@ -45,7 +46,7 @@ for (const token of ['deleted_at', 'deleted_reason']) {
 
 requireTerms('lib/services/moderation.ts', ['submitContentReport', 'blockUser', 'unblockUser', 'fetchBlockedUserIds', 'abuseSignal'], 'failure')
 requireTerms('lib/analytics.ts', ['abuseSignal', 'abuse_signal', 'target_type'], 'failure')
-requireTerms('features/posts/PostDetailScreen.tsx', ['submitContentReport', 'blockUser', 'Report post', 'Report creator', 'Block creator'], 'failure')
+requireTerms('features/posts/PostDetailScreen.tsx', ['submitContentReport', 'blockUser', 'Report post', 'Report creator', 'Block creator'], 'failure', 'features/posts/PostDetailSheets.tsx')
 requireTerms('features/profile/UserProfileScreen.tsx', ['submitContentReport', 'blockUser', 'Report profile', 'Block user'], 'failure')
 requireTerms(
   'docs/moderation/MODERATION_OPERATIONS.md',
@@ -53,6 +54,8 @@ requireTerms(
   'failure',
 )
 requireTerms('docs/security/SECURITY.md', ['Auth And Email Cooldowns', 'Vulnerability Disclosure', 'NDB/OAIC'], 'failure')
+// Login rate limiting must exist in AuthContext — prevents regression where login lacks a cooldown while signup/reset have one
+requireTerms('lib/contexts/AuthContext.tsx', ['loginFailed', 'checkCooldown'], 'failure')
 requireTerms('docs/security/COMPLIANCE.md', ['content_reports', 'user_blocks', 'moderation_actions', 'moderation_appeals', 'DPIA/PIA'], 'failure')
 
 printResult(

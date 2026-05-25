@@ -1,3 +1,5 @@
+import * as ImagePicker from 'expo-image-picker'
+import { useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -9,11 +11,8 @@ import {
   Image,
   Modal,
   useWindowDimensions,
-  Alert,
 } from 'react-native'
-import { useMemo, useRef, useCallback, useState } from 'react'
-import * as ImagePicker from 'expo-image-picker'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import DishTagOverlay from '@/components/DishTagOverlay'
 import {
   CloseIcon,
   PinIcon,
@@ -21,24 +20,18 @@ import {
   ImagePlaceholder,
   CameraIcon,
 } from '@/components/icons'
-import type { Prediction, SelectedPlace } from '@/lib/services/restaurants'
-import {
-  fetchPredictions,
-  fetchPlaceDetails,
-  upsertRestaurant,
-  searchRestaurantsByText,
-  fetchNearbyRestaurants,
-} from '@/lib/services/restaurants'
-import { useUserLocation } from '@/lib/hooks/useUserLocation'
+import DraggableMediaStrip from '@/components/post-create/DraggableMediaStrip'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { spacing } from '@/constants/Spacing'
+import { analytics } from '@/lib/analytics'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { isEnabled } from '@/lib/featureFlags'
+import { useRestaurantSearch } from '@/lib/hooks/useRestaurantSearch'
 import { MEDIA_LIMITS, validatePickedPostMedia } from '@/lib/services/media'
 import { preparePostMedia } from '@/lib/services/postMediaProcessing'
-import { analytics } from '@/lib/analytics'
-import DishTagOverlay from '@/components/DishTagOverlay'
-import DraggableMediaStrip from '@/components/post-create/DraggableMediaStrip'
+import type { SelectedPlace } from '@/lib/services/restaurants'
 import type { DishTag, PostMedia } from '@/types/domain'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { makeStyles } from './StepMedia.styles'
 
 type Props = {
   media: PostMedia[]
@@ -50,29 +43,6 @@ type Props = {
   cuisineType: string
   dishTags: DishTag[]
   setDishTags: (tags: DishTag[]) => void
-}
-
-function mergeRestaurantPredictions(dbResults: Prediction[], googleResults: Prediction[]) {
-  const seen = new Set<string>()
-  return [...dbResults, ...googleResults]
-    .map((item, index) => ({
-      item,
-      score:
-        (item.source === 'rekkus' || item.dbDetails ? 100 : 0) +
-        (item.score ?? 0) -
-        index * 0.01,
-    }))
-    .filter(({ item }) => {
-      const name = item.structured_formatting.main_text.toLowerCase()
-      const key = item.place_id || name
-      const looseKey = name.replace(/\s+/g, ' ').trim()
-      if (seen.has(key) || seen.has(looseKey)) return false
-      seen.add(key)
-      seen.add(looseKey)
-      return true
-    })
-    .sort((a, b) => b.score - a.score)
-    .map(({ item }) => item)
 }
 
 export default function StepMedia({
@@ -90,95 +60,41 @@ export default function StepMedia({
   const styles = useMemo(() => makeStyles(c), [c])
   const { width: screenWidth } = useWindowDimensions()
 
-  const userLocation = useUserLocation()
-  const [locationSearch, setLocationSearch] = useState('')
-  const [predictions, setPredictions] = useState<Prediction[]>([])
-  const [predictionsLoading, setPredictionsLoading] = useState(false)
-  const [selectingPlace, setSelectingPlace] = useState(false)
   const [titleFocused, setTitleFocused] = useState(false)
-  const [searchFocused, setSearchFocused] = useState(false)
-  const [nearbyPlaces, setNearbyPlaces] = useState<Prediction[]>([])
-  const [nearbyLoading, setNearbyLoading] = useState(false)
   const [dishTagModal, setDishTagModal] = useState(false)
   const [activeTagPhotoIndex, setActiveTagPhotoIndex] = useState(0)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const searchRequestRef = useRef(0)
+  const [mediaError, setMediaError] = useState<string | null>(null)
 
-  const handleSearchChange = useCallback((text: string) => {
-    setLocationSearch(text)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    const requestId = searchRequestRef.current + 1
-    searchRequestRef.current = requestId
-    if (text.length < 2) {
-      setPredictions([])
-      setPredictionsLoading(false)
-      return
-    }
-    setPredictionsLoading(true)
-    debounceRef.current = setTimeout(async () => {
-      // DB-first: query restaurants table via FTS (GIN index), then Google for new places
-      try {
-        const [dbResults, googleResults] = await Promise.all([
-          searchRestaurantsByText(text, 8),
-          fetchPredictions(text, userLocation.coords),
-        ])
-        if (searchRequestRef.current !== requestId) return
-        setPredictions(mergeRestaurantPredictions(dbResults, googleResults).slice(0, 8))
-      } finally {
-        if (searchRequestRef.current === requestId) setPredictionsLoading(false)
-      }
-    }, 300)
-  }, [userLocation.coords])
-
-  async function selectPrediction(item: Prediction) {
-    setSelectingPlace(true)
-    setSearchFocused(false)
-    setLocationSearch('')
-    setPredictions([])
-    setNearbyPlaces([])
-
-    if (item.dbDetails) {
-      // Fast path: restaurant already in our DB — no Google API call needed
-      setSelectedPlace({
-        placeId: item.place_id,
-        name: item.structured_formatting.main_text,
-        address: item.dbDetails.address,
-        lat: item.dbDetails.lat,
-        lng: item.dbDetails.lng,
-        restaurantId: item.dbDetails.restaurantId,
-      })
-      setSelectingPlace(false)
-      return
-    }
-
-    // Slow path: new restaurant from Google — fetch details and upsert
-    const detail = await fetchPlaceDetails(item.place_id)
-    if (detail) {
-      const restaurantId = await upsertRestaurant(detail, item.place_id, cuisineType || undefined)
-      setSelectedPlace({
-        placeId: item.place_id,
-        name: item.structured_formatting.main_text,
-        address: detail.formatted_address,
-        lat: detail.geometry.location.lat,
-        lng: detail.geometry.location.lng,
-        restaurantId,
-      })
-    }
-    setSelectingPlace(false)
-  }
+  const {
+    locationSearch,
+    predictions,
+    predictionsLoading,
+    selectingPlace,
+    nearbyPlaces,
+    nearbyLoading,
+    searchFocused,
+    showNearby,
+    showDropdown,
+    handleSearchChange,
+    selectPrediction,
+    onSearchFocus,
+    onSearchBlur,
+    clearSearch,
+  } = useRestaurantSearch({ cuisineType, onPlaceSelected: setSelectedPlace })
 
   const photos = useMemo(() => media.filter(item => item.type === 'image').map(item => item.uri), [media])
   const videoCount = media.filter(item => item.type === 'video').length
 
   function showMediaError(message: string) {
-    Alert.alert('Could not add media', message)
+    setMediaError(message)
   }
 
   async function addMedia() {
+    setMediaError(null)
     const remaining = MEDIA_LIMITS.maxPostMedia - media.length
     if (remaining <= 0) return
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
+      mediaTypes: isEnabled('mixedMediaPosts') ? ['images', 'videos'] : ['images'],
       allowsMultipleSelection: true,
       quality: 0.8,
       selectionLimit: remaining,
@@ -207,6 +123,7 @@ export default function StepMedia({
   }
 
   async function takePhoto() {
+    setMediaError(null)
     const permission = await ImagePicker.requestCameraPermissionsAsync()
     if (!permission.granted) {
       showMediaError('Camera permission is needed to take a food photo.')
@@ -260,10 +177,12 @@ export default function StepMedia({
       const firstImageIndex = media.findIndex(item => item.type === 'image')
       if (firstImageIndex >= 0) {
         const mixed = [...media]
+        const currentImage = media[firstImageIndex]
+        if (!currentImage) return
         mixed[firstImageIndex] = {
           ...acceptedMedia[0],
-          localId: media[firstImageIndex].localId,
-          isCover: media[firstImageIndex].isCover,
+          localId: currentImage.localId,
+          isCover: currentImage.isCover,
         }
         setMedia(mixed)
       } else {
@@ -305,7 +224,7 @@ export default function StepMedia({
         acc.push({
           ...tag,
           photoIndex: nextPhotoIndex,
-          mediaLocalId: key,
+          ...(key ? { mediaLocalId: key } : {}),
         })
         return acc
       }, [])
@@ -314,7 +233,8 @@ export default function StepMedia({
 
   function handleAddTag(tag: DishTag) {
     const imageMedia = media.filter(item => item.type === 'image')
-    setDishTags([...dishTags, { ...tag, mediaLocalId: imageMedia[tag.photoIndex]?.localId }])
+    const mediaLocalId = imageMedia[tag.photoIndex]?.localId
+    setDishTags([...dishTags, { ...tag, ...(mediaLocalId ? { mediaLocalId } : {}) }])
     analytics.mediaEvent(null, 'dish_tag_added', 'post_create')
   }
 
@@ -332,8 +252,6 @@ export default function StepMedia({
     setDishTagModal(true)
   }
 
-  const showNearby = searchFocused && locationSearch.length < 2 && (nearbyLoading || nearbyPlaces.length > 0)
-  const showDropdown = searchFocused && locationSearch.length >= 2 && (predictions.length > 0 || !predictionsLoading)
   const tagsOnActive = dishTags.filter(t => t.photoIndex === activeTagPhotoIndex)
   const photoWidth = screenWidth - 32
 
@@ -373,7 +291,12 @@ export default function StepMedia({
             {selectingPlace ? (
               <ActivityIndicator size="small" color={c.text3} />
             ) : (
-              <TouchableOpacity onPress={() => setSelectedPlace(null)} hitSlop={8}>
+              <TouchableOpacity
+                onPress={() => setSelectedPlace(null)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Clear selected restaurant"
+              >
                 <CloseIcon size={10} color={c.text3} />
               </TouchableOpacity>
             )}
@@ -387,21 +310,18 @@ export default function StepMedia({
               placeholderTextColor={c.text3}
               value={locationSearch}
               onChangeText={handleSearchChange}
-              onFocus={() => {
-                setSearchFocused(true)
-                if (!locationSearch && userLocation.coords) {
-                  setNearbyLoading(true)
-                  fetchNearbyRestaurants(userLocation.coords, 1)
-                    .then(setNearbyPlaces)
-                    .finally(() => setNearbyLoading(false))
-                }
-              }}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+              onFocus={onSearchFocus}
+              onBlur={onSearchBlur}
               returnKeyType="search"
             />
             {predictionsLoading && <ActivityIndicator size="small" color={c.text3} />}
             {locationSearch.length > 0 && !predictionsLoading && (
-              <TouchableOpacity onPress={() => { setLocationSearch(''); setPredictions([]) }} hitSlop={8}>
+              <TouchableOpacity
+                onPress={clearSearch}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Clear restaurant search"
+              >
                 <CloseIcon size={10} color={c.text3} />
               </TouchableOpacity>
             )}
@@ -462,17 +382,28 @@ export default function StepMedia({
       </View>
 
       {/* Photo area */}
+      {mediaError ? <ErrorMessage title="Could not add media" message={mediaError} /> : null}
       {media.length === 0 ? (
         <View style={styles.photoEmpty}>
           <ImagePlaceholder size={32} color={c.text3} />
           <Text style={styles.photoEmptyLabel}>Add food media</Text>
           <Text style={styles.photoEmptySub}>Take a photo or choose photos/video from your library</Text>
           <View style={styles.mediaActionRow}>
-            <TouchableOpacity style={styles.mediaActionBtn} onPress={takePhoto}>
+            <TouchableOpacity
+              style={styles.mediaActionBtn}
+              onPress={takePhoto}
+              accessibilityRole="button"
+              accessibilityLabel="Take photo"
+            >
               <CameraIcon size={17} color={c.accent} />
               <Text style={styles.mediaActionText}>Camera</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.mediaActionBtn} onPress={addMedia}>
+            <TouchableOpacity
+              style={styles.mediaActionBtn}
+              onPress={addMedia}
+              accessibilityRole="button"
+              accessibilityLabel="Choose media from library"
+            >
               <ImagePlaceholder size={17} color={c.accent} />
               <Text style={styles.mediaActionText}>Library</Text>
             </TouchableOpacity>
@@ -494,7 +425,12 @@ export default function StepMedia({
                 <ImagePlaceholder size={13} color={c.accent} />
                 <Text style={styles.photoActionText}>3:4 cover</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.photoActionBtn} onPress={openDishTagModal}>
+              <TouchableOpacity
+                style={styles.photoActionBtn}
+                onPress={openDishTagModal}
+                accessibilityRole="button"
+                accessibilityLabel="Tag dishes in photo"
+              >
                 <PinIcon size={13} color={c.accent} />
                 <Text style={styles.photoActionText}>
                   Tag dishes{dishTags.length > 0 ? ` · ${dishTags.length}` : ''}
@@ -597,7 +533,12 @@ export default function StepMedia({
                   <View key={ai} style={styles.tagListItem}>
                     <View style={styles.tagListDot} />
                     <Text style={styles.tagListName}>{tag.name}</Text>
-                    <TouchableOpacity onPress={() => handleRemoveTag(ai)} hitSlop={8}>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveTag(ai)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${tag.name} tag`}
+                    >
                       <CloseIcon size={9} color={c.text3} />
                     </TouchableOpacity>
                   </View>
@@ -609,306 +550,4 @@ export default function StepMedia({
       </Modal>
     </ScrollView>
   )
-}
-
-function makeStyles(c: ReturnType<typeof useThemeColors>) {
-  return StyleSheet.create({
-    scroll: { flex: 1 },
-
-    // Location
-    locationSection: { paddingHorizontal: spacing[4], paddingTop: spacing.px10, zIndex: 10 },
-    searchWrap: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing[2],
-      backgroundColor: c.bg,
-      borderRadius: radius.md3,
-      paddingHorizontal: spacing.px13,
-      minHeight: 46,
-      borderWidth: 0.5,
-      borderColor: c.border,
-    },
-    fieldFocused: {
-      borderColor: c.accent,
-      backgroundColor: c.bg,
-    },
-    searchInput: { flex: 1, fontSize: fontSize.lg, color: c.text, padding: spacing[0] },
-    locationConfirmed: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.px10,
-      backgroundColor: c.bg,
-      borderRadius: radius.md3,
-      paddingHorizontal: spacing.px13,
-      minHeight: 46,
-      borderWidth: 0.5,
-      borderColor: c.border,
-    },
-    locationConfirmedText: { flex: 1 },
-    locationName: { fontSize: fontSize.md, fontWeight: fontWeight.medium, color: c.text },
-    locationAddress: { fontSize: fontSize.sm, color: c.text3, marginTop: spacing.px1 },
-    dropdown: {
-      backgroundColor: c.bg,
-      borderRadius: radius.md3,
-      borderWidth: 0.5,
-      borderColor: c.border,
-      marginTop: spacing[1],
-      overflow: 'hidden',
-    },
-    dropdownItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.px10,
-      paddingHorizontal: spacing.px13,
-      paddingVertical: spacing.px11,
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    dropdownItemText: { flex: 1 },
-    dropdownName: { fontSize: fontSize.base, color: c.text, fontWeight: fontWeight.medium },
-    dropdownSub: { fontSize: fontSize.sm, color: c.text3, marginTop: spacing.px1 },
-    dropdownEmpty: { paddingVertical: spacing[4], alignItems: 'center' },
-    dropdownEmptyText: { fontSize: fontSize.bodySm, color: c.text3 },
-    nearbyLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.text3, paddingHorizontal: spacing[3], paddingTop: spacing.px10, paddingBottom: spacing[1] },
-
-    // Photos — empty
-    photoEmpty: {
-      marginHorizontal: spacing[4],
-      marginTop: spacing[3],
-      borderWidth: 1.5,
-      borderStyle: 'dashed',
-      borderColor: `${c.accent}55`,
-      borderRadius: radius.lg2,
-      aspectRatio: 1.42,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.px10,
-      backgroundColor: `${c.accent}08`,
-    },
-    photoEmptyLabel: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text2 },
-    photoEmptySub: { fontSize: fontSize.bodySm, color: c.text3, textAlign: 'center', paddingHorizontal: spacing.px28 },
-    mediaActionRow: {
-      flexDirection: 'row',
-      gap: spacing.px10,
-      marginTop: spacing[1],
-    },
-    mediaActionBtn: {
-      minHeight: 38,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.px7,
-      paddingHorizontal: spacing.px14,
-      borderRadius: radius.xl2,
-      backgroundColor: `${c.accent}14`,
-      borderWidth: 0.5,
-      borderColor: `${c.accent}24`,
-    },
-    mediaActionText: { fontSize: fontSize.base, fontWeight: fontWeight.extrabold, color: c.accent },
-
-    // Photos — strip + actions
-    photosSection: { marginTop: spacing.px14 },
-    mixedStrip: {
-      gap: spacing.px10,
-      paddingHorizontal: spacing[4],
-      paddingRight: spacing[6],
-    },
-    mediaTile: {
-      width: 132,
-      height: 176,
-      borderRadius: radius.sm3,
-      overflow: 'hidden',
-      backgroundColor: c.surface2,
-      borderWidth: 0.5,
-      borderColor: c.border,
-    },
-    mediaTileImage: { width: '100%', height: '100%' },
-    mediaTileVideo: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.px6,
-      backgroundColor: c.surface2,
-    },
-    mediaTileVideoText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.bold, color: c.text2 },
-    mediaRemove: {
-      position: 'absolute',
-      right: 7,
-      top: 7,
-      width: 22,
-      height: 22,
-      borderRadius: radius.md2,
-      backgroundColor: 'rgba(0,0,0,0.55)', // check:tokens-ignore
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    mediaStatus: {
-      position: 'absolute',
-      left: 7,
-      top: 7,
-      borderRadius: radius.md3,
-      backgroundColor: 'rgba(0,0,0,0.55)', // check:tokens-ignore
-      paddingHorizontal: spacing.px7,
-      paddingVertical: spacing[1],
-    },
-    mediaStatusText: { fontSize: fontSize.xs, color: '#fff', fontWeight: fontWeight.bold }, // check:tokens-ignore
-    mediaMoveRow: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      minHeight: 30,
-      backgroundColor: 'rgba(0,0,0,0.45)', // check:tokens-ignore
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.px10,
-    },
-    mediaMoveText: { fontSize: fontSize['3xl'], lineHeight: lineHeight.relaxed, color: '#fff', fontWeight: fontWeight.bold }, // check:tokens-ignore
-    mediaMoveDisabled: { color: 'rgba(255,255,255,0.28)' }, // check:tokens-ignore
-    mediaIndexText: { fontSize: fontSize.sm, color: '#fff', fontWeight: fontWeight.extrabold }, // check:tokens-ignore
-    mediaAddTile: { alignItems: 'center', justifyContent: 'center', gap: spacing[2] },
-    mediaAddText: { fontSize: fontSize.bodySm, color: c.accent, fontWeight: fontWeight.bold },
-    photoActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing[4],
-      marginTop: spacing.px10,
-    },
-    photoActionBtn: { paddingVertical: spacing[1], paddingHorizontal: spacing.px2 },
-    photoActionText: { fontSize: fontSize.bodySm, color: c.text3 },
-    photoActionDivider: {
-      width: 1,
-      height: 12,
-      backgroundColor: c.border2,
-      marginHorizontal: spacing.px10,
-    },
-    photoOnlyHint: { fontSize: fontSize.sm, color: c.text3, paddingHorizontal: spacing[4], paddingTop: spacing[2] },
-    videoPreview: {
-      marginHorizontal: spacing[4],
-      minHeight: 96,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing[3],
-      paddingHorizontal: spacing[4],
-      borderRadius: radius.md3,
-      backgroundColor: c.surface,
-    },
-    videoPreviewText: { flex: 1 },
-    videoPreviewTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
-    videoPreviewSub: { fontSize: fontSize.bodySm, color: c.text3, marginTop: spacing.px2 },
-    dishTagChips: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.px6,
-      paddingHorizontal: spacing[4],
-      paddingTop: spacing.px10,
-    },
-    dishTagChip: {
-      overflow: 'hidden',
-      borderRadius: radius.lg,
-      backgroundColor: `${c.accent}12`,
-      color: c.accent,
-      fontSize: fontSize.bodySm,
-      fontWeight: fontWeight.semibold,
-      paddingHorizontal: spacing.px10,
-      paddingVertical: spacing.px5,
-    },
-
-    // Title
-    titleSection: { paddingHorizontal: spacing[4], paddingTop: spacing.px14 },
-    titleInput: {
-      minHeight: 54,
-      borderRadius: radius.lg,
-      borderWidth: 0.5,
-      borderColor: c.border,
-      backgroundColor: c.bg,
-      paddingHorizontal: spacing.px14,
-      paddingVertical: spacing[3],
-      fontSize: fontSize.title,
-      fontWeight: fontWeight.bold,
-      color: c.text,
-      lineHeight: lineHeight.titleRelaxed,
-    },
-    charCount: { fontSize: fontSize.xs, color: c.text3, textAlign: 'right', marginTop: spacing.px5 },
-
-    // Dish tag modal
-    tagModalContainer: {
-      flex: 1,
-      backgroundColor: c.bg,
-      alignItems: 'center',
-    },
-    tagModalHeader: {
-      width: '100%',
-      height: 56,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing[5],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    tagModalTitle: { fontSize: fontSize.xl, fontWeight: fontWeight.semibold, color: c.text },
-    tagModalDone: { padding: spacing[1] },
-    tagModalDoneText: { fontSize: fontSize.lg, fontWeight: fontWeight.medium, color: c.accent },
-    tagModalHint: {
-      fontSize: fontSize.bodySm,
-      color: c.text3,
-      paddingHorizontal: spacing[5],
-      paddingTop: spacing.px14,
-      paddingBottom: spacing[1],
-      alignSelf: 'flex-start',
-    },
-    tagPhotoStrip: {
-      gap: spacing[2],
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing[3],
-    },
-    tagPhotoThumb: {
-      width: 52,
-      height: 52,
-      borderRadius: radius.sm3,
-      overflow: 'hidden',
-      borderWidth: 2,
-      borderColor: 'transparent',
-    },
-    tagPhotoThumbActive: {
-      borderColor: c.accent,
-    },
-    tagPhotoThumbImg: { width: '100%', height: '100%' },
-    tagPhotoArea: {
-      borderRadius: radius.lg,
-      overflow: 'hidden',
-      backgroundColor: c.surface2,
-      position: 'relative',
-      marginTop: spacing[2],
-    },
-    tagHint: {
-      position: 'absolute',
-      bottom: 10,
-      alignSelf: 'center',
-      backgroundColor: 'rgba(0,0,0,0.42)', // check:tokens-ignore
-      borderRadius: radius.sm3,
-      paddingHorizontal: spacing.px10,
-      paddingVertical: spacing[1],
-    },
-    tagHintText: { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.85)' }, // check:tokens-ignore
-    tagList: {
-      width: '100%',
-      paddingHorizontal: spacing[5],
-      paddingTop: spacing[4],
-      gap: spacing.px10,
-    },
-    tagListItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing[2],
-    },
-    tagListDot: {
-      width: 6,
-      height: 6,
-      borderRadius: radius.tiny,
-      backgroundColor: c.accent,
-    },
-    tagListName: { flex: 1, fontSize: fontSize.base, color: c.text },
-  })
 }

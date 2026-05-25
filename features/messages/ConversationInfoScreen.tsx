@@ -1,19 +1,23 @@
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ActivityIndicator,
   Alert,
-  Image,
   Modal,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { ArrowLeft, CloseIcon, UsersIcon } from '@/components/icons'
+import { CachedImage } from '@/components/ui/CachedImage'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { Skeleton, SkeletonText } from '@/components/ui/Skeleton'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useThemeColors } from       '@/lib/contexts/ThemeContext'
+import { routes } from '@/lib/routes'
 import {
   fetchConversationAllParticipants,
   fetchSharedMedia,
@@ -34,13 +38,10 @@ import {
   type PinnedMessage,
   type MuteDuration,
 } from '@/lib/services/messaging'
+import { fetchConversationMeta, fetchMyParticipantPrefs } from '@/lib/services/messaging'
 import { blockUser, submitContentReport } from '@/lib/services/moderation'
-import { ArrowLeft, CloseIcon, UsersIcon } from '@/components/icons'
 import { avatarPalette } from '@/lib/utils/format'
-import { supabase } from '@/lib/supabase'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { makeStyles } from './ConversationInfoScreen.styles'
 
 type Tab = 'members' | 'media' | 'pinned'
 
@@ -63,6 +64,7 @@ export default function ConversationInfoScreen() {
   const [muteSheet, setMuteSheet] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [isPinned, setIsPinned] = useState(false)
+  const [operationError, setOperationError] = useState<{ title: string; message: string } | null>(null)
 
   const isAdmin = myParticipant?.is_admin ?? false
   const otherParticipant = !isGroup ? participants.find(p => p.user_id !== user?.id) ?? null : null
@@ -70,6 +72,7 @@ export default function ConversationInfoScreen() {
   const load = useCallback(async () => {
     if (!conversationId || !user) return
     setLoading(true)
+    setOperationError(null)
     try {
       const [allParticipants, media, pinned] = await Promise.all([
         fetchConversationAllParticipants(conversationId),
@@ -77,16 +80,10 @@ export default function ConversationInfoScreen() {
         fetchPinnedMessages(conversationId),
       ])
 
-      const { data: convRow } = await (supabase.from('conversations') as any)
-        .select('conversation_type, name, avatar_url')
-        .eq('id', conversationId)
-        .maybeSingle()
-
-      const { data: myRow } = await (supabase.from('conversation_participants') as any)
-        .select('muted_until, pinned_at')
-        .eq('conversation_id', conversationId)
-        .eq('user_id', user.id)
-        .maybeSingle()
+      const [convRow, myRow] = await Promise.all([
+        fetchConversationMeta(conversationId),
+        fetchMyParticipantPrefs(conversationId, user.id),
+      ])
 
       setIsGroup(convRow?.conversation_type === 'group')
       setConversationName(convRow?.name ?? null)
@@ -100,9 +97,9 @@ export default function ConversationInfoScreen() {
     } finally {
       setLoading(false)
     }
-  }, [conversationId, user?.id])
+  }, [conversationId, user])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void load() }, [load])
 
   async function handleMute(duration: MuteDuration) {
     if (!conversationId || !user) return
@@ -141,10 +138,10 @@ export default function ConversationInfoScreen() {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Archive',
-        onPress: async () => {
+        onPress: () => { void (async () => {
           await archiveConversation(conversationId, user.id)
-          router.push('/messages' as any)
-        },
+          router.push('/messages')
+        })() },
       },
     ])
   }
@@ -156,11 +153,11 @@ export default function ConversationInfoScreen() {
       {
         text: 'Leave',
         style: 'destructive',
-        onPress: async () => {
+        onPress: () => { void (async () => {
           const { error } = await leaveGroup(conversationId)
-          if (error) Alert.alert('Error', error)
-          else router.push('/messages' as any)
-        },
+          if (error) setOperationError({ title: 'Could not leave group', message: error })
+          else router.push('/messages')
+        })() },
       },
     ])
   }
@@ -172,10 +169,10 @@ export default function ConversationInfoScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: async () => {
+        onPress: () => { void (async () => {
           await deleteDirectConversation(conversationId, user.id)
-          router.push('/messages' as any)
-        },
+          router.push('/messages')
+        })() },
       },
     ])
   }
@@ -187,11 +184,11 @@ export default function ConversationInfoScreen() {
       {
         text: 'Remove',
         style: 'destructive',
-        onPress: async () => {
+        onPress: () => { void (async () => {
           const { error } = await removeGroupMember(conversationId, participant.user_id)
-          if (error) Alert.alert('Error', error)
+          if (error) setOperationError({ title: 'Could not remove member', message: error })
           else setParticipants(prev => prev.filter(p => p.user_id !== participant.user_id))
-        },
+        })() },
       },
     ])
   }
@@ -199,7 +196,7 @@ export default function ConversationInfoScreen() {
   async function handlePromoteAdmin(participant: ConversationParticipant) {
     if (!conversationId) return
     const { error } = await promoteToAdmin(conversationId, participant.user_id)
-    if (error) Alert.alert('Error', error)
+    if (error) setOperationError({ title: 'Could not promote member', message: error })
     else {
       setParticipants(prev =>
         prev.map(p => p.user_id === participant.user_id ? { ...p, is_admin: true } : p)
@@ -216,7 +213,8 @@ export default function ConversationInfoScreen() {
       reason: 'message_or_profile_issue',
       sourceSurface: 'message_thread',
     })
-    Alert.alert(reportError ? 'Report failed' : 'Report received', reportError ?? 'Thanks. We will review this account.')
+    if (reportError) setOperationError({ title: 'Report failed', message: reportError })
+    else Alert.alert('Report received', 'Thanks. We will review this account.')
   }
 
   async function handleBlockUser(participant: ConversationParticipant) {
@@ -226,11 +224,11 @@ export default function ConversationInfoScreen() {
       {
         text: 'Block',
         style: 'destructive',
-        onPress: async () => {
+        onPress: () => { void (async () => {
           const error = await blockUser(user.id, participant.user_id, 'messaging')
-          if (error) Alert.alert('Block failed', error)
-          else router.push('/messages' as any)
-        },
+          if (error) setOperationError({ title: 'Block failed', message: error })
+          else router.push('/messages')
+        })() },
       },
     ])
   }
@@ -251,15 +249,15 @@ export default function ConversationInfoScreen() {
         onLongPress={() => {
           if (isSelf || !isAdmin) return
           Alert.alert(`@${p.username}`, undefined, [
-            { text: 'Promote to admin', onPress: () => handlePromoteAdmin(p) },
-            { text: 'Remove from group', style: 'destructive', onPress: () => handleRemoveMember(p) },
+            { text: 'Promote to admin', onPress: () => { void handlePromoteAdmin(p) } },
+            { text: 'Remove from group', style: 'destructive', onPress: () => { void handleRemoveMember(p) } },
             { text: 'Cancel', style: 'cancel' },
           ])
         }}
-        onPress={() => router.push({ pathname: '/user/[username]', params: { username: p.username } } as any)}
+        onPress={() => router.push(routes.userProfile(p.username))}
       >
         {p.avatar_url ? (
-          <Image source={{ uri: p.avatar_url }} style={styles.memberAvatar} />
+          <CachedImage source={{ uri: p.avatar_url }} style={styles.memberAvatar} />
         ) : (
           <View style={[styles.memberAvatar, { backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }]}>
             <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.semibold, color: colors.text3 }}>{(p.full_name ?? p.username).charAt(0).toUpperCase()}</Text>
@@ -276,8 +274,8 @@ export default function ConversationInfoScreen() {
             style={styles.memberAction}
             onPress={() => {
               Alert.alert(`@${p.username}`, undefined, [
-                { text: 'Report', onPress: () => handleReportUser(p) },
-                { text: 'Block', style: 'destructive', onPress: () => handleBlockUser(p) },
+                { text: 'Report', onPress: () => { void handleReportUser(p) } },
+                { text: 'Block', style: 'destructive', onPress: () => { void handleBlockUser(p) } },
                 { text: 'Cancel', style: 'cancel' },
               ])
             }}
@@ -293,7 +291,7 @@ export default function ConversationInfoScreen() {
     return (
       <TouchableOpacity style={styles.mediaThumb} activeOpacity={0.8}>
         {item.attachment_url ? (
-          <Image source={{ uri: item.attachment_url }} style={styles.mediaThumbImage} resizeMode="cover" />
+          <CachedImage source={{ uri: item.attachment_url }} style={styles.mediaThumbImage} />
         ) : (
           <View style={[styles.mediaThumbImage, styles.mediaThumbFallback]}>
             <Text style={{ fontSize: fontSize['4xl'] }}>{item.message_type === 'video' ? '🎥' : '🖼'}</Text>
@@ -322,7 +320,12 @@ export default function ConversationInfoScreen() {
             {new Date(item.pinned_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
           </Text>
         </View>
-        <TouchableOpacity style={styles.unpinBtn} onPress={() => handleUnpinMessage(item)}>
+        <TouchableOpacity
+          style={styles.unpinBtn}
+          onPress={() => handleUnpinMessage(item)}
+          accessibilityRole="button"
+          accessibilityLabel="Unpin message"
+        >
           <CloseIcon size={16} color={colors.text3} />
         </TouchableOpacity>
       </View>
@@ -332,16 +335,20 @@ export default function ConversationInfoScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
           <ArrowLeft />
         </TouchableOpacity>
         <Text style={styles.title}>Info</Text>
         <View style={{ width: 36 }} />
       </View>
+      {operationError ? (
+        <ErrorMessage title={operationError.title} message={operationError.message} style={{ marginHorizontal: spacing[4] }} />
+      ) : null}
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={colors.text3} />
+          <Skeleton width={80} height={80} radius={40} />
+          <SkeletonText lines={3} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -352,7 +359,7 @@ export default function ConversationInfoScreen() {
               return (
                 <View style={styles.profileHeader}>
                   {groupAvatar ? (
-                    <Image source={{ uri: groupAvatar }} style={styles.profileAvatar} />
+                    <CachedImage source={{ uri: groupAvatar }} style={styles.profileAvatar} />
                   ) : (
                     <View style={[styles.profileAvatar, { backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center' }]}>
                       <UsersIcon size={36} color={palette.color} />
@@ -370,7 +377,7 @@ export default function ConversationInfoScreen() {
             return (
               <View style={styles.profileHeader}>
                 {other.avatar_url ? (
-                  <Image source={{ uri: other.avatar_url }} style={styles.profileAvatar} />
+                  <CachedImage source={{ uri: other.avatar_url }} style={styles.profileAvatar} />
                 ) : (
                   <View style={[styles.profileAvatar, { backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center' }]}>
                     <Text style={[styles.profileAvatarText, { color: palette.color }]}>
@@ -490,146 +497,4 @@ export default function ConversationInfoScreen() {
       </Modal>
     </SafeAreaView>
   )
-}
-
-function makeStyles(c: ReturnType<typeof useThemeColors>) {
-  return StyleSheet.create({
-    container: { flex: 1, backgroundColor: c.bg },
-    topBar: {
-      minHeight: 56,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing[4],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    backBtn: { width: 36, alignItems: 'flex-start' },
-    title: { flex: 1, fontSize: fontSize.xl, fontWeight: fontWeight.semibold, color: c.text, textAlign: 'center' },
-    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    scrollContent: { paddingBottom: spacing.px40 },
-
-    // Profile / group header
-    profileHeader: { alignItems: 'center', paddingTop: spacing.px28, paddingBottom: spacing[5], gap: spacing[2] },
-    profileAvatar: { width: 80, height: 80, borderRadius: radius.round40 },
-    profileAvatarText: { fontSize: fontSize['8xl'], fontWeight: fontWeight.bold },
-    profileName: { fontSize: fontSize['2.5xl'], fontWeight: fontWeight.bold, color: c.text, textAlign: 'center' },
-    profileSub: { fontSize: fontSize.base, color: c.text3 },
-
-    // Tabs
-    tabs: {
-      flexDirection: 'row',
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-      marginBottom: spacing[2],
-    },
-    tab: { flex: 1, paddingVertical: spacing[3], alignItems: 'center' },
-    tabActive: { borderBottomWidth: 2, borderBottomColor: c.text },
-    tabLabel: { fontSize: fontSize.base, color: c.text3, fontWeight: fontWeight.medium },
-    tabLabelActive: { color: c.text, fontWeight: fontWeight.semibold },
-
-    // Members
-    section: { paddingHorizontal: spacing[4] },
-    memberRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing.px11,
-      gap: spacing[3],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    memberAvatar: { width: 44, height: 44, borderRadius: radius.pill2 },
-    memberText: { flex: 1 },
-    memberName: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: c.text },
-    memberUsername: { fontSize: fontSize.bodySm, color: c.text3, marginTop: spacing.px1 },
-    adminBadge: {
-      fontSize: fontSize.xs,
-      fontWeight: fontWeight.semibold,
-      color: c.text2,
-      borderWidth: 1,
-      borderColor: c.border2,
-      paddingHorizontal: spacing.px6,
-      paddingVertical: spacing.px2,
-      borderRadius: radius.xs,
-    },
-    youBadge: { fontSize: fontSize.xs, color: c.text3 },
-    memberAction: { padding: spacing[1] },
-    memberActionLabel: { fontSize: fontSize.md, color: c.text3 },
-
-    // Media
-    mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.px2, padding: spacing.px2 },
-    mediaThumb: { width: '33.33%', aspectRatio: 1, position: 'relative' },
-    mediaThumbImage: { width: '100%', height: '100%' },
-    mediaThumbFallback: { backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' },
-    videoOverlay: {
-      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-      alignItems: 'center', justifyContent: 'center',
-      backgroundColor: c.overlay,
-    },
-    videoOverlayIcon: { fontSize: fontSize['3xl'], color: c.white },
-
-    // Pinned messages
-    pinnedRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing[3],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    pinnedContent: { flex: 1 },
-    pinnedPreview: { fontSize: fontSize.md, color: c.text },
-    pinnedDate: { fontSize: fontSize.sm, color: c.text3, marginTop: spacing.px2 },
-    unpinBtn: { padding: spacing[2] },
-
-    // Empty
-    emptySection: { paddingVertical: spacing.px40, alignItems: 'center' },
-    emptyLabel: { fontSize: fontSize.base, color: c.text3 },
-
-    // Actions
-    actionsSection: {
-      marginTop: spacing[6],
-      marginHorizontal: spacing[4],
-      backgroundColor: c.surface,
-      borderRadius: radius.lg,
-      overflow: 'hidden',
-    },
-    sectionLabel: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
-      color: c.text3,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: spacing[2],
-      paddingHorizontal: spacing[4],
-      paddingTop: spacing[1],
-    },
-    actionRow: {
-      paddingVertical: spacing.px14,
-      paddingHorizontal: spacing[4],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    actionRowDestructive: { borderBottomWidth: 0 },
-    actionLabel: { fontSize: fontSize.lg, color: c.text },
-    actionLabelDestructive: { color: c.actionDelete },
-
-    // Mute sheet
-    muteOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: c.overlay },
-    muteSheet: {
-      backgroundColor: c.bg,
-      borderTopLeftRadius: radius.pill,
-      borderTopRightRadius: radius.pill,
-      paddingHorizontal: spacing[4],
-      paddingTop: spacing[5],
-      paddingBottom: spacing.px36,
-    },
-    muteTitle: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: c.text, marginBottom: spacing[4] },
-    muteOption: {
-      paddingVertical: spacing.px14,
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    muteOptionLabel: { fontSize: fontSize.lg, color: c.text },
-    muteCancelBtn: { marginTop: spacing[3], alignItems: 'center' },
-    muteCancelLabel: { fontSize: fontSize.lg, color: c.text3 },
-  })
 }

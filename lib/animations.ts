@@ -11,7 +11,7 @@ export const DUR_MID  = 180   // component enter/exit
 export const DUR_SLOW = 220   // subtle state fades
 
 // Button press scales
-export const PRESS_SCALE_PRIMARY = 0.96   // PrimaryButton, large CTAs
+export const PRESS_SCALE_PRIMARY = 0.96   // large CTAs
 export const PRESS_SCALE_ICON    = 0.90   // TabBarPostButton, icon buttons
 
 // Reaction row stagger

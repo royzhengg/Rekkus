@@ -1,19 +1,21 @@
-import { TouchableOpacity, StyleSheet, View } from 'react-native'
-import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs'
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { Svg, Line } from 'react-native-svg'
-import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useMemo } from 'react'
-import { SPRING_SNAPPY, PRESS_SCALE_ICON } from '@/lib/animations'
-import { useCreateLauncher } from '@/lib/contexts/CreateLauncherContext'
+import { TouchableOpacity, StyleSheet, View } from 'react-native'
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated'
+import { Svg, Line } from 'react-native-svg'
 import { radius } from '@/constants/Radius'
+import { SPRING_SNAPPY, PRESS_SCALE_ICON } from '@/lib/animations'
+import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useCreateLauncher } from '@/lib/contexts/CreateLauncherContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
+import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs'
 
 export function TabBarPostButton(_props: BottomTabBarButtonProps) {
   const { requireAuth } = useAuthGate()
   const { openCreateLauncher } = useCreateLauncher()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const reduceMotion = useReducedMotion()
   const scale = useSharedValue(1)
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
 
@@ -27,8 +29,16 @@ export function TabBarPostButton(_props: BottomTabBarButtonProps) {
         <TouchableOpacity
           style={styles.button}
           onPress={handlePress}
-          onPressIn={() => { scale.value = withSpring(PRESS_SCALE_ICON, SPRING_SNAPPY) }}
-          onPressOut={() => { scale.value = withSpring(1, SPRING_SNAPPY) }}
+          onPressIn={() => {
+            if (reduceMotion) return
+            scale.value = withSpring(PRESS_SCALE_ICON, SPRING_SNAPPY)
+          }}
+          onPressOut={() => {
+            if (reduceMotion) return
+            scale.value = withSpring(1, SPRING_SNAPPY)
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Create post"
           activeOpacity={1}
         >
           <Svg

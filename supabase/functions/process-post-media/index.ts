@@ -1,8 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-type Payload = {
-  mediaIds?: string[]
-}
+import { parseProcessPostMediaPayload } from '../_shared/guards.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,13 +24,14 @@ Deno.serve(async req => {
     })
   }
 
-  const payload = (await req.json().catch(() => ({}))) as Payload
-  const mediaIds = payload.mediaIds?.filter(Boolean) ?? []
-  if (mediaIds.length === 0) {
-    return new Response(JSON.stringify({ processed: 0 }), {
+  const payload = parseProcessPostMediaPayload(await req.json().catch(() => null))
+  if (!payload) {
+    return new Response(JSON.stringify({ error: 'Invalid media processing payload.' }), {
+      status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
+  const mediaIds = payload.mediaIds
 
   const supabase = createClient(supabaseUrl, serviceRoleKey)
 

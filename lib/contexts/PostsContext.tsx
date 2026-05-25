@@ -1,10 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { ALLOW_MOCK_DATA, IS_LIVE_DATA } from '@/lib/config'
 import {
   demoCurrentUser,
   demoImageKeys,
   demoPosts,
 } from '@/lib/dataSources/demoData'
-import { ALLOW_MOCK_DATA, IS_LIVE_DATA } from '@/lib/config'
 import { fetchFeedPostsPage, mapRowToPost } from '@/lib/services/posts'
 import type { Post } from '@/types/domain'
 
@@ -71,8 +71,8 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
       setPosts(mapped.length > 0 || !ALLOW_MOCK_DATA ? mapped : [...demoPosts])
       cursorRef.current = nextCursor
       setHasMore(nextCursor !== null)
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to load feed posts')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load feed posts')
       if (ALLOW_MOCK_DATA) setPosts([...demoPosts])
     }
     setLoading(false)
@@ -86,12 +86,14 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
       setPosts(prev => [...prev, ...rows.map((row, index) => mapRowToPost(row, prev.length + index))])
       cursorRef.current = nextCursor
       setHasMore(nextCursor !== null)
-    } catch {}
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load more posts')
+    }
     setLoadingMore(false)
   }, [loadingMore])
 
   useEffect(() => {
-    refresh()
+    void refresh()
   }, [refresh])
 
   return (

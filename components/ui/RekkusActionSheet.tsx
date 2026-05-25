@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   Modal,
@@ -9,33 +9,44 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { SPRING_SMOOTH } from '@/lib/animations'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export type RekkusActionSheetOption = {
   label: string
   value: string
-  icon?: ReactNode
-  description?: string
-  accentColor?: string
-  variant?: 'row' | 'tile'
-  loading?: boolean
-  selected?: boolean
-  destructive?: boolean
+  icon?: ReactNode | undefined
+  description?: string | undefined
+  accentColor?: string | undefined
+  variant?: 'row' | 'tile' | undefined
+  loading?: boolean | undefined
+  selected?: boolean | undefined
+  destructive?: boolean | undefined
 }
 
 type Props = {
   visible: boolean
-  title?: string
-  subtitle?: string
-  header?: ReactNode
+  title?: string | undefined
+  subtitle?: string | undefined
+  header?: ReactNode | undefined
   options: RekkusActionSheetOption[]
   onSelect: (value: string) => void
   onDismiss: () => void
 }
+
+const DISMISS_THRESHOLD = 80
+const DISMISS_VELOCITY = 800
 
 export function RekkusActionSheet({
   visible,
@@ -49,6 +60,27 @@ export function RekkusActionSheet({
   const colors = useThemeColors()
   const insets = useSafeAreaInsets()
   const styles = useMemo(() => makeStyles(colors, insets.bottom), [colors, insets.bottom])
+  const translateY = useSharedValue(0)
+
+  useEffect(() => {
+    if (visible) translateY.value = 0
+  }, [visible, translateY])
+
+  const panGesture = Gesture.Pan()
+    .onUpdate(e => {
+      translateY.value = Math.max(0, e.translationY)
+    })
+    .onEnd(e => {
+      if (e.translationY > DISMISS_THRESHOLD || e.velocityY > DISMISS_VELOCITY) {
+        runOnJS(onDismiss)()
+      } else {
+        translateY.value = withSpring(0, SPRING_SMOOTH)
+      }
+    })
+
+  const sheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }))
 
   return (
     <Modal
@@ -64,8 +96,12 @@ export function RekkusActionSheet({
         accessibilityRole="button"
         accessibilityLabel="Dismiss popup"
       />
-      <View style={styles.sheet} accessibilityRole="menu">
-        <View style={styles.handle} />
+      <Animated.View style={[styles.sheet, sheetStyle]} accessibilityRole="menu">
+        <GestureDetector gesture={panGesture}>
+          <View style={styles.handleArea}>
+            <View style={styles.handle} />
+          </View>
+        </GestureDetector>
         {!!title && <Text style={styles.title}>{title}</Text>}
         {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         {header}
@@ -132,7 +168,7 @@ export function RekkusActionSheet({
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
+      </Animated.View>
     </Modal>
   )
 }
@@ -150,14 +186,16 @@ function makeStyles(c: ReturnType<typeof useThemeColors>, bottomInset: number) {
       paddingHorizontal: spacing[4],
       paddingBottom: Math.max(bottomInset, 16) + 12,
     },
+    handleArea: {
+      alignItems: 'center',
+      paddingTop: spacing.px10,
+      paddingBottom: spacing.px18,
+    },
     handle: {
       width: 38,
       height: 4,
       borderRadius: radius.xxs,
       backgroundColor: c.surface2,
-      alignSelf: 'center',
-      marginTop: spacing.px10,
-      marginBottom: spacing.px18,
     },
     title: {
       fontSize: fontSize.xl,

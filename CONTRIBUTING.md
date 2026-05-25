@@ -46,11 +46,15 @@ Use this file as the repo hygiene checklist before and after changes.
 
 Run the checks that match the change:
 
+- Pre-commit correctness: `npm run validate`
+- PR/full-system readiness: `npm run validate:full`
 - Platform/native/config: `npm run check:platform`
 - File hygiene/security boundaries: `npm run check:hygiene`
 - Markdown links: `npm run check:docs`
 - App TypeScript: `npm run typecheck`
 - Release readiness: `npm run check:release`
+- Automation currency: `npm run check:automation`
+- Performance guardrails: `npm run check:performance`
 
 ## Docs Update Rules
 

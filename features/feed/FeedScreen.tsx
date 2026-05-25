@@ -1,3 +1,5 @@
+import { useScrollToTop } from '@react-navigation/native'
+import { useRouter } from 'expo-router'
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import {
   View,
@@ -7,25 +9,40 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  type LayoutChangeEvent,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
 } from 'react-native'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import { spacing } from '@/constants/Spacing'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { useAuth } from '@/lib/contexts/AuthContext'
-import { usePosts } from '@/lib/contexts/PostsContext'
-import { useFollowingFeed } from '@/lib/hooks/useFollowingFeed'
-import { useDiscover } from '@/lib/hooks/useDiscover'
-import { analytics } from '@/lib/analytics'
-import { demoUsers, demoCurrentUser } from '@/lib/dataSources/demoData'
-import { BellIcon, MessageIcon } from '@/components/icons'
+import { BellIcon, BookmarkIcon, HeartIcon, MessageIcon, ShareIcon } from '@/components/icons'
+import { PostCard as RekkusPostCard } from '@/components/post/PostCard'
+import { PostCardSkeleton } from '@/components/post/PostCardSkeleton'
+import { PostUploadProgress } from '@/components/post/PostUploadProgress'
 import { Chip } from '@/components/ui/Chip'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { IconButton } from '@/components/ui/IconButton'
-import { PostCard as RekkusPostCard } from '@/components/post/PostCard'
-import { PostUploadProgress } from '@/components/post/PostUploadProgress'
+import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { analytics } from '@/lib/analytics'
+import { SPRING_SNAPPY } from '@/lib/animations'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { usePosts } from '@/lib/contexts/PostsContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { demoUsers, demoCurrentUser } from '@/lib/dataSources/demoData'
+import { haptic } from '@/lib/haptics'
+import { useDiscover } from '@/lib/hooks/useDiscover'
+import { useFollowingFeed } from '@/lib/hooks/useFollowingFeed'
+import { routes } from '@/lib/routes'
+import { togglePostLike, togglePostSave } from '@/lib/services/posts'
+import type { Post } from '@/types/domain'
 
 const FEED_PAGE_SIZE = 20
 
@@ -33,6 +50,8 @@ export default function FeedScreen() {
   const [activeTab, setActiveTab] = useState<'Following' | 'Discover'>('Following')
   const { refresh, loadMore, hasMore } = usePosts()
   const { user } = useAuth()
+  const { requireAuth } = useAuthGate()
+  const [longPressPost, setLongPressPost] = useState<Post | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [newPostCount, setNewPostCount] = useState(0)
   const [visibleCount, setVisibleCount] = useState(FEED_PAGE_SIZE)
@@ -43,6 +62,38 @@ export default function FeedScreen() {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const router = useRouter()
+
+  // B-410: scroll-to-top when feed tab is re-tapped
+  const scrollRef = useRef<ScrollView>(null)
+  useScrollToTop(scrollRef)
+
+  // B-406: animated sliding tab indicator
+  const tabLayouts = useRef<Record<string, { x: number; width: number }>>({})
+  const indicatorLeft = useSharedValue(0)
+  const indicatorWidth = useSharedValue(0)
+  const indicatorStyle = useAnimatedStyle(() => ({
+    left: indicatorLeft.value,
+    width: indicatorWidth.value,
+  }))
+
+  function handleTabLayout(tab: string, e: LayoutChangeEvent) {
+    const { x, width } = e.nativeEvent.layout
+    tabLayouts.current[tab] = { x, width }
+    if (tab === activeTab) {
+      indicatorLeft.value = x
+      indicatorWidth.value = width
+    }
+  }
+
+  function handleTabPress(tab: 'Following' | 'Discover') {
+    void haptic.light()
+    setActiveTab(tab)
+    const layout = tabLayouts.current[tab]
+    if (layout) {
+      indicatorLeft.value = withSpring(layout.x, SPRING_SNAPPY)
+      indicatorWidth.value = withSpring(layout.width, SPRING_SNAPPY)
+    }
+  }
 
   useEffect(() => {
     setVisibleCount(FEED_PAGE_SIZE)
@@ -72,14 +123,14 @@ export default function FeedScreen() {
     lastTopPostId.current = topId
   }, [activePosts])
 
-  function handleScroll(e: any) {
+  function handleScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent
     if (
       contentOffset.y + layoutMeasurement.height >= contentSize.height - 200 &&
       visibleCount < activePosts.length
     ) {
       setVisibleCount(c => c + FEED_PAGE_SIZE)
-      if (hasMore) loadMore()
+      if (hasMore) void loadMore()
     }
   }
 
@@ -90,9 +141,35 @@ export default function FeedScreen() {
     setRefreshing(false)
   }
 
-  const suggestedPeople = useMemo(
-    () => Object.entries(demoUsers).filter(([username]) => username !== demoCurrentUser.username),
-    []
+  function handleLongPressAction(value: string) {
+    const post = longPressPost
+    setLongPressPost(null)
+    if (!post) return
+    if (value === 'like') {
+      requireAuth(() => {
+        if (!post.dbId || !user?.id) return
+        togglePostLike(post.dbId, user.id, true).catch(() => {})
+      })
+      return
+    }
+    if (value === 'save') {
+      requireAuth(() => {
+        if (!post.dbId || !user?.id) return
+        togglePostSave(post.dbId, user.id, true).catch(() => {})
+      })
+      return
+    }
+    if (value === 'creator') {
+      router.push(routes.userProfile(post.creator))
+      return
+    }
+    if (value === 'open') {
+      router.push(routes.postDetail(String(post.dbId || post.id)))
+    }
+  }
+
+  const suggestedPeople = Object.entries(demoUsers).filter(
+    ([username]) => username !== demoCurrentUser.username
   )
 
   return (
@@ -102,7 +179,7 @@ export default function FeedScreen() {
           rekkus<Text style={styles.wordmarkDot}>.</Text>
         </Text>
         <View style={styles.topActions}>
-          <IconButton accessibilityLabel="Open messages" onPress={() => router.push('/messages' as any)}>
+          <IconButton accessibilityLabel="Open messages" onPress={() => router.push('/messages')}>
             <MessageIcon size={18} />
           </IconButton>
           <IconButton accessibilityLabel="Open alerts" onPress={() => router.push('/(tabs)/alerts')}>
@@ -113,14 +190,20 @@ export default function FeedScreen() {
 
       <View style={styles.tabs}>
         {(['Following', 'Discover'] as const).map(tab => (
-          <TouchableOpacity key={tab} style={styles.tab} onPress={() => setActiveTab(tab)}>
+          <TouchableOpacity
+            key={tab}
+            style={styles.tab}
+            onPress={() => handleTabPress(tab)}
+            onLayout={e => handleTabLayout(tab, e)}
+          >
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
-            {activeTab === tab && <View style={styles.tabUnderline} />}
           </TouchableOpacity>
         ))}
+        <Animated.View style={[styles.tabSlider, indicatorStyle]} />
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={400}
@@ -142,28 +225,32 @@ export default function FeedScreen() {
             style={styles.newPostsChip}
           />
         )}
-        <PostUploadProgress />
-        {activeTab === 'Following' && followingLoaded && followingPosts.length === 0 ? (
+        <PostUploadProgress onGoToDraft={() => router.push('/(tabs)/create')} />
+        {activeTab === 'Following' && !followingLoaded ? (
+          <View style={styles.feedList}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <PostCardSkeleton key={i} />
+            ))}
+          </View>
+        ) : activeTab === 'Following' && followingLoaded && followingPosts.length === 0 ? (
           <View>
             <EmptyState
-              title="Your feed is empty"
-              subtitle={'Follow useful reviewers to see their food finds here.'}
+              title="Start with food worth saving"
+              subtitle="Follow people with useful taste, or jump into Discover for dishes nearby."
             />
             <View style={styles.suggestedWrap}>
               {suggestedPeople.slice(0, 5).map(([username, profile]) => (
                 <TouchableOpacity
                   key={username}
                   style={styles.suggestedRow}
-                  onPress={() =>
-                    router.push({ pathname: '/user/[username]', params: { username } })
-                  }
+                  onPress={() => router.push(routes.userProfile(username))}
                 >
                   <Text style={styles.suggestedName}>@{username}</Text>
                   <Text style={styles.suggestedMeta}>{profile.followers} followers</Text>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity style={styles.discoverCta} onPress={() => setActiveTab('Discover')}>
-                <Text style={styles.discoverCtaText}>Explore Discover</Text>
+                <Text style={styles.discoverCtaText}>Find dishes in Discover</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -171,7 +258,20 @@ export default function FeedScreen() {
           <>
             <View style={styles.feedList}>
               {visiblePosts.map(post => (
-                <RekkusPostCard key={post.dbId || post.id} post={post} />
+                <RekkusPostCard
+                  key={post.dbId || post.id}
+                  post={post}
+                  onPressPost={item => router.push(routes.postDetail(String(item.dbId || item.id)))}
+                  onPressCreator={username => router.push(routes.userProfile(username))}
+                  onPressTag={tag => router.push(routes.search(tag))}
+                  onDoubleTapLike={() =>
+                    requireAuth(() => {
+                      if (!post.dbId || !user?.id) return
+                      togglePostLike(post.dbId, user.id, true).catch(() => {})
+                    })
+                  }
+                  onLongPressPost={() => setLongPressPost(post)}
+                />
               ))}
             </View>
             {hasMoreFeed && (
@@ -182,6 +282,19 @@ export default function FeedScreen() {
           </>
         )}
       </ScrollView>
+      <RekkusActionSheet
+        visible={!!longPressPost}
+        title={longPressPost?.best_dish ?? longPressPost?.title ?? 'Post'}
+        subtitle={longPressPost ? `by @${longPressPost.creator}` : undefined}
+        options={[
+          { label: 'Open post', value: 'open' },
+          { label: 'Like', value: 'like', icon: <HeartIcon size={18} /> },
+          { label: 'Save', value: 'save', icon: <BookmarkIcon size={18} /> },
+          { label: longPressPost ? `Go to @${longPressPost.creator}` : 'Go to creator', value: 'creator', icon: <ShareIcon size={18} /> },
+        ]}
+        onSelect={handleLongPressAction}
+        onDismiss={() => setLongPressPost(null)}
+      />
     </SafeAreaView>
   )
 }
@@ -216,11 +329,9 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     tab: { paddingVertical: spacing.px10, position: 'relative' },
     tabText: { fontSize: fontSize.base, color: c.text3 },
     tabTextActive: { color: c.text, fontWeight: fontWeight.medium },
-    tabUnderline: {
+    tabSlider: {
       position: 'absolute',
       bottom: -0.5,
-      left: 0,
-      right: 0,
       height: 2,
       backgroundColor: c.text,
       borderRadius: radius.micro,

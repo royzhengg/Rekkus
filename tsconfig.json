@@ -2,10 +2,19 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "jsx": "react-native",
     "paths": {
       "@/*": ["./*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
-  "exclude": ["supabase/functions/**"]
+  "exclude": ["node_modules", "supabase/functions/**", ".temp/**"]
 }

@@ -1,4 +1,13 @@
+import { analytics } from '@/lib/analytics'
 import { GOOGLE_PLACES_KEY } from '@/lib/config'
+import {
+  type GoogleAreaSuggestion,
+  googlePredictionsEnvelope,
+  googleResultEnvelope,
+  googleResultsEnvelope,
+  hasAllowedGoogleStatus,
+  isGoogleAreaSuggestion,
+} from '@/lib/services/googlePlacesGuards'
 import { supabase } from '@/lib/supabase'
 
 const CACHE_TTL_MS = 5 * 60 * 1000
@@ -15,48 +24,67 @@ type ProviderUsageEvent = {
   estimatedCostClass: 'free_local' | 'paid_provider'
 }
 
-function logProviderUsage(event: ProviderUsageEvent) {
-  supabase.auth
-    .getUser()
+function logProviderUsage(event: ProviderUsageEvent): void {
+  void supabase.auth.getUser()
     .then(({ data }) => {
-      const userId = data.user?.id
-      if (!userId) return null
-      return (supabase.from('analytics_events') as any).insert({
-        user_id: userId,
-        event_type: event.cacheStatus === 'hit' ? 'provider_cache_hit' : 'google_fallback_used',
-        entity_type: 'restaurant',
-        entity_id: null,
-        metadata: event,
-      })
+      analytics.providerUsage(
+        data.user?.id ?? null,
+        event.provider,
+        event.requestType,
+        event.feature,
+        event.cacheStatus,
+        event.fallbackReason,
+        event.estimatedCostClass,
+      )
+      return null
     })
-    .catch(() => null)
+    .catch(() => {
+      analytics.providerUsage(
+        null,
+        event.provider,
+        event.requestType,
+        event.feature,
+        event.cacheStatus,
+        event.fallbackReason,
+        event.estimatedCostClass,
+      )
+    })
 }
 
 async function cachedJson<T>(
   key: string,
   url: string,
-  event: Omit<ProviderUsageEvent, 'cacheStatus'>
+  event: Omit<ProviderUsageEvent, 'cacheStatus'>,
+  normalize: (value: unknown) => T | null
 ): Promise<T | null> {
   const now = Date.now()
   const cached = cache.get(key)
   if (cached && cached.expiresAt > now) {
     logProviderUsage({ ...event, cacheStatus: 'hit' })
-    return cached.value as T
+    const normalized = normalize(cached.value)
+    if (!normalized) analytics.actionError(null, 'runtime_boundary', 'google_cache_payload_invalid')
+    return normalized
   }
 
   const existing = inflight.get(key)
   if (existing) {
     logProviderUsage({ ...event, cacheStatus: 'deduped' })
-    return existing as Promise<T>
+    const value = await existing
+    return normalize(value)
   }
 
   logProviderUsage({ ...event, cacheStatus: 'miss' })
   const request = fetch(url)
-    .then(res => res.json())
+    .then(async res => {
+      if (!res.ok) throw new Error(`Google Places HTTP ${res.status}`)
+      const json: unknown = await res.json()
+      if (!hasAllowedGoogleStatus(json)) throw new Error('Google Places malformed or error status')
+      return json
+    })
     .then(json => {
       cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, value: json })
       inflight.delete(key)
-      return json as T
+      return json
     })
     .catch(() => {
       inflight.delete(key)
@@ -65,7 +93,10 @@ async function cachedJson<T>(
     })
 
   inflight.set(key, request)
-  return request
+  const json = await request
+  const normalized = normalize(json)
+  if (json && !normalized) analytics.actionError(null, 'runtime_boundary', 'google_response_payload_invalid')
+  return normalized
 }
 
 export async function fetchPlaceAutocompleteJson(
@@ -93,7 +124,8 @@ export async function fetchPlaceAutocompleteJson(
     (await cachedJson<{ predictions?: unknown[] }>(
       `autocomplete:${q}:${locationParam}:${sessionToken ?? ''}`,
       url,
-      baseEvent
+      baseEvent,
+      googlePredictionsEnvelope
     )) ?? {
       predictions: [],
     }
@@ -102,43 +134,51 @@ export async function fetchPlaceAutocompleteJson(
 
 export async function fetchPlaceDetailsJson<T>(
   placeId: string,
-  fields: string
+  fields: string,
+  guard: (value: unknown) => value is T
 ): Promise<{ result?: T } | null> {
   if (!GOOGLE_PLACES_KEY || !placeId) return null
   if (!fields.trim()) return null
   const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${GOOGLE_PLACES_KEY}`
-  return cachedJson<{ result?: T }>(`details:${placeId}:${fields}`, url, {
-    provider: 'google_places',
-    requestType: 'details',
-    feature: 'restaurant_detail',
-    fallbackReason: 'missing_or_stale_local_metadata',
-    estimatedCostClass: 'paid_provider',
-  })
+  return cachedJson<{ result?: T }>(
+    `details:${placeId}:${fields}`,
+    url,
+    {
+      provider: 'google_places',
+      requestType: 'details',
+      feature: 'restaurant_detail',
+      fallbackReason: 'missing_or_stale_local_metadata',
+      estimatedCostClass: 'paid_provider',
+    },
+    value => googleResultEnvelope(value, guard)
+  )
 }
 
-export async function fetchPlaceTextSearchJson<T>(query: string): Promise<{ results?: T[] } | null> {
+export async function fetchPlaceTextSearchJson<T>(
+  query: string,
+  guard: (value: unknown) => value is T
+): Promise<{ results?: T[] } | null> {
   const q = query.trim()
   if (!GOOGLE_PLACES_KEY || q.length < MIN_AUTOCOMPLETE_LENGTH) return null
   const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${GOOGLE_PLACES_KEY}`
-  return cachedJson<{ results?: T[] }>(`textsearch:${q}`, url, {
-    provider: 'google_places',
-    requestType: 'textsearch',
-    feature: 'geocode_fallback',
-    fallbackReason: 'missing_coordinates',
-    estimatedCostClass: 'paid_provider',
-  })
+  return cachedJson<{ results?: T[] }>(
+    `textsearch:${q}`,
+    url,
+    {
+      provider: 'google_places',
+      requestType: 'textsearch',
+      feature: 'geocode_fallback',
+      fallbackReason: 'missing_coordinates',
+      estimatedCostClass: 'paid_provider',
+    },
+    value => googleResultsEnvelope(value, guard)
+  )
 }
 
 export async function fetchAreaSuggestionsJson(
   input: string,
   userLocation?: { lat: number; lng: number } | null
-): Promise<{
-  predictions: Array<{
-    place_id: string
-    description: string
-    structured_formatting: { main_text: string; secondary_text: string }
-  }>
-}> {
+): Promise<{ predictions: GoogleAreaSuggestion[] }> {
   const q = input.trim()
   const baseEvent = {
     provider: 'google_places' as const,
@@ -156,8 +196,8 @@ export async function fetchAreaSuggestionsJson(
     : ''
   const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(q)}${locationParam}&types=(regions)&key=${GOOGLE_PLACES_KEY}`
   const cacheKey = `area:${q}:${locationParam}`
-  const result = await cachedJson<{ predictions?: unknown[] }>(cacheKey, url, baseEvent)
-  return { predictions: ((result?.predictions ?? []) as any[]).slice(0, 8) }
+  const result = await cachedJson<{ predictions?: unknown[] }>(cacheKey, url, baseEvent, googlePredictionsEnvelope)
+  return { predictions: (result?.predictions ?? []).filter(isGoogleAreaSuggestion).slice(0, 8) }
 }
 
 export function buildGooglePlacePhotoUrl(photoReference: string, maxWidth = 800): string {

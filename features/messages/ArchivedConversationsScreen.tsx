@@ -1,8 +1,7 @@
+import { useRouter } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ActivityIndicator,
   FlatList,
-  Image,
   RefreshControl,
   StyleSheet,
   Text,
@@ -10,26 +9,28 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { ArrowLeft, MessageIcon, UsersIcon } from '@/components/icons'
+import { CachedImage } from '@/components/ui/CachedImage'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { routes } from '@/lib/routes'
 import {
   fetchArchivedConversations,
   unarchiveConversation,
   type ConversationSummary,
 } from '@/lib/services/messaging'
-import { ArrowLeft, MessageIcon, UsersIcon } from '@/components/icons'
 import { avatarPalette } from '@/lib/utils/format'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 
 function initials(username: string, name: string | null) {
   if (name) {
     const parts = name.trim().split(/\s+/)
     return parts.length > 1
-      ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-      : parts[0].slice(0, 2).toUpperCase()
+      ? `${parts[0]?.[0] ?? ''}${parts[1]?.[0] ?? ''}`.toUpperCase()
+      : (parts[0] ?? '').slice(0, 2).toUpperCase()
   }
   return username.slice(0, 2).toUpperCase()
 }
@@ -85,11 +86,11 @@ export default function ArchivedConversationsScreen() {
       if (isRefresh) setRefreshing(false)
       else setLoading(false)
     },
-    [user?.id]
+    [user]
   )
 
   useEffect(() => {
-    load(false)
+    void load(false)
   }, [load])
 
   const handleUnarchive = useCallback(
@@ -98,7 +99,7 @@ export default function ArchivedConversationsScreen() {
       await unarchiveConversation(conversationId, user.id)
       setConversations(prev => prev.filter(item => item.id !== conversationId))
     },
-    [user?.id]
+    [user]
   )
 
   function renderItem({ item }: { item: ConversationSummary }) {
@@ -108,13 +109,13 @@ export default function ArchivedConversationsScreen() {
       : (item.participant.full_name ?? `@${item.participant.username}`)
     const palette = avatarPalette(isGroup ? (item.name ?? 'G') : item.participant.username)
     const avatar = isGroup && item.avatar_url ? (
-      <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+      <CachedImage source={{ uri: item.avatar_url }} style={styles.avatar} />
     ) : isGroup ? (
       <View style={[styles.avatar, { backgroundColor: palette.bg }]}>
         <UsersIcon size={20} color={palette.color} />
       </View>
     ) : item.participant.avatar_url ? (
-      <Image source={{ uri: item.participant.avatar_url }} style={styles.avatar} />
+      <CachedImage source={{ uri: item.participant.avatar_url }} style={styles.avatar} />
     ) : (
       <View style={[styles.avatar, { backgroundColor: palette.bg }]}>
         <Text style={[styles.avatarText, { color: palette.color }]}>
@@ -127,7 +128,7 @@ export default function ArchivedConversationsScreen() {
       <TouchableOpacity
         style={styles.row}
         activeOpacity={0.72}
-        onPress={() => router.push(`/messages/${item.id}` as any)}
+        onPress={() => router.push(routes.conversation(item.id))}
       >
         {avatar}
         <View style={styles.rowBody}>
@@ -152,7 +153,7 @@ export default function ArchivedConversationsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
           <ArrowLeft />
         </TouchableOpacity>
         <Text style={styles.title}>Archived chats</Text>
@@ -160,9 +161,17 @@ export default function ArchivedConversationsScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.text3} />
-        </View>
+        <>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton width={44} height={44} radius={radius.full} />
+              <View style={{ flex: 1, gap: spacing[2] }}>
+                <Skeleton width="60%" height={14} />
+                <Skeleton width="40%" height={12} />
+              </View>
+            </View>
+          ))}
+        </>
       ) : (
         <FlatList
           data={conversations}
@@ -242,5 +251,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingVertical: spacing.px7,
     },
     unarchiveText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.semibold, color: c.text },
+    skeletonRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[4], paddingVertical: spacing[3], gap: spacing[3] },
   })
 }

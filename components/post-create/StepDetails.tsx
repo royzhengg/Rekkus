@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -6,11 +7,13 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native'
-import { useMemo, useState } from 'react'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { CheckCircleIcon, CloseIcon, StarIcon, UsersIcon } from '@/components/icons'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { searchCuisines } from '@/lib/dataSources/cuisines'
 import {
   OCCASION_PICK_OPTIONS,
@@ -19,10 +22,8 @@ import {
   tasteToLegacyFood,
   valueToLegacyCost,
 } from '@/lib/dataSources/rekkusPicks'
+import { isEnabled } from '@/lib/featureFlags'
 import type { RekkusOccasionTag, RekkusTasteVerdict, RekkusValueVerdict } from '@/types/domain'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 
 type Props = {
   foodRating: number
@@ -120,101 +121,105 @@ export default function StepDetails({
         keyboardShouldPersistTaps="handled"
       >
         {/* Ratings */}
-        <Text style={styles.sectionLabel}>Rekkus Picks</Text>
-        <View style={styles.card}>
-          <View style={styles.pickGroup}>
-            <View style={styles.pickHeader}>
-              <View style={styles.pickIcon}>
-                <StarIcon size={15} color={tasteVerdict ? c.accent : c.text3} />
+        {isEnabled('rekkusPicks') && (
+          <>
+            <Text style={styles.sectionLabel}>Rekkus Picks</Text>
+            <View style={styles.card}>
+              <View style={styles.pickGroup}>
+                <View style={styles.pickHeader}>
+                  <View style={styles.pickIcon}>
+                    <StarIcon size={15} color={tasteVerdict ? c.accent : c.text3} />
+                  </View>
+                  <View style={styles.pickHeaderText}>
+                    <Text style={styles.pickTitle}>Taste</Text>
+                    <Text style={styles.pickHelp}>How strongly would you recommend this dish?</Text>
+                  </View>
+                </View>
+                <View style={styles.pickChips}>
+                  {TASTE_PICK_OPTIONS.map(option => {
+                    const selected = tasteVerdict === option.value
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[styles.pickChip, selected && styles.pickChipSelected]}
+                        onPress={() => selectTaste(option.value)}
+                      >
+                        <Text style={[styles.pickChipText, selected && styles.pickChipTextSelected]}>{option.label}</Text>
+                      </TouchableOpacity>
+                    )
+                  })}
+                </View>
+                {tasteVerdict && (
+                  <Text style={styles.selectedHelp}>
+                    {TASTE_PICK_OPTIONS.find(option => option.value === tasteVerdict)?.helper}
+                  </Text>
+                )}
               </View>
-              <View style={styles.pickHeaderText}>
-                <Text style={styles.pickTitle}>Taste</Text>
-                <Text style={styles.pickHelp}>How strongly would you recommend this dish?</Text>
+              <View style={styles.divider} />
+              <View style={styles.pickGroup}>
+                <View style={styles.pickHeader}>
+                  <View style={styles.pickIcon}>
+                    <CheckCircleIcon size={15} color={valueVerdict ? c.accent : c.text3} />
+                  </View>
+                  <View style={styles.pickHeaderText}>
+                    <Text style={styles.pickTitle}>Value</Text>
+                    <Text style={styles.pickHelp}>Did it feel worth what you paid?</Text>
+                  </View>
+                </View>
+                <View style={styles.pickChips}>
+                  {VALUE_PICK_OPTIONS.map(option => {
+                    const selected = valueVerdict === option.value
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[styles.pickChip, selected && styles.pickChipSelected]}
+                        onPress={() => selectValue(option.value)}
+                      >
+                        <Text style={[styles.pickChipText, selected && styles.pickChipTextSelected]}>{option.label}</Text>
+                      </TouchableOpacity>
+                    )
+                  })}
+                </View>
+                {valueVerdict && (
+                  <Text style={styles.selectedHelp}>
+                    {VALUE_PICK_OPTIONS.find(option => option.value === valueVerdict)?.helper}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.pickGroup}>
+                <View style={styles.pickHeader}>
+                  <View style={styles.pickIcon}>
+                    <UsersIcon size={15} color={occasionTags.length > 0 ? c.accent : c.text3} />
+                  </View>
+                  <View style={styles.pickHeaderText}>
+                    <Text style={styles.pickTitle}>Occasion</Text>
+                    <Text style={styles.pickHelp}>When would you send someone here?</Text>
+                  </View>
+                </View>
+                <View style={styles.pickChips}>
+                  {OCCASION_PICK_OPTIONS.map(option => {
+                    const selected = occasionTags.includes(option.value)
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[styles.pickChip, selected && styles.pickChipSelected]}
+                        onPress={() => toggleOccasion(option.value)}
+                      >
+                        <Text style={[styles.pickChipText, selected && styles.pickChipTextSelected]}>{option.label}</Text>
+                      </TouchableOpacity>
+                    )
+                  })}
+                </View>
+                {occasionTags[0] && (
+                  <Text style={styles.selectedHelp}>
+                    {OCCASION_PICK_OPTIONS.find(option => option.value === occasionTags[0])?.helper}
+                  </Text>
+                )}
               </View>
             </View>
-            <View style={styles.pickChips}>
-              {TASTE_PICK_OPTIONS.map(option => {
-                const selected = tasteVerdict === option.value
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[styles.pickChip, selected && styles.pickChipSelected]}
-                    onPress={() => selectTaste(option.value)}
-                  >
-                    <Text style={[styles.pickChipText, selected && styles.pickChipTextSelected]}>{option.label}</Text>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-            {tasteVerdict && (
-              <Text style={styles.selectedHelp}>
-                {TASTE_PICK_OPTIONS.find(option => option.value === tasteVerdict)?.helper}
-              </Text>
-            )}
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.pickGroup}>
-            <View style={styles.pickHeader}>
-              <View style={styles.pickIcon}>
-                <CheckCircleIcon size={15} color={valueVerdict ? c.accent : c.text3} />
-              </View>
-              <View style={styles.pickHeaderText}>
-                <Text style={styles.pickTitle}>Value</Text>
-                <Text style={styles.pickHelp}>Did it feel worth what you paid?</Text>
-              </View>
-            </View>
-            <View style={styles.pickChips}>
-              {VALUE_PICK_OPTIONS.map(option => {
-                const selected = valueVerdict === option.value
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[styles.pickChip, selected && styles.pickChipSelected]}
-                    onPress={() => selectValue(option.value)}
-                  >
-                    <Text style={[styles.pickChipText, selected && styles.pickChipTextSelected]}>{option.label}</Text>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-            {valueVerdict && (
-              <Text style={styles.selectedHelp}>
-                {VALUE_PICK_OPTIONS.find(option => option.value === valueVerdict)?.helper}
-              </Text>
-            )}
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.pickGroup}>
-            <View style={styles.pickHeader}>
-              <View style={styles.pickIcon}>
-                <UsersIcon size={15} color={occasionTags.length > 0 ? c.accent : c.text3} />
-              </View>
-              <View style={styles.pickHeaderText}>
-                <Text style={styles.pickTitle}>Occasion</Text>
-                <Text style={styles.pickHelp}>When would you send someone here?</Text>
-              </View>
-            </View>
-            <View style={styles.pickChips}>
-              {OCCASION_PICK_OPTIONS.map(option => {
-                const selected = occasionTags.includes(option.value)
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[styles.pickChip, selected && styles.pickChipSelected]}
-                    onPress={() => toggleOccasion(option.value)}
-                  >
-                    <Text style={[styles.pickChipText, selected && styles.pickChipTextSelected]}>{option.label}</Text>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-            {occasionTags[0] && (
-              <Text style={styles.selectedHelp}>
-                {OCCASION_PICK_OPTIONS.find(option => option.value === occasionTags[0])?.helper}
-              </Text>
-            )}
-          </View>
-        </View>
+          </>
+        )}
 
       {/* Review body */}
       <Text style={styles.sectionLabel}>Your review</Text>
@@ -237,7 +242,12 @@ export default function StepDetails({
           <View style={styles.detailStackHeader}>
             <Text style={styles.detailLabel}>Best dish</Text>
             {bestDish ? (
-              <TouchableOpacity onPress={() => setBestDish('')} hitSlop={8}>
+              <TouchableOpacity
+                onPress={() => setBestDish('')}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Clear best dish"
+              >
                 <CloseIcon size={10} color={c.text3} />
               </TouchableOpacity>
             ) : null}
@@ -262,7 +272,12 @@ export default function StepDetails({
             {cuisineType || 'Select type'}
           </Text>
           {cuisineType ? (
-            <TouchableOpacity onPress={() => setCuisineType('')} hitSlop={8}>
+            <TouchableOpacity
+              onPress={() => setCuisineType('')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Clear cuisine"
+            >
               <CloseIcon size={10} color={c.text3} />
             </TouchableOpacity>
           ) : (

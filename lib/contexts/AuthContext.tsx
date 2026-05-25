@@ -1,16 +1,32 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import { Session, User, UserIdentity } from '@supabase/supabase-js'
-import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
-import { supabase } from '../supabase'
-import { isCoolingDown } from '@/lib/utils/cooldown'
+import * as WebBrowser from 'expo-web-browser'
+import React, { createContext, useContext, useEffect, useState } from 'react'
 import { analytics } from '@/lib/analytics'
+import {
+  beginGoogleLink,
+  beginGoogleSignIn,
+  getCurrentUser,
+  getSession,
+  recordAuthAuditEvent,
+  resetPasswordForEmail as requestPasswordReset,
+  restoreSessionForOAuth,
+  signInWithEmail as authenticateWithEmail,
+  signOut as endSession,
+  signUpWithEmail as createEmailAccount,
+  subscribeToAuthStateChange,
+  unlinkIdentity as removeIdentity,
+  type AuthIdentity,
+  type AuthSession,
+  type AuthUser,
+} from '@/lib/services/auth'
+import { updateProfile as persistProfile } from '@/lib/services/users'
+import { checkCooldown, isCoolingDown, setCooldown } from '@/lib/utils/cooldown'
 
 WebBrowser.maybeCompleteAuthSession()
 
 interface AuthContextValue {
-  user: User | null
-  session: Session | null
+  user: AuthUser | null
+  session: AuthSession | null
   loading: boolean
   signInWithEmail: (email: string, password: string) => Promise<string | null>
   signUpWithEmail: (email: string, password: string) => Promise<string | null>
@@ -18,7 +34,7 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<string | null>
   resetPasswordForEmail: (email: string) => Promise<string | null>
   linkGoogle: () => Promise<string | null>
-  unlinkIdentity: (identity: UserIdentity) => Promise<string | null>
+  unlinkIdentity: (identity: AuthIdentity) => Promise<string | null>
   signOut: () => Promise<void>
 }
 
@@ -37,33 +53,40 @@ const AuthContext = createContext<AuthContextValue>({
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [session, setSession] = useState<AuthSession | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setUser(data.session?.user ?? null)
+    void getSession().then(nextSession => {
+      setSession(nextSession)
+      setUser(nextSession?.user ?? null)
       setLoading(false)
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const unsubscribe = subscribeToAuthStateChange(newSession => {
       setSession(newSession)
       setUser(newSession?.user ?? null)
     })
 
-    return () => listener.subscription.unsubscribe()
+    return unsubscribe
   }, [])
 
   async function signInWithEmail(email: string, password: string): Promise<string | null> {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const cooldownKey = `loginFailed:${email.toLowerCase()}`
+    if (checkCooldown(cooldownKey, 10_000)) {
+      analytics.onboardingAnomaly(null, 'login_email', 'cooldown')
+      return 'Too many attempts. Please wait before trying again.'
+    }
+    const error = await authenticateWithEmail(email, password)
     if (error) {
       analytics.onboardingAnomaly(null, 'login_email', 'provider_error')
+      setCooldown(cooldownKey)
     } else {
       analytics.onboardingStep(null, 'login_email', 'success')
+      void recordAuthAuditEvent('login_email_success', { provider: 'email' })
     }
-    return error?.message ?? null
+    return error
   }
 
   async function signUpWithEmail(email: string, password: string): Promise<string | null> {
@@ -71,64 +94,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       analytics.onboardingAnomaly(null, 'signup_email', 'cooldown')
       return 'Please wait a moment before trying again.'
     }
-    const { error } = await supabase.auth.signUp({ email, password })
+    const error = await createEmailAccount(email, password)
     if (error) {
       analytics.onboardingAnomaly(null, 'signup_email', 'provider_error')
     } else {
       analytics.onboardingStep(null, 'signup_email', 'success')
     }
-    return error?.message ?? null
+    return error
   }
 
   async function updateProfile(username: string, displayName: string): Promise<string | null> {
     if (!user) return 'Not signed in'
-    const { error } = await (supabase.from('users') as any).upsert({
-      id: user.id,
-      username: username.toLowerCase().replace(/\s/g, ''),
-      full_name: displayName,
-    })
-    return error?.message ?? null
+    try {
+      await persistProfile(user.id, {
+        username: username.toLowerCase().replace(/\s/g, ''),
+        full_name: displayName,
+      })
+      return null
+    } catch (error) {
+      return error instanceof Error ? error.message : 'Could not update profile'
+    }
   }
 
   async function signInWithGoogle(): Promise<string | null> {
     const redirectTo = Linking.createURL('/auth/callback')
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo },
-    })
+    const { url, error } = await beginGoogleSignIn(redirectTo)
     if (error) {
       analytics.onboardingAnomaly(null, 'login_google', 'provider_error')
-      return error.message
+      return error
     }
-    if (!data.url) {
+    if (!url) {
       analytics.onboardingAnomaly(null, 'login_google', 'missing_oauth_url')
       return 'No OAuth URL returned'
     }
 
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
+    const result = await WebBrowser.openAuthSessionAsync(url, redirectTo)
     if (result.type !== 'success') {
       analytics.onboardingAnomaly(null, 'login_google', 'oauth_cancelled_or_failed')
       return null
     }
 
-    const url = result.url
+    const callbackUrl = result.url
     const params = new URLSearchParams(
-      url.includes('#') ? url.split('#')[1] : (url.split('?')[1] ?? '')
+      callbackUrl.includes('#') ? callbackUrl.split('#')[1] : (callbackUrl.split('?')[1] ?? '')
     )
     const accessToken = params.get('access_token')
     const refreshToken = params.get('refresh_token')
 
     if (accessToken && refreshToken) {
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      })
+      const sessionError = await restoreSessionForOAuth(accessToken, refreshToken)
       if (sessionError) {
         analytics.onboardingAnomaly(null, 'login_google', 'session_error')
       } else {
         analytics.onboardingStep(null, 'login_google', 'success')
+        void recordAuthAuditEvent('login_oauth_success', { provider: 'google' })
       }
-      return sessionError?.message ?? null
+      return sessionError
     }
     analytics.onboardingAnomaly(null, 'login_google', 'missing_session_credentials')
     return null
@@ -140,40 +161,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return 'Please wait a moment before requesting another reset link.'
     }
     const redirectTo = Linking.createURL('/')
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+    const error = await requestPasswordReset(email, redirectTo)
     if (error) {
       analytics.onboardingAnomaly(null, 'password_reset', 'provider_error')
     } else {
       analytics.onboardingStep(null, 'password_reset', 'sent')
     }
-    return error?.message ?? null
+    return error
   }
 
   async function linkGoogle(): Promise<string | null> {
     const redirectTo = Linking.createURL('/')
-    const { data, error } = await supabase.auth.linkIdentity({
-      provider: 'google',
-      options: { redirectTo },
-    })
-    if (error) return error.message
-    if (!data.url) return 'No OAuth URL returned'
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
+    const { url, error } = await beginGoogleLink(redirectTo)
+    if (error) return error
+    if (!url) return 'No OAuth URL returned'
+    const result = await WebBrowser.openAuthSessionAsync(url, redirectTo)
     if (result.type !== 'success') return null
-    const { data: { user: updated } } = await supabase.auth.getUser()
+    const updated = await getCurrentUser()
     if (updated) setUser(updated)
     return null
   }
 
-  async function unlinkIdentity(identity: UserIdentity): Promise<string | null> {
-    const { error } = await supabase.auth.unlinkIdentity(identity)
-    if (error) return error.message
-    const { data: { user: updated } } = await supabase.auth.getUser()
+  async function unlinkIdentity(identity: AuthIdentity): Promise<string | null> {
+    const error = await removeIdentity(identity)
+    if (error) return error
+    const updated = await getCurrentUser()
     if (updated) setUser(updated)
     return null
   }
 
   async function signOut() {
-    await supabase.auth.signOut()
+    void recordAuthAuditEvent('logout')
+    await endSession()
   }
 
   return (

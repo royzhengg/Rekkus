@@ -22,16 +22,16 @@ export async function saveTopicFollows(
 ): Promise<void> {
   const unique = [...new Set(topics.map(t => t.trim().toLowerCase()).filter(Boolean))]
   if (unique.length === 0) return
-  await (supabase.from('user_topic_follows') as any).upsert(
+  await supabase.from('user_topic_follows').upsert(
     unique.map(topic => ({ user_id: userId, topic, source })),
     { onConflict: 'user_id,topic' }
   )
 }
 
 export async function fetchTopicFollows(userId: string): Promise<string[]> {
-  const { data } = await (supabase.from('user_topic_follows') as any)
+  const { data } = await supabase.from('user_topic_follows')
     .select('topic')
     .eq('user_id', userId)
     .limit(100)
-  return data?.map((row: any) => row.topic).filter(Boolean) ?? []
+  return data?.map((row) => row.topic).filter(Boolean) ?? []
 }

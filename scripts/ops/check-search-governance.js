@@ -42,12 +42,19 @@ requireTerms(
 
 const searchHook = exists('lib/hooks/useSearch.ts') ? readText('lib/hooks/useSearch.ts') : ''
 for (const token of [
-  'CUISINE_SYNONYMS',
-  'expand_search_cuisines',
   'analytics_events',
   'fetchPlaceAutocompleteJson',
 ]) {
   if (!searchHook.includes(token)) failures.push(`lib/hooks/useSearch.ts must retain ${token} search evidence.`)
+}
+
+// Cuisine expansion logic moved to lib/services/search.ts in B-509
+const searchService = exists('lib/services/search.ts') ? readText('lib/services/search.ts') : ''
+for (const token of [
+  'CUISINE_SYNONYMS',
+  'expand_search_cuisines',
+]) {
+  if (!searchService.includes(token)) failures.push(`lib/services/search.ts must retain ${token} search evidence.`)
 }
 
 const googlePlaces = exists('lib/services/googlePlaces.ts') ? readText('lib/services/googlePlaces.ts') : ''

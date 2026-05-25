@@ -1,14 +1,15 @@
+import { useRouter } from 'expo-router'
 import React, { useState, useMemo } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { ArrowLeft } from '@/components/icons'
-import { useAuth } from '@/lib/contexts/AuthContext'
 import { Svg, Path } from 'react-native-svg'
-import { spacing } from '@/constants/Spacing'
+import { ArrowLeft } from '@/components/icons'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 function GoogleIcon() {
   return (
@@ -39,6 +40,7 @@ export default function ConnectedAccountsScreen() {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const identities = user?.identities ?? []
   const googleIdentity = identities.find(i => i.provider === 'google')
@@ -47,10 +49,11 @@ export default function ConnectedAccountsScreen() {
   const canUnlinkGoogle = identities.length > 1
 
   async function handleGoogleConnect() {
+    setError(null)
     setLoading(true)
     const err = await linkGoogle()
     setLoading(false)
-    if (err) Alert.alert('Error', err)
+    if (err) setError(err)
   }
 
   async function handleGoogleDisconnect() {
@@ -67,12 +70,13 @@ export default function ConnectedAccountsScreen() {
       {
         text: 'Disconnect',
         style: 'destructive',
-        onPress: async () => {
+        onPress: () => { void (async () => {
+          setError(null)
           setLoading(true)
           const err = await unlinkIdentity(googleIdentity)
           setLoading(false)
-          if (err) Alert.alert('Error', err)
-        },
+          if (err) setError(err)
+        })() },
       },
     ])
   }
@@ -84,6 +88,8 @@ export default function ConnectedAccountsScreen() {
           onPress={() => router.back()}
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
           <ArrowLeft />
         </TouchableOpacity>
@@ -92,6 +98,7 @@ export default function ConnectedAccountsScreen() {
       </View>
 
       <View style={styles.scroll}>
+        {error ? <ErrorMessage title="Could not update connected account" message={error} /> : null}
         <Text style={styles.sectionHeader}>SOCIAL</Text>
         <View style={styles.card}>
           <View style={styles.row}>

@@ -1,5 +1,5 @@
 import * as Crypto from 'expo-crypto'
-import * as FileSystem from 'expo-file-system/legacy'
+import * as FileSystem from 'expo-file-system'
 import { supabase } from '@/lib/supabase'
 
 const BUCKET = 'message-attachments'

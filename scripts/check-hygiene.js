@@ -113,6 +113,14 @@ if ((appEnv === 'beta' || appEnv === 'production') && dataMode !== 'live') {
   failures.push(`${appEnv} builds must set EXPO_PUBLIC_DATA_MODE=live.`)
 }
 
+const tsconfigPath = path.join(repoRoot, 'tsconfig.json')
+const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8'))
+if (!tsconfig.compilerOptions?.jsx) {
+  failures.push(
+    'tsconfig.json must declare "jsx" explicitly in compilerOptions — do not rely solely on expo/tsconfig.base inheritance (causes IDE false errors).'
+  )
+}
+
 if (failures.length > 0) {
   console.error('Hygiene guardrails failed:')
   for (const failure of failures) console.error(`- ${failure}`)

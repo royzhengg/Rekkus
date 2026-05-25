@@ -1,13 +1,12 @@
 import React from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { View, Text, StyleSheet } from 'react-native'
 import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
-export const STAR_ON = '#EF9F27' // check:tokens-ignore
-export const VIBE_ON = '#8B6FBE' // check:tokens-ignore
-export const DOLLAR_ON = '#1D9E75' // check:tokens-ignore
+const STAR_ON = '#EF9F27' // check:tokens-ignore
+const VIBE_ON = '#8B6FBE' // check:tokens-ignore
+const DOLLAR_ON = '#1D9E75' // check:tokens-ignore
 
 /** Food quality rating (★ gold). For vibe/atmosphere, use `Vibes` instead. */
 export function Stars({
@@ -118,71 +117,4 @@ const styles = StyleSheet.create({
   strip: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
   inline: { flexDirection: 'row', gap: spacing.px1 },
   dot: { fontSize: fontSize['2xs'] },
-})
-
-// Interactive tappable rating input — shared across all post creation and editing flows.
-// Use STAR_ON / VIBE_ON / DOLLAR_ON for colorOn; use ★ / ◆ / $ for symbol.
-export function RatingInputRow({
-  label,
-  count,
-  max,
-  onSelect,
-  colorOn,
-  symbol,
-  labelMap,
-}: {
-  label: string
-  count: number
-  max: number
-  onSelect: (n: number) => void
-  colorOn: string
-  symbol: string
-  labelMap: Record<number, string>
-}) {
-  const c = useThemeColors()
-  return (
-    <View style={inputStyles.ratingRow}>
-      <View style={inputStyles.ratingHeader}>
-        <Text style={[inputStyles.ratingLabel, { color: c.text }]}>{label}</Text>
-        <Text style={[inputStyles.ratingValueLabel, count > 0 ? { color: colorOn } : { color: c.text3 }]}>
-          {count > 0 ? labelMap[count] : 'Choose'}
-        </Text>
-      </View>
-      <View style={inputStyles.ratingSymbols}>
-        {Array.from({ length: max }, (_, i) => i + 1).map(n => (
-          <TouchableOpacity
-            key={n}
-            style={[
-              inputStyles.ratingOption,
-              {
-                backgroundColor: n === count ? `${colorOn}18` : c.surface,
-                borderColor: n === count ? colorOn : c.border,
-              },
-            ]}
-            onPress={() => onSelect(n)}
-          >
-            <Text style={[inputStyles.ratingSymbol, { color: n === count ? colorOn : c.text2 }]}>
-              {symbol === '$' ? '$'.repeat(n) : labelMap[n]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  )
-}
-
-const inputStyles = StyleSheet.create({
-  ratingRow: { paddingVertical: spacing.px13, gap: spacing.px10 },
-  ratingHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  ratingLabel: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  ratingSymbols: { flexDirection: 'row', gap: spacing.px6, flexWrap: 'wrap' },
-  ratingOption: {
-    minHeight: 32,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.px10,
-    borderRadius: radius.lg2,
-    borderWidth: 0.5,
-  },
-  ratingSymbol: { fontSize: fontSize.bodySm, fontWeight: fontWeight.bold },
-  ratingValueLabel: { fontSize: fontSize.bodySm, fontWeight: fontWeight.semibold },
 })

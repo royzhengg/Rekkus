@@ -1,11 +1,19 @@
 const appEnv = process.env.EXPO_PUBLIC_APP_ENV ?? "development";
 const googleMapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+const sentryOrganization = process.env.SENTRY_ORG;
+const sentryProject = process.env.SENTRY_PROJECT;
 const suffix =
   appEnv === "staging" ? ".staging" : appEnv === "beta" ? ".beta" : "";
 const schemeSuffix =
   appEnv === "staging" ? "-staging" : appEnv === "beta" ? "-beta" : "";
 const displaySuffix =
   appEnv === "staging" ? " Staging" : appEnv === "beta" ? " Beta" : "";
+const iosBuildNumber = process.env.EXPO_PUBLIC_IOS_BUILD_NUMBER ?? "1";
+const androidVersionCode = Number.parseInt(
+  process.env.EXPO_PUBLIC_ANDROID_VERSION_CODE ?? "1",
+  10
+);
 
 export default {
   expo: {
@@ -25,6 +33,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: `com.anonymous.rekkus${suffix}`,
+      buildNumber: iosBuildNumber,
       config: {
         googleMapsApiKey: googleMapsKey,
       },
@@ -38,6 +47,7 @@ export default {
       },
     },
     android: {
+      versionCode: Number.isFinite(androidVersionCode) ? androidVersionCode : 1,
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#ffffff",
@@ -58,6 +68,13 @@ export default {
     },
     plugins: [
       "expo-router",
+      [
+        "@sentry/react-native/expo",
+        {
+          organization: sentryOrganization,
+          project: sentryProject,
+        },
+      ],
       "expo-sqlite",
       "react-native-compressor",
       [
@@ -100,6 +117,7 @@ export default {
       typedRoutes: true,
     },
     extra: {
+      sentryDsn,
       eas: {
         projectId: "e5fdfa50-263d-4b18-b095-193d912a6b56",
       },

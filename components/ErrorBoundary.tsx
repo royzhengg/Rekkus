@@ -1,9 +1,10 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { colors } from '@/constants/Colors'
-import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { captureCrash } from '@/lib/services/crashReporting'
 
 type State = { error: Error | null }
 
@@ -11,15 +12,19 @@ export class ErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback?: React.ReactNode },
   State
 > {
-  state: State = { error: null }
+  override state: State = { error: null }
 
   static getDerivedStateFromError(error: Error): State {
     return { error }
   }
 
+  override componentDidCatch(error: Error) {
+    captureCrash(error)
+  }
+
   reset = () => this.setState({ error: null })
 
-  render() {
+  override render() {
     if (this.state.error) {
       if (this.props.fallback) return this.props.fallback
       return (

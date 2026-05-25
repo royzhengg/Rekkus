@@ -1,10 +1,10 @@
+import { BlurView } from 'expo-blur'
+import { useFocusEffect, useRouter } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ActivityIndicator,
   Alert,
   Dimensions,
   FlatList,
-  Image,
   Modal,
   Platform,
   RefreshControl,
@@ -14,15 +14,21 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated'
-import { BlurView } from 'expo-blur'
-import { DUR_FAST } from '@/lib/animations'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useFocusEffect, useRouter } from 'expo-router'
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable'
+import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { ArrowLeft, MessageIcon, PlusIcon, SearchIcon, PinIcon, CloseIcon, UsersIcon, BellIcon, MailIcon, BookmarkIcon, TrashIcon, DotsIcon } from '@/components/icons'
+import { CachedImage } from '@/components/ui/CachedImage'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { IconButton } from '@/components/ui/IconButton'
+import { RekkusActionSheet, type RekkusActionSheetOption } from '@/components/ui/RekkusActionSheet'
+import { Skeleton, SkeletonText } from '@/components/ui/Skeleton'
+import { DUR_FAST } from '@/lib/animations'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { isEnabled } from '@/lib/featureFlags'
+import { routes } from '@/lib/routes'
 import {
   fetchDirectConversations,
   fetchArchivedConversations,
@@ -37,22 +43,16 @@ import {
   type ConversationSummary,
   type MuteDuration,
 } from '@/lib/services/messaging'
-import { RekkusActionSheet, type RekkusActionSheetOption } from '@/components/ui/RekkusActionSheet'
-import { IconButton } from '@/components/ui/IconButton'
-import { isEnabled } from '@/lib/featureFlags'
-import { ArrowLeft, MessageIcon, PlusIcon, SearchIcon, PinIcon, CloseIcon, UsersIcon, BellIcon, MailIcon, BookmarkIcon, TrashIcon, DotsIcon } from '@/components/icons'
+import { subscribeToInboxMessages, removeChannel } from '@/lib/services/messaging'
 import { avatarPalette } from '@/lib/utils/format'
-import { supabase } from '@/lib/supabase'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { makeStyles } from './MessagesListScreen.styles'
 
 function initials(username: string, name: string | null) {
   if (name) {
     const parts = name.trim().split(/\s+/)
     return parts.length > 1
-      ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-      : parts[0].slice(0, 2).toUpperCase()
+      ? `${parts[0]?.[0] ?? ''}${parts[1]?.[0] ?? ''}`.toUpperCase()
+      : (parts[0] ?? '').slice(0, 2).toUpperCase()
   }
   return username.slice(0, 2).toUpperCase()
 }
@@ -121,13 +121,13 @@ const ConversationRow = React.memo(function ConversationRow({
   const palette = avatarPalette(isGroup ? (item.name ?? 'G') : item.participant.username)
 
   const avatarContent = isGroup && item.avatar_url ? (
-    <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+    <CachedImage source={{ uri: item.avatar_url }} style={styles.avatar} />
   ) : isGroup ? (
     <View style={[styles.avatar, { backgroundColor: palette.bg }]}>
       <UsersIcon size={22} color={palette.color} />
     </View>
   ) : item.participant.avatar_url ? (
-    <Image source={{ uri: item.participant.avatar_url }} style={styles.avatar} />
+    <CachedImage source={{ uri: item.participant.avatar_url }} style={styles.avatar} />
   ) : (
     <View style={[styles.avatar, { backgroundColor: palette.bg }]}>
       <Text style={[styles.avatarText, { color: palette.color }]}>
@@ -244,17 +244,17 @@ export default function MessagesListScreen() {
         else setLoading(false)
       }
     },
-    [user?.id]
+    [user]
   )
 
   useEffect(() => {
     if (!user) requireAuth()
-  }, [user])
+  }, [user, requireAuth])
 
   // Reload on every focus so coming back from a conversation refreshes the list
   useFocusEffect(
     useCallback(() => {
-      if (isEnabled('directMessages')) load(false)
+      if (isEnabled('directMessages')) void load(false)
       else setLoading(false)
     }, [load])
   )
@@ -262,16 +262,9 @@ export default function MessagesListScreen() {
   // Realtime: refresh list when any new message arrives
   useEffect(() => {
     if (!user || !isEnabled('directMessages')) return
-    const channel = supabase
-      .channel(`inbox_messages:${user?.id}:${Date.now()}`)
-      .on(
-        'postgres_changes' as any,
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        () => { load(false) }
-      )
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [user?.id, load])
+    const channel = subscribeToInboxMessages(user.id, () => { void load(false) })
+    return () => { removeChannel(channel) }
+  }, [user, load])
 
 
   async function handleMute(conversationId: string, _duration: MuteDuration = '8h') {
@@ -288,11 +281,11 @@ export default function MessagesListScreen() {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Archive',
-        onPress: async () => {
+        onPress: () => { void (async () => {
           await archiveConversation(conversationId, user.id)
           setConversations(prev => prev.filter(c => c.id !== conversationId))
           setArchivedCount(count => count + 1)
-        },
+        })() },
       },
     ])
   }
@@ -346,18 +339,20 @@ export default function MessagesListScreen() {
 
   function handleManagementAction(value: string) {
     setManagementSheetVisible(false)
-    if (value === 'requests') router.push('/messages/requests' as any)
-    else if (value === 'archived') router.push('/messages/archived' as any)
+
+    if (value === 'requests') router.push('/messages/requests')
+
+    else if (value === 'archived') router.push('/messages/archived')
   }
 
   async function handleConvAction(value: string) {
     if (!actionSheetConv || !user) return
     const conv = actionSheetConv
     setActionSheetConv(null)
-    if (value === 'pin') handleTogglePin(conv.id, !!conv.pinned_at)
-    else if (value === 'mute') handleMute(conv.id)
-    else if (value === 'unread') handleMarkUnread(conv.id)
-    else if (value === 'archive') handleArchive(conv.id)
+    if (value === 'pin') void handleTogglePin(conv.id, !!conv.pinned_at)
+    else if (value === 'mute') void handleMute(conv.id)
+    else if (value === 'unread') void handleMarkUnread(conv.id)
+    else if (value === 'archive') void handleArchive(conv.id)
     else if (value === 'delete') {
       Alert.alert(
         conv.conversation_type === 'group' ? 'Leave group?' : 'Delete conversation?',
@@ -369,11 +364,11 @@ export default function MessagesListScreen() {
           {
             text: conv.conversation_type === 'group' ? 'Leave' : 'Delete',
             style: 'destructive',
-            onPress: async () => {
+            onPress: () => { void (async () => {
               if (conv.conversation_type === 'group') await leaveGroup(conv.id)
               else await deleteDirectConversation(conv.id, user.id)
               setConversations(prev => prev.filter(c => c.id !== conv.id))
-            },
+            })() },
           },
         ]
       )
@@ -384,7 +379,7 @@ export default function MessagesListScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
             <ArrowLeft />
           </TouchableOpacity>
           <Text style={styles.title}>Messages</Text>
@@ -402,13 +397,14 @@ export default function MessagesListScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
           <ArrowLeft />
         </TouchableOpacity>
         <Text style={styles.title}>Messages</Text>
         <View style={styles.headerActions}>
           <IconButton
-            onPress={() => router.push('/messages/new' as any)}
+
+            onPress={() => router.push('/messages/new')}
             accessibilityLabel="New message"
             size={40}
             variant="plain"
@@ -441,7 +437,11 @@ export default function MessagesListScreen() {
             autoCorrect={false}
           />
           {searchQuery.length > 0 ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              accessibilityRole="button"
+              accessibilityLabel="Clear message search"
+            >
               <CloseIcon size={13} color={colors.text3} />
             </TouchableOpacity>
           ) : null}
@@ -450,12 +450,12 @@ export default function MessagesListScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={colors.text3} />
+          <Skeleton width={52} height={52} />
+          <SkeletonText lines={3} />
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <Text style={styles.emptyTitle}>Could not load messages</Text>
-          <Text style={styles.emptyBody}>{error}</Text>
+          <ErrorMessage title="Could not load messages" message={error} />
         </View>
       ) : (
         <FlatList
@@ -468,7 +468,8 @@ export default function MessagesListScreen() {
             requestCount > 0 ? (
               <TouchableOpacity
                 style={styles.requestNudge}
-                onPress={() => router.push('/messages/requests' as any)}
+
+                onPress={() => router.push('/messages/requests')}
                 activeOpacity={0.75}
               >
                 <View style={styles.requestDot} />
@@ -493,7 +494,8 @@ export default function MessagesListScreen() {
           renderItem={({ item }) => (
             <ConversationRow
               item={item}
-              onPress={() => router.push(`/messages/${item.id}` as any)}
+
+              onPress={() => router.push(routes.conversation(item.id))}
               onLongPress={y => { setLongPressY(y); setActionSheetConv(item) }}
               onMute={() => handleMute(item.id)}
               onArchive={() => handleArchive(item.id)}
@@ -572,152 +574,4 @@ export default function MessagesListScreen() {
       />
     </SafeAreaView>
   )
-}
-
-function makeStyles(c: ReturnType<typeof useThemeColors>) {
-  return StyleSheet.create({
-    container: { flex: 1, backgroundColor: c.bg },
-    topBar: {
-      height: 56,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing[4],
-      paddingRight: spacing.px10,
-    },
-    backBtn: { width: 36, alignItems: 'flex-start' },
-    title: { flex: 1, fontSize: fontSize['2.5xl'], fontWeight: fontWeight.bold, color: c.text },
-    headerActions: { flexDirection: 'row', alignItems: 'center' },
-    searchBarWrap: {
-      paddingHorizontal: spacing.px14,
-      paddingBottom: spacing.px10,
-    },
-    searchBarInner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing[2],
-      backgroundColor: c.surface,
-      borderRadius: radius.md3,
-      paddingHorizontal: spacing[3],
-      height: 38,
-    },
-    searchInput: {
-      flex: 1,
-      fontSize: fontSize.md,
-      color: c.text,
-      paddingVertical: spacing[0],
-    },
-
-    requestNudge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      marginHorizontal: spacing[4],
-      marginBottom: spacing.px6,
-      paddingVertical: spacing.px5,
-      gap: spacing.px7,
-    },
-    requestDot: {
-      width: 7,
-      height: 7,
-      borderRadius: radius.dotLg,
-      backgroundColor: c.accent,
-    },
-    requestNudgeText: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: c.text2 },
-    requestNudgeArrow: { fontSize: fontSize.xl, color: c.text3, lineHeight: lineHeight.compact },
-
-    center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.px10, paddingHorizontal: spacing.px36 },
-    centerList: { minHeight: 460, alignItems: 'center', justifyContent: 'center', gap: spacing.px10, paddingHorizontal: spacing.px36 },
-    emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: c.text, textAlign: 'center' },
-    emptyBody: { fontSize: fontSize.base, color: c.text3, textAlign: 'center', lineHeight: lineHeight.body },
-
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing[3],
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing.px11,
-      backgroundColor: c.bg,
-    },
-    avatarWrapper: { position: 'relative' },
-    avatar: {
-      width: 54,
-      height: 54,
-      borderRadius: radius.round27,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    avatarText: { fontSize: fontSize.title, fontWeight: fontWeight.bold },
-    pinBadge: {
-      position: 'absolute',
-      bottom: -1,
-      right: -1,
-      width: 18,
-      height: 18,
-      borderRadius: radius.sm4,
-      backgroundColor: c.text3,
-      borderWidth: 2,
-      borderColor: c.bg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    rowBody: { flex: 1, minWidth: 0 },
-    rowTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.px6 },
-    rowTopRight: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], flexShrink: 0 },
-    name: { flex: 1, fontSize: fontSize.lg, fontWeight: fontWeight.medium, color: c.text },
-    nameUnread: { fontWeight: fontWeight.bold },
-    mutedIcon: { fontSize: fontSize.sm },
-    time: { fontSize: fontSize.bodySm, color: c.text3 },
-    timeUnread: { color: c.accent, fontWeight: fontWeight.semibold },
-    preview: { marginTop: spacing.px2, fontSize: fontSize.base, color: c.text3, lineHeight: lineHeight.small },
-    previewUnread: { color: c.text2, fontWeight: fontWeight.medium },
-    badge: {
-      minWidth: 20,
-      height: 20,
-      borderRadius: radius.md,
-      paddingHorizontal: spacing.px5,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: c.accent,
-    },
-    badgeText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.white },
-
-    convContextBackdrop: {
-      backgroundColor: c.overlay,
-    },
-    convContextCard: {
-      position: 'absolute',
-      backgroundColor: c.bg,
-      borderRadius: radius.lg2,
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOpacity: 0.18,
-      shadowRadius: 20,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 12,
-    },
-    convContextRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.px18,
-      paddingVertical: spacing.px13,
-      gap: spacing.px14,
-    },
-    convContextRowIcon: { width: 22, alignItems: 'center' },
-    convContextLabel: { fontSize: fontSize.xl, fontWeight: fontWeight.regular, color: c.text },
-    convContextDestructiveLabel: { color: c.actionDelete },
-    convContextDivider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: c.border,
-      marginHorizontal: spacing[4],
-    },
-
-    swipeActions: { flexDirection: 'row' },
-    swipeBtn: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing[5], minWidth: 72 },
-    swipeBtnLabel: { fontSize: fontSize.bodySm, fontWeight: fontWeight.semibold, color: c.white },
-    swipePinBtn: { backgroundColor: c.actionInfo },
-    swipeMuteBtn: { backgroundColor: c.actionMute },
-    swipeArchiveBtn: { backgroundColor: c.actionDelete },
-    swipeMarkBtn: { backgroundColor: c.actionSuccess, minWidth: 72, paddingHorizontal: spacing[5] },
-  })
 }

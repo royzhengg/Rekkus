@@ -1,0 +1,150 @@
+import { StyleSheet } from 'react-native'
+import { elevation } from '@/constants/Elevation'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import type { useThemeColors } from '@/lib/contexts/ThemeContext'
+
+export function makeStyles(c: ReturnType<typeof useThemeColors>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    topBar: {
+      height: 56,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing[4],
+      paddingRight: spacing.px10,
+    },
+    backBtn: { width: 36, alignItems: 'flex-start' },
+    title: { flex: 1, fontSize: fontSize['2.5xl'], fontWeight: fontWeight.bold, color: c.text },
+    headerActions: { flexDirection: 'row', alignItems: 'center' },
+    searchBarWrap: {
+      paddingHorizontal: spacing.px14,
+      paddingBottom: spacing.px10,
+    },
+    searchBarInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing[2],
+      backgroundColor: c.surface,
+      borderRadius: radius.md3,
+      paddingHorizontal: spacing[3],
+      height: 38,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: fontSize.md,
+      color: c.text,
+      paddingVertical: spacing[0],
+    },
+
+    requestNudge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      marginHorizontal: spacing[4],
+      marginBottom: spacing.px6,
+      paddingVertical: spacing.px5,
+      gap: spacing.px7,
+    },
+    requestDot: {
+      width: 7,
+      height: 7,
+      borderRadius: radius.dotLg,
+      backgroundColor: c.accent,
+    },
+    requestNudgeText: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: c.text2 },
+    requestNudgeArrow: { fontSize: fontSize.xl, color: c.text3, lineHeight: lineHeight.compact },
+
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.px10, paddingHorizontal: spacing.px36 },
+    centerList: { minHeight: 460, alignItems: 'center', justifyContent: 'center', gap: spacing.px10, paddingHorizontal: spacing.px36 },
+    emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: c.text, textAlign: 'center' },
+    emptyBody: { fontSize: fontSize.base, color: c.text3, textAlign: 'center', lineHeight: lineHeight.body },
+
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing[3],
+      paddingHorizontal: spacing[4],
+      paddingVertical: spacing.px11,
+      backgroundColor: c.bg,
+    },
+    avatarWrapper: { position: 'relative' },
+    avatar: {
+      width: 54,
+      height: 54,
+      borderRadius: radius.round27,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    avatarText: { fontSize: fontSize.title, fontWeight: fontWeight.bold },
+    pinBadge: {
+      position: 'absolute',
+      bottom: -1,
+      right: -1,
+      width: 18,
+      height: 18,
+      borderRadius: radius.sm4,
+      backgroundColor: c.text3,
+      borderWidth: 2,
+      borderColor: c.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rowBody: { flex: 1, minWidth: 0 },
+    rowTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.px6 },
+    rowTopRight: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], flexShrink: 0 },
+    name: { flex: 1, fontSize: fontSize.lg, fontWeight: fontWeight.medium, color: c.text },
+    nameUnread: { fontWeight: fontWeight.bold },
+    mutedIcon: { fontSize: fontSize.sm },
+    time: { fontSize: fontSize.bodySm, color: c.text3 },
+    timeUnread: { color: c.accent, fontWeight: fontWeight.semibold },
+    preview: { marginTop: spacing.px2, fontSize: fontSize.base, color: c.text3, lineHeight: lineHeight.small },
+    previewUnread: { color: c.text2, fontWeight: fontWeight.medium },
+    badge: {
+      minWidth: 20,
+      height: 20,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.px5,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.accent,
+    },
+    badgeText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.white },
+
+    convContextBackdrop: {
+      backgroundColor: c.overlay,
+    },
+    convContextCard: {
+      position: 'absolute',
+      backgroundColor: c.bg,
+      borderRadius: radius.lg2,
+      overflow: 'hidden',
+      ...elevation.lg,
+    },
+    convContextRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.px18,
+      paddingVertical: spacing.px13,
+      gap: spacing.px14,
+    },
+    convContextRowIcon: { width: 22, alignItems: 'center' },
+    convContextLabel: { fontSize: fontSize.xl, fontWeight: fontWeight.regular, color: c.text },
+    convContextDestructiveLabel: { color: c.actionDelete },
+    convContextDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: c.border,
+      marginHorizontal: spacing[4],
+    },
+
+    swipeActions: { flexDirection: 'row' },
+    swipeBtn: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing[5], minWidth: 72 },
+    swipeBtnLabel: { fontSize: fontSize.bodySm, fontWeight: fontWeight.semibold, color: c.white },
+    swipePinBtn: { backgroundColor: c.actionInfo },
+    swipeMuteBtn: { backgroundColor: c.actionMute },
+    swipeArchiveBtn: { backgroundColor: c.actionDelete },
+    swipeMarkBtn: { backgroundColor: c.actionSuccess, minWidth: 72, paddingHorizontal: spacing[5] },
+  })
+}

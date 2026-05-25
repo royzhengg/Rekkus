@@ -1,18 +1,18 @@
 import { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { legacyFoodToTaste, occasionLabel, tasteLabel, valueLabel } from '@/lib/dataSources/rekkusPicks'
 import type { Post, RekkusOccasionTag, RekkusTasteVerdict, RekkusValueVerdict } from '@/types/domain'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight } from '@/constants/Typography'
 
 type Props = {
-  post?: Post
-  tasteVerdict?: RekkusTasteVerdict
-  valueVerdict?: RekkusValueVerdict
-  occasionTags?: RekkusOccasionTag[]
-  compact?: boolean
+  post?: Post | undefined
+  tasteVerdict?: RekkusTasteVerdict | undefined
+  valueVerdict?: RekkusValueVerdict | undefined
+  occasionTags?: RekkusOccasionTag[] | undefined
+  compact?: boolean | undefined
 }
 
 export function PostPicksSummary({ post, tasteVerdict, valueVerdict, occasionTags, compact }: Props) {

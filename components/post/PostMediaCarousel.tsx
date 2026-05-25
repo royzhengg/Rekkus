@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react'
-import { View, Image, Text, StyleSheet, ScrollView, useWindowDimensions } from 'react-native'
 import { useVideoPlayer, VideoView } from 'expo-video'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useMemo, useState } from 'react'
+import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from 'react-native'
 import { ImagePlaceholder, VideoIcon } from '@/components/icons'
-import type { Post, PostMediaAsset } from '@/types/domain'
-import { spacing } from '@/constants/Spacing'
+import { CachedImage } from '@/components/ui/CachedImage'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import type { Post, PostMediaAsset } from '@/types/domain'
 
 function VideoSlide({ uri, height }: { uri: string; height: number }) {
   const player = useVideoPlayer(uri, p => {
@@ -17,13 +18,13 @@ function VideoSlide({ uri, height }: { uri: string; height: number }) {
 }
 
 type Props = {
-  post?: Post
-  media?: PostMediaAsset[]
-  height?: number
-  compact?: boolean
+  post?: Post | undefined
+  media?: PostMediaAsset[] | undefined
+  height?: number | undefined
+  compact?: boolean | undefined
 }
 
-export function resolvePostMedia(post?: Post, media?: PostMediaAsset[]): PostMediaAsset[] {
+function resolvePostMedia(post?: Post, media?: PostMediaAsset[]): PostMediaAsset[] {
   if (media?.length) return media
   if (post?.media?.length) return post.media
   if (post?.imageUrl) {
@@ -64,7 +65,7 @@ export function PostMediaCarousel({ post, media, height, compact }: Props) {
           return (
             <View key={item.localId || uri} style={{ width, height: slideHeight }}>
               {item.type === 'image' ? (
-                <Image source={{ uri }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                <CachedImage source={{ uri }} style={StyleSheet.absoluteFillObject} />
               ) : uri ? (
                 <VideoSlide uri={item.processedUrl ?? item.uri} height={slideHeight} />
               ) : (

@@ -13,7 +13,7 @@ Error handling owns how app, service, provider, and Edge Function failures are s
 
 | Layer | Pattern |
 | --- | --- |
-| UI | Show actionable retry or fallback copy. |
+| UI | Render routine failures with `components/ui/ErrorMessage`; use a sheet only when it presents a recovery action. |
 | Hooks | Track loading, error, empty, and refresh states explicitly. |
 | Services | Normalize errors and avoid provider-specific leakage to screens. |
 | Edge Functions | Return safe status/messages and log operational context only. |
@@ -22,4 +22,3 @@ Error handling owns how app, service, provider, and Edge Function failures are s
 ## Release Rule
 
 New failure-prone flows should update release smoke tests in [../../operations/RELEASE.md](../../operations/RELEASE.md).
-

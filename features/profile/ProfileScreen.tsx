@@ -1,28 +1,32 @@
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter, useLocalSearchParams } from 'expo-router'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { usePosts } from '@/lib/contexts/PostsContext'
-import { useAuth } from '@/lib/contexts/AuthContext'
-import { useAuthGate } from '@/lib/contexts/AuthGateContext'
-import { useSavedLocations } from '@/lib/hooks/useSavedLocations'
-import { useSavedPosts } from '@/lib/hooks/useSavedPosts'
-import { useLikedPosts } from '@/lib/hooks/useLikedPosts'
-import { usePagedList } from '@/lib/hooks/usePagedList'
-import { supabase } from '@/lib/supabase'
-import { demoCurrentUser } from '@/lib/dataSources/demoData'
-import { BookmarkIcon, HeartIcon, ImagePlaceholder, SettingsIcon, ShareIcon } from '@/components/icons'
+import { HeartIcon, ImagePlaceholder, SettingsIcon, ShareIcon } from '@/components/icons'
 import { ProfileHeader } from '@/components/ProfileHeader'
 import { ThumbGrid } from '@/components/ThumbGrid'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { IconButton } from '@/components/ui/IconButton'
-import { parseLikes } from '@/lib/utils/format'
-import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { usePosts } from '@/lib/contexts/PostsContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { demoCurrentUser } from '@/lib/dataSources/demoData'
+import { useLikedPosts } from '@/lib/hooks/useLikedPosts'
+import { usePagedList } from '@/lib/hooks/usePagedList'
+import { useSavedLocations } from '@/lib/hooks/useSavedLocations'
+import { routes } from '@/lib/routes'
+import { fetchProfile } from '@/lib/services/users'
+import { contributorBadgeLabel } from '@/lib/utils/contributorStatus'
+import { parseLikes } from '@/lib/utils/format'
 
-type TabKey = 'posts' | 'saved' | 'liked'
+type TabKey = 'posts' | 'liked'
+type ProfileActionKey = TabKey | 'saved'
+
+const COST_RANGE_LABELS: Record<number, string> = { 1: 'Budget', 2: 'Mid-range', 3: 'Pricey', 4: 'Fine dining' }
 
 type ProfileInfo = {
   full_name: string | null
@@ -45,13 +49,6 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const { savedLocations, refresh: refreshLocations } = useSavedLocations(user?.id)
   const {
-    savedPosts,
-    refresh: refreshSavedPosts,
-    loadMore: loadMoreSaved,
-    loadingMore: savedLoadingMore,
-    hasMore: savedHasMore,
-  } = useSavedPosts(user?.id)
-  const {
     likedPosts,
     refresh: refreshLikedPosts,
     loadMore: loadMoreLiked,
@@ -60,32 +57,33 @@ export default function ProfileScreen() {
   } = useLikedPosts(user?.id)
 
   useEffect(() => {
-    if (tabParam === 'saved' || tabParam === 'liked') setActiveTab(tabParam as TabKey)
-  }, [tabParam])
+    if (tabParam === 'saved') {
+      router.replace(routes.saved('posts'))
+      return
+    }
+    if (tabParam === 'liked') setActiveTab('liked')
+  }, [router, tabParam])
 
   useEffect(() => {
     if (!user) requireAuth()
-  }, [user])
+  }, [user, requireAuth])
 
   const loadProfileData = useCallback(async () => {
     if (!user) {
       setProfileInfo(null)
       return
     }
-    const { data } = await (supabase.from('users') as any)
-      .select('full_name, bio, suburb, city, country')
-      .eq('id', user.id)
-      .single()
+    const data = await fetchProfile(user.id)
     if (data) setProfileInfo(data)
-  }, [user?.id])
+  }, [user])
 
   useEffect(() => {
-    loadProfileData()
+    void loadProfileData()
   }, [loadProfileData])
 
   async function handleRefresh() {
     setRefreshing(true)
-    await Promise.all([loadProfileData(), refreshLocations(), refreshSavedPosts(), refreshLikedPosts()])
+    await Promise.all([loadProfileData(), refreshLocations(), refreshLikedPosts()])
     setRefreshing(false)
   }
 
@@ -93,14 +91,7 @@ export default function ProfileScreen() {
   const { visible: visibleMyPosts, hasMore: myPostsHasMore, loadMore: loadMoreMyPosts } =
     usePagedList(myPosts)
 
-  const badgeLabel = useMemo(() => {
-    if (myPosts.length === 0) return null
-    const avgFood = myPosts.reduce((s, p) => s + p.food, 0) / myPosts.length
-    if (myPosts.length >= 10) return 'Local expert'
-    if (myPosts.length >= 5) return 'Prolific reviewer'
-    if (avgFood >= 4.5) return 'Quality hunter'
-    return 'Explorer'
-  }, [myPosts])
+  const badgeLabel = useMemo(() => contributorBadgeLabel(myPosts), [myPosts])
 
   const avgFoodRating = useMemo(() => {
     if (myPosts.length === 0) return null
@@ -112,9 +103,11 @@ export default function ProfileScreen() {
     return sum >= 1000 ? `${(sum / 1000).toFixed(1)}k` : `${sum}`
   }, [myPosts])
 
-  const topSpots = useMemo(() => savedLocations.slice(0, 5), [savedLocations])
+  const openPost = useCallback((post: { dbId?: string; id: string | number }) => {
+    router.push(routes.postDetail(String(post.dbId || post.id)))
+  }, [router])
 
-  const COST_RANGE_LABELS: Record<number, string> = { 1: 'Budget', 2: 'Mid-range', 3: 'Pricey', 4: 'Fine dining' }
+  const topSpots = useMemo(() => savedLocations.slice(0, 5), [savedLocations])
 
   const tasteProfile = useMemo(() => {
     if (myPosts.length < 3) return null
@@ -122,7 +115,7 @@ export default function ProfileScreen() {
     for (const p of myPosts) {
       if (p.cuisine_type && p.food > 0) {
         if (!byCuisine[p.cuisine_type]) byCuisine[p.cuisine_type] = []
-        byCuisine[p.cuisine_type].push(p.food)
+        byCuisine[p.cuisine_type]?.push(p.food)
       }
     }
     const topCuisines = Object.entries(byCuisine)
@@ -163,22 +156,11 @@ export default function ProfileScreen() {
           icon={<ImagePlaceholder size={25} color={colors.text3} />}
         />
       ) : (
-        <ThumbGrid posts={visibleMyPosts} hasMore={myPostsHasMore} onLoadMore={loadMoreMyPosts} />
-      )
-    }
-    if (activeTab === 'saved') {
-      return savedPosts.length === 0 ? (
-        <EmptyState
-          title="No saved posts yet"
-          subtitle="Bookmark reviews to find them here."
-          icon={<BookmarkIcon size={24} inactiveColor={colors.text3} />}
-        />
-      ) : (
         <ThumbGrid
-          posts={savedPosts}
-          onLoadMore={loadMoreSaved}
-          loadingMore={savedLoadingMore}
-          hasMore={savedHasMore}
+          posts={visibleMyPosts}
+          hasMore={myPostsHasMore}
+          onLoadMore={loadMoreMyPosts}
+          onPressPost={openPost}
         />
       )
     }
@@ -194,6 +176,7 @@ export default function ProfileScreen() {
         onLoadMore={loadMoreLiked}
         loadingMore={likedLoadingMore}
         hasMore={likedHasMore}
+        onPressPost={openPost}
       />
     )
   }
@@ -276,17 +259,14 @@ export default function ProfileScreen() {
                     key={loc.id}
                     style={styles.spotChip}
                     onPress={() =>
-                      router.push({
-                        pathname: '/restaurants/[restaurantId]',
-                        params: {
-                          restaurantId: r.google_place_id ?? loc.restaurant_id ?? 'none',
-                          placeId: r.google_place_id ?? 'none',
-                          name: r.name,
-                          address: r.address ?? '',
-                          lat: String(r.latitude ?? ''),
-                          lng: String(r.longitude ?? ''),
-                        },
-                      })
+                      router.push(routes.restaurantDetail({
+                        restaurantId: r.google_place_id ?? loc.restaurant_id ?? 'none',
+                        ...(r.google_place_id ? { placeId: r.google_place_id } : {}),
+                        name: r.name,
+                        address: r.address ?? '',
+                        lat: r.latitude ?? '',
+                        lng: r.longitude ?? '',
+                      }))
                     }
                     activeOpacity={0.75}
                   >
@@ -313,7 +293,11 @@ export default function ProfileScreen() {
           >
             <Text style={styles.editBtnText}>Edit profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.shareBtn}>
+          <TouchableOpacity
+            style={styles.shareBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Share profile"
+          >
             <ShareIcon size={14} color={colors.text} />
             <Text style={styles.shareBtnText}>Share</Text>
           </TouchableOpacity>
@@ -321,11 +305,17 @@ export default function ProfileScreen() {
 
         {/* Tabs */}
         <View style={styles.tabs}>
-          {(['posts', 'saved', 'liked'] as TabKey[]).map(key => (
+          {(['posts', 'saved', 'liked'] as ProfileActionKey[]).map(key => (
             <TouchableOpacity
               key={key}
               style={[styles.tab, activeTab === key && styles.tabActive]}
-              onPress={() => setActiveTab(key)}
+              onPress={() => {
+                if (key === 'saved') {
+                  router.push(routes.saved())
+                  return
+                }
+                setActiveTab(key)
+              }}
             >
               <Text style={[styles.tabText, activeTab === key && styles.tabTextActive]}>
                 {key.charAt(0).toUpperCase() + key.slice(1)}

@@ -1,12 +1,25 @@
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { usePosts } from '@/lib/contexts/PostsContext'
+import { ChevronLeft, ImagePlaceholder } from '@/components/icons'
+import { ProfileHeader } from '@/components/ProfileHeader'
+import { ThumbGrid } from '@/components/ThumbGrid'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { usePosts } from '@/lib/contexts/PostsContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { demoUsers } from '@/lib/dataSources/demoData'
+import { isEnabled } from '@/lib/featureFlags'
+import { usePagedList } from '@/lib/hooks/usePagedList'
+import { routes } from '@/lib/routes'
+import { getOrCreateDirectConversation } from '@/lib/services/messaging'
+import { blockUser, submitContentReport } from '@/lib/services/moderation'
 import {
   fetchUserIdByUsername,
   fetchIsFollowing,
@@ -14,18 +27,8 @@ import {
   unfollowUser,
   fetchFollowCounts,
 } from '@/lib/services/users'
-import { ChevronLeft, ImagePlaceholder } from '@/components/icons'
-import { ProfileHeader } from '@/components/ProfileHeader'
-import { ThumbGrid } from '@/components/ThumbGrid'
-import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
-import { usePagedList } from '@/lib/hooks/usePagedList'
+import { contributorBadgeLabel } from '@/lib/utils/contributorStatus'
 import { parseLikes } from '@/lib/utils/format'
-import { blockUser, submitContentReport } from '@/lib/services/moderation'
-import { isEnabled } from '@/lib/featureFlags'
-import { getOrCreateDirectConversation } from '@/lib/services/messaging'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 
 export default function UserProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>()
@@ -42,6 +45,7 @@ export default function UserProfileScreen() {
   const [safetySheet, setSafetySheet] = useState(false)
   const [startingMessage, setStartingMessage] = useState(false)
   const [notice, setNotice] = useState<{ title: string; subtitle?: string } | null>(null)
+  const [operationError, setOperationError] = useState<{ title: string; message: string } | null>(null)
 
   const loadUserData = useCallback(async () => {
     if (!username) return
@@ -55,10 +59,10 @@ export default function UserProfileScreen() {
         setFollowing(isFollowing)
       }
     }
-  }, [username, user?.id])
+  }, [username, user])
 
   useEffect(() => {
-    loadUserData()
+    void loadUserData()
   }, [loadUserData])
 
   const mockUser = demoUsers[username ?? '']
@@ -66,14 +70,7 @@ export default function UserProfileScreen() {
   const { visible: visibleUserPosts, hasMore: userPostsHasMore, loadMore: loadMoreUserPosts } =
     usePagedList(userPosts)
 
-  const badgeLabel = useMemo(() => {
-    if (userPosts.length === 0) return null
-    const avgFood = userPosts.reduce((s, p) => s + p.food, 0) / userPosts.length
-    if (userPosts.length >= 10) return 'Local expert'
-    if (userPosts.length >= 5) return 'Prolific reviewer'
-    if (avgFood >= 4.5) return 'Quality hunter'
-    return 'Explorer'
-  }, [userPosts])
+  const badgeLabel = useMemo(() => contributorBadgeLabel(userPosts), [userPosts])
 
   const avgFoodRating = useMemo(() => {
     if (userPosts.length === 0) return null
@@ -84,6 +81,10 @@ export default function UserProfileScreen() {
     const sum = userPosts.reduce((s, p) => s + parseLikes(p.likes), 0)
     return sum >= 1000 ? `${(sum / 1000).toFixed(1)}k` : `${sum}`
   }, [userPosts])
+
+  const openPost = useCallback((post: { dbId?: string; id: string | number }) => {
+    router.push(routes.postDetail(String(post.dbId || post.id)))
+  }, [router])
 
   const displayName = mockUser?.displayName ?? username ?? ''
   const initials = mockUser?.initials ?? (username ?? '?').slice(0, 2).toUpperCase()
@@ -102,6 +103,7 @@ export default function UserProfileScreen() {
     if (!targetUserId) return
     const next = !following
     const previous = following
+    setOperationError(null)
     setFollowing(next)
     try {
       if (next) {
@@ -113,7 +115,7 @@ export default function UserProfileScreen() {
       setFollowCounts(counts)
     } catch {
       setFollowing(previous)
-      setNotice({ title: 'Could not update follow', subtitle: 'Check your connection and try again.' })
+      setOperationError({ title: 'Could not update follow', message: 'Check your connection and try again.' })
     }
   }
 
@@ -123,7 +125,7 @@ export default function UserProfileScreen() {
       return
     }
     if (!targetUserId) {
-      setNotice({ title: 'Not available', subtitle: 'We could not find this user right now.' })
+      setOperationError({ title: 'Not available', message: 'We could not find this user right now.' })
       return
     }
     if (value === 'report_user') {
@@ -134,12 +136,14 @@ export default function UserProfileScreen() {
         reason: 'profile_or_behavior_issue',
         sourceSurface: 'user_profile',
       })
-      setNotice({ title: err ? 'Report failed' : 'Report received', subtitle: err ?? 'Thanks. We will review this profile.' })
+      if (err) setOperationError({ title: 'Report failed', message: err })
+      else setNotice({ title: 'Report received', subtitle: 'Thanks. We will review this profile.' })
       return
     }
     if (value === 'block_user') {
       const err = await blockUser(user.id, targetUserId)
-      setNotice({ title: err ? 'Block failed' : 'User blocked', subtitle: err ?? 'You will have a record of this block for moderation review.' })
+      if (err) setOperationError({ title: 'Block failed', message: err })
+      else setNotice({ title: 'User blocked', subtitle: 'You will have a record of this block for moderation review.' })
     }
   }
 
@@ -149,7 +153,7 @@ export default function UserProfileScreen() {
       return
     }
     if (!targetUserId) {
-      setNotice({ title: 'Not available', subtitle: 'We could not find this user right now.' })
+      setOperationError({ title: 'Not available', message: 'We could not find this user right now.' })
       return
     }
     if (!isEnabled('directMessages')) {
@@ -157,14 +161,16 @@ export default function UserProfileScreen() {
       return
     }
     if (startingMessage) return
+    setOperationError(null)
     setStartingMessage(true)
     const { conversationId, error } = await getOrCreateDirectConversation(user.id, targetUserId)
     setStartingMessage(false)
     if (error || !conversationId) {
-      setNotice({ title: 'Message unavailable', subtitle: error ?? 'We could not open this conversation right now.' })
+      setOperationError({ title: 'Message unavailable', message: error ?? 'We could not open this conversation right now.' })
       return
     }
-    router.push(`/messages/${conversationId}` as any)
+
+    router.push(routes.conversation(conversationId))
   }
 
   return (
@@ -209,6 +215,10 @@ export default function UserProfileScreen() {
           totalLikesLabel={totalLikesLabel}
         />
 
+        {operationError ? (
+          <ErrorMessage title={operationError.title} message={operationError.message} style={{ marginHorizontal: spacing[5] }} />
+        ) : null}
+
         {/* Action buttons */}
         <View style={styles.actionBtns}>
           <TouchableOpacity
@@ -248,6 +258,7 @@ export default function UserProfileScreen() {
             posts={visibleUserPosts}
             hasMore={userPostsHasMore}
             onLoadMore={loadMoreUserPosts}
+            onPressPost={openPost}
           />
         )}
       </ScrollView>

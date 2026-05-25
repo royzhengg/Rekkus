@@ -1,51 +1,42 @@
+import { useRouter } from 'expo-router'
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  StyleSheet,
   Linking,
-  Image,
   ActivityIndicator,
   RefreshControl,
+  StyleSheet,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated'
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps'
-import { useThemeColors, useIsDarkMode } from '@/lib/contexts/ThemeContext'
-import { DARK_MAP_STYLE } from '@/constants/mapStyles'
-import { useAuth } from '@/lib/contexts/AuthContext'
-import { useSavedLocations, type SavedLocation } from '@/lib/hooks/useSavedLocations'
-import { useCollections } from '@/lib/hooks/useCollections'
-import { useUserLocation } from '@/lib/hooks/useUserLocation'
-import { usePostVisitPrompt } from '@/lib/hooks/usePostVisitPrompt'
-import { updateSavedLocationStatus } from '@/lib/services/collections'
-import { analytics } from '@/lib/analytics'
-import { PinIcon, PhoneIcon, SortIcon, NavIcon } from '@/components/icons'
-import { OpenBadge } from '@/components/OpenBadge'
+import { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { ChevronLeft, PinIcon, SortIcon, NavIcon } from '@/components/icons'
 import { MapMarker } from '@/components/MapMarker'
 import { Chip } from '@/components/ui/Chip'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
-
+import { DARK_MAP_STYLE } from '@/constants/mapStyles'
+import { analytics } from '@/lib/analytics'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { useThemeColors, useIsDarkMode } from '@/lib/contexts/ThemeContext'
+import { useCollections } from '@/lib/hooks/useCollections'
+import { usePostVisitPrompt } from '@/lib/hooks/usePostVisitPrompt'
+import { useSavedLocations, type SavedLocation } from '@/lib/hooks/useSavedLocations'
+import { useUserLocation } from '@/lib/hooks/useUserLocation'
+import { routes } from '@/lib/routes'
+import { updateSavedLocationStatus } from '@/lib/services/collections'
 import {
   fetchRestaurantProviderDetail,
   getRestaurantProviderPhotoUrl,
 } from '@/lib/services/restaurants'
 import { navigateToRestaurant } from '@/lib/utils/restaurantNavigation'
-import { todayHoursIndex } from '@/lib/utils/format'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
-
-type PlaceDetail = {
-  rating?: number
-  formatted_phone_number?: string
-  opening_hours?: { open_now?: boolean; weekday_text?: string[] }
-  photos?: { photo_reference: string }[]
-}
+import { makeStyles } from './RestaurantsTabScreen.styles'
+import { SelectedLocationCard } from './SelectedLocationCard'
+import type { PlaceDetail } from './restaurantTypes'
 
 type PlaceFilter =
   | { type: 'all'; id: 'all'; label: string }
@@ -58,7 +49,7 @@ function groupAlpha(locations: SavedLocation[]): { letter: string; items: SavedL
   )
   const map: Record<string, SavedLocation[]> = {}
   for (const loc of sorted) {
-    const first = (loc.restaurants?.name ?? '#')[0].toUpperCase()
+    const first = ((loc.restaurants?.name ?? '#')[0] ?? '#').toUpperCase()
     const key = /[A-Z]/.test(first) ? first : '#'
     if (!map[key]) map[key] = []
     map[key].push(loc)
@@ -93,7 +84,7 @@ const LocationRow = React.memo(function LocationRow({
   )
 })
 
-export default function PlacesScreen() {
+export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => void }) {
   const router = useRouter()
   const { user } = useAuth()
   const colors = useThemeColors()
@@ -145,7 +136,7 @@ export default function PlacesScreen() {
     const pid = selectedLocation.restaurants?.google_place_id
     if (!pid) return
     setPinLoading(true)
-    fetchRestaurantProviderDetail<PlaceDetail>(
+    fetchRestaurantProviderDetail(
       pid,
       'rating,formatted_phone_number,opening_hours,photos'
     )
@@ -158,7 +149,7 @@ export default function PlacesScreen() {
       })
       .catch(() => {})
       .finally(() => setPinLoading(false))
-  }, [selectedLocation?.id])
+  }, [selectedLocation])
 
   const filterOptions = useMemo<PlaceFilter[]>(
     () => [
@@ -232,7 +223,7 @@ export default function PlacesScreen() {
 
   useEffect(() => {
     slideY.value = withSpring(selectedLocation ? 0 : 300, { damping: 20, stiffness: 180 })
-  }, [selectedLocation])
+  }, [selectedLocation, slideY])
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: slideY.value }],
@@ -243,8 +234,8 @@ export default function PlacesScreen() {
       return { latitude: gps.lat, longitude: gps.lng, latitudeDelta: 0.08, longitudeDelta: 0.08 }
     if (validLocations.length > 0)
       return {
-        latitude: validLocations[0].restaurants!.latitude!,
-        longitude: validLocations[0].restaurants!.longitude!,
+        latitude: validLocations[0]?.restaurants?.latitude ?? -33.8688,
+        longitude: validLocations[0]?.restaurants?.longitude ?? 151.2093,
         latitudeDelta: 0.08,
         longitudeDelta: 0.08,
       }
@@ -287,7 +278,7 @@ export default function PlacesScreen() {
         status: next,
         restaurant_id: selectedLocation.restaurant_id,
       })
-      refreshAll()
+      void refreshAll()
     }
   }, [refreshAll, selectedLocation, user?.id])
 
@@ -307,21 +298,37 @@ export default function PlacesScreen() {
     if (!r?.latitude || !r?.longitude) return
     const { latitude: lat, longitude: lng, name } = r
     if (provider === 'apple')
-      Linking.openURL(`https://maps.apple.com/?q=${encodeURIComponent(name)}&ll=${lat},${lng}`)
+      void Linking.openURL(`https://maps.apple.com/?q=${encodeURIComponent(name)}&ll=${lat},${lng}`)
     if (provider === 'google')
-      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`)
+      void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`)
   }, [mapsSheetLocation])
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
+        {onBackToSaved ? (
+          <TouchableOpacity
+            style={styles.backToSaved}
+            onPress={onBackToSaved}
+            accessibilityRole="button"
+            accessibilityLabel="Back to saved overview"
+          >
+            <ChevronLeft />
+            <Text style={styles.backToSavedText}>Saved</Text>
+          </TouchableOpacity>
+        ) : null}
         <Text style={styles.title}>Places</Text>
+        {onBackToSaved ? <View style={styles.backToSavedSpacer} /> : null}
       </View>
 
-      {savedLocations.length === 0 ? (
+      {error && savedLocations.length === 0 ? (
+        <View style={styles.content}>
+          <ErrorMessage title="Could not load places" message={error} />
+        </View>
+      ) : savedLocations.length === 0 ? (
         <EmptyState
-          title={error ? 'Could not load places' : 'No saved places yet'}
-          subtitle={error ? error : 'Tap the pin icon on a post to save a location.'}
+          title="No saved places yet"
+          subtitle="Tap the pin icon on a post to save a location."
           icon={<PinIcon size={36} />}
         />
       ) : (
@@ -409,17 +416,14 @@ export default function PlacesScreen() {
                   <TouchableOpacity
                     style={styles.visitBanner}
                     onPress={() =>
-                      router.push({
-                        pathname: '/(tabs)/create',
-                        params: {
-                          prefillName: activePrompt.restaurants?.name ?? '',
-                          prefillAddress: activePrompt.restaurants?.address ?? '',
-                          prefillLat: String(activePrompt.restaurants?.latitude ?? ''),
-                          prefillLng: String(activePrompt.restaurants?.longitude ?? ''),
-                          prefillPlaceId: activePrompt.restaurants?.google_place_id ?? '',
-                          prefillRestaurantId: activePrompt.restaurant_id,
-                        },
-                      })
+                      router.push(routes.createPost({
+                        prefillName: activePrompt.restaurants?.name ?? '',
+                        prefillAddress: activePrompt.restaurants?.address ?? '',
+                        prefillLat: String(activePrompt.restaurants?.latitude ?? ''),
+                        prefillLng: String(activePrompt.restaurants?.longitude ?? ''),
+                        prefillPlaceId: activePrompt.restaurants?.google_place_id ?? '',
+                        prefillRestaurantId: activePrompt.restaurant_id ?? undefined,
+                      }))
                     }
                     activeOpacity={0.85}
                   >
@@ -485,29 +489,33 @@ export default function PlacesScreen() {
                   }
                 }}
               >
-                {validLocations.map(loc => (
-                  <Marker
-                    key={loc.id}
-                    coordinate={{
-                      latitude: loc.restaurants!.latitude!,
-                      longitude: loc.restaurants!.longitude!,
-                    }}
-                    tracksViewChanges={false}
-                    anchor={{ x: 0.5, y: 1 }}
-                    onPress={() => {
-                      lastMarkerPress.current = Date.now()
-                      setSelectedLocation(loc)
-                    }}
-                  >
-                    <MapMarker name={loc.restaurants?.name ?? ''} />
-                  </Marker>
-                ))}
+                {validLocations.map(loc => {
+                  const restaurant = loc.restaurants
+                  if (restaurant?.latitude == null || restaurant.longitude == null) return null
+                  return (
+                    <Marker
+                      key={loc.id}
+                      coordinate={{
+                        latitude: restaurant.latitude,
+                        longitude: restaurant.longitude,
+                      }}
+                      tracksViewChanges={false}
+                      anchor={{ x: 0.5, y: 1 }}
+                      onPress={() => {
+                        lastMarkerPress.current = Date.now()
+                        setSelectedLocation(loc)
+                      }}
+                    >
+                      <MapMarker name={restaurant.name ?? ''} />
+                    </Marker>
+                  )
+                })}
               </MapView>
               <TouchableOpacity
                 style={styles.locateBtn}
                 onPress={() => {
                   if (!gps) {
-                    userLocation.requestLocation()
+                    void userLocation.requestLocation()
                     return
                   }
                   mapRef.current?.animateToRegion(
@@ -547,80 +555,18 @@ export default function PlacesScreen() {
                 </TouchableOpacity>
               </View>
 
-              <Animated.View
-                style={[styles.locationCard, cardStyle]}
-                pointerEvents={selectedLocation ? 'auto' : 'none'}
-              >
-                <View style={styles.cardHandle} />
-                {pinLoading && (
-                  <ActivityIndicator
-                    size="small"
-                    color={colors.text3}
-                    style={{ marginBottom: spacing[1] }}
-                  />
-                )}
-                {!!pinPhoto && (
-                  <Image source={{ uri: pinPhoto }} style={styles.cardPhoto} resizeMode="cover" />
-                )}
-                <Text style={styles.cardName} numberOfLines={1}>
-                  {selectedLocation?.restaurants?.name}
-                </Text>
-                <View style={styles.cardMeta}>
-                  <Text style={styles.cardMetaText}>
-                    {(selectedLocation?.save_status ?? 'want_to_try') === 'been_here'
-                      ? 'Been here'
-                      : 'Want to try'}
-                  </Text>
-                  {pinDetail?.rating != null && (
-                    <Text style={styles.cardMetaText}>⭐ {pinDetail.rating.toFixed(1)}</Text>
-                  )}
-                  {pinDetail?.opening_hours?.open_now != null && (
-                    <OpenBadge openNow={pinDetail.opening_hours.open_now} />
-                  )}
-                </View>
-                {(() => {
-                  const todayText = pinDetail?.opening_hours?.weekday_text?.[todayHoursIndex()]
-                  return todayText ? (
-                    <Text style={styles.cardHours} numberOfLines={1}>
-                      {todayText}
-                    </Text>
-                  ) : null
-                })()}
-                {!!pinDetail?.formatted_phone_number && (
-                  <TouchableOpacity
-                    style={styles.cardPhoneRow}
-                    onPress={() =>
-                      Linking.openURL(
-                        `tel:${pinDetail!.formatted_phone_number!.replace(/\s/g, '')}`
-                      )
-                    }
-                  >
-                    <PhoneIcon />
-                    <Text style={styles.cardPhoneText}>{pinDetail.formatted_phone_number}</Text>
-                  </TouchableOpacity>
-                )}
-                <View style={styles.cardActions}>
-                  <TouchableOpacity style={styles.cardBtnSecondary} onPress={toggleSelectedStatus}>
-                    <Text style={styles.cardBtnSecondaryText}>
-                      {(selectedLocation?.save_status ?? 'want_to_try') === 'been_here'
-                        ? 'Mark want'
-                        : 'Mark been'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.cardBtnPrimary}
-                    onPress={() => selectedLocation && navigateTo(selectedLocation)}
-                  >
-                    <Text style={styles.cardBtnPrimaryText}>View details</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.cardBtnSecondary}
-                    onPress={() => selectedLocation && openInMaps(selectedLocation)}
-                  >
-                    <Text style={styles.cardBtnSecondaryText}>Open in Maps</Text>
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
+              <SelectedLocationCard
+                styles={styles}
+                colors={colors}
+                cardStyle={cardStyle}
+                selectedLocation={selectedLocation}
+                pinLoading={pinLoading}
+                pinPhoto={pinPhoto}
+                pinDetail={pinDetail}
+                toggleSelectedStatus={toggleSelectedStatus}
+                navigateTo={navigateTo}
+                openInMaps={openInMaps}
+              />
             </View>
           </View>
         </View>
@@ -649,172 +595,4 @@ export default function PlacesScreen() {
       />
     </SafeAreaView>
   )
-}
-
-function makeStyles(c: ReturnType<typeof useThemeColors>) {
-  return StyleSheet.create({
-    container: { flex: 1, backgroundColor: c.bg },
-    topBar: {
-      height: 56,
-      justifyContent: 'center',
-      paddingHorizontal: spacing[4],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    title: { fontSize: fontSize.lg, fontWeight: fontWeight.medium, color: c.text },
-    content: { flex: 1 },
-    toggleRow: {
-      flexDirection: 'row',
-      backgroundColor: c.surface,
-      borderRadius: radius.sm3,
-      margin: spacing[4],
-      marginBottom: spacing[0],
-      padding: spacing.px3,
-      gap: spacing.px3,
-    },
-    toggleBtn: { flex: 1, paddingVertical: spacing.px6, borderRadius: radius.sm, alignItems: 'center' },
-    toggleBtnActive: { backgroundColor: c.bg },
-    toggleText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.medium, color: c.text3 },
-    toggleTextActive: { color: c.text },
-    filterRow: {
-      alignItems: 'center',
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing[2],
-      gap: spacing[2],
-    },
-    filterScroll: {
-      flexGrow: 0,
-      flexShrink: 0,
-      height: 52,
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    viewsContainer: { flex: 1 },
-    sortHeader: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing.px10,
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    sortBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.px5 },
-    sortBtnText: { fontSize: fontSize.bodySm, color: c.text2 },
-    letterHeader: { paddingHorizontal: spacing[4], paddingVertical: spacing.px6, backgroundColor: c.surface },
-    letterText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text3 },
-    visitBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginHorizontal: spacing[4],
-      marginTop: spacing[3],
-      marginBottom: spacing[1],
-      backgroundColor: c.surface,
-      borderRadius: radius.md3,
-      borderWidth: 0.5,
-      borderColor: c.border,
-      paddingHorizontal: spacing.px14,
-      paddingVertical: spacing[3],
-    },
-    visitBannerText: { flex: 1 },
-    visitBannerTitle: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: c.text, marginBottom: spacing.px2 },
-    visitBannerSub: { fontSize: fontSize.sm, color: c.accent },
-    visitBannerClose: { paddingLeft: spacing.px10 },
-    visitBannerCloseText: { fontSize: fontSize.bodySm, color: c.text3 },
-    placeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing[3],
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing[3],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    placeRowName: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: c.text, marginBottom: spacing.px2 },
-    placeRowAddress: { fontSize: fontSize.sm, color: c.text3 },
-    locationCard: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: c.bg,
-      borderTopLeftRadius: radius.lg2,
-      borderTopRightRadius: radius.lg2,
-      borderTopWidth: 0.5,
-      borderTopColor: c.border,
-      paddingHorizontal: spacing[5],
-      paddingTop: spacing[3],
-      paddingBottom: spacing[8],
-      gap: spacing[1],
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
-    },
-    cardHandle: {
-      width: 36,
-      height: 4,
-      borderRadius: radius.xxs,
-      backgroundColor: c.border2,
-      alignSelf: 'center',
-      marginBottom: spacing.px10,
-    },
-    cardPhoto: { width: '100%', height: 130, borderRadius: radius.md, marginBottom: spacing[1] },
-    cardName: { fontSize: fontSize.xl, fontWeight: fontWeight.semibold, color: c.text },
-    cardMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-    cardMetaText: { fontSize: fontSize.base, color: c.text2 },
-    cardHours: { fontSize: fontSize.bodySm, color: c.text3 },
-    cardPhoneRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-    cardPhoneText: { fontSize: fontSize.bodySm, color: c.text2 },
-    cardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.px10, marginTop: spacing[1] },
-    cardBtnPrimary: {
-      flexGrow: 1,
-      minWidth: 128,
-      borderRadius: radius.pill,
-      backgroundColor: c.text,
-      paddingVertical: spacing.px11,
-      alignItems: 'center',
-    },
-    cardBtnPrimaryText: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: c.bg },
-    cardBtnSecondary: {
-      flexGrow: 1,
-      minWidth: 112,
-      borderRadius: radius.pill,
-      borderWidth: 1,
-      borderColor: c.border2,
-      paddingVertical: spacing.px11,
-      alignItems: 'center',
-    },
-    cardBtnSecondaryText: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: c.text },
-    locateBtn: {
-      position: 'absolute',
-      right: 16,
-      bottom: 116,
-      width: 40,
-      height: 40,
-      borderRadius: radius.md,
-      backgroundColor: c.bg,
-      alignItems: 'center',
-      justifyContent: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
-    },
-    zoomControls: {
-      position: 'absolute',
-      right: 16,
-      bottom: 24,
-      backgroundColor: c.bg,
-      borderRadius: radius.md,
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
-    },
-    zoomBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    zoomBtnText: { fontSize: fontSize['3xl'], fontWeight: fontWeight.light, color: c.text, lineHeight: lineHeight.display },
-    zoomDivider: { height: 0.5, backgroundColor: c.border },
-  })
 }

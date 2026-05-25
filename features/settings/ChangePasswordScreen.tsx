@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router'
 import React, { useState, useMemo } from 'react'
 import {
   View,
@@ -9,14 +10,14 @@ import {
   Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { ArrowLeft, EyeIcon } from '@/components/icons'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
-import { supabase } from '@/lib/supabase'
-import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { getCurrentUser, reauthenticate, updatePassword } from '@/lib/services/auth'
+import { hasCurrentPassword, isValidPassword, passwordMinLengthMessage, passwordsMatch as doPasswordsMatch } from '@/lib/utils/validation'
 
 export default function ChangePasswordScreen() {
   const router = useRouter()
@@ -31,35 +32,40 @@ export default function ChangePasswordScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const passwordsMatch = newPassword === confirmPassword
-  const canSave = currentPassword.length >= 6 && newPassword.length >= 8 && passwordsMatch
+  const passwordsMatch = doPasswordsMatch(newPassword, confirmPassword)
+  const canSave = hasCurrentPassword(currentPassword) && isValidPassword(newPassword) && passwordsMatch
 
   async function handleSave() {
     setError(null)
     setLoading(true)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    let user
+    try {
+      user = await getCurrentUser()
+    } catch {
+      setError("We couldn't verify your identity. Please try again.")
+      setLoading(false)
+      return
+    }
     if (!user?.email) {
       setError("We couldn't verify your identity. Please try again.")
       setLoading(false)
       return
     }
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: currentPassword,
-    })
-    if (signInError) {
+    try {
+      await reauthenticate(user.email, currentPassword)
+    } catch {
       setError("That password doesn't match. Please try again.")
       setLoading(false)
       return
     }
-    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
-    setLoading(false)
-    if (updateError) {
-      setError(updateError.message)
+    try {
+      await updatePassword(newPassword)
+    } catch (updateError) {
+      setLoading(false)
+      setError(updateError instanceof Error ? updateError.message : 'Failed to update password.')
       return
     }
+    setLoading(false)
     Alert.alert('Password updated', 'Your password has been changed successfully.', [
       { text: 'OK', onPress: () => router.back() },
     ])
@@ -72,6 +78,8 @@ export default function ChangePasswordScreen() {
           onPress={() => router.back()}
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
           <ArrowLeft />
         </TouchableOpacity>
@@ -96,6 +104,8 @@ export default function ChangePasswordScreen() {
             <TouchableOpacity
               onPress={() => setShowCurrent(v => !v)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={showCurrent ? 'Hide current password' : 'Show current password'}
             >
               <EyeIcon open={showCurrent} />
             </TouchableOpacity>
@@ -109,13 +119,15 @@ export default function ChangePasswordScreen() {
               style={[styles.input, { flex: 1 }]}
               value={newPassword}
               onChangeText={setNewPassword}
-              placeholder="At least 8 characters"
+              placeholder={passwordMinLengthMessage()}
               placeholderTextColor={colors.text3}
               secureTextEntry={!showNew}
             />
             <TouchableOpacity
               onPress={() => setShowNew(v => !v)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={showNew ? 'Hide new password' : 'Show new password'}
             >
               <EyeIcon open={showNew} />
             </TouchableOpacity>
@@ -141,6 +153,8 @@ export default function ChangePasswordScreen() {
             <TouchableOpacity
               onPress={() => setShowConfirm(v => !v)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={showConfirm ? 'Hide password confirmation' : 'Show password confirmation'}
             >
               <EyeIcon open={showConfirm} />
             </TouchableOpacity>

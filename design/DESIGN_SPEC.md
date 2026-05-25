@@ -52,8 +52,8 @@ All colours come from `constants/Colors.ts` via `useThemeColors()`. Never hardco
 | `c.border`   | `rgba(0,0,0,0.08)` | `rgba(255,255,255,0.08)` | Subtle dividers           |
 | `c.border2`  | `rgba(0,0,0,0.14)` | `rgba(255,255,255,0.14)` | Visible borders           |
 | `c.text`     | `#1A1A18`          | `#F0F0EC`                | Primary text              |
-| `c.text2`    | `#6B6B66`          | `#A8A8A2`                | Secondary text            |
-| `c.text3`    | `#A8A8A2`          | `#6B6B66`                | Placeholders, tertiary    |
+| `c.text2`    | `#5F5F5A`          | `#A8A8A2`                | Secondary text            |
+| `c.text3`    | `#686862`          | `#94948E`                | Placeholders, tertiary    |
 | `c.accent`   | `#D4522A`          | `#E8673D`                | Brand accent              |
 | `c.info`     | `#2A6DD4`          | `#5B93E8`                | Hashtags, links           |
 | `c.success`  | `#1D9E75`          | `#28C98D`                | Cost indicators           |
@@ -121,6 +121,14 @@ Import spacing from `constants/Spacing.ts` and radius from `constants/Radius.ts`
 import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
 ```
+
+Elevation is tokenised too:
+
+```ts
+import { elevation } from '@/constants/Elevation'
+```
+
+Use `elevation.xs` for subtle labels, `sm` for lifted controls/sheets, `md` for modal surfaces, and `lg` for floating action/context cards. Do not hand-write `shadowColor`, `shadowOffset`, `shadowOpacity`, `shadowRadius`, or `elevation` in feature/component styles.
 
 | Token        | Value | Usage                     |
 | ------------ | ----- | ------------------------- |
@@ -216,6 +224,12 @@ import { EmptyState } from '@/components/ui/EmptyState'
   subtitle="Share your first food experience."
   icon={<SomeIcon />} // optional
 />
+
+;<EmptyState
+  loading
+  title="Opening create"
+  subtitle="Checking for saved drafts."
+/>
 ```
 
 ### `RekkusActionSheet`
@@ -235,7 +249,7 @@ import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 />
 ```
 
-Use for sort controls, map app choices, cuisine pickers, confirmations, success notices, report/block flows, and other short/medium action lists. Prefer this Rekkus popup over `ActionSheetIOS` and non-permission `Alert.alert`; keep full-screen workflows such as dish tagging as dedicated modals.
+Use for sort controls, map app choices, cuisine pickers, confirmations, success notices, report/block flows, actionable failure recovery, and other short/medium action lists. Routine failures use `<ErrorMessage>` rather than a dismiss-only sheet or failure alert. Prefer this Rekkus popup over `ActionSheetIOS` and non-permission confirmation alerts; keep full-screen workflows such as dish tagging as dedicated modals.
 
 Standard behaviour: bottom sheet, themed backdrop, safe-area bottom padding, handle, selected-state checkmark, scrollable options, backdrop dismiss, and Android back dismiss.
 
@@ -459,7 +473,7 @@ Card hierarchy: media → creator → dish/title → body preview → Rekkus Pic
 56px top bar → media carousel → compact action bar → Rekkus Picks → creator → title/body → location/save-location pill → tappable hashtags → reaction chips → comments → pinned comment input.
 
 Post detail action states:
-- Like, save post, save location, follow, and reactions optimistically update; write failures roll back and show a Rekkus notice.
+- Like, save post, save location, follow, and reactions optimistically update; write failures roll back and show `<ErrorMessage>` feedback.
 - Hashtags route to Search with the tag prefilled.
 - Share routes through New Message and sends a tappable `post_share` card back to Post Detail.
 - Comments keep reply/report as compact row actions under the comment body.
@@ -477,6 +491,12 @@ Create composer: Title → restaurant/place → food media, then Rekkus Picks/de
 
 Profile grids use `ThumbGrid`: 3-column thumbnails with video/carousel badges and a clear tap affordance. Empty states use a soft icon circle plus concise copy.
 
+### Saved Library And Dish Detail
+
+The visible tab is **Saved**. It opens an overview with Dishes, Places, Posts, and Collections; Places preserves its list/map and visit-prompt utility inside that drill-in. Dish detail leads with first-party post imagery, dish name, canonical restaurant, bookmark, collection action, and linked post evidence. Only canonical dish mentions are tappable.
+
+Collection picking uses a `RekkusActionSheet` list plus a private create action. Mixed collection detail uses one row language for dish, post, and place members in saved order.
+
 ### Upload & Drafts
 
 `PostUploadProgress` appears as a compact media row with thumbnail, status hierarchy, progress, posted success, and failed dismiss state. Draft rows look like saved post previews with thumbnail, title, restaurant/media/date metadata, and compact Duplicate/Delete actions.
@@ -485,7 +505,7 @@ Create launcher: the tab bar `+` opens a Rekkus sheet over the current screen. W
 
 ### Profile (own)
 
-Top bar: `@handle` + Settings. Header: avatar 72px + stats + name + bio + location + Edit/Share. Tabs: Posts · Saved · Liked.
+Top bar: `@handle` + Settings. Header: avatar 72px + stats + name + bio + location + Edit/Share. Tabs: Posts · Saved · Liked; Saved opens the unified Saved destination.
 
 ### Profile (other user)
 
@@ -495,7 +515,7 @@ Same header. Actions: Follow + Message. Tab: Posts only.
 
 ## Key UX Patterns
 
-- **Loading:** skeleton placeholders (`c.surface2` background), not spinners
+- **Loading:** `ActivityIndicator` for compact actions and pagination; skeleton placeholders (`c.surface2` background) for predictable content; `<EmptyState loading>` only for blocking full-screen waits without a useful content shape
 - **Errors:** toast at bottom, auto-dismiss 3s
 - **Empty states:** `EmptyState` component — icon + title + subtitle, generous padding
 - **Haptics:** light on like/save; medium on post submit

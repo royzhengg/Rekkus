@@ -1,11 +1,11 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
+import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { Avatar } from './Avatar'
 import { PinIcon } from './icons'
-import { spacing } from '@/constants/Spacing'
-import { radius } from '@/constants/Radius'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 
 type Props = {
   initials: string

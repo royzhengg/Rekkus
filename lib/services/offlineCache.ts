@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { analytics } from '@/lib/analytics'
+import { isRecord, parseJsonWithGuard } from '@/lib/utils/safeJson'
 
 const PREFIX = 'rekkus:offline-cache:'
 
@@ -7,12 +9,27 @@ type CacheEnvelope<T> = {
   value: T
 }
 
-export async function readOfflineCache<T>(key: string): Promise<T | null> {
+function isCacheEnvelope(value: unknown): value is CacheEnvelope<unknown> {
+  return isRecord(value) && typeof value.savedAt === 'string' && 'value' in value
+}
+
+export async function readOfflineCache<T>(
+  key: string,
+  valueGuard: (value: unknown) => value is T
+): Promise<T | null> {
   try {
     const raw = await AsyncStorage.getItem(`${PREFIX}${key}`)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as CacheEnvelope<T>
-    return parsed.value ?? null
+    const parsed = parseJsonWithGuard(raw, isCacheEnvelope)
+    if (!parsed) {
+      analytics.actionError(null, 'runtime_boundary', 'offline_cache_envelope_invalid')
+      return null
+    }
+    if (!valueGuard(parsed.value)) {
+      analytics.actionError(null, 'runtime_boundary', 'offline_cache_value_invalid')
+      return null
+    }
+    return parsed.value
   } catch {
     return null
   }
@@ -32,5 +49,7 @@ export async function writeOfflineCache<T>(key: string, value: T): Promise<void>
 export async function clearOfflineCache(key: string): Promise<void> {
   try {
     await AsyncStorage.removeItem(`${PREFIX}${key}`)
-  } catch {}
+  } catch {
+    // Cache eviction failure is non-blocking; future reads can overwrite stale entries.
+  }
 }

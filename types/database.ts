@@ -19,6 +19,7 @@ export type Database = {
           created_at: string | null
           entity_id: string | null
           entity_type: string | null
+          event_version: number
           event_type: string
           id: string
           metadata: Json | null
@@ -28,6 +29,7 @@ export type Database = {
           created_at?: string | null
           entity_id?: string | null
           entity_type?: string | null
+          event_version?: number
           event_type: string
           id?: string
           metadata?: Json | null
@@ -37,6 +39,7 @@ export type Database = {
           created_at?: string | null
           entity_id?: string | null
           entity_type?: string | null
+          event_version?: number
           event_type?: string
           id?: string
           metadata?: Json | null
@@ -46,6 +49,61 @@ export type Database = {
           {
             foreignKeyName: "analytics_events_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auth_audit_events: {
+        Row: {
+          context: Json | null
+          created_at: string
+          event_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "auth_audit_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feature_flag_overrides: {
+        Row: {
+          enabled: boolean
+          expires_at: string | null
+          flag_name: string
+          reason: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled: boolean
+          expires_at?: string | null
+          flag_name: string
+          reason: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          expires_at?: string | null
+          flag_name?: string
+          reason?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_flag_overrides_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -242,6 +300,28 @@ export type Database = {
           {
             foreignKeyName: "content_reports_reporter_id_fkey"
             columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_lifecycle_events: {
+        Row: {
+          context: Json | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "content_lifecycle_events_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -540,6 +620,81 @@ export type Database = {
           {
             foreignKeyName: "data_repair_events_reviewed_by_fkey"
             columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dishes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          cuisine_type: string | null
+          id: string
+          name: string
+          name_normalized: string
+          restaurant_id: string | null
+          search_tsv: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          cuisine_type?: string | null
+          id?: string
+          name: string
+          restaurant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          cuisine_type?: string | null
+          id?: string
+          name?: string
+          restaurant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dishes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dishes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dish_audit_events: {
+        Row: {
+          context: Json | null
+          created_at: string
+          dish_id: string
+          event_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "dish_audit_events_dish_id_fkey"
+            columns: ["dish_id"]
+            isOneToOne: false
+            referencedRelation: "dishes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dish_audit_events_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1198,6 +1353,7 @@ export type Database = {
           cuisine_type: string | null
           deleted_at: string | null
           deleted_reason: string | null
+          dish_id: string | null
           dish_tags: Json | null
           edit_count: number
           food_rating: number | null
@@ -1220,6 +1376,7 @@ export type Database = {
           cuisine_type?: string | null
           deleted_at?: string | null
           deleted_reason?: string | null
+          dish_id?: string | null
           dish_tags?: Json | null
           edit_count?: number
           food_rating?: number | null
@@ -1242,6 +1399,7 @@ export type Database = {
           cuisine_type?: string | null
           deleted_at?: string | null
           deleted_reason?: string | null
+          dish_id?: string | null
           dish_tags?: Json | null
           edit_count?: number
           food_rating?: number | null
@@ -1257,6 +1415,13 @@ export type Database = {
           vibe_rating?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "posts_dish_id_fkey"
+            columns: ["dish_id"]
+            isOneToOne: false
+            referencedRelation: "dishes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "posts_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -2037,6 +2202,45 @@ export type Database = {
           },
         ]
       }
+      saved_dishes: {
+        Row: {
+          created_at: string
+          dish_id: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dish_id: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dish_id?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_dishes_dish_id_fkey"
+            columns: ["dish_id"]
+            isOneToOne: false
+            referencedRelation: "dishes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_dishes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saves: {
         Row: {
           created_at: string | null
@@ -2072,6 +2276,116 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      restaurant_popularity_cache: {
+        Row: {
+          avg_food_rating: number | null
+          food_rating_count: number
+          interaction_count_30d: number
+          post_count: number
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          avg_food_rating?: number | null
+          food_rating_count?: number
+          interaction_count_30d?: number
+          post_count?: number
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          avg_food_rating?: number | null
+          food_rating_count?: number
+          interaction_count_30d?: number
+          post_count?: number
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_popularity_cache_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suburb_aliases: {
+        Row: {
+          alias: string
+          canonical_name: string
+          id: number
+          lat: number | null
+          lng: number | null
+        }
+        Insert: {
+          alias: string
+          canonical_name: string
+          id?: number
+          lat?: number | null
+          lng?: number | null
+        }
+        Update: {
+          alias?: string
+          canonical_name?: string
+          id?: number
+          lat?: number | null
+          lng?: number | null
+        }
+        Relationships: []
+      }
+      suburb_lookups: {
+        Row: {
+          id: number
+          lat: number | null
+          lng: number | null
+          name: string
+          postcode: string | null
+          state: string | null
+        }
+        Insert: {
+          id?: number
+          lat?: number | null
+          lng?: number | null
+          name: string
+          postcode?: string | null
+          state?: string | null
+        }
+        Update: {
+          id?: number
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          postcode?: string | null
+          state?: string | null
+        }
+        Relationships: []
+      }
+      trending_searches: {
+        Row: {
+          id: number
+          query: string
+          score: number
+          search_count: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          query: string
+          score?: number
+          search_count?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          query?: string
+          score?: number
+          search_count?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_blocks: {
         Row: {
@@ -2274,7 +2588,19 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      platform_audit_events_view: {
+        Row: {
+          context: Json | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          event_type: string
+          id: string
+          source_table: string
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       accept_message_request: {
@@ -2308,11 +2634,45 @@ export type Database = {
       delete_comment: { Args: { p_comment_id: string }; Returns: undefined }
       delete_message: { Args: { p_message_id: string }; Returns: undefined }
       delete_post: { Args: { p_post_id: string }; Returns: undefined }
+      add_saved_target_to_collection: {
+        Args: {
+          p_collection_id: string
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: undefined
+      }
+      find_or_create_dish: {
+        Args: {
+          p_name: string
+          p_restaurant_id: string
+          p_cuisine_type?: string | null
+          p_created_by?: string | null
+          p_context?: Json | null
+        }
+        Returns: string
+      }
+      unsave_target: {
+        Args: {
+          p_remove_collection_memberships?: boolean
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: undefined
+      }
       expand_search_cuisines: {
         Args: { max_cuisines?: number; query_text: string }
         Returns: {
           cuisine_type: string
           match_count: number
+        }[]
+      }
+      get_recent_search_history: {
+        Args: { lookback_days?: number; max_results?: number }
+        Returns: {
+          last_searched_at: string
+          query: string
+          search_count: number
         }[]
       }
       get_or_create_direct_conversation: {
@@ -2324,6 +2684,31 @@ export type Database = {
       purge_soft_deleted_content: {
         Args: { batch_size?: number }
         Returns: number
+      }
+      record_auth_audit_event: {
+        Args: { p_event_type: string; p_context?: Json | null }
+        Returns: undefined
+      }
+      record_collection_audit_event: {
+        Args: {
+          p_collection_id: string
+          p_event_type: string
+          p_context?: Json | null
+        }
+        Returns: undefined
+      }
+      record_content_lifecycle_event: {
+        Args: {
+          p_entity_type: string
+          p_entity_id: string
+          p_event_type: string
+          p_context?: Json | null
+        }
+        Returns: undefined
+      }
+      record_profile_audit_event: {
+        Args: { p_event_type: string; p_context?: Json | null }
+        Returns: undefined
       }
       record_restaurant_provider_snapshot: {
         Args: {
@@ -2339,6 +2724,23 @@ export type Database = {
           p_stale_at: string
         }
         Returns: undefined
+      }
+      refresh_restaurant_popularity_cache: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      refresh_trending_queries: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      resolve_suburb_query: {
+        Args: { input_text: string }
+        Returns: {
+          canonical_suburb: string
+          confidence: number
+          lat: number | null
+          lng: number | null
+        }[]
       }
       restaurants_in_bounding_box: {
         Args: {
@@ -2364,6 +2766,32 @@ export type Database = {
       }
       restore_comment: { Args: { p_comment_id: string }; Returns: undefined }
       restore_post: { Args: { p_post_id: string }; Returns: undefined }
+      search_posts_by_dish: {
+        Args: {
+          dish_query: string
+          max_results?: number
+          near_lat?: number
+          near_lng?: number
+        }
+        Returns: {
+          id: string
+          match_source: string
+          rank: number
+        }[]
+      }
+      search_posts_full_text: {
+        Args: {
+          max_results?: number
+          near_lat?: number
+          near_lng?: number
+          offset_val?: number
+          query_text: string
+        }
+        Returns: {
+          id: string
+          rank: number
+        }[]
+      }
       search_restaurants_full_text: {
         Args: {
           max_results?: number
@@ -2415,6 +2843,21 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      suggest_searches: {
+        Args: {
+          limit_per_type?: number
+          near_lat?: number
+          near_lng?: number
+          prefix_query: string
+        }
+        Returns: {
+          display_text: string
+          entity_id: string | null
+          score: number
+          secondary_text: string
+          suggestion_type: string
+        }[]
       }
       unpin_message: { Args: { p_message_id: string }; Returns: undefined }
     }

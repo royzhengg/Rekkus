@@ -1,106 +1,49 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import * as FileSystem from 'expo-file-system/legacy'
+import * as FileSystem from 'expo-file-system'
 import { supabase } from '@/lib/supabase'
-import type {
-  DishTag,
-  PostMedia,
-  PostMediaProcessingStatus,
-  RekkusOccasionTag,
-  RekkusTasteVerdict,
-  RekkusValueVerdict,
-} from '@/types/domain'
-import type { SelectedPlace } from '@/lib/services/restaurants'
+import { parseJsonWithGuard } from '@/lib/utils/safeJson'
+import type { PostMedia } from '@/types/domain'
+import { reportInvalidBoundary } from './boundaryTelemetry'
+import {
+  isLocalDraft,
+  isLocalDraftList,
+  isRemoteDraftRow,
+  isRemoteDraftSummaryRow,
+  isRemoteDraftTitleRow,
+  type RemoteDraftRow,
+} from './postDrafts/guards'
+import type { CreatePostDraft, CreatePostDraftStatus, CreatePostDraftSummary, SaveOptions } from './postDrafts/types'
+
+export type { CreatePostDraft, CreatePostDraftMedia, CreatePostDraftStatus, CreatePostDraftSummary, CreatePostDraftSyncStatus } from './postDrafts/types'
 
 const LEGACY_DRAFT_KEY = 'rekkus:create-post-draft:v1'
 const LOCAL_DRAFT_LIST_KEY = 'rekkus:create-post-drafts:v2'
 const MIGRATION_KEY_PREFIX = 'rekkus:create-post-drafts:migrated'
 const DRAFT_BUCKET = 'post-drafts'
 
-export type CreatePostDraftStatus = 'autosave' | 'saved' | 'discarded' | 'published'
-export type CreatePostDraftSyncStatus = 'local' | 'syncing' | 'synced' | 'failed'
-
-export type CreatePostDraftMedia = {
-  id?: string
-  localId: string
-  uri: string
-  type: 'image' | 'video'
-  storagePath?: string | null
-  thumbnailUrl?: string | null
-  mimeType?: string | null
-  sizeBytes?: number | null
-  durationMs?: number | null
-  width?: number | null
-  height?: number | null
-  processingStatus?: PostMediaProcessingStatus
-  processingError?: string | null
-  orderIndex?: number
-  isCover?: boolean
-}
-
-export type CreatePostDraft = {
-  id?: string
-  remoteId?: string
-  userId?: string
-  status?: CreatePostDraftStatus
-  syncStatus?: CreatePostDraftSyncStatus
-  media: PostMedia[]
-  title: string
-  selectedPlace: SelectedPlace | null
-  dishTags: DishTag[]
-  foodRating: number
-  vibeRating: number
-  costRating: number
-  tasteVerdict?: RekkusTasteVerdict
-  valueVerdict?: RekkusValueVerdict
-  occasionTags?: RekkusOccasionTag[]
-  body: string
-  bestDish: string
-  cuisineType: string
-  hashtags: string[]
-  hashtagInput: string
-  createdAt?: string
-  updatedAt: string
-  lastSavedAt?: string | null
-}
-
-export type CreatePostDraftSummary = {
-  id: string
-  title: string
-  restaurantName?: string
-  coverUri?: string
-  mediaCount: number
-  updatedAt: string
-  lastSavedAt?: string | null
-  syncStatus?: CreatePostDraftSyncStatus
-}
-
-type SaveOptions = {
-  visible: boolean
-  userId?: string | null
-}
-
 function localDraftId(): string {
   return `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function isUuid(value: string | undefined): boolean {
+function isUuid(value: string | undefined): value is string {
   return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 
 async function readLocalDraftsRaw(): Promise<CreatePostDraft[]> {
   const raw = await AsyncStorage.getItem(LOCAL_DRAFT_LIST_KEY)
   if (raw) {
-    try {
-      return JSON.parse(raw) as CreatePostDraft[]
-    } catch {
+    const parsed = parseJsonWithGuard(raw, isLocalDraftList)
+    if (parsed) return parsed
+    else {
+      reportInvalidBoundary('post_draft_cache_invalid')
       await AsyncStorage.removeItem(LOCAL_DRAFT_LIST_KEY)
     }
   }
 
   const legacy = await AsyncStorage.getItem(LEGACY_DRAFT_KEY)
   if (!legacy) return []
-  try {
-    const parsed = JSON.parse(legacy) as CreatePostDraft
+  const parsed = parseJsonWithGuard(legacy, isLocalDraft)
+  if (parsed) {
     const migrated = {
       ...parsed,
       id: parsed.id ?? localDraftId(),
@@ -112,10 +55,10 @@ async function readLocalDraftsRaw(): Promise<CreatePostDraft[]> {
     await AsyncStorage.setItem(LOCAL_DRAFT_LIST_KEY, JSON.stringify([migrated]))
     await AsyncStorage.removeItem(LEGACY_DRAFT_KEY)
     return [migrated]
-  } catch {
-    await AsyncStorage.removeItem(LEGACY_DRAFT_KEY)
-    return []
   }
+  reportInvalidBoundary('legacy_post_draft_cache_invalid')
+  await AsyncStorage.removeItem(LEGACY_DRAFT_KEY)
+  return []
 }
 
 async function writeLocalDrafts(drafts: CreatePostDraft[]): Promise<void> {
@@ -231,12 +174,13 @@ export async function uploadDraftMedia(draftId: string, media: PostMedia[], user
 }
 
 function draftPayload(draft: CreatePostDraft, userId: string, status: CreatePostDraftStatus) {
+  const restaurantId = draft.selectedPlace?.restaurantId
   return {
     user_id: userId,
     title: draft.title ?? '',
     body: draft.body ?? '',
     selected_place: draft.selectedPlace ?? null,
-    restaurant_id: isUuid(draft.selectedPlace?.restaurantId) ? draft.selectedPlace?.restaurantId : null,
+    restaurant_id: isUuid(restaurantId) ? restaurantId : null,
     dish_tags: draft.dishTags ?? [],
     food_rating: draft.foodRating ?? 0,
     vibe_rating: draft.vibeRating ?? 0,
@@ -255,16 +199,17 @@ function draftPayload(draft: CreatePostDraft, userId: string, status: CreatePost
 }
 
 async function syncDraftMediaRows(draftId: string, userId: string, media: PostMedia[]): Promise<void> {
-  await (supabase.from('post_draft_media') as any).delete().eq('draft_id', draftId).eq('user_id', userId)
+  await supabase.from('post_draft_media').delete().eq('draft_id', draftId).eq('user_id', userId)
   if (media.length === 0) return
-  const rows = media
-    .filter(item => item.storagePath)
-    .map((item, index) => ({
+  const rows = media.flatMap((item, index) => {
+    const storagePath = item.storagePath
+    if (!storagePath) return []
+    return [{
       draft_id: draftId,
       user_id: userId,
       local_id: item.localId,
       media_type: item.type,
-      storage_path: item.storagePath,
+      storage_path: storagePath,
       public_preview_url: null,
       thumbnail_url: item.thumbnailUrl ?? null,
       mime_type: item.mimeType ?? null,
@@ -276,8 +221,9 @@ async function syncDraftMediaRows(draftId: string, userId: string, media: PostMe
       processing_error: item.processingError ?? null,
       order_index: index,
       is_cover: item.isCover ?? index === 0,
-    }))
-  if (rows.length > 0) await (supabase.from('post_draft_media') as any).insert(rows)
+    }]
+  })
+  if (rows.length > 0) await supabase.from('post_draft_media').insert(rows)
 }
 
 async function saveRemoteDraft(draft: CreatePostDraft, options: SaveOptions): Promise<CreatePostDraft> {
@@ -289,13 +235,13 @@ async function saveRemoteDraft(draft: CreatePostDraft, options: SaveOptions): Pr
   const payload = draftPayload(draft, userId, status)
 
   const result = id
-    ? await (supabase.from('post_drafts') as any)
+    ? await supabase.from('post_drafts')
         .update(payload)
         .eq('id', id)
         .eq('user_id', userId)
         .select('id, created_at, updated_at, last_saved_at, status')
         .single()
-    : await (supabase.from('post_drafts') as any)
+    : await supabase.from('post_drafts')
         .insert(payload)
         .select('id, created_at, updated_at, last_saved_at, status')
         .single()
@@ -308,16 +254,18 @@ async function saveRemoteDraft(draft: CreatePostDraft, options: SaveOptions): Pr
     })
   }
 
-  const remoteId = result.data.id as string
+  const remoteId = result.data.id
   try {
     const uploadedMedia = await uploadDraftMedia(remoteId, draft.media, userId)
     await syncDraftMediaRows(remoteId, userId, uploadedMedia)
-    const synced = {
+    const synced: CreatePostDraft = {
       ...draft,
       id: remoteId,
       remoteId,
       userId,
-      status: result.data.status as CreatePostDraftStatus,
+      status: result.data.status === 'autosave' || result.data.status === 'saved' || result.data.status === 'discarded' || result.data.status === 'published'
+        ? result.data.status
+        : status,
       syncStatus: 'synced' as const,
       media: uploadedMedia,
       createdAt: result.data.created_at,
@@ -352,9 +300,9 @@ export async function saveCreatePostDraft(draft: CreatePostDraft): Promise<Creat
   return saveRemoteDraft(draft, { visible: draft.status === 'saved', userId: draft.userId })
 }
 
-async function mapRemoteDraft(row: any): Promise<CreatePostDraft> {
+async function mapRemoteDraft(row: RemoteDraftRow): Promise<CreatePostDraft> {
   const mediaRows = [...(row.post_draft_media ?? [])].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-  const media = await Promise.all(mediaRows.map(async (item: any) => {
+  const media: PostMedia[] = await Promise.all(mediaRows.map(async (item): Promise<PostMedia> => {
     const url = await signedUrl(item.storage_path)
     return {
       id: item.id,
@@ -368,10 +316,16 @@ async function mapRemoteDraft(row: any): Promise<CreatePostDraft> {
       durationMs: item.duration_ms ?? null,
       width: item.width ?? null,
       height: item.height ?? null,
-      processingStatus: item.processing_status ?? 'ready',
+      processingStatus:
+        item.processing_status === 'local_ready' || item.processing_status === 'queued' ||
+        item.processing_status === 'preparing' || item.processing_status === 'ready' ||
+        item.processing_status === 'failed' || item.processing_status === 'uploading' ||
+        item.processing_status === 'uploaded' || item.processing_status === 'processing'
+          ? item.processing_status
+          : 'ready',
       processingError: item.processing_error ?? null,
       isCover: item.is_cover ?? false,
-    } as PostMedia
+    }
   }))
   return {
     id: row.id,
@@ -419,7 +373,7 @@ export async function listSavedCreatePostDrafts(userId?: string | null): Promise
   }
 
   await migrateLocalDraftsToRemote(ownerId)
-  const { data, error } = await (supabase.from('post_drafts') as any)
+  const { data, error } = await supabase.from('post_drafts')
     .select('id, title, body, selected_place, updated_at, last_saved_at, status, post_draft_media ( storage_path, thumbnail_url, order_index )')
     .eq('user_id', ownerId)
     .eq('status', 'saved')
@@ -427,7 +381,7 @@ export async function listSavedCreatePostDrafts(userId?: string | null): Promise
     .limit(100)
   if (error || !data) return []
 
-  return Promise.all(data.map(async (draft: any) => {
+  return Promise.all(data.map(row => isRemoteDraftSummaryRow(row) ? row : null).filter((draft): draft is NonNullable<typeof draft> => draft !== null).map(async (draft) => {
     const mediaRows = [...(draft.post_draft_media ?? [])].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
     const cover = mediaRows[0]
     return {
@@ -451,14 +405,15 @@ export async function listCreatePostDrafts(): Promise<CreatePostDraft[]> {
   const ownerId = await currentUserId()
   if (!ownerId) return readLocalDraftsRaw()
   await migrateLocalDraftsToRemote(ownerId)
-  const { data, error } = await (supabase.from('post_drafts') as any)
+  const { data, error } = await supabase.from('post_drafts')
     .select('*, post_draft_media ( * )')
     .eq('user_id', ownerId)
     .eq('status', 'saved')
     .order('last_saved_at', { ascending: false })
     .limit(100)
   if (error || !data) return readLocalDraftsRaw()
-  return Promise.all(data.map((row: any) => mapRemoteDraft(row)))
+  const rows = data.map((row: unknown) => isRemoteDraftRow(row) ? row : null).filter((row): row is RemoteDraftRow => row !== null)
+  return Promise.all(rows.map((row) => mapRemoteDraft(row)))
 }
 
 async function listSavedDraftTitles(userId?: string | null): Promise<string[]> {
@@ -468,7 +423,7 @@ async function listSavedDraftTitles(userId?: string | null): Promise<string[]> {
     return local.filter(draft => draft.status === 'saved').map(draft => draftTitle(draft))
   }
 
-  const { data, error } = await (supabase.from('post_drafts') as any)
+  const { data, error } = await supabase.from('post_drafts')
     .select('title, body')
     .eq('user_id', ownerId)
     .eq('status', 'saved')
@@ -477,7 +432,7 @@ async function listSavedDraftTitles(userId?: string | null): Promise<string[]> {
     const local = await readLocalDraftsRaw()
     return local.filter(draft => draft.status === 'saved').map(draft => draftTitle(draft))
   }
-  return data.map((draft: any) => draft.title?.trim() || draft.body?.trim() || 'Untitled draft')
+  return data.filter(isRemoteDraftTitleRow).map((draft) => draft.title?.trim() || draft.body?.trim() || 'Untitled draft')
 }
 
 export async function saveCreatePostDraftAsNew(
@@ -503,14 +458,14 @@ export async function loadCreatePostDraft(id?: string): Promise<CreatePostDraft 
   const ownerId = await currentUserId()
   if (ownerId) await migrateLocalDraftsToRemote(ownerId)
   if (ownerId && id && isUuid(id)) {
-    const { data, error } = await (supabase.from('post_drafts') as any)
+    const { data, error } = await supabase.from('post_drafts')
       .select('*, post_draft_media ( * )')
       .eq('id', id)
       .eq('user_id', ownerId)
       .neq('status', 'discarded')
       .neq('status', 'published')
       .single()
-    if (!error && data) return mapRemoteDraft(data)
+    if (!error && isRemoteDraftRow(data)) return mapRemoteDraft(data)
   }
   const drafts = await readLocalDraftsRaw()
   return (id ? drafts.find(draft => draft.id === id || draft.remoteId === id) : drafts[0]) ?? null
@@ -519,7 +474,7 @@ export async function loadCreatePostDraft(id?: string): Promise<CreatePostDraft 
 export async function deleteCreatePostDraft(id: string): Promise<void> {
   const ownerId = await currentUserId()
   if (ownerId && isUuid(id)) {
-    await (supabase.from('post_drafts') as any)
+    await supabase.from('post_drafts')
       .update({ status: 'discarded', updated_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', ownerId)
@@ -538,7 +493,7 @@ export async function markCreatePostDraftPublished(id?: string): Promise<void> {
   if (!id) return
   const ownerId = await currentUserId()
   if (ownerId && isUuid(id)) {
-    await (supabase.from('post_drafts') as any)
+    await supabase.from('post_drafts')
       .update({ status: 'published', updated_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', ownerId)
@@ -550,7 +505,8 @@ export async function markCreatePostDraftPublished(id?: string): Promise<void> {
 export async function clearCreatePostDraft(id?: string): Promise<void> {
   if (!id) {
     const drafts = await readLocalDraftsRaw()
-    if (drafts[0]?.id) await deleteCreatePostDraft(drafts[0].remoteId ?? drafts[0].id!)
+    const firstDraft = drafts[0]
+    if (firstDraft?.id) await deleteCreatePostDraft(firstDraft.remoteId ?? firstDraft.id)
     return
   }
   await deleteCreatePostDraft(id)
@@ -562,14 +518,16 @@ async function migrateLocalDraftsToRemote(userId: string): Promise<void> {
   const local = await readLocalDraftsRaw()
   const candidates = local.filter(
     draft =>
-      !draft.remoteId &&
+      (!draft.remoteId || draft.syncStatus === 'failed') &&
       draft.status === 'saved' &&
       draft.media.length + draft.title.trim().length + draft.body.trim().length > 0
   )
+  let allSynced = true
   for (const draft of candidates) {
-    await saveCreatePostDraftRemote({ ...draft, userId, status: 'saved' }, { visible: true, userId })
+    const synced = await saveCreatePostDraftRemote({ ...draft, userId, status: 'saved' }, { visible: true, userId })
+    if (synced.syncStatus !== 'synced' || !synced.remoteId) allSynced = false
   }
-  await AsyncStorage.setItem(migrationKey, 'true')
+  if (allSynced) await AsyncStorage.setItem(migrationKey, 'true')
 }
 
 function decode(base64: string): Uint8Array {

@@ -1,3 +1,5 @@
+import { useRouter } from 'expo-router'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -10,15 +12,14 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useMemo } from 'react'
-import { useRouter } from 'expo-router'
 import { Svg, Polyline, Path, Circle } from 'react-native-svg'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { useAuth } from '@/lib/contexts/AuthContext'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
-import { spacing } from '@/constants/Spacing'
 import { radius } from '@/constants/Radius'
+import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { isValidPassword } from '@/lib/utils/validation'
 
 function ChevronLeft() {
   const colors = useThemeColors()
@@ -106,7 +107,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
-  const canSubmit = email.trim().length > 0 && password.length >= 6
+  const canSubmit = email.trim().length > 0 && isValidPassword(password)
 
   async function handleSignIn() {
     if (!canSubmit || loading) return
@@ -175,7 +176,12 @@ export default function LoginScreen() {
               returnKeyType="done"
               onSubmitEditing={handleSignIn}
             />
-            <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={styles.eyeBtn}>
+            <TouchableOpacity
+              onPress={() => setShowPassword(v => !v)}
+              style={styles.eyeBtn}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+            >
               <EyeIcon open={showPassword} />
             </TouchableOpacity>
           </View>

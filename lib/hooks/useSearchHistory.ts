@@ -1,17 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { supabase } from '../supabase'
-import { useAuth } from '../contexts/AuthContext'
-import { CUISINE_SYNONYMS } from '../utils/cuisineSynonyms'
+import { useState, useEffect, useCallback } from 'react'
 import { analytics } from '../analytics'
+import { useAuth } from '../contexts/AuthContext'
+import { fetchRecentSearchHistory, fetchRecentSearchHistoryFallback } from '../services/search'
+import { CUISINE_SYNONYMS } from '../utils/cuisineSynonyms'
+import { isStringArray, parseJsonWithGuard } from '../utils/safeJson'
+import type { SearchHistoryRow } from '../services/search'
 
 export type CuisineAffinities = Record<string, number>
 
-type SearchHistoryRow = {
-  query: string
-  last_searched_at: string
-  search_count: number
-}
 
 function buildAffinities(queries: string[]): CuisineAffinities {
   const counts: Record<string, number> = {}
@@ -35,7 +32,11 @@ function buildAffinities(queries: string[]): CuisineAffinities {
   return result
 }
 
-const CACHE_KEY = 'recentSearches'
+const CACHE_KEY_PREFIX = 'recentSearches'
+
+function cacheKey(userId: string | undefined): string | null {
+  return userId ? `${CACHE_KEY_PREFIX}:${userId}` : null
+}
 
 export function useSearchHistory(): {
   cuisineAffinities: CuisineAffinities
@@ -46,42 +47,49 @@ export function useSearchHistory(): {
   const [cuisineAffinities, setCuisineAffinities] = useState<CuisineAffinities>({})
   const [recentSearches, setRecentSearches] = useState<string[]>([])
 
-  // Load from local cache immediately (zero network latency)
+  // Load account-scoped local cache immediately (zero network latency)
   useEffect(() => {
-    AsyncStorage.getItem(CACHE_KEY).then(raw => {
+    const key = cacheKey(user?.id)
+    if (!key) {
+      setRecentSearches([])
+      setCuisineAffinities({})
+      void AsyncStorage.removeItem(CACHE_KEY_PREFIX)
+      return
+    }
+    void AsyncStorage.removeItem(CACHE_KEY_PREFIX)
+    void AsyncStorage.getItem(key).then(raw => {
       if (raw) {
-        try { setRecentSearches(JSON.parse(raw)) } catch {}
+        const parsed = parseJsonWithGuard(raw, isStringArray)
+        if (parsed) setRecentSearches(parsed)
       }
     })
-  }, [])
+  }, [user?.id])
 
   // Sync from server and update cache
   useEffect(() => {
     if (!user) return
+    const userId = user.id
     let cancelled = false
 
     async function loadSearchHistory() {
-      const { data, error } = await (supabase.rpc as any)('get_recent_search_history', {
-        max_results: 30,
-        lookback_days: 30,
-      })
+      let rows: SearchHistoryRow[] = []
+      let rpcFailed = false
+      try {
+        rows = await fetchRecentSearchHistory(30, 30)
+      } catch {
+        rpcFailed = true
+      }
 
-      let queries = ((data ?? []) as SearchHistoryRow[])
+      let queries = rows
         .map(row => row.query)
         .filter((q): q is string => typeof q === 'string' && q.trim().length > 1)
 
-      if (error) {
-        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-        const fallback = await (supabase.from('analytics_events') as any)
-          .select('metadata, created_at')
-          .eq('user_id', user!.id)
-          .eq('event_type', 'search_query')
-          .gte('created_at', since)
-          .order('created_at', { ascending: false })
-          .limit(200)
-        queries = (fallback.data ?? [])
-          .map((row: { metadata?: { query?: string } }) => row.metadata?.query)
-          .filter((q: unknown): q is string => typeof q === 'string' && q.trim().length > 1)
+      if (rpcFailed) {
+        try {
+          queries = await fetchRecentSearchHistoryFallback(userId, 30)
+        } catch {
+          queries = []
+        }
       }
 
       if (!cancelled) {
@@ -94,11 +102,12 @@ export function useSearchHistory(): {
           if (deduped.length >= 10) break
         }
         setRecentSearches(deduped)
-        AsyncStorage.setItem(CACHE_KEY, JSON.stringify(deduped))
+        const key = cacheKey(userId)
+        if (key) void AsyncStorage.setItem(key, JSON.stringify(deduped))
       }
     }
 
-    loadSearchHistory()
+    void loadSearchHistory()
     return () => {
       cancelled = true
     }
@@ -108,7 +117,8 @@ export function useSearchHistory(): {
   const dismissSearch = useCallback((query: string) => {
     setRecentSearches(prev => {
       const next = prev.filter(q => q.toLowerCase() !== query.toLowerCase())
-      AsyncStorage.setItem(CACHE_KEY, JSON.stringify(next))
+      const key = cacheKey(user?.id)
+      if (key) void AsyncStorage.setItem(key, JSON.stringify(next))
       return next
     })
     if (user) {
