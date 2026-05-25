@@ -39,7 +39,7 @@
     "check:security-foundations": "node scripts/ops/check-security-foundations.js",
     "check:google-costs": "node scripts/ops/check-google-cost-reduction.js",
     "upgrade:maps": "node scripts/upgrade-maps.js",
-    "check:deps": "npm audit --audit-level=moderate",
+    "check:deps": "npm audit --audit-level=high",
     "check:coverage": "node scripts/check-coverage.js",
     "check:ci-coverage": "node scripts/check-ci-coverage.js",
     "check:circular-deps": "node scripts/check-circular-deps.js",
