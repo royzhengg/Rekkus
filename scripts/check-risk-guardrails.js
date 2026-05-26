@@ -103,6 +103,22 @@ if (!exists('operations/JOB_MANIFEST.md')) {
   failures.push('operations/JOB_MANIFEST.md is required for scheduled job evidence.')
 }
 
+// B-520 guardrail: login audit events must always carry a context argument (device metadata).
+// Pattern flags bare calls with no second argument: recordAuthAuditEvent('login_*_success')
+// Prevents silently omitting device_os/provider from future login audit call sites.
+const loginAuditNoContextPattern = /recordAuthAuditEvent\s*\(\s*['"`]login_(?:email|oauth)_success['"`]\s*\)/
+for (const relativeRoot of ['app', 'features', 'lib', 'components']) {
+  walk(relativeRoot, (file, source) => {
+    if (!/\.tsx?$/.test(file)) return
+    if (loginAuditNoContextPattern.test(source)) {
+      failures.push(
+        `${file} calls recordAuthAuditEvent for a login event without a context argument; ` +
+        'always pass { provider, ...getDeviceContext() } so device metadata is captured (B-520).'
+      )
+    }
+  })
+}
+
 if (failures.length) {
   console.error('Hidden-risk guardrails failed:')
   for (const failure of failures) console.error(`- ${failure}`)

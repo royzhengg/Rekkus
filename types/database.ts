@@ -767,6 +767,41 @@ export type Database = {
           },
         ]
       }
+      feature_flag_audit_events: {
+        Row: {
+          context: Json
+          created_at: string
+          event_type: string
+          flag_name: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          context: Json
+          created_at?: string
+          event_type: string
+          flag_name: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          event_type?: string
+          flag_name?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_flag_audit_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_flag_overrides: {
         Row: {
           enabled: boolean
@@ -2305,6 +2340,45 @@ export type Database = {
           },
         ]
       }
+      saved_dishes: {
+        Row: {
+          created_at: string
+          dish_id: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dish_id: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dish_id?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_dishes_dish_id_fkey"
+            columns: ["dish_id"]
+            isOneToOne: false
+            referencedRelation: "dishes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_dishes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_locations: {
         Row: {
           created_at: string
@@ -2340,45 +2414,6 @@ export type Database = {
           },
           {
             foreignKeyName: "saved_locations_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      saved_dishes: {
-        Row: {
-          created_at: string
-          dish_id: string
-          id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          dish_id: string
-          id?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          dish_id?: string
-          id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "saved_dishes_dish_id_fkey"
-            columns: ["dish_id"]
-            isOneToOne: false
-            referencedRelation: "dishes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "saved_dishes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -2536,6 +2571,38 @@ export type Database = {
           },
         ]
       }
+      user_profile_audit_events: {
+        Row: {
+          context: Json | null
+          created_at: string
+          event_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          event_type: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profile_audit_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_settings: {
         Row: {
           allow_comments: boolean
@@ -2609,38 +2676,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_topic_follows_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_profile_audit_events: {
-        Row: {
-          context: Json | null
-          created_at: string
-          event_type: string
-          id: string
-          user_id: string | null
-        }
-        Insert: {
-          context?: Json | null
-          created_at?: string
-          event_type: string
-          id?: string
-          user_id?: string | null
-        }
-        Update: {
-          context?: Json | null
-          created_at?: string
-          event_type?: string
-          id?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_profile_audit_events_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -2783,6 +2818,7 @@ export type Database = {
       }
       delete_comment: { Args: { p_comment_id: string }; Returns: undefined }
       delete_message: { Args: { p_message_id: string }; Returns: undefined }
+      delete_own_account: { Args: never; Returns: undefined }
       delete_post: { Args: { p_post_id: string }; Returns: undefined }
       expand_search_cuisines: {
         Args: { max_cuisines?: number; query_text: string }
@@ -2833,6 +2869,10 @@ export type Database = {
       }
       record_auth_audit_event: {
         Args: { p_context?: Json; p_event_type: string }
+        Returns: undefined
+      }
+      record_auth_audit_event_server: {
+        Args: { p_context?: Json; p_event_type: string; p_user_id: string }
         Returns: undefined
       }
       record_collection_audit_event: {
@@ -2932,72 +2972,30 @@ export type Database = {
           rank: number
         }[]
       }
-      search_restaurants_full_text:
-        | {
-            Args: { max_results?: number; query_text: string }
-            Returns: {
-              address: string
-              city: string
-              cuisine_type: string
-              google_place_id: string
-              google_rating: number
-              google_review_count: number
-              id: string
-              latitude: number
-              longitude: number
-              name: string
-              open_now: boolean
-              rank: number
-              suburb: string | null
-            }[]
-          }
-        | {
-            Args: {
-              max_results?: number
-              near_lat?: number
-              near_lng?: number
-              query_text: string
-            }
-            Returns: {
-              address: string
-              city: string
-              cuisine_type: string
-              google_place_id: string
-              google_rating: number
-              google_review_count: number
-              id: string
-              latitude: number
-              longitude: number
-              name: string
-              open_now: boolean
-              rank: number
-              suburb: string | null
-            }[]
-          }
-        | {
-            Args: {
-              max_results?: number
-              near_lat?: number
-              near_lng?: number
-              query_text: string
-              suburb_filter?: string
-            }
-            Returns: {
-              address: string
-              city: string
-              cuisine_type: string
-              google_place_id: string
-              google_rating: number
-              google_review_count: number
-              id: string
-              latitude: number
-              longitude: number
-              name: string
-              open_now: boolean
-              rank: number
-              suburb: string
-            }[]
-          }
+      search_restaurants_full_text: {
+        Args: {
+          max_results?: number
+          near_lat?: number
+          near_lng?: number
+          query_text: string
+          suburb_filter?: string
+        }
+        Returns: {
+          address: string
+          city: string
+          cuisine_type: string
+          google_place_id: string
+          google_rating: number
+          google_review_count: number
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          open_now: boolean
+          rank: number
+          suburb: string
+        }[]
+      }
       send_direct_message: {
         Args: {
           p_attachment_metadata?: Json

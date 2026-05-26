@@ -37,13 +37,14 @@ Each flag in `lib/featureFlags.ts` must include:
 - Flags defined but not referenced outside `lib/featureFlags.ts` warn as stale.
 - Risky releases must pair flags with a rollback note in `operations/RELEASE.md`.
 - Production overrides live in `feature_flag_overrides` and are read through the `feature-flags` Edge Function. The app never receives service-role access.
+- Every `feature_flag_overrides` insert, update, or delete writes an append-only `feature_flag_audit_events` row through a fail-closed database trigger; no UI or service write path may bypass it.
 - Runtime override cache refreshes every 60 seconds; failed refreshes fall back to code defaults.
 
 ## Human Override
 
 When a flag controls a risky path, the implementation must describe who can flip it, where the change happens, and what confirms rollback worked.
 
-Emergency disables use `feature_flag_overrides.enabled = false` with a reason, actor, and optional expiry. Confirm rollback by checking the affected surface within 60 seconds and recording the override in release or incident notes.
+Emergency disables use `feature_flag_overrides.enabled = false` with a reason, actor, and optional expiry. The database records the mutation atomically in `feature_flag_audit_events`; confirm rollback by checking the affected surface within 60 seconds and linking the audit event in release or incident notes.
 
 ## Admin Platform
 

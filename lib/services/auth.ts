@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import type { Json } from '@/types/database'
 import type { Session, User, UserIdentity } from '@supabase/supabase-js'
 
 export type AuthSession = Session
@@ -89,9 +90,22 @@ export async function unlinkIdentity(identity: AuthIdentity): Promise<string | n
   return error?.message ?? null
 }
 
+export async function deleteAccount(): Promise<string | null> {
+  const { error } = await supabase.rpc('delete_own_account')
+  return error?.message ?? null
+}
+
+// Typed context for auth audit events (B-520).
+// ip_hash is server-side only (auth-audit-hook Edge Function); never send from client.
+export interface AuthAuditContext extends Record<string, Json | undefined> {
+  provider?: 'email' | 'google'
+  device_os?: 'ios' | 'android' | 'web' | 'unknown'
+  device_version?: string
+}
+
 export async function recordAuthAuditEvent(
   eventType: 'login_email_success' | 'login_oauth_success' | 'logout' | 'password_changed' | 'account_deleted',
-  context?: Record<string, string> | null
+  context?: AuthAuditContext | null
 ): Promise<void> {
   await supabase.rpc('record_auth_audit_event', {
     p_event_type: eventType,

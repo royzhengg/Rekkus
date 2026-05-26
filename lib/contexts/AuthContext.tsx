@@ -1,6 +1,7 @@
 import * as Linking from 'expo-linking'
 import * as WebBrowser from 'expo-web-browser'
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import { Platform } from 'react-native'
 import { analytics } from '@/lib/analytics'
 import {
   beginGoogleLink,
@@ -14,7 +15,9 @@ import {
   signOut as endSession,
   signUpWithEmail as createEmailAccount,
   subscribeToAuthStateChange,
+  deleteAccount as removeAccount,
   unlinkIdentity as removeIdentity,
+  type AuthAuditContext,
   type AuthIdentity,
   type AuthSession,
   type AuthUser,
@@ -23,6 +26,12 @@ import { updateProfile as persistProfile } from '@/lib/services/users'
 import { checkCooldown, isCoolingDown, setCooldown } from '@/lib/utils/cooldown'
 
 WebBrowser.maybeCompleteAuthSession()
+
+function getDeviceContext(): Pick<AuthAuditContext, 'device_os' | 'device_version'> {
+  const os = Platform.OS
+  const device_os = os === 'ios' ? 'ios' : os === 'android' ? 'android' : 'unknown'
+  return { device_os, device_version: String(Platform.Version) }
+}
 
 interface AuthContextValue {
   user: AuthUser | null
@@ -36,6 +45,7 @@ interface AuthContextValue {
   linkGoogle: () => Promise<string | null>
   unlinkIdentity: (identity: AuthIdentity) => Promise<string | null>
   signOut: () => Promise<void>
+  deleteAccount: () => Promise<string | null>
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -50,6 +60,7 @@ const AuthContext = createContext<AuthContextValue>({
   linkGoogle: async () => null,
   unlinkIdentity: async () => null,
   signOut: async () => {},
+  deleteAccount: async () => null,
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -84,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCooldown(cooldownKey)
     } else {
       analytics.onboardingStep(null, 'login_email', 'success')
-      void recordAuthAuditEvent('login_email_success', { provider: 'email' })
+      void recordAuthAuditEvent('login_email_success', { provider: 'email', ...getDeviceContext() })
     }
     return error
   }
@@ -147,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         analytics.onboardingAnomaly(null, 'login_google', 'session_error')
       } else {
         analytics.onboardingStep(null, 'login_google', 'success')
-        void recordAuthAuditEvent('login_oauth_success', { provider: 'google' })
+        void recordAuthAuditEvent('login_oauth_success', { provider: 'google', ...getDeviceContext() })
       }
       return sessionError
     }
@@ -195,6 +206,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await endSession()
   }
 
+  async function deleteAccount(): Promise<string | null> {
+    // Client-side belt-and-suspenders; primary guarantee is auth_audit_delete_trigger (B-519).
+    void recordAuthAuditEvent('account_deleted', getDeviceContext())
+    const error = await removeAccount()
+    if (!error) {
+      setUser(null)
+      setSession(null)
+    }
+    return error
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -209,6 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         linkGoogle,
         unlinkIdentity,
         signOut,
+        deleteAccount,
       }}
     >
       {children}

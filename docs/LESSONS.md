@@ -91,8 +91,11 @@ To add a lesson: append to the relevant topic file in `docs/lessons/`, then add/
 ## Services Layer → [docs/lessons/services.md](lessons/services.md)
 
 - **Supabase calls and provider types belong in `lib/services/`** — hooks/contexts compose typed services; architecture and lint checks enforce the boundary (B-493)
+- **Retire superseded RPC overloads when return shapes change** — otherwise PostgREST/typegen can resolve an older contract and hide fields needed by runtime consumers (B-283)
 - **Narrow untrusted data once at its boundary** — provider, RPC/realtime, JSON relation and persisted-cache payloads use fixture-tested service guards; privileged Edge requests reject malformed bodies before writes (B-511)
 - **Audit wiring belongs in the same PR as the mutation** — mutations that predate the audit rule accumulate compliance gaps; `check:audit` now scans all migration files for the view (not just the named view file) so any new `*_audit_events` table without a view arm fails CI immediately (B-517, B-518)
+- **Server-side auth audit uses a PostgreSQL trigger, not an Edge Function** — atomic with auth transaction, no cold-start, no client-crash gap; `logout` is client-only (session invalidation doesn't update `auth.users`); `check:audit` enforces trigger existence and event-type coverage (B-519)
+- **Audit operational controls at their database write boundary** — feature flag overrides may be changed without an admin UI, so a fail-closed trigger records every runtime override mutation regardless of caller (B-521)
 
 ## Analytics → [docs/lessons/analytics.md](lessons/analytics.md)
 

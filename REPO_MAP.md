@@ -42,6 +42,15 @@ Use this file to navigate Rekkus quickly.
 - **Hooks**: `lib/hooks/useRestaurantSearch.ts` (debounced DB+Google autocomplete, nearby fetch, place details + upsert orchestration)
 - **Services**: `lib/services/restaurants.ts`, `lib/services/media.ts`, `lib/services/postMediaProcessing.ts`
 
+### Saved Library And Dish Details
+
+- **Screens**: `features/saved/SavedScreen.tsx`, `features/saved/CollectionDetailScreen.tsx`, `features/dishes/DishDetailScreen.tsx`
+- **Routes**: `app/(tabs)/saved.tsx`, `app/collections/[collectionId].tsx`, `app/dishes/[dishId].tsx`; legacy `app/(tabs)/restaurants.tsx` and `app/(tabs)/places.tsx` redirect to Saved places
+- **Components**: `components/CollectionPickerSheet.tsx`, `components/SavedTargetCollectionSheets.tsx`
+- **Hooks**: `lib/hooks/useDishDetail.ts`, `lib/hooks/useSavedDishes.ts`, `lib/hooks/useCollectionPicker.ts`
+- **Services**: `lib/services/dishes.ts`, `lib/services/collections.ts`, `lib/services/posts.ts`
+- **Persistence**: `saved_dishes`, mixed `collection_items` targets (`dish`, `restaurant`, `post`), atomic collection/save RPCs in `supabase/migrations/20260526000003_dish_details_saved_library.sql`
+
 ### Direct Messaging
 
 - **Screens**: `features/messages/ConversationScreen.tsx`, `features/messages/MessagesListScreen.tsx`, `features/messages/MessageRequestsScreen.tsx`, `features/messages/ConversationInfoScreen.tsx`, `features/messages/CreateGroupScreen.tsx`

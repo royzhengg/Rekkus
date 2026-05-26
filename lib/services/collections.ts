@@ -70,7 +70,7 @@ export async function createPrivateCollection(userId: string, name: string): Pro
   void supabase.rpc('record_collection_audit_event', {
     p_collection_id: data.id,
     p_event_type: 'created',
-    p_context: { name: trimmedName },
+    p_context: { visibility: 'private' },
   })
   return { ...data, visibility: data.visibility }
 }
@@ -85,7 +85,7 @@ export async function renameCollection(collectionId: string, newName: string): P
   void supabase.rpc('record_collection_audit_event', {
     p_collection_id: collectionId,
     p_event_type: 'renamed',
-    p_context: { new_name: trimmed },
+    p_context: { changed_fields: ['name'] },
   })
 }
 

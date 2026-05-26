@@ -244,6 +244,7 @@ Mounted in `app/_layout.tsx` from outermost to innermost:
 | `push_tokens`                 | Expo push tokens for notifications                                                             |
 | `analytics_events`            | Raw event log (event_type, event_version, entity_type, entity_id) with 90-day retention        |
 | `feature_flag_overrides`      | Service-role emergency overrides for code-defined feature flags                                |
+| `feature_flag_audit_events`   | Append-only, fail-closed audit evidence for runtime feature flag override mutations             |
 
 All tables have RLS enabled. Policies follow the pattern: public SELECT, authenticated INSERT/UPDATE/DELETE on own rows.
 
@@ -291,7 +292,19 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 | `20240226000000_search_history_aggregate.sql`        | Per-user recent search-history aggregate RPC for scalable discovery personalization                               |
 | `20240227000000_auth_user_trigger.sql`               | Auth user trigger and backfill for public user skeleton rows                                                      |
 | `20240228000000_ops_hardening.sql`                   | Feature flag overrides, analytics event versioning, and retention index                                           |
+| `20240229000000_dishes.sql`                          | Canonical dishes, dish audit evidence, RLS, and dish-graph indexes                                                |
+| `20240229000001_posts_dish_id.sql`                   | Canonical post-to-dish link and audited find-or-create RPC                                                        |
+| `20260526000000_auth_audit_events.sql`               | Append-only authentication audit trail and authenticated write RPC                                                |
+| `20260526000001_content_lifecycle_events.sql`        | Append-only post/comment lifecycle audit trail                                                                    |
+| `20260526000002_platform_audit_events_view.sql`      | Unified compliance view over domain audit evidence                                                                |
 | `20260526000003_dish_details_saved_library.sql`      | Private saved dishes, mixed collection targets/RPCs, and deterministic canonical dish post backfill              |
+| `20260526000004_user_profile_audit_events.sql`       | Append-only user profile change audit events and unified-view extension                                           |
+| `20260526000005_collection_audit_events.sql`         | Append-only collection lifecycle audit events and unified-view extension                                          |
+| `20260526000006_auth_audit_server_trigger.sql`       | Server-side auth audit trigger guarantee for auditable auth-user mutations                                        |
+| `20260526000007_remove_legacy_restaurant_search_overloads.sql` | Remove stale search RPC overloads so generated types resolve the suburb-aware restaurant contract              |
+| `20260526000008_auth_audit_events_device_context.sql` | Document pseudonymised IP/device context contract for authentication audit evidence                              |
+| `20260526000009_feature_flag_audit_events.sql`       | Fail-closed runtime feature flag override audit events and unified-view extension                                |
+| `20260526000010_delete_own_account.sql`              | Self-service account deletion RPC with pre-deletion content lifecycle audit for owned posts (B-522)              |
 
 ---
 

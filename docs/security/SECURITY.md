@@ -22,6 +22,7 @@ This document tracks Rekkus security controls, risks, and ISO 27001-readiness. I
 | Restaurant audit events and privacy requests | Compliance evidence | Minimized, access-controlled, and retained by policy |
 | `auth_audit_events` | Compliance evidence (ISO A.12.4.1) | Permanent retention; service-role only; written via `record_auth_audit_event` SECURITY DEFINER RPC |
 | `content_lifecycle_events` | Compliance evidence | Post/comment creation/deletion; no FK on entity_id — survives cascade delete; service-role only |
+| `feature_flag_audit_events` | Compliance evidence | Runtime flag override mutations; fail-closed database trigger; service-role only |
 | `platform_audit_events_view` | Unified compliance read surface | UNION ALL over all domain audit tables; query via service-role for incident investigation and compliance evidence |
 | Direct message body and attachments | User-private | Accessible only to conversation participants via RLS; body nulled on user delete |
 | Message audit rows (deleted_at, sender_id, conversation_id) | Compliance evidence | Retained after body is nulled; participant-only RLS |
@@ -42,7 +43,11 @@ This document tracks Rekkus security controls, risks, and ISO 27001-readiness. I
 - No raw tokens, reset links, passwords, or service errors are logged.
 - Canonical restaurant changes, provider refreshes, moderation/admin actions, privacy requests, and async jobs must produce audit evidence.
 - Authentication events (login, logout, OAuth) must be recorded in `auth_audit_events` via SECURITY DEFINER RPC — not only in `analytics_events` (90-day retention is insufficient for ISO compliance).
+- `auth_audit_events.context` must include device metadata (`device_os`, `device_version`) on login events. Client-side calls pass these from `Platform.OS`/`Platform.Version`. Server-side sessions capture `ip_hash` (SHA-256 of client IP, pseudonymised) and `device_os` (from user-agent) via the `auth-audit-hook` Edge Function (B-520). Raw IP is never stored.
+- `check:risk-guardrails` enforces that every `recordAuthAuditEvent` login call includes a context argument — bare login audit calls fail CI. Login, password-change, and account-deletion events are additionally captured server-side by a PostgreSQL trigger on `auth.users` (B-519) — atomic with the auth transaction and immune to client crashes. `logout` is client-only (intentional: session invalidation does not update `auth.users` rows). Duplicate records from both paths are acceptable.
+- Self-serve account deletion is wired via `delete_own_account()` SECURITY DEFINER RPC (B-522): atomically bulk-inserts `content_lifecycle_events` for all live owned posts (with `reason: 'account_deleted'`), then `DELETE FROM auth.users` fires `auth_audit_delete_trigger` to write the `account_deleted` event. Called via `deleteAccount()` in `lib/services/auth.ts`; `AuthContext.deleteAccount` also sends a client-side belt-and-suspenders audit call. `check:audit` enforces the RPC cannot be silently removed.
 - Content creation and deletion events must be recorded in `content_lifecycle_events` via SECURITY DEFINER RPC — entity_id carries no FK so records survive cascade deletes.
+- Runtime feature flag overrides must be recorded in `feature_flag_audit_events` by the fail-closed trigger on `feature_flag_overrides`; operational control changes must not depend on a UI write path for audit coverage.
 - All domain audit tables are unified under `platform_audit_events_view` (ADR 0011). The `check:audit` guardrail enforces that every `*_audit_events` table is present in the view.
 - New data/provider features must pass the compliance, data inventory, RLS, audit, provider, privacy, and ISO checks before release.
 - Saved-library writes use owner-scoped rows. Collection adds atomically establish the target bookmark; confirmed unsave removes owned memberships and the bookmark together so private intent does not drift.
@@ -58,6 +63,7 @@ Auth and email-like actions must use provider rate limits plus app-side cooldown
 - Onboarding anomalies are tracked through privacy-safe analytics events without storing email, password, token, or reset-link payloads.
 - Resend/Supabase email volume remains part of release and cost review before public beta.
 - **Roy action — verify before beta:** Check Supabase dashboard → Auth → Rate Limits. Confirm per-IP and per-email login attempt limits are configured (GoTrue default: ~5 failed attempts per 15 minutes per email). Enable CAPTCHA (HCaptcha) in Auth → Settings if brute-force risk is elevated at scale.
+- **Roy action — activate IP capture (B-520):** Supabase Dashboard → Database → Webhooks → New webhook. Schema: `auth`, Table: `sessions`, Event: `INSERT`, URL: `https://<project-ref>.supabase.co/functions/v1/auth-audit-hook`. Generate a random secret and set it as `AUTH_HOOK_SECRET` in the Edge Function's environment variables. Once configured, every login session will record `ip_hash` + `device_os` in `auth_audit_events`.
 
 ## Moderation And Abuse Foundation
 

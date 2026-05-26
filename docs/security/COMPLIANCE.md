@@ -71,6 +71,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | privacy_requests | Security | User-private legal request | User/support | Legal retention | User visible | Owner RLS |
 | analytics_events | Analytics | Internal telemetry | User behavior/system | 90-day raw retention, aggregate later | De-identify or delete link when required | Insert own, aggregate/public read |
 | feature_flag_overrides | Operations | Emergency feature flag rollback state | Engineering/admin | Until flag retirement or incident closure | Internal only | Service-role only |
+| feature_flag_audit_events | Security/Operations | Feature flag change audit evidence | Database trigger on runtime overrides | Compliance audit retention | Minimized; not normal export | Service-role only |
 | saved_locations | Product | User-private saved restaurant intent | User | Account lifetime | Included | Owner RLS |
 | saved_dishes | Product | User-private canonical dish intent | User | Account lifetime | Included | Owner RLS |
 | collections | Product | User-private/shareable collection metadata | User | Account lifetime unless deleted | Included | Owner RLS; unlisted/public select |
@@ -206,10 +207,11 @@ Audit automatically or through controlled service paths:
 - provider kill-switch changes
 - async job runs, failures, and retries
 - dish audit (dish graph creation, merge, update via `dish_audit_events`)
-- auth audit (login, logout, OAuth, password change via `auth_audit_events` — permanent retention, ISO A.12.4.1)
+- auth audit (login, logout, OAuth, password change via `auth_audit_events` — permanent retention, ISO A.12.4.1; context includes `provider`, `device_os`, `device_version` from client; `ip_hash` (SHA-256, pseudonymised) and `device_os` from server-side `auth-audit-hook` Edge Function on `auth.sessions` INSERT; raw IP is never stored; SHA-256 is GDPR-safe pseudonymisation under recital 26; B-520)
 - content lifecycle (post/comment creation and deletion via `content_lifecycle_events` — no FK, survives cascade delete)
 - user profile audit (username, avatar, bio, display name changes via `user_profile_audit_events` — context stores field names only, never values; ISO A.12.4 gap closure, B-517)
 - collection audit (collection create, rename, delete, item add/remove, visibility change via `collection_audit_events` — no FK on collection_id so records survive collection deletion; B-518)
+- feature flag audit (runtime override create/update/removal via `feature_flag_audit_events` — fail-closed database trigger prevents unaudited control changes; B-521)
 
 Audit records should include actor type, actor ID where available, action, entity type, entity ID, before/after summary, source/provider, reason, request/job ID, timestamp, compliance category, and rollback reference. Do not store secrets, raw private exports, unnecessary PII, or restricted provider payloads in audit logs.
 

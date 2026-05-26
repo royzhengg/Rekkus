@@ -33,6 +33,18 @@ export async function fetchTrendingSearches(limit: number): Promise<TrendingSear
 
 The unsafe typing scanner and ESLint rules cover runtime boundaries, so casts and suppression comments fail CI immediately.
 
+## Retire superseded RPC overloads when return shapes change
+
+`CREATE OR REPLACE FUNCTION` only replaces the identical PostgreSQL signature. Adding parameters creates a new overload and leaves older signatures callable; PostgREST and generated TypeScript may then bind to a legacy return shape. When an RPC's canonical result expands, explicitly drop obsolete overloads in the migration and regenerate `types/database.ts`.
+
+## Server-side auth audit uses a trigger, not an Edge Function
+
+For auth events that must be ISO A.12.4.1-compliant, a PostgreSQL trigger on `auth.users` is more reliable than a client-side RPC or a Database Webhook → Edge Function chain. The trigger fires atomically within the auth transaction — no network hop, no cold-start, no gap from a client crash. Client-side `recordAuthAuditEvent` calls are kept as belt-and-suspenders; duplicate records in an append-only audit log are acceptable. `logout` is client-only because session invalidation does not update `auth.users` rows. The `check:audit` guardrail verifies the trigger exists in migrations and that all server-capturable event types are handled in the trigger function.
+
+## Audit operational controls at the database write boundary
+
+Runtime controls such as `feature_flag_overrides` can be changed by service-role SQL, scripts, or a future admin UI. Auditing only a UI toggle leaves existing write paths invisible. `feature_flag_audit_events` is therefore written by a fail-closed trigger on the override table: every insert, update, and delete commits with its audit row or neither commits. `check:audit` requires this trigger coverage and rejects exception swallowing in that trigger.
+
 ## Narrow untrusted data once at its boundary
 
 Provider JSON, RPC/realtime payloads, JSON relations, and persisted cache reads are runtime input even when TypeScript knows the expected schema. Parse them in services or shared Edge Function guard modules before exposing domain types.
