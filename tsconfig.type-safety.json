@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "module": "NodeNext",
+    "target": "ES2022",
+    "moduleResolution": "NodeNext",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "rootDir": ".",
+    "outDir": ".temp/type-safety-tests",
+    "esModuleInterop": true,
+    "types": ["node"]
+  },
+  "include": [
+    "tests/type-safety/**/*.ts",
+    "lib/utils/safeJson.ts",
+    "lib/utils/routeParams.ts",
+    "lib/services/googlePlacesGuards.ts",
+    "lib/services/messaging/guards.ts",
+    "lib/services/postUploadGuards.ts",
+    "lib/services/postDrafts/guards.ts",
+    "lib/services/posts/guards.ts",
+    "lib/services/searchGuards.ts",
+    "lib/services/moderationGuards.ts",
+    "supabase/functions/_shared/guards.ts"
+  ]
+}

@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const { execFileSync } = require('child_process')
 
 const repoRoot = path.resolve(__dirname, '..')
 const sourceRoots = ['app', 'features', 'components', 'lib', 'types', 'constants', 'scripts', 'supabase']
@@ -18,6 +19,19 @@ const knownDirectServiceAccess = new Set([
   'features/messages/CreateGroupScreen.tsx',
 ])
 const failures = []
+
+const gitignore = fs.readFileSync(path.join(repoRoot, '.gitignore'), 'utf8')
+if (!gitignore.split(/\r?\n/).includes('.temp/')) {
+  failures.push('.gitignore must ignore .temp/ because it contains generated scratch output.')
+}
+
+const trackedTempFiles = execFileSync('git', ['ls-files', '--', '.temp'], {
+  cwd: repoRoot,
+  encoding: 'utf8',
+}).trim()
+if (trackedTempFiles) {
+  failures.push('.temp/ contains tracked generated output; remove it from version control.')
+}
 
 function walk(relativeRoot, visitor) {
   const absoluteRoot = path.join(repoRoot, relativeRoot)

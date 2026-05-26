@@ -35,3 +35,7 @@ Agent sandboxes and some local machines cannot write Watchman's state directory.
 ## External API providers need an independent feature flag
 
 GIF providers, geocoding APIs, and other external services should have their own feature flag so they can be disabled without a release or toggling the parent feature. This allows kill-switch response to quota overruns, billing surprises, or provider outages.
+
+## Track test compiler configuration, not emitted scratch output
+
+Type-safety fixtures need a committed `tsconfig` so compiler-option changes are reviewable and IDE diagnostics point at source configuration. Use supported current module-resolution settings for Node-executed tests, and keep emitted JavaScript or comparison snapshots under ignored `.temp/` output only.

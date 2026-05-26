@@ -16,6 +16,7 @@ To add a lesson: append to the relevant topic file in `docs/lessons/`, then add/
 - **External API providers need an independent feature flag** — so they can be killed without a release or disabling the parent feature
 - **Test scripts in package.json are inert without a config file** — packages installed + scripts wired ≠ tests runnable; `jest.config.js` is required for Jest to find and transform files
 - **Mock module-load side-effects before importing the module under test** — `jest.mock('@/lib/featureFlags', ...)` must precede the import of any file that imports featureFlags at module scope; hoist mocks are automatically applied before imports
+- **Test compiler configs are source; emitted scratch output is not** — keep fixture `tsconfig` files tracked with current compiler options and ignore generated `.temp/` output
 
 ## Architecture → [docs/lessons/architecture.md](lessons/architecture.md)
 
