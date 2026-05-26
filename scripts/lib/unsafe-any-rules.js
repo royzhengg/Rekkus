@@ -37,6 +37,9 @@ function unsafeAnyFailures(file, source) {
     if (/\bas unknown as\s+\w/.test(line)) {
       failures.push(`FAIL [UNSAFE_DOUBLE_CAST] ${file}:${lineNumber}: \`as unknown as\` bypasses type narrowing as effectively as \`as any\`; use a type guard, unknown narrowing, or typed wrapper.`)
     }
+    if (/process\.env\.[A-Z_]/.test(line)) {
+      failures.push(`FAIL [RAW_ENV_ACCESS] ${file}:${lineNumber}: read env vars via the typed env() helper in lib/config.ts, not directly from process.env.`)
+    }
   }
 
   return failures

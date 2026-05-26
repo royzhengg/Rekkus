@@ -74,4 +74,18 @@ if (missing.length > 0) {
   process.exit(1)
 }
 
+// Scripts that require a local tool (e.g. Supabase CLI) and hard-fail when absent.
+// They must never appear in check:release, which runs in CI without those tools.
+const CI_INCOMPATIBLE_IN_RELEASE = [
+  'check:supabase-types:strict',
+]
+const releaseCmd = scripts['check:release'] ?? ''
+const incompatible = CI_INCOMPATIBLE_IN_RELEASE.filter(s => releaseCmd.includes(s))
+if (incompatible.length > 0) {
+  console.error('CI coverage check failed — check:release contains CI-incompatible scripts:')
+  for (const s of incompatible) console.error(`  - ${s}`)
+  console.error('These scripts hard-fail when their required tool is absent. Remove them from check:release or make them gracefully skip.')
+  process.exit(1)
+}
+
 console.log('CI coverage check passed.')
