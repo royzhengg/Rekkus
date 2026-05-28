@@ -13,6 +13,7 @@ import { CachedImage } from '@/components/ui/CachedImage'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import type { useThemeColors } from '@/lib/contexts/ThemeContext'
 import type { DirectMessage, MessageReaction } from '@/lib/services/messaging'
 
@@ -125,6 +126,7 @@ export function MessageBubble({
   onPressPostShare?: (meta: Record<string, unknown>) => void
 }) {
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const reduceMotion = useReducedMotion()
 
   const reactionGroups = useMemo(() => {
     const map = new Map<string, string[]>()
@@ -213,6 +215,7 @@ export function MessageBubble({
             style={styles.shareCard}
             onPress={() => onPressPostShare?.(meta)}
             activeOpacity={0.75}
+            accessibilityRole="button"
           >
             {imageUrl ? (
               <CachedImage
@@ -297,7 +300,7 @@ export function MessageBubble({
 
   if (message.message_type === 'system') {
     return (
-      <Animated.View entering={FadeIn.duration(200)} style={styles.systemRow}>
+      <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(200)} style={styles.systemRow}>
         {renderContent()}
       </Animated.View>
     )
@@ -305,7 +308,7 @@ export function MessageBubble({
 
   return (
     <Animated.View
-      entering={FadeIn.duration(220)}
+      entering={reduceMotion ? undefined : FadeIn.duration(220)}
       style={[styles.messageRow, isMine && styles.messageRowMine]}
     >
       {isGroup && !isMine && showSenderName ? (
@@ -317,12 +320,14 @@ export function MessageBubble({
         onLongPress={e => onLongPress(message, e.nativeEvent.pageY)}
         delayLongPress={350}
         activeOpacity={0.85}
+        accessibilityRole="button"
       >
         {replyContext ? (
           <TouchableOpacity
             style={[styles.replyQuote, isMine && styles.replyQuoteMine]}
             onPress={() => onReply(replyContext)}
             activeOpacity={0.7}
+            accessibilityRole="button"
           >
             <Text style={[styles.replyQuoteSender, isMine && { color: 'rgba(255,255,255,0.9)' /* check:tokens-ignore */ }]}>
               {getSenderName(replyContext.sender_id)}
@@ -348,6 +353,7 @@ export function MessageBubble({
                 key={emoji}
                 style={[styles.reactionPill, myReaction && styles.reactionPillActive]}
                 onPress={() => onReact(message.id, emoji)}
+                accessibilityRole="button"
               >
                 <Text style={styles.reactionEmoji}>{emoji}</Text>
                 <Text style={styles.reactionCount}>{users.length}</Text>

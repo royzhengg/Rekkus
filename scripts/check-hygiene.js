@@ -121,6 +121,14 @@ for (const legacyRoute of ['app/(tabs)/post.tsx', 'app/(tabs)/places.tsx']) {
   }
 }
 
+const nmPath = path.join(repoRoot, 'node_modules')
+if (fs.existsSync(nmPath)) {
+  const corruptedBins = fs.readdirSync(nmPath).filter(d => /^\.bin \d+$/.test(d))
+  for (const d of corruptedBins) {
+    failures.push(`node_modules/"${d}" is a corrupted .bin artifact from an interrupted npm install. Fix: rm -rf node_modules && npm install`)
+  }
+}
+
 const appEnv = process.env.EXPO_PUBLIC_APP_ENV
 const dataMode = process.env.EXPO_PUBLIC_DATA_MODE
 if ((appEnv === 'beta' || appEnv === 'production') && dataMode !== 'live') {

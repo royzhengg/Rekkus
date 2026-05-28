@@ -134,26 +134,24 @@ export async function fetchSharedMedia(conversationId: string): Promise<DirectMe
   return parseMessagesWithSignal(data, 'shared_media_row_invalid')
 }
 
-export async function addReaction(messageId: string, emoji: string): Promise<{ error: string | null }> {
+export async function addReaction(messageId: string, emoji: string): Promise<void> {
   const { error } = await supabase.from('message_reactions').upsert(
     { message_id: messageId, emoji } as never,
     { onConflict: 'message_id,user_id' }
   )
-  if (error) return { error: 'Could not add reaction.' }
-  return { error: null }
+  if (error) throw error
 }
 
-export async function removeReaction(messageId: string): Promise<{ error: string | null }> {
+export async function removeReaction(messageId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
+  if (!user) throw new Error('Not authenticated.')
 
   const { error } = await supabase.from('message_reactions')
     .delete()
     .eq('message_id', messageId)
     .eq('user_id', user.id)
 
-  if (error) return { error: 'Could not remove reaction.' }
-  return { error: null }
+  if (error) throw error
 }
 
 export async function fetchMessageReactions(conversationId: string): Promise<MessageReaction[]> {

@@ -12,6 +12,7 @@ import { fontSize, fontWeight } from '@/constants/Typography'
 import RestaurantsTabScreen from '@/features/restaurants/RestaurantsTabScreen'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useCollections } from '@/lib/hooks/useCollections'
 import { useSavedDishes } from '@/lib/hooks/useSavedDishes'
@@ -32,6 +33,7 @@ export default function SavedScreen() {
   const section = parseSection(rawSection)
   const router = useRouter()
   const { user } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const dishes = useSavedDishes(user?.id)
@@ -48,6 +50,10 @@ export default function SavedScreen() {
 
   async function createCollection() {
     if (!user?.id || !newCollectionName.trim()) return
+    if (!requireOnline()) {
+      setOperationError('Reconnect to create a collection.')
+      return
+    }
     setCreating(true)
     setOperationError(null)
     try {

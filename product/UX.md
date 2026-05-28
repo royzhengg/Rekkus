@@ -14,11 +14,13 @@ Messaging is utility, not social performance. The UI should feel immediate and f
 
 Create should feel like a food note composer, not a generic review form. The opening order is title, restaurant/place, then food media so the intent is clear before optional enrichment. The composer supports camera capture, a unified mixed photo/video library picker, local media preparation, account-synced saved drafts, invisible autosave recovery, photo-only dish tagging, Rekkus Picks helper-copy chips, searchable cuisine, and a publish preview without fake engagement chrome.
 
-The tab bar `+` is a context-preserving launcher, not a hidden return-to-last-create-state shortcut. When saved drafts exist it opens a Rekkus sheet over the current screen with **New post** and **Edit a draft** only; the draft list itself stays in `/create/drafts`.
+The floating Create action above the destination tab bar is a context-preserving launcher, not a hidden return-to-last-create-state shortcut. When saved drafts exist it opens a Rekkus sheet over the current screen with **New post** and **Edit a draft** only; the draft list itself stays in `/create/drafts`.
 
 Saved drafts are intentional user objects, not every keystroke in history. When saved drafts exist, tapping Create should first open a Rekkus-style choice sheet for **New post** or a saved draft so users do not accidentally resume old work. Keep autosaves hidden unless needed for recovery. Let users save from any create step, and when editing a saved draft, offer **Save draft** versus **Save as new draft** so branching does not overwrite the original. Draft save confirmations should use in-app Rekkus UI, not platform-default alerts.
 
 Search should feel compact until the user expresses intent. Keep the input primary, show Quick starts before typing, reveal result tabs after query/Nearby, and keep cuisine/occasion/value/media/open-now/sort controls in the filter sheet with quiet active tokens.
+
+Offline behavior is explicit: one shared connectivity notice communicates disconnection, pending reversible actions, and reconnect sync results. Latest-state toggles may show as pending and sync later; authored content, publishing, safety actions, account changes, and destructive submissions keep the user in context and ask them to reconnect and retry.
 
 ## Core UX Rules
 
@@ -44,6 +46,7 @@ Search should feel compact until the user expresses intent. Keep the input prima
 - Use concrete food language over generic social-platform copy.
 - Avoid overclaiming AI, personalization, or recommendation quality before the graph supports it.
 - Use "Saved" for the visible saved-content tab; keep places as the map/list drill-in rather than a directory-first destination.
+- Keep bottom tabs for destinations only; Create remains a floating action on both iPhone and Android.
 - Keep error messages actionable and calm.
 
 ## Related Docs

@@ -24,7 +24,7 @@ function Row({
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
       <View style={{ flex: 1 }}>
         <Text style={styles.rowLabel}>{label}</Text>
         {sublabel ? <Text style={styles.rowSublabel}>{sublabel}</Text> : null}

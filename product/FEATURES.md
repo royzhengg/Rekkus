@@ -10,14 +10,14 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 
 ### Tab bar — `app/(tabs)/`
 
-| Screen          | File                     | Status                                                |
-| --------------- | ------------------------ | ----------------------------------------------------- |
-| Feed            | `app/(tabs)/feed.tsx`    | ✅ Done                                               |
-| Search          | `app/(tabs)/search.tsx`  | ✅ Done                                               |
-| Create (post)   | `app/(tabs)/create.tsx`    | ✅ Done — 3-step wizard (basics → details → preview)  |
-| Places          | `app/(tabs)/restaurants.tsx`  | ✅ Done                                               |
-| Profile         | `app/(tabs)/profile.tsx` | ✅ Done                                               |
-| Alerts (no tab) | `app/(tabs)/alerts.tsx`  | ✅ Done — accessible via bell icon in Feed            |
+| Screen | File | Status |
+| --- | --- | --- |
+| Feed | `app/(tabs)/feed.tsx` | Done - visible tab destination |
+| Search | `app/(tabs)/search.tsx` | Done - visible tab destination |
+| Saved | `app/(tabs)/saved.tsx` | Done - visible tab destination |
+| Profile | `app/(tabs)/profile.tsx` | Done - visible tab destination |
+| Create (post) | `app/(tabs)/create.tsx` | Done - 3-step wizard launched by floating Create action, not a tab |
+| Alerts (no tab) | `app/(tabs)/alerts.tsx` | Done - accessible via bell icon in Feed |
 
 ### Post detail — `app/posts/`
 
@@ -36,12 +36,14 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 
 | Screen                         | File                              | Status  |
 | ------------------------------ | --------------------------------- | ------- |
-| Welcome                        | `app/(auth)/welcome.tsx`          | ✅ Done |
-| Sign in                        | `app/(auth)/login.tsx`            | ✅ Done |
-| Sign up (step 1 — credentials) | `app/(auth)/signup.tsx`           | ✅ Done |
-| Sign up (step 2 — profile)     | `app/(auth)/signup-profile.tsx`   | ✅ Done |
-| Forgot password                | `app/(auth)/forgot-password.tsx`  | ✅ Done |
-| Reset password (deep link)     | `app/(auth)/reset-password.tsx`   | ✅ Done |
+| Welcome | `app/(auth)/welcome.tsx` | ✅ Done |
+| Sign in | `app/(auth)/login.tsx` | ✅ Done |
+| Sign up (credentials) | `app/(auth)/signup.tsx` | ✅ Done |
+| Onboarding step 1 — profile | `app/(auth)/onboarding-profile.tsx` | ✅ Done |
+| Onboarding step 2 — interests | `app/(auth)/onboarding-interests.tsx` | ✅ Done |
+| Onboarding step 3 — location | `app/(auth)/onboarding-location.tsx` | ✅ Done |
+| Forgot password | `app/(auth)/forgot-password.tsx` | ✅ Done |
+| Reset password (deep link) | `app/(auth)/reset-password.tsx` | ✅ Done |
 
 ### Settings — `app/settings/`
 
@@ -64,6 +66,7 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 - Single-column food-first post cards using shared hierarchy: media → creator → title/body → Rekkus Picks → place → tags → actions.
 - Mixed photo/video posts show carousel count and video badges without forcing masonry compromises; profile grids show video/carousel affordances.
 - Feed shows `PostUploadProgress` for background publish jobs with thumbnail, stronger status hierarchy, progress, posted success, and failed dismiss state.
+- An app-wide connectivity notice marks offline state and pending/synced reversible actions; feed content already in memory remains visible while disconnected.
 - Tap card → push to post detail
 - Supabase-first feed data in live mode, with demo fallback only when data mode allows mock content
 - Scroll-based pagination: loads 20 visible posts at a time, requests more Supabase rows when the shared feed cursor has more, and resets on tab switch
@@ -92,6 +95,7 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 - Cuisine taxonomy lives in `lib/dataSources/cuisines.ts`, is searchable alphabetically, and excludes restaurant types such as cafe, bakery, bar, and fine dining.
 - Search uses live Supabase users/restaurants/posts where available and only merges demo data when data mode allows mock content.
 - Search analytics include session query chains and result-click positions.
+- Search follow actions use the authenticated follow service; when offline, the shared connectivity notice provides reconnect guidance rather than a local-only toggle.
 
 ### Create (post)
 
@@ -106,6 +110,7 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 - Title input (max 100 chars, counter)
 - Body / review input (multiline)
 - **Rekkus Picks** replace primary Food/Vibe/Cost entry with Taste, Value, and Occasion chips. Selecting a chip reveals helper copy such as "Worth a trip — Good enough to go out of your way for." Legacy numeric ratings remain populated for compatibility.
+- The Review step uses a compact core-first hierarchy: Picks, written review, and always-visible Best dish precede collapsed optional Cuisine and Tags metadata; saved optional values remain discoverable when collapsed.
 - Cuisine picker uses a searchable alphabetical list from `lib/dataSources/cuisines.ts`; cuisine is separate from restaurant type.
 - **Best dish field**: freetext (max 60 chars) in Step 2; saved as `best_dish` on posts; aggregated on location page
 - Location picker — local-first restaurant lookup with Google Places Autocomplete fallback (REST, no library), updates while typing, shows cuisine/location context in one unified ranked list, links to canonical `restaurants.id`, and records source/observation metadata.
@@ -207,12 +212,14 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 - `saved_locations` stores private saved restaurant intent; `saved_dishes` stores private canonical dish bookmarks; post bookmarks remain in `saves`.
 - Collections organise saved content and can contain canonical dishes, posts, and restaurants. Adding an item ensures its bookmark exists; confirmed unsave removes its collection memberships atomically.
 - Map selected-place card can toggle a saved restaurant between Want to try and Been here.
+- Saves, follows, likes/reactions, saved-place status, reversible conversation preferences, and settings queue their latest desired state offline and replay for the signed-in user after reconnect.
+- Posts, edits, comments, messages/attachments, reports/blocks, collection lifecycle changes, account/profile changes, and publishing remain explicit retry-only when offline.
 - `restaurants` table with canonical Rekkus IDs plus first-party provenance, verification status, source/alias/cache/observation/audit tables, and user-created restaurant RPC for self-reliant restaurant identity.
 - `food_rating`, `vibe_rating`, `cost_rating` columns on `posts` table (migration `20240110000000_post_ratings.sql`)
 
 ### Post detail
 
-- Full-width `PostMediaCarousel` supports mixed photos/videos with compatibility fallback for old image/video fields
+- Full-width `PostMediaCarousel` supports mixed photos/videos, native video controls, and compatibility fallback for old image/video fields. Feed and post detail may play the one visible active video muted when enabled; Reduce Motion always suppresses autoplay.
 - Supabase-first post lookup by UUID when opened from a deep link or refreshed live feed/search row
 - Post detail tracks post view, like/save/comment, dwell time, and restaurant revisit signals through privacy-safe analytics.
 - Compact like / comment / save / share action bar with optimistic rollback and inline `ErrorMessage` feedback on write failures
@@ -227,12 +234,26 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 - **Comment threading**: tap Reply on any comment → indented reply with thread line; reply banner in input bar shows "Replying to @username" with dismiss (✕); `comment_reply` push notification sent to parent comment author; replies shown in `useAlerts` under new `comment_reply` type
 - All interactive actions (like, save, follow, comment send, reply) gated — guests shown auth prompt
 
+### Onboarding first-value flow (B-240)
+
+New accounts are routed through a 3-step onboarding sequence after credentials are created:
+
+1. **Profile** (`onboarding-profile`) — username + display name
+2. **Interests** (`onboarding-interests`) — cuisine chip picker; ≥3 required; saves to `user_topic_follows` with source `'onboarding'`
+3. **Location** (`onboarding-location`) — OS foreground location permission ask; enable or skip; sets `rekkus:first-feed-visit:v1` AsyncStorage flag before navigating to feed
+
+After completing onboarding, the feed shows a one-time dismissable nudge banner with "Post a dish" and "Explore nearby" CTAs. The nudge reads the AsyncStorage flag on mount, shows once, then clears the key.
+
+Google OAuth new-user detection: after OAuth success, `LoginScreen` calls `fetchProfile(userId)` — if `username` is null/empty, routes to `/(auth)/onboarding-profile` instead of feed.
+
+Existing email login paths are unchanged.
+
 ### Auth flow
 
 - Email + password sign-in
-- Email + password sign-up (2 steps: credentials → profile)
+- Email + password sign-up → routed to 3-step onboarding (B-240)
 - Profile setup requires 3+ food interests stored as `user_topic_follows` for initial Discover ranking.
-- Google OAuth (WebBrowser + token extraction + setSession)
+- Google OAuth (WebBrowser + token extraction + setSession); new users detected by missing `profiles.username` and routed to onboarding
 - Forgot password — sends reset email via `resetPasswordForEmail`; success state shows inbox prompt
 - Password recovery deep link — `DeepLinkHandler` in `_layout.tsx` parses recovery tokens from `rekkus://` URL, sets session, navigates to reset-password screen
 - Reset password screen — sets new password via `supabase.auth.updateUser({ password })`; navigates to feed on success
@@ -247,6 +268,7 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 - Settings hub with sections: Account, Notifications, Privacy, Appearance, About, Danger zone
 - Toggles persisted to `user_settings` Supabase table (upsert on change)
 - **Appearance / Theme**: 3-way selector — Light, Dark, Follow OS. Stored as `theme_mode TEXT ('light'|'dark'|'system')` in `user_settings`. `'system'` resolves via `useColorScheme()` at runtime. Map tiles (Google Maps) apply a dark tile style (`constants/mapStyles.ts`) when dark mode is active.
+- **Appearance / Autoplay videos**: stored as `autoplay_videos BOOLEAN DEFAULT TRUE`; muted post autoplay is limited to the visible active feed/detail video and is disabled whenever OS Reduce Motion is enabled.
 - Notification toggles include likes, comments/replies, followers, mentions/tags, and private messages
 - Edit profile: avatar upload (expo-image-picker → Supabase Storage), username, display name, bio
 - Change email: re-auth then `supabase.auth.updateUser({ email })`

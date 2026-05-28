@@ -269,6 +269,7 @@ export default function ProfileScreen() {
                       }))
                     }
                     activeOpacity={0.75}
+                    accessibilityRole="button"
                   >
                     <Text style={styles.spotName} numberOfLines={1}>
                       {r.name}
@@ -290,6 +291,7 @@ export default function ProfileScreen() {
           <TouchableOpacity
             style={styles.editBtn}
             onPress={() => router.push('/settings/edit-profile')}
+            accessibilityRole="button"
           >
             <Text style={styles.editBtnText}>Edit profile</Text>
           </TouchableOpacity>
@@ -316,6 +318,8 @@ export default function ProfileScreen() {
                 }
                 setActiveTab(key)
               }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === key }}
             >
               <Text style={[styles.tabText, activeTab === key && styles.tabTextActive]}>
                 {key.charAt(0).toUpperCase() + key.slice(1)}

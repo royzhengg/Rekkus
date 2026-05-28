@@ -8,15 +8,17 @@ function isPostReactionType(value: unknown): value is PostReactionType {
 }
 
 export async function likePost(postId: string, userId: string): Promise<void> {
-  await supabase.from('likes').upsert(
+  const { error } = await supabase.from('likes').upsert(
     { post_id: postId, user_id: userId },
     { onConflict: 'user_id,post_id' }
   )
+  if (error) throw error
   notify({ type: 'like', actorId: userId, postId })
 }
 
 export async function unlikePost(postId: string, userId: string): Promise<void> {
-  await supabase.from('likes').delete().eq('post_id', postId).eq('user_id', userId)
+  const { error } = await supabase.from('likes').delete().eq('post_id', postId).eq('user_id', userId)
+  if (error) throw error
 }
 
 export async function togglePostLike(
@@ -35,14 +37,16 @@ export async function togglePostLike(
 }
 
 export async function savePost(postId: string, userId: string): Promise<void> {
-  await supabase.from('saves').upsert(
+  const { error } = await supabase.from('saves').upsert(
     { post_id: postId, user_id: userId },
     { onConflict: 'user_id,post_id' }
   )
+  if (error) throw error
 }
 
 export async function unsavePost(postId: string, userId: string): Promise<void> {
-  await supabase.from('saves').delete().eq('post_id', postId).eq('user_id', userId)
+  const { error } = await supabase.from('saves').delete().eq('post_id', postId).eq('user_id', userId)
+  if (error) throw error
 }
 
 export async function togglePostSave(

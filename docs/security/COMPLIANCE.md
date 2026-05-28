@@ -39,7 +39,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | System/table | Owner | Sensitivity | Source | Retention | Deletion/export | Access model |
 | --- | --- | --- | --- | --- | --- | --- |
 | users | Product | User profile | User | Account lifetime | Included in deletion/export | Public select, owner mutation |
-| user_settings | Product | User-private | User | Account lifetime | Included | Owner RLS |
+| user_settings | Product | User-private settings, including media autoplay preference | User | Account lifetime | Included | Owner RLS |
 | posts | Product | Public app data | User | Account lifetime unless deleted | Included where user-owned | Public select, owner mutation |
 | post_photos | Product | Public media | User | Account lifetime unless deleted | Included as URLs/metadata | Public select, owner mutation |
 | post_edit_events | Security | Audit evidence | System/user action | Compliance audit retention | Minimized audit rows; not normal public export | Owner insert/select via RLS |
@@ -72,6 +72,14 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | analytics_events | Analytics | Internal telemetry | User behavior/system | 90-day raw retention, aggregate later | De-identify or delete link when required | Insert own, aggregate/public read |
 | feature_flag_overrides | Operations | Emergency feature flag rollback state | Engineering/admin | Until flag retirement or incident closure | Internal only | Service-role only |
 | feature_flag_audit_events | Security/Operations | Feature flag change audit evidence | Database trigger on runtime overrides | Compliance audit retention | Minimized; not normal export | Service-role only |
+| Device-local pending intents (`rekkus:pending-mutations:v1`) | Product | User-private transient identifiers and target state for reversible writes (Phase 1: save/like/follow/setting) | User action while offline/transport failure | 7-day TTL max; removed on sync completion, non-retryable failure (including after 5 retries), sign-out, or app-data removal | Cleared locally; server remains source of truth | Device `AsyncStorage` only; active-user scoped replay; Phase 2 mutations (message reactions, conversation prefs) deferred to B-239b |
+
+### B-529 Compliance Impact Review
+
+- Data added: `user_settings.autoplay_videos`, a user-private boolean appearance preference retained for the account lifetime and included in deletion/export.
+- Collection/provider impact: none; video playback uses existing public post media and adds no media upload, analytics route, external provider, or location access.
+- Security/RLS: the field remains within existing owner-RLS `user_settings`; no new mutable entity domain or audit table is introduced.
+- Rollback: disable the UI/autoplay eligibility path and retain or later drop the additive preference column through a follow-up migration.
 | saved_locations | Product | User-private saved restaurant intent | User | Account lifetime | Included | Owner RLS |
 | saved_dishes | Product | User-private canonical dish intent | User | Account lifetime | Included | Owner RLS |
 | collections | Product | User-private/shareable collection metadata | User | Account lifetime unless deleted | Included | Owner RLS; unlisted/public select |
@@ -120,6 +128,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 
 - Search and Places must not request GPS on mount; permission is requested only after a user taps a location-powered control.
 - Manual suburb/postcode fallback is allowed for search ranking and provider biasing without requiring GPS permission.
+- `B-524` enforces this contract in `useUserLocation` and `check:risk-guardrails`, with a unit test confirming no foreground location request occurs on mount.
 - Precise coordinates are held in app memory for active ranking/map/post-visit flows and are not inserted into analytics metadata.
 - Manual area labels may be shown in UI, but analytics should record only feature outcome/source fields, not exact coordinates or full addresses.
 - Persistent precise location, background location, or location history needs a DPIA/PIA and release review before shipping.
@@ -132,11 +141,20 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | Posts, comments, reactions, follows, saves, saved locations | Account lifetime unless deleted or moderated | Included where user-owned |
 | Public post media | Account lifetime unless post/media is deleted | URLs/metadata included; storage cleanup follows media lifecycle |
 | Offline saved cache | Device-local best-effort cache, overwritten on refresh | Cleared by app/device data removal; server deletion remains source of truth |
+| Offline pending intents | Device-local reversible mutation IDs/state only, until replay or session clearing | Cleared after sync, non-retryable rejection, sign-out/account removal, or app/device data removal |
 | Analytics events | Time-window review for raw events, aggregate later where practical | Delete/de-identify user link when required; no precise location or secrets |
 | Moderation reports, actions, appeals, trust state | Manual review/audit retention | User-linked records included where appropriate; audit records minimized |
 | Privacy requests and security incidents | Legal/audit retention | Minimized and retained when justified |
 | Provider cache | Provider terms and TTL/freshness policy | Governed by provider terms and source attribution |
 | Messages (body + attachment) | Soft-deleted on user request; body and attachment_url nulled immediately for true erasure; storage file purged within 24h via cron job | Message row retained with deleted_at for audit and moderation continuity |
+
+### B-239 Compliance Impact Review
+
+- Data added: device-local versioned pending-intent records containing authenticated user ID, entity ID, mutation domain, target state, and timestamps only.
+- Excluded data: post/comment/message text, attachments, profile/auth values, report/block details, and publishing payloads are never stored or replayed by this queue.
+- Retention/deletion: completed and non-retryable records are removed; pending records for an account are cleared on sign-out/account removal; device/app data removal also clears them.
+- Analytics: `offline_mutation_sync` records only mutation domain and queued/synced/failed outcome under existing raw-event retention.
+- Provider/database impact: `expo-network` reports device connectivity only; no database migration, new mutable backend entity, or provider payload storage is introduced.
 
 ## CSAM / Media Safety
 

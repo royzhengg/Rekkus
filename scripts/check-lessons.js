@@ -4,7 +4,8 @@ const path = require('path')
 const { execFileSync } = require('child_process')
 
 const repoRoot = path.resolve(__dirname, '..')
-const reminder = 'Reminder: Did you update docs/LESSONS.md and verify AGENTS.md covers this pattern?'
+const reminder =
+  'Reminder: Did you update the relevant docs/lessons/<topic>.md file and verify AGENTS.md covers this pattern? Update docs/LESSONS.md only if the topic directory changed.'
 
 function readCommitMessage() {
   const argIndex = process.argv.indexOf('--commit-msg')

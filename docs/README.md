@@ -31,7 +31,8 @@ Reference docs hold deeper technical, security, analytics, and historical materi
 - [api/VERSIONING.md](api/VERSIONING.md): additive API evolution and future versioning triggers
 - [moderation/MODERATION_OPERATIONS.md](moderation/MODERATION_OPERATIONS.md): report, block, dispute, and moderation workflow rules
 - [infra/DEPENDENCY_GOVERNANCE.md](infra/DEPENDENCY_GOVERNANCE.md): dependency decision checklist and ownership
-- [LESSONS.md](LESSONS.md): project lessons and historical notes
+- [LESSONS.md](LESSONS.md): compact directory for selecting relevant lesson topics
+- [lessons/](lessons/): durable project lessons grouped by domain
 
 ## Governance
 

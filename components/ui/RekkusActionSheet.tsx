@@ -19,9 +19,10 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, lineHeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { SPRING_SMOOTH } from '@/lib/animations'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 
 export type RekkusActionSheetOption = {
   label: string
@@ -61,6 +62,7 @@ export function RekkusActionSheet({
   const insets = useSafeAreaInsets()
   const styles = useMemo(() => makeStyles(colors, insets.bottom), [colors, insets.bottom])
   const translateY = useSharedValue(0)
+  const reduceMotion = useReducedMotion()
 
   useEffect(() => {
     if (visible) translateY.value = 0
@@ -74,7 +76,7 @@ export function RekkusActionSheet({
       if (e.translationY > DISMISS_THRESHOLD || e.velocityY > DISMISS_VELOCITY) {
         runOnJS(onDismiss)()
       } else {
-        translateY.value = withSpring(0, SPRING_SMOOTH)
+        translateY.value = reduceMotion ? 0 : withSpring(0, SPRING_SMOOTH)
       }
     })
 
@@ -86,7 +88,7 @@ export function RekkusActionSheet({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType={reduceMotion ? 'none' : 'slide'}
       onRequestClose={onDismiss}
       accessibilityViewIsModal
     >
@@ -102,8 +104,8 @@ export function RekkusActionSheet({
             <View style={styles.handle} />
           </View>
         </GestureDetector>
-        {!!title && <Text style={styles.title}>{title}</Text>}
-        {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+        {!!title && <Text style={styles.title} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>{title}</Text>}
+        {!!subtitle && <Text style={styles.subtitle} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>{subtitle}</Text>}
         {header}
         <ScrollView
           style={styles.optionsScroll}
@@ -147,6 +149,7 @@ export function RekkusActionSheet({
                       option.destructive && styles.optionTextDestructive,
                       option.accentColor && !option.selected ? { color: option.accentColor } : null,
                     ]}
+                    maxFontSizeMultiplier={maxFontSizeMultiplier.layout}
                   >
                     {option.label}
                   </Text>
@@ -157,6 +160,7 @@ export function RekkusActionSheet({
                         option.selected && styles.optionDescriptionSelected,
                       ]}
                       numberOfLines={2}
+                      maxFontSizeMultiplier={maxFontSizeMultiplier.body}
                     >
                       {option.description}
                     </Text>
@@ -164,7 +168,7 @@ export function RekkusActionSheet({
                 </View>
               </View>
               {option.loading && <ActivityIndicator size="small" color={option.selected ? colors.bg : colors.text3} />}
-              {option.selected && <Text style={styles.check}>✓</Text>}
+              {option.selected && <Text style={styles.check} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>✓</Text>}
             </TouchableOpacity>
           ))}
         </ScrollView>

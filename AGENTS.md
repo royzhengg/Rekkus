@@ -76,6 +76,7 @@ Never import `lib/mocks` directly from `app/` or `features/`; route through data
 - **Cache-first, API-last:** Before calling any paid external API (Google Places, geocoding, etc.), check if the data already exists in the DB. After calling it, store the result with an appropriate TTL (Google Places: 30-day per ToS; public reference data: indefinite). Every new external API integration must implement this pattern. See `restaurant_provider_cache` as the reference implementation and `lib/utils/locationResolver.ts` for the geocoding feedback loop.
 - **Token enforcement:** Never hardcode hex colors, pixel spacing, or font sizes in `features/`. Import from `constants/Colors.ts` (via `useThemeColors()`), `constants/Spacing.ts`, and `constants/Typography.ts`. Run `check:tokens` and `check:darkmode` before committing any styling change.
 - **Touch targets:** All interactive elements must have a minimum hit area of 44×44pt per Apple HIG. Use the `<IconButton>` primitive (`components/ui/IconButton.tsx`) — never a raw `TouchableOpacity` with `width`/`height` < 44.
+- **Android platform parity:** All interactive flows, UI states, and navigation must work correctly on Android before shipping. Use `Platform.OS` / `Platform.select` only for genuine platform affordances (elevation vs shadow, status bar style, keyboard behaviour, haptics availability); never to gate or hide core functionality. Every screen with a back action must handle Android hardware back / gesture navigation. Verify on an Android device or emulator before marking any UI, navigation, or permission change done. `check:platform` enforces build-time config; runtime parity requires a manual smoke test.
 - **Service boundary:** Never import `supabase` or Supabase provider types directly in `app/`, `features/`, `lib/hooks/`, or `lib/contexts/`. All DB, auth, and API calls go through `lib/services/`; hooks and contexts compose typed service contracts. `check:architecture` and ESLint enforce this boundary.
 - **No unsafe typing:** Never use `as any`, `: any`, `@ts-ignore`, `@ts-nocheck`, eslint disables, or `as unknown as <Type>` to silence type errors. `as unknown as` bypasses narrowing as effectively as `as any`. `@ts-expect-error` requires an inline reason and should be exceptional. Prefer `unknown`, type guards, generated Supabase types, and typed service wrappers. External JSON, storage payloads, route params, and JSONB metadata must be narrowed before use. `check:unsafe-any`, strict TypeScript flags, and ESLint enforce this across app-facing and shared runtime code.
 - **No asserted runtime assumptions:** Avoid non-null assertions in app/runtime code; narrow optional state, route params, and provider data before use. Do not leave empty catches: surface user-facing failures, emit a privacy-safe signal, or document an intentional non-blocking fallback. `check:risk-guardrails` and ESLint enforce new violations.
@@ -93,15 +94,19 @@ Never import `lib/mocks` directly from `app/` or `features/`; route through data
 - **No premature generic systems:** Do not create "universal" abstractions unless multiple stable, concrete use-cases already exist. Prefer concrete implementations first; extract only when duplication is proven and the abstraction boundary is clear.
 - **No cross-feature leakage:** Features must not depend on internal implementation details of other features. Shared contracts belong in `lib/`, `types/`, or shared layers. If two features need the same logic, extract it — do not import across feature boundaries.
 - **State ownership:** One owner per piece of state. Do not independently store derived state — it becomes stale. Pass down or lift up rather than duplicate.
+- **Rendered feature flags:** Long-lived rendered UI that can be disabled remotely must subscribe through `useFeatureFlag()` rather than reading `isEnabled()` once during render. Keep `isEnabled()` for action-time and service decisions. A visual kill switch is not real unless the mounted surface rerenders when its override changes.
 - **Runtime validation scope:** Use lightweight runtime validation ONLY at unstable external/provider boundaries and persisted cache boundaries (Supabase RPC responses, Google Places payloads, AsyncStorage reads). Trust TypeScript for internal code.
 - **Shared abstraction modification rules:** Before modifying a shared component, hook, or service with multiple consumers — identify all consumers, assess regression surface, and prefer additive changes over behavioural changes. When a breaking change is unavoidable, update all consumers atomically.
 - **Temporary code governance:** TODOs, FIXMEs, and transitional wrappers must include a reason, a removal condition, and a linked backlog ID (B-###). Anonymous debt accumulation is not allowed. Caught by `check:risk-guardrails`.
 - **Safe refactor conditions:** Refactors are encouraged when adjacent logic is already changing, regression surface is small, duplication is clearly harmful, and practical verification exists. Refactors are blocked when files are large, have no tests, or are shared across many consumers.
 - **Dependency governance:** New dependencies require a problem justification, comparison against the existing stack, maintenance and security review, bundle/runtime impact assessment, and overlap analysis. Avoid adding packages for problems solvable with existing tools.
+- **Compliance-mandatory changes:** Any change that adds, removes, or alters data collection, retention policy, user-visible content, provider API usage, authentication, notifications, location access, or analytics routing requires a Compliance Impact review against the template in `docs/security/COMPLIANCE.md` before merging. New data fields must add a row to the `COMPLIANCE.md` data inventory. New provider integrations require a provider terms review and a documented data-flow entry before shipping.
 - **Audit coverage:** Every new entity domain with mutable state must ship an audit table (append-only, `FOR ALL USING (false)` RLS, no retention deletion) in the same migration and add it to `platform_audit_events_view` in that same migration. Write audit records via a `SECURITY DEFINER` RPC only — never direct client INSERT. Deletion audit records must use no FK or `ON DELETE SET NULL` — never `ON DELETE CASCADE` — so the record survives entity deletion. The `check:audit` guardrail enforces view completeness at CI time and will fail if a new audit table is absent from the view. See ADR 0011.
+- **Scalability baselines:** Every new DB query must include a `.limit()` clause and use or justify an index for its primary filter columns. New RPCs that scan tables expected to grow past 10 k rows must include an EXPLAIN ANALYZE result in the migration comment. Backfills or data repairs exceeding 10 k rows require a staged migration plan and a documented rollback path before merging.
 - **Performance philosophy:** Prefer correctness and consistency over premature optimisation. Optimise only after identifying real bottlenecks. Avoid speculative `useMemo`, `useCallback`, and `memo` wrappers — they add complexity and introduce stale closure risk.
 - **Data shape governance:** External and provider payloads must be normalised at service boundaries. Do not leak provider-specific shapes (Google Places, Supabase raw types) throughout the app. Normalise in `lib/services/`; components receive domain types from `types/domain.ts`.
 - **Regression surface awareness:** Every new variant, abstraction, or optional behaviour increases regression surface area. Before adding, ask: does this reduce or increase the number of places that can break? Prefer fewer, stable, well-understood paths.
+- **Offline mutation enrollment:** Any mutation added to `runDeferredMutation` (Phase 2 B-239b or later) must declare in its PR: (1) **rollback path** — what reverts on non-retryable throw, with code reference; (2) **retry policy** — retryable (transport-like) or explicit-only; (3) **cache invalidation path** — which hook re-fetches on `syncEpoch` increment. Phase 2 offline mutations (message reactions, conversation prefs, place_status) are deferred to B-239b and must not be enrolled in `runDeferredMutation` until B-239b is scoped and approved.
 
 ## Canonical Patterns
 
@@ -118,10 +123,12 @@ Deprecation workflow: mark deprecated → block new usage → migrate incrementa
 | Loading state (blocking full-screen, no meaningful shape) | `<EmptyState loading>` | Stable | [ADR 0005](docs/adr/0005-contextual-loading-surfaces.md) |
 | Error display | `<ErrorMessage>` (`components/ui/ErrorMessage.tsx`); no inline failure text, failure alerts, or dismiss-only failure sheets | Stable | [ADR 0006](docs/adr/0006-routine-and-actionable-failures.md) |
 | Actionable failure recovery | `<RekkusActionSheet>` only when it offers a recovery action such as retry/review | Stable | [ADR 0006](docs/adr/0006-routine-and-actionable-failures.md) |
+| Connectivity and deferred sync status | `<ConnectivityNotice>` rendered once in the root provider tree; no per-screen banner variants | Stable | [ADR 0016](docs/adr/0016-offline-write-recovery.md) |
 | Modal / choice sheet | `<RekkusActionSheet>` (`components/ui/RekkusActionSheet.tsx`) | Stable | [ADR 0007](docs/adr/0007-in-app-choice-surfaces.md) |
 | Image display | `<CachedImage>` (`components/ui/CachedImage.tsx`) | Stable | [ADR 0008](docs/adr/0008-remote-image-display.md) |
 | Route construction | typed helpers in `lib/routes/` (B-504) | Provisional | [ADR 0009](docs/adr/0009-typed-route-construction.md) |
 | Async query hook | loading + data + error tuple; cleanup on unmount — follow `useAlerts` / `useTopicFollows` pattern | Stable | [ADR 0010](docs/adr/0010-async-query-ownership.md) |
+| Motion and post video autoplay | `useReducedMotion()` + visible-only `usePostVideoPlayback()` | Stable | [ADR 0014](docs/adr/0014-reduced-motion-media-playback.md) |
 
 ## Domain Ownership
 
@@ -181,10 +188,11 @@ Use [docs/GOVERNANCE.md](docs/GOVERNANCE.md) for documentation lifecycle, budget
 - Do not repeat context already visible in the conversation, file, or tool output.
 - Skip trailing summaries ("Here's what I did…") unless the user asks.
 - Scan only files relevant to the task; do not read or cat unrelated files.
-- **Check `docs/LESSONS.md` first:** Before starting any task, read the LESSONS.md index to identify relevant lessons. Open the linked topic file in `docs/lessons/` only when the task touches that area — do not re-derive what is already known.
+- **Check `docs/LESSONS.md` first:** Before starting any task, use the lessons directory to identify relevant topics, then read the linked `docs/lessons/<topic>.md` files for the areas the task touches. The directory is navigation only; do not treat it as lesson content.
 - **Parallel agents for broad audits:** Use up to 3 parallel Explore agents for tasks spanning multiple areas of the codebase. Stop searching once sufficient context is obtained; do not scan the full repo unless scope is genuinely unknown.
 - **Bug class prevention:** When fixing a bug, identify (1) root cause, (2) similar risk areas, (3) a preventative check or guardrail. Implement the check before closing the task. A fix without a check is incomplete.
-- **Update LESSONS.md after bug fixes:** After fixing any bug class or making a non-obvious architecture decision, append the lesson to the relevant `docs/lessons/<topic>.md` file and add/update the one-liner in the `docs/LESSONS.md` index. Verify the corresponding AGENTS.md rule covers the pattern. This is part of the definition of done.
+- **Regression-first bug fixes:** For every bug fix, write or update a failing test that captures the bug *before* writing the fix. The test is the check; the fix makes it pass. A fix without a test is incomplete unless the failure mode is impossible to exercise in the test environment — document why when skipping.
+- **Update topic lessons after bug fixes:** After fixing any bug class or making a non-obvious architecture decision, append the lesson to the relevant `docs/lessons/<topic>.md` file. Update `docs/LESSONS.md` only when adding, renaming, or reclassifying a topic. Verify the corresponding AGENTS.md rule covers the pattern. This is part of the definition of done.
 - **Minimise token usage:** Think deeply once; do not repeat analysis. Do not re-read files already in context. Do not narrate reasoning — state results and decisions directly.
 - **Never use `as unknown as`:** Treat it as equivalent to `as any`. Use typed RPC wrappers, generated `Database` types, or `unknown` + guard functions instead. Caught by `check:unsafe-any`.
 - **Check Canonical Patterns before implementing:** Use the pattern in the table above. If it needs extension, extend it in place — do not create a new variant. Finding multiple existing implementations is a reason to consolidate, not to add another.
@@ -207,6 +215,9 @@ Before finishing any implementation, verify:
 - Did this add an abstraction without proven multiple stable use-cases?
 - Did this add a new dependency without justification?
 - Did this leave untracked temporary code (TODO/FIXME without B-### ID)?
+- Was this UI or interaction change tested on Android, not just iOS?
+- Does this touch data collection, auth, notifications, location, provider APIs, or analytics? Was the Compliance Impact review completed and `COMPLIANCE.md` updated?
+- Do all new DB queries have `.limit()` and an index justification? Do backfills > 10 k rows have a staged plan?
 
 ## AI Execution Command Standards
 
@@ -242,6 +253,7 @@ Use the checks that match the change:
 - `npm run check:unsafe-any` when touching TypeScript/React Native code
 - `npm run test:type-safety` when touching parsing, route params, provider guards, scanners, or Edge Function guards
 - `npm run check:supabase-types` when touching migrations, RPCs, or `types/database.ts`
+- `npm run check:audit` when adding or modifying entity domains with mutable state
 - `npm run check:circular-deps` when changing imports or splitting files
 - `npm run check:risk-guardrails` when changing async fallback, side-effect, shared-file, import, or debt-marker behavior
 - `npm run check:stale-flags` when adding, changing, or removing feature flags

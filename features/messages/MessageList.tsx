@@ -19,6 +19,7 @@ import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import type { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { routes } from '@/lib/routes'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import type { DirectMessage, MessageReaction } from '@/lib/services/messaging'
 import { MessageBubble, buildMessageItems, richTypePreview, type MessageListItem } from './MessageBubble'
 import { TypingDots } from './TypingDots'
@@ -87,6 +88,7 @@ export function MessageList({
 }: MessageListProps) {
   const router = useRouter()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const reduceMotion = useReducedMotion()
 
   const reactionsByMessage = useCallback(
     (messageId: string) => reactions.get(messageId) ?? [],
@@ -188,6 +190,7 @@ export function MessageList({
             <TouchableOpacity
               style={styles.mediaSeeAll}
               onPress={() => router.push(routes.conversationInfo(conversationId))}
+              accessibilityRole="button"
             >
               <Text style={styles.mediaSeeAllText}>See all</Text>
             </TouchableOpacity>
@@ -281,7 +284,11 @@ export function MessageList({
 
           {/* Typing indicator */}
           {typingUsernames.length > 0 ? (
-            <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(180)} style={styles.typingBar}>
+            <Animated.View
+              entering={reduceMotion ? undefined : FadeIn.duration(180)}
+              exiting={reduceMotion ? undefined : FadeOut.duration(180)}
+              style={styles.typingBar}
+            >
               <TypingDots colors={colors} />
               <Text style={styles.typingText}>
                 {typingUsernames.join(', ')} {typingUsernames.length === 1 ? 'is' : 'are'} typing

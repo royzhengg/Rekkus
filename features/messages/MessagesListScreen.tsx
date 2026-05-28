@@ -26,22 +26,24 @@ import { Skeleton, SkeletonText } from '@/components/ui/Skeleton'
 import { DUR_FAST } from '@/lib/animations'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { isEnabled } from '@/lib/featureFlags'
 import { routes } from '@/lib/routes'
 import {
+  archiveConversation,
   fetchDirectConversations,
   fetchArchivedConversations,
   fetchMessageRequests,
-  muteConversation,
-  archiveConversation,
-  pinConversation,
-  unpinConversation,
-  markConversationUnread,
   deleteDirectConversation,
   leaveGroup,
+  markConversationUnread,
+  muteConversation,
+  pinConversation,
+  unmuteConversation,
+  unpinConversation,
   type ConversationSummary,
-  type MuteDuration,
 } from '@/lib/services/messaging'
 import { subscribeToInboxMessages, removeChannel } from '@/lib/services/messaging'
 import { avatarPalette } from '@/lib/utils/format'
@@ -139,13 +141,13 @@ const ConversationRow = React.memo(function ConversationRow({
   function renderRightActions() {
     return (
       <View style={styles.swipeActions}>
-        <TouchableOpacity style={[styles.swipeBtn, styles.swipePinBtn]} onPress={() => { swipeRef.current?.close(); onTogglePin() }}>
+        <TouchableOpacity style={[styles.swipeBtn, styles.swipePinBtn]} onPress={() => { swipeRef.current?.close(); onTogglePin() }} accessibilityRole="button">
           <Text style={styles.swipeBtnLabel}>{isPinned ? 'Unpin' : 'Pin'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.swipeBtn, styles.swipeMuteBtn]} onPress={() => { swipeRef.current?.close(); onMute() }}>
+        <TouchableOpacity style={[styles.swipeBtn, styles.swipeMuteBtn]} onPress={() => { swipeRef.current?.close(); onMute() }} accessibilityRole="button">
           <Text style={styles.swipeBtnLabel}>{isMuted ? 'Unmute' : 'Mute'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.swipeBtn, styles.swipeArchiveBtn]} onPress={() => { swipeRef.current?.close(); onArchive() }}>
+        <TouchableOpacity style={[styles.swipeBtn, styles.swipeArchiveBtn]} onPress={() => { swipeRef.current?.close(); onArchive() }} accessibilityRole="button">
           <Text style={styles.swipeBtnLabel}>Archive</Text>
         </TouchableOpacity>
       </View>
@@ -154,7 +156,7 @@ const ConversationRow = React.memo(function ConversationRow({
 
   function renderLeftActions() {
     return (
-      <TouchableOpacity style={[styles.swipeBtn, styles.swipeMarkBtn]} onPress={() => { swipeRef.current?.close(); onMarkUnread() }}>
+      <TouchableOpacity style={[styles.swipeBtn, styles.swipeMarkBtn]} onPress={() => { swipeRef.current?.close(); onMarkUnread() }} accessibilityRole="button">
         <Text style={styles.swipeBtnLabel}>Unread</Text>
       </TouchableOpacity>
     )
@@ -196,8 +198,10 @@ const ConversationRow = React.memo(function ConversationRow({
 export default function MessagesListScreen() {
   const router = useRouter()
   const { user } = useAuth()
+  const { requireOnline } = useConnectivity()
   const { requireAuth } = useAuthGate()
   const colors = useThemeColors()
+  const reduceMotion = useReducedMotion()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
   const [requestCount, setRequestCount] = useState(0)
@@ -205,6 +209,7 @@ export default function MessagesListScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [operationError, setOperationError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const searchInputRef = useRef<TextInput>(null)
   const [actionSheetConv, setActionSheetConv] = useState<ConversationSummary | null>(null)
@@ -267,12 +272,23 @@ export default function MessagesListScreen() {
   }, [user, load])
 
 
-  async function handleMute(conversationId: string, _duration: MuteDuration = '8h') {
+  async function handleMute(conversationId: string, currentlyMuted: boolean) {
     if (!user) return
-    await muteConversation(conversationId, user.id, '8h')
-    setConversations(prev =>
-      prev.map(c => c.id === conversationId ? { ...c, muted_until: new Date(Date.now() + 8 * 3600 * 1000).toISOString() } : c)
-    )
+    if (!requireOnline()) { setOperationError('Connect to the internet to mute or unmute conversations.'); return }
+    try {
+      if (currentlyMuted) {
+        await unmuteConversation(conversationId, user.id)
+      } else {
+        await muteConversation(conversationId, user.id, '8h')
+      }
+      setConversations(prev =>
+        prev.map(c => c.id === conversationId
+          ? { ...c, muted_until: currentlyMuted ? null : new Date(Date.now() + 8 * 3600 * 1000).toISOString() }
+          : c)
+      )
+    } catch {
+      setOperationError('Could not update notification settings. Try again when your connection is stable.')
+    }
   }
 
   async function handleArchive(conversationId: string) {
@@ -282,9 +298,14 @@ export default function MessagesListScreen() {
       {
         text: 'Archive',
         onPress: () => { void (async () => {
-          await archiveConversation(conversationId, user.id)
-          setConversations(prev => prev.filter(c => c.id !== conversationId))
-          setArchivedCount(count => count + 1)
+          if (!requireOnline()) { setOperationError('Connect to the internet to archive conversations.'); return }
+          try {
+            await archiveConversation(conversationId, user.id)
+            setConversations(prev => prev.filter(c => c.id !== conversationId))
+            setArchivedCount(count => count + 1)
+          } catch {
+            setOperationError('Could not archive this conversation. Try again when your connection is stable.')
+          }
         })() },
       },
     ])
@@ -292,19 +313,30 @@ export default function MessagesListScreen() {
 
   async function handleTogglePin(conversationId: string, currently: boolean) {
     if (!user) return
-    if (currently) {
-      await unpinConversation(conversationId, user.id)
-      setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, pinned_at: null } : c))
-    } else {
-      await pinConversation(conversationId, user.id)
-      setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, pinned_at: new Date().toISOString() } : c))
+    if (!requireOnline()) { setOperationError('Connect to the internet to pin or unpin conversations.'); return }
+    try {
+      if (currently) {
+        await unpinConversation(conversationId, user.id)
+      } else {
+        await pinConversation(conversationId, user.id)
+      }
+      setConversations(prev => prev.map(c => c.id === conversationId
+        ? { ...c, pinned_at: currently ? null : new Date().toISOString() }
+        : c))
+    } catch {
+      setOperationError('Could not update this conversation. Try again when your connection is stable.')
     }
   }
 
   async function handleMarkUnread(conversationId: string) {
     if (!user) return
-    await markConversationUnread(conversationId, user.id)
-    setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unread_count: 1 } : c))
+    if (!requireOnline()) { setOperationError('Connect to the internet to mark conversations as unread.'); return }
+    try {
+      await markConversationUnread(conversationId, user.id)
+      setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unread_count: 1 } : c))
+    } catch {
+      setOperationError('Could not update this conversation. Try again when your connection is stable.')
+    }
   }
 
   function buildConvOptions(conv: ConversationSummary): RekkusActionSheetOption[] {
@@ -350,10 +382,14 @@ export default function MessagesListScreen() {
     const conv = actionSheetConv
     setActionSheetConv(null)
     if (value === 'pin') void handleTogglePin(conv.id, !!conv.pinned_at)
-    else if (value === 'mute') void handleMute(conv.id)
+    else if (value === 'mute') void handleMute(conv.id, !!conv.muted_until && new Date(conv.muted_until) > new Date())
     else if (value === 'unread') void handleMarkUnread(conv.id)
     else if (value === 'archive') void handleArchive(conv.id)
     else if (value === 'delete') {
+      if (!requireOnline()) {
+        setOperationError('Reconnect to leave or delete a conversation.')
+        return
+      }
       Alert.alert(
         conv.conversation_type === 'group' ? 'Leave group?' : 'Delete conversation?',
         conv.conversation_type === 'group'
@@ -422,6 +458,8 @@ export default function MessagesListScreen() {
         </View>
       </View>
 
+      {operationError ? <ErrorMessage message={operationError} style={{ marginHorizontal: spacing[4] }} /> : null}
+
       {/* Persistent search bar */}
       <View style={styles.searchBarWrap}>
         <View style={styles.searchBarInner}>
@@ -468,9 +506,9 @@ export default function MessagesListScreen() {
             requestCount > 0 ? (
               <TouchableOpacity
                 style={styles.requestNudge}
-
                 onPress={() => router.push('/messages/requests')}
                 activeOpacity={0.75}
+                accessibilityRole="button"
               >
                 <View style={styles.requestDot} />
                 <Text style={styles.requestNudgeText}>
@@ -497,7 +535,7 @@ export default function MessagesListScreen() {
 
               onPress={() => router.push(routes.conversation(item.id))}
               onLongPress={y => { setLongPressY(y); setActionSheetConv(item) }}
-              onMute={() => handleMute(item.id)}
+              onMute={() => handleMute(item.id, !!item.muted_until && new Date(item.muted_until) > new Date())}
               onArchive={() => handleArchive(item.id)}
               onTogglePin={() => handleTogglePin(item.id, !!item.pinned_at)}
               onMarkUnread={() => handleMarkUnread(item.id)}
@@ -526,23 +564,29 @@ export default function MessagesListScreen() {
           const cardLeft = (SCREEN_W - CARD_W) / 2
           return (
             <>
-              <Animated.View entering={FadeIn.duration(DUR_FAST)} style={StyleSheet.absoluteFill}>
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 22 : 0}
-                  tint="dark"
-                  style={[StyleSheet.absoluteFill, styles.convContextBackdrop]}
-                />
+              <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(DUR_FAST)} style={StyleSheet.absoluteFill}>
+                {Platform.OS === 'ios' ? (
+                  <BlurView
+                    intensity={22}
+                    tint="dark"
+                    style={[StyleSheet.absoluteFill, styles.convContextBackdrop]}
+                  />
+                ) : (
+                  <View style={[StyleSheet.absoluteFill, styles.convContextBackdrop]} />
+                )}
               </Animated.View>
               <TouchableOpacity
                 style={StyleSheet.absoluteFill}
                 activeOpacity={1}
                 onPress={() => setActionSheetConv(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
               >
                 <Animated.View
-                  entering={ZoomIn.springify().damping(18).stiffness(350)}
+                  entering={reduceMotion ? undefined : ZoomIn.springify().damping(18).stiffness(350)}
                   style={[styles.convContextCard, { top: cardTop, left: cardLeft, width: CARD_W }]}
                 >
-                  <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+                  <TouchableOpacity activeOpacity={1} onPress={() => {}} accessibilityRole="button" accessibilityLabel="Conversation actions">
                     {opts.map((opt, i) => (
                       <React.Fragment key={opt.value}>
                         {i > 0 ? <View style={styles.convContextDivider} /> : null}
@@ -550,6 +594,7 @@ export default function MessagesListScreen() {
                           style={styles.convContextRow}
                           onPress={() => handleConvAction(opt.value)}
                           activeOpacity={0.65}
+                          accessibilityRole="button"
                         >
                           {opt.icon != null ? <View style={styles.convContextRowIcon}>{opt.icon}</View> : null}
                           <Text style={[styles.convContextLabel, opt.destructive && styles.convContextDestructiveLabel]}>

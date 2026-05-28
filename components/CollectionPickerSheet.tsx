@@ -6,6 +6,7 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import type { Collection } from '@/lib/services/collections'
 
 type Props = {
@@ -28,6 +29,7 @@ export function CollectionPickerSheet({
   onCreate,
 }: Props) {
   const colors = useThemeColors()
+  const reduceMotion = useReducedMotion()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
@@ -70,7 +72,7 @@ export function CollectionPickerSheet({
       <Modal
         visible={visible && creating}
         transparent
-        animationType="fade"
+        animationType={reduceMotion ? 'none' : 'fade'}
         onRequestClose={() => setCreating(false)}
         accessibilityViewIsModal
       >

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { ActivityIndicator, View, Text, StyleSheet } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { spacing } from '@/constants/Spacing'
-import { bodyBase, bodySmall, fontWeight } from '@/constants/Typography'
+import { bodyBase, bodySmall, fontWeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { SPRING_SMOOTH } from '@/lib/animations'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
@@ -34,8 +34,8 @@ export function EmptyState({ title, subtitle, icon, loading = false }: Props) {
       ) : icon ? (
         <View style={styles.icon}>{icon}</View>
       ) : null}
-      <Text style={styles.title}>{title}</Text>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      <Text style={styles.title} maxFontSizeMultiplier={maxFontSizeMultiplier.body}>{title}</Text>
+      {subtitle && <Text style={styles.subtitle} maxFontSizeMultiplier={maxFontSizeMultiplier.body}>{subtitle}</Text>}
     </Animated.View>
   )
 }

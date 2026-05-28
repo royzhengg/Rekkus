@@ -58,13 +58,13 @@ export function SelectedLocationCard({
         </TouchableOpacity>
       )}
       <View style={styles.cardActions}>
-        <TouchableOpacity style={styles.cardBtnSecondary} onPress={toggleSelectedStatus}>
+        <TouchableOpacity style={styles.cardBtnSecondary} onPress={toggleSelectedStatus} accessibilityRole="button">
           <Text style={styles.cardBtnSecondaryText}>{saveStatus === 'been_here' ? 'Mark want' : 'Mark been'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.cardBtnPrimary} onPress={() => selectedLocation && navigateTo(selectedLocation)}>
+        <TouchableOpacity style={styles.cardBtnPrimary} onPress={() => selectedLocation && navigateTo(selectedLocation)} accessibilityRole="button">
           <Text style={styles.cardBtnPrimaryText}>View details</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.cardBtnSecondary} onPress={() => selectedLocation && openInMaps(selectedLocation)}>
+        <TouchableOpacity style={styles.cardBtnSecondary} onPress={() => selectedLocation && openInMaps(selectedLocation)} accessibilityRole="button">
           <Text style={styles.cardBtnSecondaryText}>Open in Maps</Text>
         </TouchableOpacity>
       </View>

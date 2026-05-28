@@ -10,26 +10,31 @@ const tsconfigPath = path.join(root, 'tsconfig.type-safety.json')
 fs.rmSync(outDir, { recursive: true, force: true })
 fs.mkdirSync(outDir, { recursive: true })
 
-execFileSync('node', [
-  'node_modules/typescript/bin/tsc',
-  '--project',
-  tsconfigPath,
-], {
+execFileSync('node', ['node_modules/typescript/bin/tsc', '--project', tsconfigPath], {
   cwd: root,
   stdio: 'inherit',
 })
 
-execFileSync('node', [
-  '--test',
-  path.join(outDir, 'tests/type-safety/index.test.js'),
-  path.join(root, 'tests/type-safety/unsafeAnyRules.test.js'),
-  path.join(root, 'tests/type-safety/errorSurfaceRules.test.js'),
-  path.join(root, 'tests/type-safety/canonicalRegistryRules.test.js'),
-  path.join(root, 'tests/type-safety/loadingSurfaceRules.test.js'),
-  path.join(root, 'tests/type-safety/runtimeBoundaryRules.test.js'),
-  path.join(root, 'tests/type-safety/serviceBoundaryRules.test.js'),
-  path.join(root, 'tests/type-safety/asyncSafetyRules.test.js'),
-], {
-  cwd: root,
-  stdio: 'inherit',
-})
+execFileSync(
+  'node',
+  [
+    '--test',
+    path.join(outDir, 'tests/type-safety/index.test.js'),
+    path.join(root, 'tests/type-safety/unsafeAnyRules.test.js'),
+    path.join(root, 'tests/type-safety/errorSurfaceRules.test.js'),
+    path.join(root, 'tests/type-safety/canonicalRegistryRules.test.js'),
+    path.join(root, 'tests/type-safety/loadingSurfaceRules.test.js'),
+    path.join(root, 'tests/type-safety/runtimeBoundaryRules.test.js'),
+    path.join(root, 'tests/type-safety/serviceBoundaryRules.test.js'),
+    path.join(root, 'tests/type-safety/asyncSafetyRules.test.js'),
+    path.join(root, 'tests/type-safety/motionRules.test.js'),
+    path.join(root, 'tests/type-safety/iosVisualRules.test.js'),
+    path.join(root, 'tests/type-safety/navigationSafetyRules.test.js'),
+    path.join(root, 'tests/type-safety/higAcceptanceRules.test.js'),
+    path.join(root, 'tests/type-safety/fontSizeRules.test.js'),
+  ],
+  {
+    cwd: root,
+    stdio: 'inherit',
+  }
+)

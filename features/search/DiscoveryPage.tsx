@@ -9,10 +9,12 @@ import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import type { PlaceResult } from '@/lib/hooks/useSearch'
 import { routes } from '@/lib/routes'
 import type { Collection } from '@/lib/services/collections'
+import { fetchUserIdByUsername } from '@/lib/services/users'
 import type { MockUser } from '@/types/domain'
 import { CHIPS } from './searchConstants'
 import { PlaceRow, SectionHeader } from './searchShared'
@@ -141,6 +143,8 @@ export function DiscoveryPage({
                     { collection_visibility: collection.visibility }
                   )
                 }
+                accessibilityRole="button"
+                accessibilityLabel={collection.name}
               >
                 <Text style={styles.collectionName}>{collection.name}</Text>
                 {!!collection.curator_note && (
@@ -180,16 +184,26 @@ const PersonChip = React.memo(function PersonChip({
   const router = useRouter()
   const { user } = useAuth()
   const { requireAuth } = useAuthGate()
+  const { runDeferredMutation, requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [following, setFollowing] = useState(false)
 
-  function handleFollow() {
+  async function handleFollow() {
     if (!user) {
       requireAuth()
       return
     }
-    setFollowing(f => !f)
+    if (!requireOnline()) return
+    const targetUserId = await fetchUserIdByUsername(username)
+    if (!targetUserId) return
+    const next = !following
+    setFollowing(next)
+    try {
+      await runDeferredMutation({ kind: 'follow', targetUserId, targetState: next })
+    } catch {
+      setFollowing(!next)
+    }
   }
 
   return (
@@ -198,6 +212,8 @@ const PersonChip = React.memo(function PersonChip({
         onPress={() => router.push(routes.userProfile(username))}
         activeOpacity={0.8}
         style={styles.personChipInner}
+        accessibilityRole="button"
+        accessibilityLabel={`View @${username}'s profile`}
       >
         <Avatar initials={u.initials} bg={u.avatarBg} color={u.avatarColor} size={52} />
         <Text style={styles.personChipUsername} numberOfLines={1}>
@@ -209,7 +225,7 @@ const PersonChip = React.memo(function PersonChip({
         label={following ? 'Following' : 'Follow'}
         selected={following}
         variant="active"
-        onPress={handleFollow}
+        onPress={() => { void handleFollow() }}
         style={styles.followChip}
       />
     </View>

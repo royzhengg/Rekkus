@@ -6,6 +6,7 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 
 type Notice = { title: string; subtitle?: string } | null
 
@@ -45,11 +46,12 @@ export function PostDetailSheets({
   onShareMessage,
 }: Props) {
   const colors = useThemeColors()
+  const reduceMotion = useReducedMotion()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
   return (
     <>
-      <Modal visible={saveSheet} transparent animationType="fade" onRequestClose={onDismissSave}>
+      <Modal visible={saveSheet} transparent animationType={reduceMotion ? 'none' : 'fade'} onRequestClose={onDismissSave}>
         <TouchableOpacity
           style={styles.sheetBackdrop}
           activeOpacity={1}
@@ -64,10 +66,10 @@ export function PostDetailSheets({
           </View>
           <Text style={styles.sheetTitle}>Post saved!</Text>
           <Text style={styles.sheetBody}>Added to your saved posts.</Text>
-          <TouchableOpacity style={styles.sheetBtnPrimary} onPress={onViewSavedPosts}>
+          <TouchableOpacity style={styles.sheetBtnPrimary} onPress={onViewSavedPosts} accessibilityRole="button">
             <Text style={styles.sheetBtnPrimaryText}>View saved posts</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.sheetBtnSecondary} onPress={onDismissSave}>
+          <TouchableOpacity style={styles.sheetBtnSecondary} onPress={onDismissSave} accessibilityRole="button">
             <Text style={styles.sheetBtnSecondaryText}>Stay here</Text>
           </TouchableOpacity>
         </View>

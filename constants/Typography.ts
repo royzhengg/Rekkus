@@ -84,3 +84,11 @@ export const typography = {
 } as const
 
 export const { bodyBase, bodySmall, bodyLarge, caption, label, heading } = typography
+
+// Cap OS text-scaling on layout-critical elements so primary actions are never hidden.
+// layout: fixed-height containers — headers, chips, tabs, action bars (max ~30% growth)
+// body:   scrollable copy that has room to wrap (max ~50% growth)
+export const maxFontSizeMultiplier = {
+  layout: 1.3,
+  body: 1.5,
+} as const

@@ -33,6 +33,7 @@ Do not jump to Stage 3 or 4 before the signal is real and the manual path is und
 - `npm run check:compliance`, `npm run check:data-inventory`, `npm run check:rls`, `npm run check:audit`, `npm run check:providers`, `npm run check:privacy`, `npm run check:jobs`, and `npm run check:iso` enforce compliance, legal, provider, audit, job-monitor, security, and ISO evidence gates for future feature releases.
 - `npm run check:search` verifies search index operations, fallback, cache, ranking, precomputed signal, and cuisine taxonomy guardrails.
 - `npm run check:observability` verifies release, analytics, onboarding, upload, job, cost, moderation, storage, store-review, revenue, founder dashboard, and VS Code signal coverage.
+- `npm run check:hig-acceptance` validates the iPhone HIG evidence register in CI and blocks beta/production promotion unless `REKKUS_RELEASE_CANDIDATE` identifies a matching physical-device pass.
 - `npm run ops:summary` prints a founder-facing operational summary from deterministic repo signals.
 - `npm run ops:report` writes ignored report artifacts to `.temp/ops/summary.md` and `.temp/ops/summary.json`.
 - `npm run ops:pr` prints a changed-file summary and review checklist for PR preparation.

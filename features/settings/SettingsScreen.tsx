@@ -42,6 +42,7 @@ function RowLink({
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
         activeOpacity={1}
+        accessibilityRole="button"
       >
         <View style={{ flex: 1 }}>
           <Text style={styles.rowLabel}>{label}</Text>
@@ -110,6 +111,7 @@ function RowThemeSelector({
               key={opt.value}
               onPress={() => onChange(opt.value)}
               activeOpacity={0.7}
+              accessibilityRole="button"
               style={[
                 styles.themeOption,
                 i === 0 && styles.themeOptionFirst,
@@ -264,6 +266,13 @@ export default function SettingsScreen() {
             value={settings.theme_mode}
             onChange={v => updateSetting('theme_mode', v)}
           />
+          <Divider />
+          <RowToggle
+            label="Autoplay videos"
+            sublabel="Muted when visible; Reduce Motion pauses autoplay"
+            value={settings.autoplay_videos}
+            onValueChange={v => updateSetting('autoplay_videos', v)}
+          />
         </View>
 
         <SectionHeader title="About" />
@@ -286,7 +295,7 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.dangerZone}>
-          <TouchableOpacity style={styles.dangerBtn} onPress={handleSignOut} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.dangerBtn} onPress={handleSignOut} activeOpacity={0.7} accessibilityRole="button">
             <Text style={styles.dangerBtnText}>{signingOut ? 'Signing out…' : 'Sign out'}</Text>
           </TouchableOpacity>
         </View>

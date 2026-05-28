@@ -162,9 +162,9 @@ When the Supabase client is typed as `createClient<Database>()`, all `.from('tab
 
 ---
 
-## Expo Router typed-routes limitation requires `as never` or eslint-disable
+## Expo Router typed-routes limitation requires `as never`
 
-Expo Router's typed-routes feature doesn't cover all dynamic route patterns at compile time. Casts like `router.push('/messages/[id]' as any)` are a known limitation. Use `as never` (preferred — no lint suppression needed) or add `// eslint-disable-next-line @typescript-eslint/no-explicit-any` before the call. Never fight the type system with complex workarounds here.
+Expo Router's typed-routes feature doesn't cover all dynamic route patterns at compile time. Casts like `router.push('/messages/[id]' as any)` are a known limitation. Use the established typed route helpers where available, or `as never` for the remaining supported Expo Router limitation. Do not add an eslint suppression or unsafe cast.
 
 **Apply when:** any `router.push` / `router.replace` call with a dynamic segment needs a type cast.
 

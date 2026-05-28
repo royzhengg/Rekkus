@@ -1,5 +1,6 @@
 import { Link, Stack } from 'expo-router'
 import { View, Text, StyleSheet } from 'react-native'
+import { fontSize, fontWeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export default function NotFoundScreen() {
@@ -10,7 +11,7 @@ export default function NotFoundScreen() {
       <View style={styles.container}>
         <Text style={[styles.title, { color: c.text }]}>This page doesn't exist.</Text>
         <Link href="/(tabs)/feed" style={styles.link}>
-          <Text style={{ fontSize: 14, color: c.accent }}>Go to home</Text>
+          <Text style={{ fontSize: fontSize.md, color: c.accent }}>Go to home</Text>
         </Link>
       </View>
     </>
@@ -19,6 +20,6 @@ export default function NotFoundScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  title: { fontSize: 20, fontWeight: 'bold' },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold },
   link: { marginTop: 15, paddingVertical: 15 },
 })

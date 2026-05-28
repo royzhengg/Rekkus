@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -7,7 +7,19 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native'
-import { CheckCircleIcon, CloseIcon, StarIcon, UsersIcon } from '@/components/icons'
+import {
+  CheckCircleIcon,
+  ChevronDown,
+  CloseIcon,
+  DishIcon,
+  EditIcon,
+  GlobeIcon,
+  StarIcon,
+  TagIcon,
+  UsersIcon,
+} from '@/components/icons'
+import { Chip } from '@/components/ui/Chip'
+import { IconButton } from '@/components/ui/IconButton'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
@@ -76,7 +88,27 @@ export default function StepDetails({
   const styles = useMemo(() => makeStyles(c), [c])
   const [cuisineSheetVisible, setCuisineSheetVisible] = useState(false)
   const [cuisineQuery, setCuisineQuery] = useState('')
+  const [optionalDetailsExpanded, setOptionalDetailsExpanded] = useState(
+    () => cuisineType.trim().length > 0 || hashtags.length > 0 || hashtagInput.trim().length > 0
+  )
+  const optionalDetailsTouched = useRef(false)
   const cuisineOptions = useMemo(() => searchCuisines(cuisineQuery), [cuisineQuery])
+  const optionalSummary = [
+    cuisineType || null,
+    hashtags.length > 0 ? `${hashtags.length} ${hashtags.length === 1 ? 'tag' : 'tags'}` : null,
+  ].filter((value): value is string => value !== null).join(' · ')
+
+  useEffect(() => {
+    if (optionalDetailsTouched.current) return
+    if (cuisineType.trim().length > 0 || hashtags.length > 0 || hashtagInput.trim().length > 0) {
+      setOptionalDetailsExpanded(true)
+    }
+  }, [cuisineType, hashtagInput, hashtags.length])
+
+  function toggleOptionalDetails() {
+    optionalDetailsTouched.current = true
+    setOptionalDetailsExpanded(expanded => !expanded)
+  }
 
   function showCuisinePicker() {
     setCuisineSheetVisible(true)
@@ -123,29 +155,27 @@ export default function StepDetails({
         {/* Ratings */}
         {isEnabled('rekkusPicks') && (
           <>
-            <Text style={styles.sectionLabel}>Rekkus Picks</Text>
+            <Text style={styles.sectionHeading}>Rekkus Picks</Text>
             <View style={styles.card}>
               <View style={styles.pickGroup}>
                 <View style={styles.pickHeader}>
                   <View style={styles.pickIcon}>
                     <StarIcon size={15} color={tasteVerdict ? c.accent : c.text3} />
                   </View>
-                  <View style={styles.pickHeaderText}>
-                    <Text style={styles.pickTitle}>Taste</Text>
-                    <Text style={styles.pickHelp}>How strongly would you recommend this dish?</Text>
-                  </View>
+                  <Text style={styles.pickTitle}>Taste</Text>
                 </View>
                 <View style={styles.pickChips}>
                   {TASTE_PICK_OPTIONS.map(option => {
                     const selected = tasteVerdict === option.value
                     return (
-                      <TouchableOpacity
+                      <Chip
                         key={option.value}
-                        style={[styles.pickChip, selected && styles.pickChipSelected]}
+                        label={option.label}
+                        selected={selected}
+                        variant="active"
                         onPress={() => selectTaste(option.value)}
-                      >
-                        <Text style={[styles.pickChipText, selected && styles.pickChipTextSelected]}>{option.label}</Text>
-                      </TouchableOpacity>
+                        style={styles.pickChoice}
+                      />
                     )
                   })}
                 </View>
@@ -161,22 +191,20 @@ export default function StepDetails({
                   <View style={styles.pickIcon}>
                     <CheckCircleIcon size={15} color={valueVerdict ? c.accent : c.text3} />
                   </View>
-                  <View style={styles.pickHeaderText}>
-                    <Text style={styles.pickTitle}>Value</Text>
-                    <Text style={styles.pickHelp}>Did it feel worth what you paid?</Text>
-                  </View>
+                  <Text style={styles.pickTitle}>Value</Text>
                 </View>
                 <View style={styles.pickChips}>
                   {VALUE_PICK_OPTIONS.map(option => {
                     const selected = valueVerdict === option.value
                     return (
-                      <TouchableOpacity
+                      <Chip
                         key={option.value}
-                        style={[styles.pickChip, selected && styles.pickChipSelected]}
+                        label={option.label}
+                        selected={selected}
+                        variant="active"
                         onPress={() => selectValue(option.value)}
-                      >
-                        <Text style={[styles.pickChipText, selected && styles.pickChipTextSelected]}>{option.label}</Text>
-                      </TouchableOpacity>
+                        style={styles.pickChoice}
+                      />
                     )
                   })}
                 </View>
@@ -192,22 +220,20 @@ export default function StepDetails({
                   <View style={styles.pickIcon}>
                     <UsersIcon size={15} color={occasionTags.length > 0 ? c.accent : c.text3} />
                   </View>
-                  <View style={styles.pickHeaderText}>
-                    <Text style={styles.pickTitle}>Occasion</Text>
-                    <Text style={styles.pickHelp}>When would you send someone here?</Text>
-                  </View>
+                  <Text style={styles.pickTitle}>Occasion</Text>
                 </View>
                 <View style={styles.pickChips}>
                   {OCCASION_PICK_OPTIONS.map(option => {
                     const selected = occasionTags.includes(option.value)
                     return (
-                      <TouchableOpacity
+                      <Chip
                         key={option.value}
-                        style={[styles.pickChip, selected && styles.pickChipSelected]}
+                        label={option.label}
+                        selected={selected}
+                        variant="active"
                         onPress={() => toggleOccasion(option.value)}
-                      >
-                        <Text style={[styles.pickChipText, selected && styles.pickChipTextSelected]}>{option.label}</Text>
-                      </TouchableOpacity>
+                        style={styles.pickChoice}
+                      />
                     )
                   })}
                 </View>
@@ -221,9 +247,12 @@ export default function StepDetails({
           </>
         )}
 
-      {/* Review body */}
-      <Text style={styles.sectionLabel}>Your review</Text>
-      <View style={[styles.card, styles.bodyCard]}>
+      {/* Core review content */}
+      <View style={styles.sectionHeadingRow}>
+        <EditIcon size={spacing.px17} color={c.text3} />
+        <Text style={styles.sectionHeadingText}>Your review</Text>
+      </View>
+      <View style={[styles.card, styles.coreCard]}>
         <TextInput
           style={styles.bodyInput}
           placeholder="What did you try? Any standout dishes? Would you go back?"
@@ -232,24 +261,25 @@ export default function StepDetails({
           onChangeText={setBody}
           multiline
           textAlignVertical="top"
+          textContentType="none"
+          autoComplete="off"
         />
-      </View>
-
-      {/* Details */}
-      <Text style={styles.sectionLabel}>Details</Text>
-      <View style={styles.card}>
+        <View style={styles.divider} />
         <View style={styles.detailStack}>
           <View style={styles.detailStackHeader}>
-            <Text style={styles.detailLabel}>Best dish</Text>
+            <View style={styles.fieldLabelRow}>
+              <DishIcon size={spacing.px17} color={c.text3} />
+              <Text style={styles.detailLabel}>Best dish</Text>
+            </View>
             {bestDish ? (
-              <TouchableOpacity
+              <IconButton
                 onPress={() => setBestDish('')}
-                hitSlop={8}
-                accessibilityRole="button"
                 accessibilityLabel="Clear best dish"
+                size={spacing.px34}
+                variant="plain"
               >
                 <CloseIcon size={10} color={c.text3} />
-              </TouchableOpacity>
+              </IconButton>
             ) : null}
           </View>
           <TextInput
@@ -259,60 +289,102 @@ export default function StepDetails({
             value={bestDish}
             onChangeText={v => setBestDish(v.slice(0, 60))}
             returnKeyType="done"
+            textContentType="none"
+            autoComplete="off"
           />
           <Text style={styles.detailHint}>Best dish helps people know what to order.</Text>
         </View>
-        <View style={styles.divider} />
-        <TouchableOpacity style={styles.detailRow} onPress={showCuisinePicker}>
-          <Text style={styles.detailLabel}>Cuisine</Text>
-          <Text
-            style={[styles.detailValue, cuisineType ? styles.detailValueSet : null]}
-            numberOfLines={1}
-          >
-            {cuisineType || 'Select type'}
-          </Text>
-          {cuisineType ? (
-            <TouchableOpacity
-              onPress={() => setCuisineType('')}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Clear cuisine"
-            >
-              <CloseIcon size={10} color={c.text3} />
-            </TouchableOpacity>
-          ) : (
-            <Text style={styles.chevron}>›</Text>
-          )}
+      </View>
+
+      {/* Optional metadata */}
+      <Text style={styles.sectionHeading}>Optional details</Text>
+      <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.optionalToggle}
+          onPress={toggleOptionalDetails}
+          accessibilityRole="button"
+          accessibilityLabel={optionalDetailsExpanded ? 'Hide optional details' : 'Add optional details'}
+          accessibilityState={{ expanded: optionalDetailsExpanded }}
+        >
+          <View style={styles.optionalLabelWrap}>
+            <Text style={styles.optionalLabel}>{optionalDetailsExpanded ? 'Hide optional details' : 'Add optional details'}</Text>
+            {!optionalDetailsExpanded && optionalSummary ? (
+              <Text style={styles.optionalSummary} numberOfLines={1}>{optionalSummary}</Text>
+            ) : null}
+          </View>
+          <ChevronDown expanded={optionalDetailsExpanded} />
         </TouchableOpacity>
+        {optionalDetailsExpanded ? (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.detailRow}>
+              <TouchableOpacity
+                style={styles.cuisinePicker}
+                onPress={showCuisinePicker}
+                accessibilityRole="button"
+                accessibilityLabel={cuisineType ? `Cuisine, ${cuisineType}` : 'Select cuisine'}
+              >
+                <GlobeIcon size={spacing.px17} />
+                <Text style={styles.detailLabel}>Cuisine</Text>
+                <Text
+                  style={[styles.detailValue, cuisineType ? styles.detailValueSet : null]}
+                  numberOfLines={1}
+                >
+                  {cuisineType || 'Select type'}
+                </Text>
+              </TouchableOpacity>
+              {cuisineType ? (
+                <IconButton
+                  onPress={() => setCuisineType('')}
+                  accessibilityLabel="Clear cuisine"
+                  size={spacing.px34}
+                  variant="plain"
+                >
+                  <CloseIcon size={10} color={c.text3} />
+                </IconButton>
+              ) : (
+                <Text style={styles.chevron}>›</Text>
+              )}
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.tagBlock}>
+              <View style={styles.fieldLabelRow}>
+                <TagIcon size={spacing.px17} color={c.text3} />
+                <Text style={styles.detailLabel}>Tags</Text>
+              </View>
+              <View style={styles.hashtagWrap}>
+                {hashtags.map(tag => (
+                  <Chip
+                    key={tag}
+                    label={`#${tag}`}
+                    selected
+                    onPress={() => setHashtags(hashtags.filter(item => item !== tag))}
+                    accessibilityLabel={`Remove tag ${tag}`}
+                  />
+                ))}
+                <TextInput
+                  style={styles.hashtagField}
+                  placeholder={hashtags.length === 0 ? 'e.g. surryhills, ramen' : ''}
+                  placeholderTextColor={c.text3}
+                  value={hashtagInput}
+                  onChangeText={setHashtagInput}
+                  onKeyPress={({ nativeEvent }) => handleHashtagKey(nativeEvent.key)}
+                  onSubmitEditing={() => handleHashtagKey('Enter')}
+                  blurOnSubmit={false}
+                  textContentType="none"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  spellCheck={false}
+                />
+              </View>
+              <Text style={styles.hashtagHint}>Space or return to add · tap to remove</Text>
+            </View>
+          </>
+        ) : null}
       </View>
 
-      {/* Hashtags */}
-      <Text style={styles.sectionLabel}>Tags</Text>
-      <View style={styles.hashtagWrap}>
-        {hashtags.map(tag => (
-          <TouchableOpacity
-            key={tag}
-            style={styles.hashtagToken}
-            onPress={() => setHashtags(hashtags.filter(t => t !== tag))}
-          >
-            <Text style={styles.hashtagTokenText}>#{tag}</Text>
-            <CloseIcon size={8} color="rgba(255,255,255,0.75)" /* check:tokens-ignore */ />
-          </TouchableOpacity>
-        ))}
-        <TextInput
-          style={styles.hashtagField}
-          placeholder={hashtags.length === 0 ? 'e.g. surryhills, ramen' : ''}
-          placeholderTextColor={c.text3}
-          value={hashtagInput}
-          onChangeText={setHashtagInput}
-          onKeyPress={({ nativeEvent }) => handleHashtagKey(nativeEvent.key)}
-          onSubmitEditing={() => handleHashtagKey('Enter')}
-          blurOnSubmit={false}
-        />
-      </View>
-      <Text style={styles.hashtagHint}>Space or return to add · tap to remove</Text>
-
-        <View style={{ height: 22 }} />
+        <View style={styles.scrollEnd} />
       </ScrollView>
       <RekkusActionSheet
         visible={cuisineSheetVisible}
@@ -346,15 +418,26 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
     scroll: { flex: 1 },
 
-    sectionLabel: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.extrabold,
+    sectionHeading: {
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
       color: c.text2,
-      letterSpacing: 0.7,
-      textTransform: 'uppercase',
       paddingHorizontal: spacing[4],
-      paddingTop: spacing.px18,
+      paddingTop: spacing.px14,
       paddingBottom: spacing.px7,
+    },
+    sectionHeadingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing[2],
+      paddingHorizontal: spacing[4],
+      paddingTop: spacing.px14,
+      paddingBottom: spacing.px7,
+    },
+    sectionHeadingText: {
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+      color: c.text2,
     },
 
     card: {
@@ -362,73 +445,72 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       backgroundColor: c.bg,
       borderRadius: radius.md3,
       paddingHorizontal: spacing.px14,
-      borderWidth: 0.5,
+      borderWidth: spacing.hairline,
       borderColor: c.border,
     },
 
-    divider: { height: 0.5, backgroundColor: c.border },
-    pickGroup: { paddingVertical: spacing[3], gap: spacing.px9 },
+    divider: { height: spacing.hairline, backgroundColor: c.border },
+    pickGroup: { paddingVertical: spacing.px10, gap: spacing.px7 },
     pickHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.px10 },
     pickIcon: {
-      width: 28,
-      height: 28,
+      width: spacing.px28,
+      height: spacing.px28,
       borderRadius: radius.lg,
       backgroundColor: `${c.accent}10`,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    pickHeaderText: { flex: 1, gap: spacing.px1 },
-    pickTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
-    pickHelp: { fontSize: fontSize.bodySm, color: c.text3, lineHeight: lineHeight.tight },
+    pickTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
     pickChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.px7 },
-    pickChip: {
-      minHeight: 32,
-      borderRadius: radius.lg2,
-      borderWidth: 0.5,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      paddingHorizontal: spacing.px11,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    pickChipSelected: { borderColor: `${c.accent}55`, backgroundColor: `${c.accent}14` },
-    pickChipText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.extrabold, color: c.text2 },
-    pickChipTextSelected: { color: c.accent },
+    pickChoice: { minHeight: spacing.px34 },
     selectedHelp: { fontSize: fontSize.sm, color: c.text2, lineHeight: lineHeight.tight },
 
-    // Body
-    bodyCard: { padding: spacing.px14, paddingHorizontal: spacing.px14 },
+    coreCard: { paddingTop: spacing.px14 },
     bodyInput: {
       fontSize: fontSize.lg,
       color: c.text,
       padding: spacing[0],
+      paddingBottom: spacing.px14,
       lineHeight: lineHeight.titleRelaxed,
-      minHeight: 92,
+      minHeight: spacing.px60,
     },
-
-    // Details
-    detailRow: {
+    fieldLabelRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.px10,
-      paddingVertical: spacing.px14,
+      gap: spacing[2],
     },
+    detailStack: { paddingVertical: spacing.px10, gap: spacing.px6 },
+    detailStackHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     detailLabel: {
       fontSize: fontSize.md,
       fontWeight: fontWeight.medium,
       color: c.text,
-      width: 80,
     },
-    detailStack: { paddingVertical: spacing.px14, gap: spacing.px7 },
-    detailStackHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    detailStackInput: { fontSize: fontSize.lg, color: c.text, padding: spacing[0], minHeight: 22 },
+    detailStackInput: { fontSize: fontSize.lg, color: c.text, padding: spacing[0], minHeight: spacing.px22 },
     detailHint: { fontSize: fontSize.sm, color: c.text3, lineHeight: lineHeight.xxs },
-    detailInput: {
+
+    optionalToggle: {
+      minHeight: spacing.px50,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing[3],
+    },
+    optionalLabelWrap: { flex: 1 },
+    optionalLabel: { fontSize: fontSize.md, fontWeight: fontWeight.medium, color: c.text },
+    optionalSummary: { fontSize: fontSize.bodySm, color: c.text3, marginTop: spacing.px3 },
+    detailRow: {
+      minHeight: spacing.px56,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing[2],
+    },
+    cuisinePicker: {
+      minHeight: spacing.px56,
       flex: 1,
-      minWidth: 0,
-      fontSize: fontSize.md,
-      color: c.text,
-      padding: spacing[0],
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing[2],
     },
     detailValue: {
       flex: 1,
@@ -439,33 +521,23 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     detailValueSet: { color: c.text2 },
     chevron: { fontSize: fontSize['2xl'], color: c.text3, lineHeight: lineHeight.title },
 
-    // Hashtags
+    tagBlock: { paddingTop: spacing.px10, paddingBottom: spacing.px14, gap: spacing.px7 },
     hashtagWrap: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: spacing.px6,
       alignItems: 'center',
-      backgroundColor: c.bg,
+      backgroundColor: c.surface,
       borderRadius: radius.md3,
-      borderWidth: 0.5,
+      borderWidth: spacing.hairline,
       borderColor: c.border,
-      paddingHorizontal: spacing.px14,
-      paddingVertical: spacing[3],
-      marginHorizontal: spacing[4],
-      minHeight: 48,
-    },
-    hashtagToken: {
-      backgroundColor: c.info,
-      borderRadius: radius.pill,
       paddingHorizontal: spacing.px10,
-      paddingVertical: spacing.px5,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.px5,
+      paddingVertical: spacing.px7,
+      minHeight: spacing.px50,
     },
-    hashtagTokenText: { fontSize: fontSize.bodySm, color: '#fff', fontWeight: fontWeight.medium }, // check:tokens-ignore
     hashtagField: { flex: 1, minWidth: 80, fontSize: fontSize.md, color: c.text, padding: spacing[0] },
-    hashtagHint: { fontSize: fontSize.sm, color: c.text3, paddingHorizontal: spacing[4], paddingTop: spacing.px6 },
+    hashtagHint: { fontSize: fontSize.sm, color: c.text3 },
+    scrollEnd: { height: spacing.px22 },
     cuisineSearch: {
       marginHorizontal: spacing[4],
       marginBottom: spacing.px10,

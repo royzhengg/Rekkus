@@ -33,7 +33,7 @@ For post/feed rows use `PostRatingStrip`. For interactive input (e.g. post creat
 
 ## Post Media Layout
 
-- Use `PostMediaCarousel` for feed/detail/search-compatible post media. It supports ordered photos and videos, carousel count, video badges, and legacy `imageUrl`/`videoUrl` fallback.
+- Use `PostMediaCarousel` for feed/detail/search-compatible post media. It supports ordered photos and videos, carousel count, video badges, legacy `imageUrl`/`videoUrl` fallback, and native video controls. Only visible feed/post-detail media receives muted autoplay eligibility; Reduce Motion always pauses autoplay.
 - Use `PostCard` for feed cards so mixed media, Rekkus Picks, creator, place, and action hierarchy stay consistent.
 - Keep dish tagging photo-only until video timestamp tagging has its own model. Mixed posts should clearly expose which photos can be tagged.
 - Dense screens should show thumbnails or compact rows first; avoid masonry when mixed media aspect ratios make scanning unstable.
@@ -110,6 +110,19 @@ Prefer semantic presets for new UI:
 | `lineHeight.tight`   | 16    |
 | `lineHeight.normal`  | 20    |
 | `lineHeight.relaxed` | 24    |
+
+### Dynamic Type / OS Text Scaling
+
+React Native `Text` scales with iOS Dynamic Type and Android Font Size by default (no cap). Unbounded scaling hides actions in fixed-height containers. Rules:
+
+- **Never** use `allowFontScaling={false}` — this breaks accessibility.
+- **Layout-critical elements** (headers, chips, tabs, action bars, wordmarks): set `maxFontSizeMultiplier={maxFontSizeMultiplier.layout}` (1.3×). Import from `constants/Typography`.
+- **Scrollable body copy** that has room to wrap: set `maxFontSizeMultiplier={maxFontSizeMultiplier.body}` (1.5×).
+- Body text inside a full-screen scrollable surface can omit `maxFontSizeMultiplier` if there is no fixed-height container around it.
+
+Test at: iOS Settings → Accessibility → Larger Accessibility Sizes (max); Android Settings → Display → Font Size (largest). Verify no primary action is clipped or hidden.
+
+`check:tokens` enforces no raw `fontSize` / `fontWeight` / `lineHeight` literals in `features/`, `components/`, `app/`, and `lib/contexts/`.
 
 ---
 
@@ -417,6 +430,8 @@ Active pill: `backgroundColor: colors.text`, label `color: colors.bg`. Inactive:
 
 Use `useIsDarkMode()` (from `lib/contexts/ThemeContext`) wherever a boolean dark-mode flag is needed (e.g. map tile style selection).
 
+`Autoplay videos` is a separate Appearance toggle. It controls muted visible-only post autoplay and defaults on; OS Reduce Motion overrides it without removing manual playback controls.
+
 ---
 
 ## Theme Pattern
@@ -449,7 +464,7 @@ Never use module-level `StyleSheet.create` with colour tokens.
 ## Navigation
 
 - **Stack:** post detail, location detail, user profile, settings
-- **Tabs:** Feed, Search, Post, Alerts, Profile
+- **Tabs:** Feed, Search, Saved, Profile. Create is a floating action, not a destination tab.
 - Back navigation uses `router.back()` — never hardcode routes for back
 - Deep link params via `useLocalSearchParams()`
 
@@ -457,11 +472,25 @@ Never use module-level `StyleSheet.create` with colour tokens.
 
 ## Screen Specs
 
+### Onboarding (B-240)
+
+3-step progressive disclosure sequence for new accounts. Each step uses `SafeAreaView edges={['top']}`, a 56px top bar with back chevron + step indicator (`1 of 3` / `2 of 3`), and a full-width `PrimaryButton` CTA at the bottom.
+
+**Step 1 — Profile** (`/(auth)/onboarding-profile`): `fontSize['5xl']` title + `fontSize.md` subtitle. `@` prefixed username field (min 3 chars, lowercase a–z 0–9 _ .), display name field. Continue disabled until both valid.
+
+**Step 2 — Interests** (`/(auth)/onboarding-interests`): same header pattern. Chip grid from `ONBOARDING_TOPICS`. Active chip: `backgroundColor: c.text`, `borderColor: c.text`, text `c.bg`. Inactive: `c.surface` / `c.border`. Min-height 44pt per chip. Selected-count caption below grid. Continue disabled until ≥3 selected.
+
+**Step 3 — Location** (`/(auth)/onboarding-location`): centred layout, `SafeAreaView edges={['top','bottom']}`. Large map-pin icon (`c.accent`, 48×48). `fontSize['5xl']` title + `fontSize.lg` body (max-width 280). Two CTAs stacked: "Enable location" (primary) + "Not now" (secondary, `c.text3`, min 44pt). No back affordance shown (step completes onboarding regardless).
+
+**Feed nudge**: shown once after onboarding on `/(tabs)/feed`. Dismissable card above the scroll area (inside the safe area): `c.surface` background, `radius.lg`, border `c.border`. Title + subtitle row, then two equal-width pill buttons ("Post a dish" primary, "Explore nearby" secondary). Dismiss ✕ in top-right corner (44pt hit area). Cleared from AsyncStorage (`rekkus:first-feed-visit:v1`) on first interaction or dismiss.
+
 ### Bottom Navigation
 
-Five tabs: Feed · Search · Post (centre, no label) · Alerts · Profile
+Four destination tabs: Feed · Search · Saved · Profile. A centred floating Create action sits above the bar and launches contribution without changing the meaning of tab navigation.
 
-Active: `c.text`. Inactive: `c.text3`. Post button: 42×42 rounded rect, `bg: c.text`, icon `c.bg`.
+B-531 evaluates an iOS-only system-material backdrop for this same tab bar, behind the disabled-by-default `iosTabBarMaterial` flag in development/staging only. The tab destinations and floating Create visual/behavior do not change. Android, beta, production, and iOS Reduce Transparency use the opaque token-backed bar.
+
+Active: `c.text`. Inactive: `c.text3`. Floating Create button: 56x56 circle, `bg: c.text`, icon `c.bg`, minimum 44pt interaction area.
 
 ### Feed
 
@@ -474,6 +503,7 @@ Card hierarchy: media → creator → dish/title → body preview → Rekkus Pic
 
 Post detail action states:
 - Like, save post, save location, follow, and reactions optimistically update; write failures roll back and show `<ErrorMessage>` feedback.
+- Offline reversible actions may remain optimistic with the root `ConnectivityNotice` identifying pending sync; authored or destructive actions use `<ErrorMessage>` reconnect guidance and never auto-submit later.
 - Hashtags route to Search with the tag prefilled.
 - Share routes through New Message and sends a tappable `post_share` card back to Post Detail.
 - Comments keep reply/report as compact row actions under the comment body.
@@ -485,7 +515,7 @@ Active: result count label + 2-col grid (same as feed).
 
 ### Create Review
 
-Create composer: Title → restaurant/place → food media, then Rekkus Picks/details, then Share preview. Camera and Library are primary actions; mixed media uses drag-to-reorder thumbnails, item 0 is Cover, and dish tags apply to photos only. 3:4 cover and Tag dishes are compact icon pills below the strip. Review uses compact icon-led Taste/Value/Occasion chips with helper copy, not visible Food/Vibe/Cost cards. Header actions share size, weight, hit area, and disabled styling; Share hides the top Save and keeps Save draft in the final action area. Share edit actions use step names: Edit media and Edit review.
+Create composer: Title -> restaurant/place -> food media, then Review, then Share preview. Camera and Library are primary actions; mixed media uses drag-to-reorder thumbnails, item 0 is Cover, and dish tags apply to photos only. 3:4 cover and Tag dishes are compact icon pills below the strip. Review is core-first: compact icon-led Taste/Value/Occasion chips -> written review -> always-visible Best dish -> collapsed Optional details for Cuisine and Tags. Existing cuisine/tag values automatically expand Optional details and remain summarised when collapsed. Selected pick helper copy remains visible; visible Food/Vibe/Cost cards do not return. Header actions share size, weight, hit area, and disabled styling; Share hides the top Save and keeps Save draft in the final action area. Share edit actions use step names: Edit media and Edit review.
 
 ### Post Collections
 
@@ -501,7 +531,7 @@ Collection picking uses a `RekkusActionSheet` list plus a private create action.
 
 `PostUploadProgress` appears as a compact media row with thumbnail, status hierarchy, progress, posted success, and failed dismiss state. Draft rows look like saved post previews with thumbnail, title, restaurant/media/date metadata, and compact Duplicate/Delete actions.
 
-Create launcher: the tab bar `+` opens a Rekkus sheet over the current screen. With saved drafts it shows **New post** and **Edit a draft** only; never show a long draft list in the launcher.
+Create launcher: the floating Create action opens a Rekkus sheet over the current screen. With saved drafts it shows **New post** and **Edit a draft** only; never show a long draft list in the launcher.
 
 ### Profile (own)
 
@@ -516,7 +546,8 @@ Same header. Actions: Follow + Message. Tab: Posts only.
 ## Key UX Patterns
 
 - **Loading:** `ActivityIndicator` for compact actions and pagination; skeleton placeholders (`c.surface2` background) for predictable content; `<EmptyState loading>` only for blocking full-screen waits without a useful content shape
-- **Errors:** toast at bottom, auto-dismiss 3s
+- **Errors:** `<ErrorMessage>` for routine failures; `RekkusActionSheet` only when recovery choices are available
+- **Connectivity:** one root `<ConnectivityNotice>` for offline/pending/sync status; do not duplicate banners in individual screens
 - **Empty states:** `EmptyState` component — icon + title + subtitle, generous padding
 - **Haptics:** light on like/save; medium on post submit
 - **Auth gate:** `requireAuth()` before any write — never hard-redirect guests

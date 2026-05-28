@@ -9,17 +9,19 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, CameraIcon } from '@/components/icons'
 import { CachedImage } from '@/components/ui/CachedImage'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
+import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { uploadAvatarImage, validatePickedAvatarImage } from '@/lib/services/media'
 import { fetchProfile, updateProfile as updateUserProfile } from '@/lib/services/users'
@@ -27,6 +29,7 @@ import { fetchProfile, updateProfile as updateUserProfile } from '@/lib/services
 export default function EditProfileScreen() {
   const router = useRouter()
   const { user, updateProfile: updateAuthProfile } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
@@ -41,6 +44,7 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { request: requestPermission, recoveryVisible, recoveryMessage, dismissRecovery, openSettings } = usePermissionRecovery()
 
   useEffect(() => {
     if (!user) return
@@ -60,11 +64,11 @@ export default function EditProfileScreen() {
 
   async function pickAvatar() {
     setError(null)
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
-      Alert.alert('Permission required', 'Allow photo library access to update your avatar.')
-      return
-    }
+    const permission = await requestPermission(
+      () => ImagePicker.requestMediaLibraryPermissionsAsync(),
+      'Photo library access is needed to update your avatar. Enable it in Settings.'
+    )
+    if (!permission.granted) return
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -99,6 +103,10 @@ export default function EditProfileScreen() {
   async function handleSave() {
     if (!user) return
     setError(null)
+    if (!requireOnline()) {
+      setError('Reconnect to update your profile.')
+      return
+    }
     setLoading(true)
     let finalAvatarUrl = avatarUrl
     if (avatarUri) finalAvatarUrl = await uploadAvatar(avatarUri)
@@ -149,6 +157,7 @@ export default function EditProfileScreen() {
           style={[styles.saveBtn, (!canSave || loading || uploading) && styles.saveBtnDisabled]}
           onPress={handleSave}
           disabled={!canSave || loading || uploading}
+          accessibilityRole="button"
         >
           {loading || uploading ? (
             <ActivityIndicator size="small" color={colors.bg} />
@@ -207,6 +216,9 @@ export default function EditProfileScreen() {
                 placeholderTextColor={colors.text3}
                 autoCapitalize="none"
                 autoCorrect={false}
+                textContentType="username"
+                autoComplete="username"
+                returnKeyType="next"
               />
             </View>
           </View>
@@ -219,6 +231,10 @@ export default function EditProfileScreen() {
               onChangeText={setDisplayName}
               placeholder="Your name"
               placeholderTextColor={colors.text3}
+              textContentType="name"
+              autoComplete="name"
+              autoCapitalize="words"
+              returnKeyType="next"
             />
           </View>
 
@@ -232,6 +248,8 @@ export default function EditProfileScreen() {
               placeholderTextColor={colors.text3}
               multiline
               maxLength={150}
+              textContentType="none"
+              autoComplete="off"
             />
             <Text style={styles.charCount}>{bio.length}/150</Text>
           </View>
@@ -245,6 +263,9 @@ export default function EditProfileScreen() {
               placeholder="Surry Hills"
               placeholderTextColor={colors.text3}
               autoCapitalize="words"
+              textContentType="addressCity"
+              autoComplete="address-line2"
+              returnKeyType="next"
             />
           </View>
 
@@ -257,6 +278,9 @@ export default function EditProfileScreen() {
               placeholder="Sydney"
               placeholderTextColor={colors.text3}
               autoCapitalize="words"
+              textContentType="addressCity"
+              autoComplete="address-line2"
+              returnKeyType="next"
             />
           </View>
 
@@ -269,10 +293,25 @@ export default function EditProfileScreen() {
               placeholder="Australia"
               placeholderTextColor={colors.text3}
               autoCapitalize="words"
+              textContentType="countryName"
+              autoComplete="country"
+              returnKeyType="done"
             />
           </View>
         </View>
       </ScrollView>
+
+      <RekkusActionSheet
+        visible={recoveryVisible}
+        title="Permission required"
+        subtitle={recoveryMessage}
+        options={[
+          { label: 'Open Settings', value: 'settings', accentColor: colors.accent },
+          { label: 'Not now', value: 'cancel' },
+        ]}
+        onSelect={v => v === 'settings' ? openSettings() : dismissRecovery()}
+        onDismiss={dismissRecovery}
+      />
     </SafeAreaView>
   )
 }

@@ -1,4 +1,4 @@
-import { useVideoPlayer, VideoView } from 'expo-video'
+import { VideoView } from 'expo-video'
 import { useMemo, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from 'react-native'
 import { ImagePlaceholder, VideoIcon } from '@/components/icons'
@@ -7,14 +7,21 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { usePostVideoPlayback } from '@/lib/hooks/usePostVideoPlayback'
 import type { Post, PostMediaAsset } from '@/types/domain'
 
-function VideoSlide({ uri, height }: { uri: string; height: number }) {
-  const player = useVideoPlayer(uri, p => {
-    p.loop = true
-    p.muted = true
-  })
-  return <VideoView style={{ width: '100%', height }} player={player} contentFit="cover" nativeControls={false} />
+function VideoSlide({ uri, height, autoplayActive }: { uri: string; height: number; autoplayActive: boolean }) {
+  const player = usePostVideoPlayback(uri, { autoplayActive })
+  return (
+    <VideoView
+      style={{ width: '100%', height }}
+      player={player}
+      contentFit="cover"
+      nativeControls
+      accessible
+      accessibilityLabel="Post video"
+    />
+  )
 }
 
 type Props = {
@@ -22,6 +29,7 @@ type Props = {
   media?: PostMediaAsset[] | undefined
   height?: number | undefined
   compact?: boolean | undefined
+  autoplayActive?: boolean | undefined
 }
 
 function resolvePostMedia(post?: Post, media?: PostMediaAsset[]): PostMediaAsset[] {
@@ -36,7 +44,7 @@ function resolvePostMedia(post?: Post, media?: PostMediaAsset[]): PostMediaAsset
   return []
 }
 
-export function PostMediaCarousel({ post, media, height, compact }: Props) {
+export function PostMediaCarousel({ post, media, height, compact, autoplayActive = false }: Props) {
   const c = useThemeColors()
   const styles = useMemo(() => makeStyles(c), [c])
   const { width } = useWindowDimensions()
@@ -60,14 +68,18 @@ export function PostMediaCarousel({ post, media, height, compact }: Props) {
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={e => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
       >
-        {items.map(item => {
+        {items.map((item, itemIndex) => {
           const uri = item.processedUrl ?? item.thumbnailUrl ?? item.uri
           return (
             <View key={item.localId || uri} style={{ width, height: slideHeight }}>
               {item.type === 'image' ? (
                 <CachedImage source={{ uri }} style={StyleSheet.absoluteFillObject} />
               ) : uri ? (
-                <VideoSlide uri={item.processedUrl ?? item.uri} height={slideHeight} />
+                <VideoSlide
+                  uri={item.processedUrl ?? item.uri}
+                  height={slideHeight}
+                  autoplayActive={autoplayActive && itemIndex === index}
+                />
               ) : (
                 <View style={styles.videoFallback}>
                   <VideoIcon size={compact ? 24 : 42} color={c.accent} />

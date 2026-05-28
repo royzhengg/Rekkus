@@ -134,6 +134,8 @@ export const routes = {
     params: { ...params },
   }),
 
+  createDrafts: () => '/create/drafts' as const,
+
   draftEdit: (draftId: string) => ({
     pathname: '/(tabs)/create' as const,
     params: { draftId },

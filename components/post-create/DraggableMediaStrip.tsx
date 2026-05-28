@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
 import {
-  Animated,
   Image,
   PanResponder,
   ScrollView,
@@ -9,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated'
 import { CloseIcon, ImagePlaceholder, VideoIcon } from '@/components/icons'
 import { elevation } from '@/constants/Elevation'
 import { radius } from '@/constants/Radius'
@@ -33,16 +33,86 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
 }
 
+type TileProps = {
+  item: PostMedia
+  index: number
+  isDragging: boolean
+  dragX: SharedValue<number>
+  shifts: SharedValue<number[]>
+  panHandlers: ReturnType<typeof PanResponder.create>['panHandlers'] | undefined
+  onRemove: (index: number) => void
+  styles: ReturnType<typeof makeStyles>
+  accent: string
+}
+
+function DraggableMediaTile({ item, index, isDragging, dragX, shifts, panHandlers, onRemove, styles, accent }: TileProps) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: isDragging ? dragX.value : (shifts.value[index] ?? 0) }],
+  }), [index, isDragging])
+  const previewUri = item.thumbnailUrl ?? item.processedUrl ?? item.uri
+
+  return (
+    <Animated.View
+      {...(panHandlers ?? {})}
+      style={[
+        styles.mediaTile,
+        index === 0 && styles.coverTile,
+        isDragging && styles.draggingTile,
+        animatedStyle,
+      ]}
+    >
+      {item.type === 'image' ? (
+        <Image source={{ uri: previewUri }} style={styles.mediaTileImage} resizeMode="cover" />
+      ) : (
+        <View style={styles.mediaTileVideo}>
+          {item.thumbnailUrl ? (
+            <Image source={{ uri: item.thumbnailUrl }} style={styles.mediaTileImage} resizeMode="cover" />
+          ) : (
+            <>
+              <VideoIcon size={24} color={accent} />
+              <Text style={styles.mediaTileVideoText}>Video</Text>
+            </>
+          )}
+          <View style={styles.videoBadge}>
+            <VideoIcon size={10} color="#fff" /* check:tokens-ignore */ />
+            <Text style={styles.videoBadgeText}>Video</Text>
+          </View>
+        </View>
+      )}
+      {item.processingStatus && !['ready', 'local_ready'].includes(item.processingStatus) && (
+        <View style={styles.mediaStatus}>
+          <Text style={styles.mediaStatusText}>
+            {item.processingStatus === 'failed' ? 'Needs attention' : 'Preparing'}
+          </Text>
+        </View>
+      )}
+      {index === 0 && (
+        <View style={styles.coverBadge}>
+          <Text style={styles.coverBadgeText}>Cover</Text>
+        </View>
+      )}
+      <TouchableOpacity
+        style={styles.mediaRemove}
+        onPress={() => onRemove(index)}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={`Remove media ${index + 1}`}
+      >
+        <CloseIcon size={8} color="#fff" /* check:tokens-ignore */ />
+      </TouchableOpacity>
+      <View style={styles.mediaIndex}>
+        <Text style={styles.mediaIndexText}>{index + 1}</Text>
+      </View>
+    </Animated.View>
+  )
+}
+
 export default function DraggableMediaStrip({ media, onChange, onRemove, onAdd }: Props) {
   const c = useThemeColors()
   const styles = useMemo(() => makeStyles(c), [c])
   const [dragging, setDragging] = useState<number | null>(null)
-  const dragX = useRef(new Animated.Value(0)).current
-  const shiftAnims = useRef<Animated.Value[]>([])
-
-  while (shiftAnims.current.length < media.length) {
-    shiftAnims.current.push(new Animated.Value(0))
-  }
+  const dragX = useSharedValue(0)
+  const shifts = useSharedValue<number[]>([])
 
   const mediaRef = useRef(media)
   mediaRef.current = media
@@ -59,24 +129,26 @@ export default function DraggableMediaStrip({ media, onChange, onRemove, onAdd }
         onStartShouldSetPanResponder: () => false,
         onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 6,
         onPanResponderGrant: () => {
-          dragX.setValue(0)
-          shiftAnims.current.forEach(anim => anim.setValue(0))
+          dragX.value = 0
+          shifts.value = mediaRef.current.map(() => 0)
           hoverRef.current = i
           setDragging(i)
         },
         onPanResponderMove: (_, gesture) => {
-          dragX.setValue(gesture.dx)
+          dragX.value = gesture.dx
           const count = mediaRef.current.length
           const nextHover = clamp(Math.round((i * STRIDE + gesture.dx) / STRIDE), 0, count - 1)
           if (nextHover !== hoverRef.current) {
             hoverRef.current = nextHover
+            const nextShifts = mediaRef.current.map(() => 0)
             for (let j = 0; j < count; j++) {
               if (j === i) continue
               let shift = 0
               if (nextHover > i && j > i && j <= nextHover) shift = -STRIDE
               if (nextHover < i && j >= nextHover && j < i) shift = STRIDE
-              shiftAnims.current[j]?.setValue(shift)
+              nextShifts[j] = shift
             }
+            shifts.value = nextShifts
           }
         },
         onPanResponderRelease: (_, gesture) => {
@@ -89,14 +161,14 @@ export default function DraggableMediaStrip({ media, onChange, onRemove, onAdd }
             next.splice(to, 0, item)
             onChangeRef.current(next)
           }
-          dragX.setValue(0)
-          shiftAnims.current.forEach(anim => anim.setValue(0))
+          dragX.value = 0
+          shifts.value = mediaRef.current.map(() => 0)
           hoverRef.current = null
           setDragging(null)
         },
         onPanResponderTerminate: () => {
-          dragX.setValue(0)
-          shiftAnims.current.forEach(anim => anim.setValue(0))
+          dragX.value = 0
+          shifts.value = mediaRef.current.map(() => 0)
           hoverRef.current = null
           setDragging(null)
         },
@@ -113,67 +185,24 @@ export default function DraggableMediaStrip({ media, onChange, onRemove, onAdd }
     >
       {media.map((item, index) => {
         const isDragging = index === dragging
-        const translateX = isDragging ? dragX : (shiftAnims.current[index] ?? new Animated.Value(0))
-        const previewUri = item.thumbnailUrl ?? item.processedUrl ?? item.uri
 
         return (
-          <Animated.View
+          <DraggableMediaTile
             key={item.localId || item.uri}
-            {...(panResponders.current[index]?.panHandlers ?? {})}
-            style={[
-              styles.mediaTile,
-              index === 0 && styles.coverTile,
-              isDragging && styles.draggingTile,
-              { transform: [{ translateX }] },
-            ]}
-          >
-            {item.type === 'image' ? (
-              <Image source={{ uri: previewUri }} style={styles.mediaTileImage} resizeMode="cover" />
-            ) : (
-              <View style={styles.mediaTileVideo}>
-                {item.thumbnailUrl ? (
-                  <Image source={{ uri: item.thumbnailUrl }} style={styles.mediaTileImage} resizeMode="cover" />
-                ) : (
-                  <>
-                    <VideoIcon size={24} color={c.accent} />
-                    <Text style={styles.mediaTileVideoText}>Video</Text>
-                  </>
-                )}
-                <View style={styles.videoBadge}>
-                  <VideoIcon size={10} color="#fff" /* check:tokens-ignore */ />
-                  <Text style={styles.videoBadgeText}>Video</Text>
-                </View>
-              </View>
-            )}
-            {item.processingStatus && !['ready', 'local_ready'].includes(item.processingStatus) && (
-              <View style={styles.mediaStatus}>
-                <Text style={styles.mediaStatusText}>
-                  {item.processingStatus === 'failed' ? 'Needs attention' : 'Preparing'}
-                </Text>
-              </View>
-            )}
-            {index === 0 && (
-              <View style={styles.coverBadge}>
-                <Text style={styles.coverBadgeText}>Cover</Text>
-              </View>
-            )}
-            <TouchableOpacity
-              style={styles.mediaRemove}
-              onPress={() => onRemove(index)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={`Remove media ${index + 1}`}
-            >
-              <CloseIcon size={8} color="#fff" /* check:tokens-ignore */ />
-            </TouchableOpacity>
-            <View style={styles.mediaIndex}>
-              <Text style={styles.mediaIndexText}>{index + 1}</Text>
-            </View>
-          </Animated.View>
+            item={item}
+            index={index}
+            isDragging={isDragging}
+            dragX={dragX}
+            shifts={shifts}
+            panHandlers={panResponders.current[index]?.panHandlers}
+            onRemove={onRemove}
+            styles={styles}
+            accent={c.accent}
+          />
         )
       })}
       {onAdd && (
-        <TouchableOpacity style={[styles.mediaTile, styles.mediaAddTile]} onPress={onAdd}>
+        <TouchableOpacity style={[styles.mediaTile, styles.mediaAddTile]} onPress={onAdd} accessibilityRole="button" accessibilityLabel="Add media">
           <ImagePlaceholder size={22} color={c.accent} />
           <Text style={styles.mediaAddText}>Add</Text>
         </TouchableOpacity>

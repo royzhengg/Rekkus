@@ -16,11 +16,13 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { updatePassword } from '@/lib/services/auth'
 import { isValidPassword, passwordMinLengthMessage, passwordsMatch as doPasswordsMatch } from '@/lib/utils/validation'
 
 export default function ResetPasswordScreen() {
   const router = useRouter()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
@@ -37,6 +39,10 @@ export default function ResetPasswordScreen() {
   async function handleSave() {
     if (!canSave || loading) return
     setError(null)
+    if (!requireOnline()) {
+      setError('Reconnect to update your password.')
+      return
+    }
     setLoading(true)
     try {
       await updatePassword(password)
@@ -74,6 +80,9 @@ export default function ResetPasswordScreen() {
               placeholder={passwordMinLengthMessage()}
               placeholderTextColor={colors.text3}
               secureTextEntry={!showPassword}
+              textContentType="newPassword"
+              autoComplete="new-password"
+              returnKeyType="next"
             />
             <TouchableOpacity
               onPress={() => setShowPassword(v => !v)}
@@ -101,6 +110,9 @@ export default function ResetPasswordScreen() {
               placeholder="Confirm new password"
               placeholderTextColor={colors.text3}
               secureTextEntry={!showConfirm}
+              textContentType="newPassword"
+              autoComplete="new-password"
+              returnKeyType="done"
             />
             <TouchableOpacity
               onPress={() => setShowConfirm(v => !v)}
@@ -121,6 +133,7 @@ export default function ResetPasswordScreen() {
           onPress={handleSave}
           disabled={!canSave || loading}
           activeOpacity={0.85}
+          accessibilityRole="button"
         >
           {loading ? (
             <ActivityIndicator size="small" color={colors.bg} />

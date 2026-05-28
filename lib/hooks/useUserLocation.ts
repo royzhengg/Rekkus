@@ -1,5 +1,5 @@
 import * as Location from 'expo-location'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 
 type Coords = { lat: number; lng: number }
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'manual' | 'error'
@@ -7,7 +7,7 @@ type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'manual' | 
 let cached: Coords | null = null
 let cachedLabel: string | null = null
 
-export function useUserLocation(options: { autoRequest?: boolean } = {}) {
+export function useUserLocation() {
   const [coords, setCoords] = useState<Coords | null>(cached)
   const [label, setLabel] = useState<string | null>(cachedLabel)
   const [status, setStatus] = useState<LocationStatus>(cached ? 'granted' : 'idle')
@@ -79,12 +79,6 @@ export function useUserLocation(options: { autoRequest?: boolean } = {}) {
     setStatus('idle')
     setError(null)
   }, [])
-
-  useEffect(() => {
-    if (options.autoRequest && !coords) {
-      void requestLocation()
-    }
-  }, [coords, options.autoRequest, requestLocation])
 
   return {
     coords,

@@ -18,7 +18,10 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { getCurrentUser } from '@/lib/services/auth'
+import { fetchProfile } from '@/lib/services/users'
 import { isValidPassword } from '@/lib/utils/validation'
 
 function ChevronLeft() {
@@ -97,6 +100,7 @@ function GoogleIcon() {
 export default function LoginScreen() {
   const router = useRouter()
   const { signInWithEmail, signInWithGoogle } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
@@ -112,6 +116,10 @@ export default function LoginScreen() {
   async function handleSignIn() {
     if (!canSubmit || loading) return
     setError('')
+    if (!requireOnline()) {
+      setError('Reconnect to sign in.')
+      return
+    }
     setLoading(true)
     const err = await signInWithEmail(email.trim(), password)
     setLoading(false)
@@ -124,10 +132,28 @@ export default function LoginScreen() {
 
   async function handleGoogle() {
     setError('')
+    if (!requireOnline()) {
+      setError('Reconnect to sign in with Google.')
+      return
+    }
     setGoogleLoading(true)
     const err = await signInWithGoogle()
+    if (err) {
+      setGoogleLoading(false)
+      setError(err)
+      return
+    }
+    // New Google OAuth users have no username yet — route them to onboarding
+    const currentUser = await getCurrentUser()
     setGoogleLoading(false)
-    if (err) setError(err)
+    if (currentUser) {
+      const profile = await fetchProfile(currentUser.id)
+      if (!profile?.username) {
+        router.replace('/(auth)/onboarding-profile')
+        return
+      }
+    }
+    router.replace('/(tabs)/feed')
   }
 
   return (
@@ -162,6 +188,9 @@ export default function LoginScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            textContentType="emailAddress"
+            autoComplete="email"
+            returnKeyType="next"
           />
 
           <Text style={styles.label}>Password</Text>
@@ -175,6 +204,8 @@ export default function LoginScreen() {
               secureTextEntry={!showPassword}
               returnKeyType="done"
               onSubmitEditing={handleSignIn}
+              textContentType="password"
+              autoComplete="current-password"
             />
             <TouchableOpacity
               onPress={() => setShowPassword(v => !v)}
@@ -190,6 +221,7 @@ export default function LoginScreen() {
             style={[styles.primaryBtn, !canSubmit && styles.primaryBtnDisabled]}
             onPress={handleSignIn}
             disabled={!canSubmit || loading}
+            accessibilityRole="button"
           >
             {loading ? (
               <ActivityIndicator color={colors.bg} />
@@ -198,7 +230,7 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/(auth)/forgot-password')}>
+          <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/(auth)/forgot-password')} accessibilityRole="button">
             <Text style={styles.forgotText}>Forgot password?</Text>
           </TouchableOpacity>
 
@@ -225,7 +257,7 @@ export default function LoginScreen() {
 
           <View style={styles.switchRow}>
             <Text style={styles.switchText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.replace('/(auth)/signup')}>
+            <TouchableOpacity onPress={() => router.replace('/(auth)/signup')} accessibilityRole="button">
               <Text style={styles.switchLink}>Create account</Text>
             </TouchableOpacity>
           </View>

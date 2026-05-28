@@ -1,0 +1,224 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { analytics } from '@/lib/analytics'
+import { unsaveTarget } from '@/lib/services/collections'
+import { saveDish } from '@/lib/services/dishes'
+import {
+  togglePostLike,
+  togglePostSave,
+} from '@/lib/services/posts'
+import { saveLocation } from '@/lib/services/restaurants'
+import { updateSettingValue, type Settings } from '@/lib/services/settings'
+import { followUser, unfollowUser } from '@/lib/services/users'
+import { isRecord, parseJsonWithGuard } from '@/lib/utils/safeJson'
+
+// Phase 1 scope: saves, likes, follows, settings.
+// Phase 2 (B-239b): message_reaction, conversation_*, place_status, post_reaction.
+
+const STORAGE_KEY = 'rekkus:pending-mutations:v1'
+const STORAGE_VERSION = 1
+const MAX_QUEUE_SIZE = 50
+const QUEUE_TTL_MS = 7 * 24 * 60 * 60 * 1000  // 7 days
+export const MAX_RETRY_COUNT = 5
+
+type BaseMutation = {
+  userId: string
+  updatedAt: string
+  retryCount: number
+}
+
+export type DeferredMutation =
+  | (BaseMutation & { kind: 'post_save'; postId: string; targetState: boolean; removeCollectionMemberships?: boolean })
+  | (BaseMutation & { kind: 'dish_save'; dishId: string; targetState: boolean; removeCollectionMemberships?: boolean })
+  | (BaseMutation & { kind: 'place_save'; restaurantId: string; targetState: boolean; removeCollectionMemberships?: boolean })
+  | (BaseMutation & { kind: 'follow'; targetUserId: string; targetState: boolean })
+  | (BaseMutation & { kind: 'post_like'; postId: string; targetState: boolean })
+  | (BaseMutation & { kind: 'setting'; setting: keyof Settings; value: Settings[keyof Settings] })
+
+export type DeferredMutationInput = DeferredMutation extends infer T
+  ? T extends DeferredMutation
+    ? Omit<T, 'userId' | 'updatedAt' | 'retryCount'>
+    : never
+  : never
+
+type MutationEnvelope = {
+  version: 1
+  mutations: DeferredMutation[]
+}
+
+function isBoolean(value: unknown): value is boolean {
+  return typeof value === 'boolean'
+}
+
+function hasOnlyKeys(value: Record<string, unknown>, keys: string[]): boolean {
+  return Object.keys(value).every(key => keys.includes(key))
+}
+
+function isSettingValue(key: string, value: unknown): value is Settings[keyof Settings] {
+  if (key === 'theme_mode') return value === 'light' || value === 'dark' || value === 'system'
+  return isBoolean(value)
+}
+
+const BASE_KEYS = ['kind', 'userId', 'updatedAt', 'retryCount']
+
+export function isDeferredMutation(value: unknown): value is DeferredMutation {
+  if (!isRecord(value) || typeof value.userId !== 'string' || typeof value.updatedAt !== 'string' ||
+      typeof value.kind !== 'string' || typeof value.retryCount !== 'number') {
+    return false
+  }
+  switch (value.kind) {
+    case 'post_save':
+      return hasOnlyKeys(value, [...BASE_KEYS, 'postId', 'targetState', 'removeCollectionMemberships']) &&
+        typeof value.postId === 'string' && isBoolean(value.targetState) &&
+        (value.removeCollectionMemberships === undefined || isBoolean(value.removeCollectionMemberships))
+    case 'dish_save':
+      return hasOnlyKeys(value, [...BASE_KEYS, 'dishId', 'targetState', 'removeCollectionMemberships']) &&
+        typeof value.dishId === 'string' && isBoolean(value.targetState) &&
+        (value.removeCollectionMemberships === undefined || isBoolean(value.removeCollectionMemberships))
+    case 'place_save':
+      return hasOnlyKeys(value, [...BASE_KEYS, 'restaurantId', 'targetState', 'removeCollectionMemberships']) &&
+        typeof value.restaurantId === 'string' && isBoolean(value.targetState) &&
+        (value.removeCollectionMemberships === undefined || isBoolean(value.removeCollectionMemberships))
+    case 'follow':
+      return hasOnlyKeys(value, [...BASE_KEYS, 'targetUserId', 'targetState']) &&
+        typeof value.targetUserId === 'string' && isBoolean(value.targetState)
+    case 'post_like':
+      return hasOnlyKeys(value, [...BASE_KEYS, 'postId', 'targetState']) &&
+        typeof value.postId === 'string' && isBoolean(value.targetState)
+    case 'setting':
+      return hasOnlyKeys(value, [...BASE_KEYS, 'setting', 'value']) &&
+        typeof value.setting === 'string' && value.setting in {
+        notif_likes: true, notif_comments: true, notif_followers: true, notif_mentions: true,
+        notif_messages: true, private_account: true, allow_comments: true, allow_tags: true,
+        autoplay_videos: true, theme_mode: true,
+      } && isSettingValue(value.setting, value.value)
+    default:
+      return false
+  }
+}
+
+function isEnvelope(value: unknown): value is MutationEnvelope {
+  return isRecord(value) && value.version === STORAGE_VERSION && Array.isArray(value.mutations) &&
+    value.mutations.every(isDeferredMutation)
+}
+
+export function deferredMutationKey(mutation: DeferredMutation): string {
+  switch (mutation.kind) {
+    case 'post_save': return `${mutation.userId}:post_save:${mutation.postId}`
+    case 'dish_save': return `${mutation.userId}:dish_save:${mutation.dishId}`
+    case 'place_save': return `${mutation.userId}:place_save:${mutation.restaurantId}`
+    case 'follow': return `${mutation.userId}:follow:${mutation.targetUserId}`
+    case 'post_like': return `${mutation.userId}:post_like:${mutation.postId}`
+    case 'setting': return `${mutation.userId}:setting:${mutation.setting}`
+  }
+}
+
+export function deferredMutationDomain(mutation: DeferredMutation): string {
+  return mutation.kind
+}
+
+export function incrementRetryCount(mutation: DeferredMutation): DeferredMutation {
+  return { ...mutation, retryCount: mutation.retryCount + 1 }
+}
+
+function pruneExpired(mutations: DeferredMutation[]): DeferredMutation[] {
+  const now = Date.now()
+  return mutations.filter(m => now - Date.parse(m.updatedAt) <= QUEUE_TTL_MS)
+}
+
+export async function readDeferredMutations(userId?: string): Promise<DeferredMutation[]> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    const parsed = parseJsonWithGuard(raw, isEnvelope)
+    if (!parsed) {
+      // Attempt partial salvage: try to recover individually valid items from the raw array
+      try {
+        const obj = JSON.parse(raw) as unknown
+        if (isRecord(obj) && Array.isArray(obj.mutations)) {
+          const salvaged = (obj.mutations as unknown[]).filter(isDeferredMutation)
+          if (salvaged.length > 0) {
+            const pruned = pruneExpired(salvaged)
+            await writeDeferredMutations(pruned)
+            analytics.actionError(null, 'runtime_boundary', 'pending_mutations_partial_recovery')
+            return userId ? pruned.filter(m => m.userId === userId) : pruned
+          }
+        }
+      } catch {
+        // unparseable — drop all
+      }
+      analytics.actionError(null, 'runtime_boundary', 'pending_mutations_invalid')
+      await AsyncStorage.removeItem(STORAGE_KEY)
+      return []
+    }
+    const pruned = pruneExpired(parsed.mutations)
+    if (pruned.length !== parsed.mutations.length) {
+      await writeDeferredMutations(pruned)
+    }
+    return userId ? pruned.filter(m => m.userId === userId) : pruned
+  } catch {
+    return []
+  }
+}
+
+async function writeDeferredMutations(mutations: DeferredMutation[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, mutations }))
+  } catch {
+    analytics.actionError(null, 'runtime_boundary', 'pending_mutations_write_failed')
+    throw new Error('offline_queue_write_failed')
+  }
+}
+
+export async function enqueueDeferredMutation(mutation: DeferredMutation): Promise<void> {
+  const mutations = await readDeferredMutations()
+  const key = deferredMutationKey(mutation)
+  const idx = mutations.findIndex(item => deferredMutationKey(item) === key)
+  if (idx >= 0) {
+    mutations[idx] = mutation  // update in place — preserve FIFO position
+  } else {
+    if (mutations.length >= MAX_QUEUE_SIZE) throw new Error('offline_queue_full')
+    mutations.push(mutation)
+  }
+  await writeDeferredMutations(mutations)
+}
+
+export async function removeDeferredMutation(mutation: DeferredMutation): Promise<void> {
+  const mutations = await readDeferredMutations()
+  await writeDeferredMutations(mutations.filter(item => deferredMutationKey(item) !== deferredMutationKey(mutation)))
+}
+
+export async function clearDeferredMutationsForUser(userId: string): Promise<void> {
+  const mutations = await readDeferredMutations()
+  await writeDeferredMutations(mutations.filter(item => item.userId !== userId))
+}
+
+export function isRetryableDeferredMutationError(reason: unknown): boolean {
+  const message = reason instanceof Error ? reason.message : String(reason)
+  return /network|fetch|offline|timeout|timed out|connection|socket/i.test(message)
+}
+
+export async function executeDeferredMutation(mutation: DeferredMutation): Promise<void> {
+  switch (mutation.kind) {
+    case 'post_save':
+      if (mutation.targetState) await togglePostSave(mutation.postId, mutation.userId, true)
+      else await unsaveTarget('post', mutation.postId, mutation.removeCollectionMemberships ?? false)
+      return
+    case 'dish_save':
+      if (mutation.targetState) await saveDish(mutation.userId, mutation.dishId)
+      else await unsaveTarget('dish', mutation.dishId, mutation.removeCollectionMemberships ?? false)
+      return
+    case 'place_save':
+      if (mutation.targetState) await saveLocation(mutation.userId, mutation.restaurantId)
+      else await unsaveTarget('restaurant', mutation.restaurantId, mutation.removeCollectionMemberships ?? false)
+      return
+    case 'follow':
+      if (mutation.targetState) await followUser(mutation.userId, mutation.targetUserId)
+      else await unfollowUser(mutation.userId, mutation.targetUserId)
+      return
+    case 'post_like':
+      await togglePostLike(mutation.postId, mutation.userId, mutation.targetState)
+      return
+    case 'setting':
+      await updateSettingValue(mutation.userId, mutation.setting, mutation.value)
+  }
+}

@@ -64,6 +64,7 @@ describe('routes', () => {
       pathname: '/(tabs)/create',
       params: { intent: 'edit', postId: 'post-1' },
     })
+    expect(routes.createDrafts()).toBe('/create/drafts')
     expect(routes.conversation('conv-1', { sharePostId: 'post-1' })).toEqual({
       pathname: '/messages/[conversationId]',
       params: { conversationId: 'conv-1', sharePostId: 'post-1' },

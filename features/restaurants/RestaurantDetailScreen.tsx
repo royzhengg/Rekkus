@@ -24,11 +24,13 @@ import { spacing } from '@/constants/Spacing'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { usePosts } from '@/lib/contexts/PostsContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { haptic } from '@/lib/haptics'
 import { useCollectionPicker } from '@/lib/hooks/useCollectionPicker'
 import { routes } from '@/lib/routes'
-import { fetchTargetCollectionItems, unsaveTarget } from '@/lib/services/collections'
+import { fetchTargetCollectionItems } from '@/lib/services/collections'
 import {
   fetchPlaceIdByTextSearch,
   fetchRestaurantProviderDetail,
@@ -44,7 +46,6 @@ import {
   fetchRestaurantPostRatings,
   fetchIsLocationSaved,
   insertGoogleRestaurant,
-  saveLocation,
 } from '@/lib/services/restaurants'
 import { parseLikes, todayHoursIndex } from '@/lib/utils/format'
 import { routeParamNumber, routeParamString } from '@/lib/utils/routeParams'
@@ -90,6 +91,7 @@ export default function RestaurantDetailScreen() {
   }>()
   const router = useRouter()
   const { user } = useAuth()
+  const { runDeferredMutation, requireOnline } = useConnectivity()
   const { requireAuth } = useAuthGate()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
@@ -363,7 +365,7 @@ export default function RestaurantDetailScreen() {
           setConfirmCollectionUnsave(true)
           return
         }
-        await unsaveTarget('restaurant', resId, false)
+        await runDeferredMutation({ kind: 'place_save', restaurantId: resId, targetState: false })
         setSaved(false)
       } catch {
         setSaved(wasSaved)
@@ -371,13 +373,14 @@ export default function RestaurantDetailScreen() {
     } else {
       try {
         setSaved(true)
-        await saveLocation(user.id, resId)
+        await runDeferredMutation({ kind: 'place_save', restaurantId: resId, targetState: true })
+        void haptic.confirmSave()
         setSaveSheet(true)
       } catch {
         setSaved(wasSaved)
       }
     }
-  }, [user, saved, findOrCreateRestaurant])
+  }, [user, saved, findOrCreateRestaurant, runDeferredMutation])
 
   const openCollectionPicker = useCallback(async () => {
     const resId = await findOrCreateRestaurant()
@@ -391,6 +394,10 @@ export default function RestaurantDetailScreen() {
   const submitRestaurantAction = useCallback(
     async (action: RestaurantAction) => {
       setOperationError(null)
+      if (!requireOnline()) {
+        setOperationError({ title: 'You are offline', message: 'Reconnect to submit place information for review.' })
+        return
+      }
       const resId = await findOrCreateRestaurant()
       if (!resId) {
         setOperationError({ title: 'Could not save that yet', message: 'Try again after the restaurant details finish loading.' })
@@ -430,7 +437,7 @@ export default function RestaurantDetailScreen() {
         setOperationError({ title: 'Could not submit', message: 'Please try again in a moment.' })
       }
     },
-    [findOrCreateRestaurant, displayName, displayAddress, resolvedPid]
+    [findOrCreateRestaurant, displayName, displayAddress, resolvedPid, requireOnline]
   )
 
   const handleRestaurantAction = useCallback(
@@ -568,7 +575,7 @@ export default function RestaurantDetailScreen() {
         onDismissConfirmUnsave={() => setConfirmCollectionUnsave(false)}
         onConfirmUnsave={() => {
           if (!restaurantId) return
-          void unsaveTarget('restaurant', restaurantId, true).then(() => {
+          void runDeferredMutation({ kind: 'place_save', restaurantId, targetState: false, removeCollectionMemberships: true }).then(() => {
             setSaved(false)
           }).catch(() => setOperationError({ title: 'Could not remove saved place', message: 'Please try again.' }))
         }}

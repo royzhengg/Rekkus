@@ -19,6 +19,7 @@ import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { getCurrentUser } from '@/lib/services/auth'
 import { ONBOARDING_TOPICS, saveTopicFollows } from '@/lib/services/topics'
@@ -44,6 +45,7 @@ function ChevronLeft() {
 export default function SignupProfileScreen() {
   const router = useRouter()
   const { updateProfile } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
@@ -66,6 +68,10 @@ export default function SignupProfileScreen() {
   async function handleFinish() {
     if (!canSubmit || loading) return
     setError('')
+    if (!requireOnline()) {
+      setError('Reconnect to finish setting up your profile.')
+      return
+    }
     setLoading(true)
     const err = await updateProfile(cleanUsername, displayName.trim())
     if (err) {
@@ -133,6 +139,9 @@ export default function SignupProfileScreen() {
               }
               autoCapitalize="none"
               autoCorrect={false}
+              textContentType="username"
+              autoComplete="username"
+              returnKeyType="next"
             />
           </View>
           <Text style={styles.hint}>Letters, numbers, _ and . only. Min 3 characters.</Text>
@@ -144,6 +153,10 @@ export default function SignupProfileScreen() {
             placeholderTextColor={colors.text3}
             value={displayName}
             onChangeText={setDisplayName}
+            textContentType="name"
+            autoComplete="name"
+            autoCapitalize="words"
+            returnKeyType="next"
           />
 
           <Text style={[styles.label, { marginTop: spacing[1] }]}>
@@ -156,6 +169,9 @@ export default function SignupProfileScreen() {
             value={suburb}
             onChangeText={setSuburb}
             autoCapitalize="words"
+            textContentType="addressCity"
+            autoComplete="address-line2"
+            returnKeyType="next"
           />
 
           <Text style={[styles.label, { marginTop: spacing[1] }]}>
@@ -170,6 +186,8 @@ export default function SignupProfileScreen() {
             autoCapitalize="words"
             returnKeyType="done"
             onSubmitEditing={handleFinish}
+            textContentType="addressCity"
+            autoComplete="address-line2"
           />
 
           <Text style={[styles.label, { marginTop: spacing[1] }]}>Food interests</Text>
@@ -182,6 +200,7 @@ export default function SignupProfileScreen() {
                   key={topic}
                   style={[styles.topicChip, active && styles.topicChipActive]}
                   onPress={() => toggleTopic(topic)}
+                  accessibilityRole="button"
                 >
                   <Text style={[styles.topicText, active && styles.topicTextActive]}>
                     {topic}
@@ -195,6 +214,7 @@ export default function SignupProfileScreen() {
             style={[styles.primaryBtn, !canSubmit && styles.primaryBtnDisabled]}
             onPress={handleFinish}
             disabled={!canSubmit || loading}
+            accessibilityRole="button"
           >
             {loading ? (
               <ActivityIndicator color={colors.bg} />

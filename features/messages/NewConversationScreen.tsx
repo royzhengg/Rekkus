@@ -19,7 +19,9 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { routes } from '@/lib/routes'
 import {
   createGroupConversation,
@@ -57,8 +59,10 @@ export default function NewConversationScreen() {
     shareLocation?: string
   }>()
   const { user } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const reduceMotion = useReducedMotion()
 
   const [groupName, setGroupName] = useState('')
   const [suggestions, setSuggestions] = useState<Person[]>([])
@@ -117,6 +121,10 @@ export default function NewConversationScreen() {
 
   async function handleStartDM() {
     if (!user || selected.size !== 1 || acting) return
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to start a conversation.' })
+      return
+    }
     setActing(true)
     setOperationError(null)
     const targetId = Array.from(selected)[0]
@@ -136,6 +144,10 @@ export default function NewConversationScreen() {
   async function handleCreateGroup() {
     const name = groupName.trim()
     if (!name || selected.size < 2 || !user || acting) return
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to create a group conversation.' })
+      return
+    }
     setActing(true)
     setOperationError(null)
     const { conversationId, error } = await createGroupConversation(name, Array.from(selected))
@@ -221,6 +233,7 @@ export default function NewConversationScreen() {
             style={[styles.actionBtn, !canAct && styles.actionBtnDisabled]}
             onPress={selectedCount === 1 ? handleStartDM : handleCreateGroup}
             disabled={!canAct}
+            accessibilityRole="button"
           >
             {acting
               ? <ActivityIndicator size="small" color={colors.bg} />
@@ -237,7 +250,7 @@ export default function NewConversationScreen() {
 
       {/* Group name input — appears when 2+ selected */}
       {selectedCount >= 2 ? (
-        <Animated.View entering={FadeIn.duration(200)} style={styles.groupNameRow}>
+        <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(200)} style={styles.groupNameRow}>
           <TextInput
             style={styles.groupNameInput}
             value={groupName}
@@ -254,7 +267,7 @@ export default function NewConversationScreen() {
       {selectedPeople.length > 0 ? (
         <View style={styles.chipsRow}>
           {selectedPeople.map(p => (
-            <Animated.View key={p.user_id} entering={FadeInRight.duration(180)}>
+            <Animated.View key={p.user_id} entering={reduceMotion ? undefined : FadeInRight.duration(180)}>
               <TouchableOpacity
                 style={styles.chip}
                 onPress={() => toggleSelect(p)}

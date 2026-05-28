@@ -21,10 +21,12 @@ import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { usePressScale } from '@/lib/hooks/usePressScale'
 import type { PersonResult, PlaceResult } from '@/lib/hooks/useSearch'
 import { routes } from '@/lib/routes'
+import { fetchUserIdByUsername } from '@/lib/services/users'
 import type { Post } from '@/types/domain'
 import { RESULT_TABS, type ResultTab } from './searchConstants'
 import { PlaceRow, SectionHeader } from './searchShared'
@@ -82,12 +84,16 @@ export function SearchResultsTab({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.resultTabs}
+        accessibilityRole="tablist"
       >
         {RESULT_TABS.map(tab => (
           <TouchableOpacity
             key={tab.key}
             style={[styles.resultTab, resultTab === tab.key && styles.resultTabActive]}
             onPress={() => onTabChange(tab.key)}
+            accessibilityRole="tab"
+            accessibilityLabel={tab.label}
+            accessibilityState={{ selected: resultTab === tab.key }}
           >
             <Text
               style={[
@@ -195,7 +201,7 @@ export function SearchResultsTab({
               />
             ))}
             {postResults.length > visiblePostCount && (
-              <TouchableOpacity style={styles.showMore} onPress={onShowMorePosts}>
+              <TouchableOpacity style={styles.showMore} onPress={onShowMorePosts} accessibilityRole="button">
                 <Text style={styles.showMoreText}>
                   Show{' '}
                   {Math.min(SEARCH_POST_LIMIT, postResults.length - visiblePostCount)} more
@@ -234,17 +240,27 @@ const PersonRow = React.memo(function PersonRow({ person }: { person: PersonResu
   const router = useRouter()
   const { user } = useAuth()
   const { requireAuth } = useAuthGate()
+  const { runDeferredMutation, requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [following, setFollowing] = useState(false)
   const press = usePressScale()
 
-  function handleFollow() {
+  async function handleFollow() {
     if (!user) {
       requireAuth()
       return
     }
-    setFollowing(f => !f)
+    if (!requireOnline()) return
+    const targetUserId = await fetchUserIdByUsername(person.username)
+    if (!targetUserId) return
+    const next = !following
+    setFollowing(next)
+    try {
+      await runDeferredMutation({ kind: 'follow', targetUserId, targetState: next })
+    } catch {
+      setFollowing(!next)
+    }
   }
 
   return (
@@ -257,6 +273,8 @@ const PersonRow = React.memo(function PersonRow({ person }: { person: PersonResu
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
         activeOpacity={1}
+        accessibilityRole="button"
+        accessibilityLabel={`View @${person.username}'s profile`}
       >
         <Avatar
           initials={person.initials}
@@ -277,7 +295,7 @@ const PersonRow = React.memo(function PersonRow({ person }: { person: PersonResu
           label={following ? 'Following' : 'Follow'}
           selected={following}
           variant="active"
-          onPress={handleFollow}
+          onPress={() => { void handleFollow() }}
         />
       </TouchableOpacity>
     </Animated.View>

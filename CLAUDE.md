@@ -32,4 +32,4 @@ After completing any code change, do all of the following that apply:
 
 Use `npm run validate` for normal implementation passes and `npm run validate:full` before PR-ready handoff.
 
-**Learning** — if a decision, tradeoff, or gotcha was non-obvious, record it in the relevant `docs/lessons/<topic>.md` file and add/update the one-liner in `docs/LESSONS.md` rather than leaving it only in the conversation.
+**Learning** — use `docs/LESSONS.md` to choose the relevant topic file, then record non-obvious decisions, tradeoffs, or gotchas in `docs/lessons/<topic>.md`. Change the directory only when adding, renaming, or reclassifying a topic.

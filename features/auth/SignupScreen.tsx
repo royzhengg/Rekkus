@@ -18,6 +18,7 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { isValidPassword, passwordMinLengthMessage, passwordsMatch as doPasswordsMatch } from '@/lib/utils/validation'
 
@@ -74,6 +75,7 @@ function EyeIcon({ open }: { open: boolean }) {
 export default function SignupScreen() {
   const router = useRouter()
   const { signUpWithEmail } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
@@ -91,13 +93,17 @@ export default function SignupScreen() {
   async function handleContinue() {
     if (!canSubmit || loading) return
     setError('')
+    if (!requireOnline()) {
+      setError('Reconnect to create an account.')
+      return
+    }
     setLoading(true)
     const err = await signUpWithEmail(email.trim(), password)
     setLoading(false)
     if (err) {
       setError(err)
     } else {
-      router.push('/(auth)/signup-profile')
+      router.push('/(auth)/onboarding-profile')
     }
   }
 
@@ -133,6 +139,9 @@ export default function SignupScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            textContentType="emailAddress"
+            autoComplete="email"
+            returnKeyType="next"
           />
 
           <Text style={styles.label}>Password</Text>
@@ -144,6 +153,9 @@ export default function SignupScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
+              textContentType="newPassword"
+              autoComplete="new-password"
+              returnKeyType="next"
             />
             <TouchableOpacity
               onPress={() => setShowPassword(v => !v)}
@@ -166,6 +178,8 @@ export default function SignupScreen() {
               secureTextEntry={!showConfirm}
               returnKeyType="done"
               onSubmitEditing={handleContinue}
+              textContentType="newPassword"
+              autoComplete="new-password"
             />
             <TouchableOpacity
               onPress={() => setShowConfirm(v => !v)}
@@ -185,6 +199,7 @@ export default function SignupScreen() {
             style={[styles.primaryBtn, !canSubmit && styles.primaryBtnDisabled, { marginTop: spacing[5] }]}
             onPress={handleContinue}
             disabled={!canSubmit || loading}
+            accessibilityRole="button"
           >
             {loading ? (
               <ActivityIndicator color={colors.bg} />
@@ -195,7 +210,7 @@ export default function SignupScreen() {
 
           <View style={styles.switchRow}>
             <Text style={styles.switchText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
+            <TouchableOpacity onPress={() => router.replace('/(auth)/login')} accessibilityRole="button">
               <Text style={styles.switchLink}>Sign in</Text>
             </TouchableOpacity>
           </View>

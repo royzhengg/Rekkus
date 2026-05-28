@@ -21,6 +21,8 @@ Authority order still lives in [../AGENTS.md](../AGENTS.md). This file turns tha
 | Product behavior | [../product/README.md](../product/README.md) |
 | Design and UI | [../design/README.md](../design/README.md) |
 | Durable decisions | [adr/README.md](adr/README.md) |
+| Durable lessons directory | [LESSONS.md](LESSONS.md) |
+| Durable lesson content | [lessons/](lessons/) topic files |
 
 If a change fits an existing owner, update that owner instead of creating a parallel doc.
 
@@ -65,6 +67,8 @@ Budgets keep docs dense and operational. They are guidelines, not a reason to de
 | Strategy docs | Up to 300 lines | Avoid duplicating execution checklists. |
 
 When a doc exceeds its budget, first remove duplication and stale prose. Split only when there is a clear new owner folder or recurring operational question.
+
+Lesson ownership follows the same anti-duplication rule: [LESSONS.md](LESSONS.md) is a compact topic directory, while each durable rule and its rationale lives only in the relevant [lessons/](lessons/) topic file. Update the directory only when its topic map changes.
 
 ---
 

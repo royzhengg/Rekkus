@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { fontSize, fontWeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 type Props = {
@@ -18,7 +18,7 @@ export function ScreenHeader({ title, left, right, border = true }: Props) {
     <View style={styles.bar}>
       <View style={styles.side}>{left}</View>
       {title ? (
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={styles.title} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
           {title}
         </Text>
       ) : (

@@ -16,6 +16,7 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { getCurrentUser, reauthenticate, updateEmail } from '@/lib/services/auth'
 import { hasCurrentPassword } from '@/lib/utils/validation'
@@ -23,6 +24,7 @@ import { hasCurrentPassword } from '@/lib/utils/validation'
 export default function ChangeEmailScreen() {
   const router = useRouter()
   const { user } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [newEmail, setNewEmail] = useState('')
@@ -34,6 +36,10 @@ export default function ChangeEmailScreen() {
 
   async function handleSave() {
     setError(null)
+    if (!requireOnline()) {
+      setError('Reconnect to change your email.')
+      return
+    }
     setLoading(true)
     let currentUser
     try {
@@ -107,6 +113,9 @@ export default function ChangeEmailScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            textContentType="emailAddress"
+            autoComplete="email"
+            returnKeyType="next"
           />
         </View>
 
@@ -119,6 +128,9 @@ export default function ChangeEmailScreen() {
             placeholder="Enter your current password"
             placeholderTextColor={colors.text3}
             secureTextEntry
+            textContentType="password"
+            autoComplete="current-password"
+            returnKeyType="done"
           />
         </View>
 
@@ -127,6 +139,7 @@ export default function ChangeEmailScreen() {
           onPress={handleSave}
           disabled={!canSave || loading}
           activeOpacity={0.85}
+          accessibilityRole="button"
         >
           {loading ? (
             <ActivityIndicator size="small" color={colors.bg} />

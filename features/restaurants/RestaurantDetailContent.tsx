@@ -146,7 +146,7 @@ export function RestaurantDetailContent({
           )}
         </View>
 
-        <TouchableOpacity style={styles.improveButton} onPress={openRestaurantActions} activeOpacity={0.78}>
+        <TouchableOpacity style={styles.improveButton} onPress={openRestaurantActions} activeOpacity={0.78} accessibilityRole="button">
           <Text style={styles.improveButtonText}>Improve this place</Text>
         </TouchableOpacity>
 
@@ -306,7 +306,7 @@ export function RestaurantDetailContent({
           <Text style={styles.emptyPostsText}>No posts yet for this location</Text>
         ) : (
           sortedPosts.map(post => (
-            <TouchableOpacity key={post.id} style={styles.postRow} onPress={() => router.push(routes.postDetail(String(post.dbId || post.id)))} activeOpacity={0.8}>
+            <TouchableOpacity key={post.id} style={styles.postRow} onPress={() => router.push(routes.postDetail(String(post.dbId || post.id)))} activeOpacity={0.8} accessibilityRole="button">
               <View style={[styles.postThumb, { backgroundColor: imgColors[post.imgKey] }]}>
                 {post.imageUrl ? (
                   <CachedImage source={{ uri: post.imageUrl }} style={styles.absoluteFill} />

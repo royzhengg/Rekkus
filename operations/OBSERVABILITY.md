@@ -18,6 +18,7 @@ This doc defines what must become visible before Rekkus depends on it operationa
 | Provider reliance      | Cache hit/miss, Google fallback, provider refresh failures, quota warnings  | [COSTS.md](COSTS.md)                                             |
 | Audit evidence         | Restaurant audit events, privacy request status, release evidence           | [ISO_EVIDENCE.md](ISO_EVIDENCE.md)                               |
 | Post edit evidence     | `post_edit_events` field-name/count rows and `posts.edit_count`             | [../docs/security/COMPLIANCE.md](../docs/security/COMPLIANCE.md) |
+| iPhone HIG acceptance  | Candidate-scoped physical-device accessibility and interaction matrix        | [IPHONE_HIG_ACCEPTANCE.md](IPHONE_HIG_ACCEPTANCE.md)              |
 
 ## Report-Only Signal Map
 
@@ -40,6 +41,7 @@ This doc defines what must become visible before Rekkus depends on it operationa
 | B-168   | Operational dashboard       | `npm run ops:summary` and `.temp/ops` reports                                  | Daily while actively shipping                               | Use generated summary before building UI dashboards.                                                               |
 | B-169   | Founder command center      | `operations/FOUNDER_OS.md`                                                     | Weekly or before release decisions                          | Collapse blockers, cost, release, moderation, and metrics into one review.                                         |
 | B-170   | VS Code operational surface | `.vscode/tasks.json` npm tasks                                                 | As needed during implementation                             | Run local operational checks without leaving the workspace.                                                        |
+| B-530   | iPhone HIG acceptance       | `npm run check:hig-acceptance`, `operations/IPHONE_HIG_ACCEPTANCE.md`          | Every beta/prod release candidate                           | Stop promotion until the exact candidate has a passing physical-iPhone matrix.                                     |
 
 ## Rules
 

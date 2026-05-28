@@ -1,5 +1,6 @@
 import { useFocusEffect } from 'expo-router'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import type { Post } from '@/types/domain'
 import { fetchLikedPostsPage, mapRowToPost } from '../services/posts'
 
@@ -10,6 +11,7 @@ export function useLikedPosts(userId: string | undefined) {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const cursorRef = useRef<string | null>(null)
+  const { syncEpoch } = useConnectivity()
 
   const fetchFirst = useCallback(async () => {
     if (!userId) {
@@ -65,6 +67,11 @@ export function useLikedPosts(userId: string | undefined) {
       void fetchFirst()
     }, [fetchFirst])
   )
+
+  // Re-fetch when replay completes so stale optimistic likes are reconciled
+  useEffect(() => {
+    if (syncEpoch > 0) void fetchFirst()
+  }, [syncEpoch, fetchFirst])
 
   return { likedPosts, loadingMore, hasMore, loadMore, refresh, refreshing, error }
 }

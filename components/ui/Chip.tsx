@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { label as labelType, caption } from '@/constants/Typography'
+import { label as labelType, caption, maxFontSizeMultiplier } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 type ChipVariant = 'default' | 'active' | 'filter'
@@ -66,6 +66,12 @@ export function Chip({
       activeOpacity={0.75}
       disabled={disabled || !onPress}
       onPress={onPress}
+      hitSlop={onPress ? {
+        top: spacing.px5,
+        bottom: spacing.px5,
+        left: spacing.px5,
+        right: spacing.px5,
+      } : undefined}
       style={[
         styles.chip,
         !!detail && styles.withDetail,
@@ -76,11 +82,11 @@ export function Chip({
       ]}
     >
       {leading}
-      <Text style={[styles.label, activeTextStyle, labelStyle]} numberOfLines={numberOfLines}>
+      <Text style={[styles.label, activeTextStyle, labelStyle]} numberOfLines={numberOfLines} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
         {label}
       </Text>
       {!!detail && (
-        <Text style={[styles.detail, detailStyle]} numberOfLines={1}>
+        <Text style={[styles.detail, detailStyle]} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
           {detail}
         </Text>
       )}
@@ -91,7 +97,7 @@ export function Chip({
 function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
     chip: {
-      minHeight: 34,
+      minHeight: spacing.px34,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',

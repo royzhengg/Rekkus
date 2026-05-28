@@ -1,13 +1,13 @@
 import { useLocalSearchParams } from 'expo-router'
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { SearchIcon, CloseIcon, FilterIcon } from '@/components/icons'
 import { Chip } from '@/components/ui/Chip'
 import { IconButton } from '@/components/ui/IconButton'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { fontSize, fontWeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
@@ -33,7 +33,7 @@ export default function SearchScreen() {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const { user } = useAuth()
-  const userLocation = useUserLocation({ autoRequest: true })
+  const userLocation = useUserLocation()
   const [isFocused, setIsFocused] = useState(false)
   const [searchMode, setSearchMode] = useState<'search' | 'aroundMe'>('search')
   const [radiusKm, setRadiusKm] = useState(10)
@@ -239,7 +239,7 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
-        <Text style={styles.wordmark}>
+        <Text style={styles.wordmark} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
           rekkus<Text style={styles.wordmarkDot}>.</Text>
         </Text>
       </View>
@@ -261,6 +261,10 @@ export default function SearchScreen() {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             returnKeyType="search"
+            textContentType="none"
+            autoComplete="off"
+            autoCorrect={false}
+            spellCheck={false}
           />
           {query.length > 0 && (
             <TouchableOpacity
@@ -306,8 +310,11 @@ export default function SearchScreen() {
                 style={styles.activeToken}
                 onPress={() => setNearbySheetVisible(true)}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter: ${token}. Tap to edit.`}
+                hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
               >
-                <Text style={styles.activeTokenText} numberOfLines={1}>
+                <Text style={styles.activeTokenText} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
                   {token}
                 </Text>
               </TouchableOpacity>
@@ -315,7 +322,28 @@ export default function SearchScreen() {
           </ScrollView>
         )}
         {!!userLocation.error && searchMode === 'aroundMe' && (
-          <Text style={styles.locationError}>{userLocation.error}</Text>
+          <View style={styles.locationErrorRow}>
+            <Text style={styles.locationError}>{userLocation.error}</Text>
+            {userLocation.canAskAgain ? (
+              <TouchableOpacity
+                onPress={() => { void userLocation.requestLocation() }}
+                accessibilityRole="button"
+                accessibilityLabel="Try again to enable location"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.locationRecoveryLink}>Try again</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => { void Linking.openSettings() }}
+                accessibilityRole="button"
+                accessibilityLabel="Open device Settings to enable location"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.locationRecoveryLink}>Open Settings</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </View>
 
@@ -477,7 +505,9 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       fontWeight: fontWeight.semibold,
       color: c.accent,
     },
-    locationError: { fontSize: fontSize.sm, color: c.text3, paddingBottom: spacing.px10 },
+    locationErrorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingBottom: spacing.px10 },
+    locationError: { fontSize: fontSize.sm, color: c.text3, flex: 1 },
+    locationRecoveryLink: { fontSize: fontSize.sm, color: c.accent, fontWeight: fontWeight.medium },
     scroll: { flex: 1 },
     suggestionScroll: { maxHeight: 52, flexGrow: 0 },
     suggestionRow: {

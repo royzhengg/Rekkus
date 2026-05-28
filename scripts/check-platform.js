@@ -46,12 +46,25 @@ for (const root of scanRoots) {
     }
 
     const source = fs.readFileSync(filePath, 'utf8')
-    const matched = iosOnlyPatterns.find(pattern => source.includes(pattern))
+    const rel = path.relative(repoRoot, filePath)
 
+    const matched = iosOnlyPatterns.find(pattern => source.includes(pattern))
     if (matched) {
       failures.push(
-        `${path.relative(repoRoot, filePath)} uses ${matched}; use RekkusActionSheet or a guarded Platform.OS branch.`
+        `${rel} uses ${matched}; use RekkusActionSheet or a guarded Platform.OS branch.`
       )
+    }
+
+    if (source.includes("from 'expo-blur'") || source.includes('from "expo-blur"')) {
+      const lines = source.split('\n')
+      for (const line of lines) {
+        if (/intensity=/.test(line) && /:\s*0[},]/.test(line)) {
+          failures.push(
+            `${rel}: BlurView has intensity=0 on Android — render a solid-color View fallback instead (Platform.OS conditional or Platform.select).`
+          )
+          break
+        }
+      }
     }
   })
 }

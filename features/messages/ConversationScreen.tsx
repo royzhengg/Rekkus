@@ -16,18 +16,19 @@ import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { isEnabled } from '@/lib/featureFlags'
 import { routes } from '@/lib/routes'
 import {
+  addReaction,
   fetchConversationMessages,
   fetchConversationParticipant,
   fetchConversationAllParticipants,
   fetchSharedMedia,
   markConversationRead,
-  sendRichMessage,
-  addReaction,
   removeReaction,
+  sendRichMessage,
   fetchMessageReactions,
   subscribeToConversationMessages,
   subscribeToReactions,
@@ -51,10 +52,6 @@ import { MessageInput, type MessageInputHandle } from './MessageInput'
 import { MessageList } from './MessageList'
 import type {
   FlatList} from 'react-native';
-
-type RouterWithSetParams = {
-  setParams?: (params: Record<string, string | undefined>) => void
-}
 
 type OperationError = { title: string; message: string }
 
@@ -83,6 +80,7 @@ export default function ConversationScreen() {
   }>()
   const router = useRouter()
   const { user } = useAuth()
+  const { requireOnline } = useConnectivity()
   const { requireAuth } = useAuthGate()
   const colors = useThemeColors()
 
@@ -181,6 +179,10 @@ export default function ConversationScreen() {
   useEffect(() => {
     if (!conversationId || !user?.id || !sharePostId) return
     if (sentInitialShareRef.current === sharePostId) return
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to send this shared post.' })
+      return
+    }
     sentInitialShareRef.current = sharePostId
     const metadata = {
       post_id: sharePostDbId || sharePostId,
@@ -200,13 +202,9 @@ export default function ConversationScreen() {
         }
         setMessages(current => current.some(row => row.id === message.id) ? current : [...current, message])
         scrollToEnd()
-        const routeUpdater = router as unknown as RouterWithSetParams
-        routeUpdater.setParams?.({
-          sharePostId: undefined, sharePostDbId: undefined, shareCaption: undefined,
-          shareImageUrl: undefined, shareAuthor: undefined, shareLocation: undefined,
-        })
+        router.replace(routes.conversation(conversationId))
       })
-  }, [conversationId, router, scrollToEnd, shareAuthor, shareCaption, shareImageUrl, shareLocation, sharePostDbId, sharePostId, user?.id])
+  }, [conversationId, requireOnline, router, scrollToEnd, shareAuthor, shareCaption, shareImageUrl, shareLocation, sharePostDbId, sharePostId, user?.id])
 
   // Realtime: new messages
   useEffect(() => {
@@ -280,11 +278,15 @@ export default function ConversationScreen() {
   }, [])
 
   const handleReact = useCallback((messageId: string, emoji: string) => {
+    if (!requireOnline()) return
     const myReactions = reactions.get(messageId)?.filter(r => r.user_id === user?.id) ?? []
     const existing = myReactions.find(r => r.emoji === emoji)
-    if (existing) void removeReaction(messageId)
-    else void addReaction(messageId, emoji)
-  }, [reactions, user?.id])
+    if (existing) {
+      void removeReaction(messageId).catch(() => {/* reaction failures are transient */ })
+    } else {
+      void addReaction(messageId, emoji).catch(() => {/* reaction failures are transient */ })
+    }
+  }, [reactions, requireOnline, user?.id])
 
   const handleLongPressMessage = useCallback((msg: DirectMessage, pageY: number) => {
     actionsRef.current?.open(msg, pageY)
@@ -307,9 +309,13 @@ export default function ConversationScreen() {
 
   const handleUnpin = useCallback(() => {
     if (!conversationId) return
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to unpin this message.' })
+      return
+    }
     void unpinMessage(conversationId)
     setPinnedMessage(null)
-  }, [conversationId])
+  }, [conversationId, requireOnline])
 
   const handlePressPlaceShare = useCallback((meta: Record<string, unknown>) => {
     const restaurantId = metaString(meta, 'restaurant_id') ?? metaString(meta, 'google_place_id')
@@ -336,6 +342,11 @@ export default function ConversationScreen() {
 
   const handleSafetyAction = useCallback(async (value: string) => {
     if (!user || !participant?.user_id) return
+    if ((value === 'report_user' || value === 'block_user') && !requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to report or block this account.' })
+      setSafetySheet(false)
+      return
+    }
     if (value === 'report_user') {
       const reportError = await submitContentReport({
         reporterId: user.id,
@@ -357,7 +368,7 @@ export default function ConversationScreen() {
       router.push(routes.conversationInfo(conversationId))
     }
     setSafetySheet(false)
-  }, [user, participant?.user_id, conversationId, router])
+  }, [user, participant?.user_id, conversationId, requireOnline, router])
 
   const headerTitle = useMemo(() => {
     if (loading && !participant && !isGroup) return ''

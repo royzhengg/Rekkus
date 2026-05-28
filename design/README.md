@@ -12,6 +12,7 @@ Design docs own Rekkus UI rules, reusable component guidance, interaction patter
 - [COMPONENT_PATTERNS.md](COMPONENT_PATTERNS.md): component placement and reuse rules
 - [MOTION.md](MOTION.md): animation principles and guardrails
 - [ACCESSIBILITY.md](ACCESSIBILITY.md): mobile accessibility checklist and priority flows
+- [APPLE_HIG_REFERENCE.md](APPLE_HIG_REFERENCE.md): official Apple HIG applicability index and Rekkus implementation backlog map
 
 ## Governance
 

@@ -1,5 +1,33 @@
 # Lessons: Architecture
 
+## Typecheck must run on every pull request
+
+Do not place `typecheck` behind a branch-only workflow condition. A check that only runs after merging to `main` lets TypeScript regressions merge before they become visible.
+
+## Unsafe assertions are not type-safety fixes
+
+`as unknown as <Type>`, `as any`, suppression directives, and runtime non-null assertions hide missing narrowing rather than establishing a valid contract. Use generated types, typed service wrappers, boundary guards, and explicit required-value helpers instead.
+
+**Guardrail:** `check:unsafe-any`, lint, and `check:risk-guardrails` block new assertion shortcuts in app-facing runtime code.
+
+## Canonical patterns limit regression surface
+
+Agents should extend the named canonical loading, error, modal, image, route, and async-query patterns instead of adding another variant. When several implementations solve the same problem, consolidation is safer than a new optional behaviour.
+
+## Shared UI does not own route construction
+
+Inline route strings and navigation choices in shared components create cross-feature regressions. Shared UI emits typed actions; feature screens or route coordinators construct navigation through helpers in `lib/routes/`.
+
+## Async orchestration stays out of presentation components
+
+Retry, cancellation, sequencing, and data-fetch state belong in hooks or services. Presentation components receive data, loading, and error state rather than owning service-call lifecycles.
+
+## Runtime visual kill switches must be reactive
+
+A remotely disabled visual flag does not provide rollback if persistent mounted chrome reads it once and never rerenders. Use `useFeatureFlag()` for rendered flag state; keep `isEnabled()` for service/action-time branches.
+
+**Guardrail:** B-531 tests an enabled-to-disabled override refresh against persistent tab chrome ownership.
+
 ## Bug fixes need a guardrail
 
 When fixing a recurring bug class, add the smallest automated check that would have caught it. For UI regressions, this can be a script-level scanner before a full test suite exists.
@@ -157,3 +185,11 @@ When a large shared file is already imported across features, split its implemen
 **Pattern:** move coherent domains internally, run cycle checks, then remove the LOC ratchet exception only after the original entry file is below budget.
 
 **Why:** Agents get smaller ownership surfaces without creating consumer churn or a risky repo-wide import migration.
+
+## Onboarding new-user detection without a DB migration
+
+Rather than adding an `onboarding_completed_at` column, detect new users by checking if `profiles.username` is null after Google OAuth. Email signup always routes to onboarding. This avoids a migration and uses existing state — but breaks if username ever becomes non-required. Document the dependency if the `profiles.username` constraint changes.
+
+## First-time UI state via AsyncStorage flag
+
+One-time feed nudges use a namespaced AsyncStorage key (`rekkus:first-feed-visit:v1`) set at the end of onboarding and cleared on first interaction. This avoids route params (which don't survive tab switches), persists across component remounts, and requires no DB column. The tradeoff: lost on app reinstall, which is acceptable for a cosmetic nudge.

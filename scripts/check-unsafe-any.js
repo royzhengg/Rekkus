@@ -7,7 +7,6 @@ const roots = ['app', 'features', 'components', 'lib', 'supabase/functions']
 // and architectural justification. safeJson.ts is the only permanent exception.
 const allowed = new Set([
   'lib/utils/safeJson.ts',
-  'features/messages/ConversationScreen.tsx', // Expo Router setParams typing workaround
 ])
 
 const failures = []
@@ -18,8 +17,8 @@ for (const file of walkFiles(roots, { extensions: ['.ts', '.tsx'] })) {
   failures.push(...unsafeAnyFailures(file, source))
 }
 
-if (allowed.size > 2) {
-  console.error(`Unsafe any allowlist has grown beyond its permitted size (${allowed.size} entries, max 2).`)
+if (allowed.size > 1) {
+  console.error(`Unsafe any allowlist has grown beyond its permitted size (${allowed.size} entries, max 1).`)
   console.error('Adding a file requires an explicit B-### ticket and architectural justification.')
   process.exit(1)
 }

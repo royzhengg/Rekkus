@@ -9,6 +9,14 @@ let warned = false
 const locAllowlist = new Set([
   // B-282: dish resolution (+15 LOC) pushed CreatePostScreen over 600; extract handlePost helpers to reduce — B-282
   'features/create-post/CreatePostScreen.tsx',
+  // B-239: explicit offline recovery covers rich message submissions in the existing composer workflow.
+  'features/messages/MessageInput.tsx',
+  // B-239: reversible inbox preference sync remains coordinated in the existing conversation list workflow.
+  'features/messages/MessagesListScreen.tsx',
+  // B-239: place save and governance recovery remain coordinated in the existing detail workflow.
+  'features/restaurants/RestaurantDetailScreen.tsx',
+  // B-239: saved-place intent sync remains coordinated in the existing places tab workflow.
+  'features/restaurants/RestaurantsTabScreen.tsx',
 ])
 const sharedLocAllowlist = new Map()
 const supabaseAllowlist = new Map()

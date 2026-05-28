@@ -4,6 +4,7 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 
 interface Props {
   visible: boolean
@@ -14,6 +15,7 @@ interface Props {
 
 export function AuthPromptModal({ visible, onDismiss, onCreateAccount, onSignIn }: Props) {
   const colors = useThemeColors()
+  const reduceMotion = useReducedMotion()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
   function run(action: () => void) {
@@ -22,7 +24,7 @@ export function AuthPromptModal({ visible, onDismiss, onCreateAccount, onSignIn 
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
+    <Modal visible={visible} transparent animationType={reduceMotion ? 'none' : 'slide'} onRequestClose={onDismiss}>
       <Pressable style={styles.backdrop} onPress={onDismiss} />
       <View style={styles.sheet}>
         <View style={styles.handle} />
@@ -30,10 +32,10 @@ export function AuthPromptModal({ visible, onDismiss, onCreateAccount, onSignIn 
           Join Rekkus<Text style={styles.dot}>.</Text>
         </Text>
         <Text style={styles.sub}>Like, save, and discover more.</Text>
-        <TouchableOpacity style={styles.primaryBtn} onPress={() => run(onCreateAccount)}>
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => run(onCreateAccount)} accessibilityRole="button">
           <Text style={styles.primaryBtnText}>Create account</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryBtn} onPress={() => run(onSignIn)}>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={() => run(onSignIn)} accessibilityRole="button">
           <Text style={styles.secondaryBtnText}>Sign in</Text>
         </TouchableOpacity>
       </View>

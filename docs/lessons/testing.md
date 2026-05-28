@@ -32,6 +32,14 @@ Running it through Jest will fail with `SyntaxError` or missing globals.
 
 Agent sandboxes and some local machines cannot write Watchman's state directory. Set `watchman: false` in `jest.config.js` so `npm run test:unit`, `check:coverage`, and hygiene checks use Node crawling and do not fail before tests run.
 
+## Test scripts require a runnable test configuration
+
+Adding test dependencies and `package.json` commands does not make a suite executable by itself. Keep a committed `jest.config.js` that identifies the test files and applies the Expo transforms required by application imports.
+
+## Mock module-load side effects before importing consumers
+
+If a module reads feature flags, configuration, or network wiring at module scope, mock that boundary before importing any consumer in the test. For example, `jest.mock('@/lib/featureFlags', ...)` must be established before importing code whose module initialisation reads those flags.
+
 ## External API providers need an independent feature flag
 
 GIF providers, geocoding APIs, and other external services should have their own feature flag so they can be disabled without a release or toggling the parent feature. This allows kill-switch response to quota overruns, billing surprises, or provider outages.

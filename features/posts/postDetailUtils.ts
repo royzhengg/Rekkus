@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { routes } from '@/lib/routes'
 import { reportComment as reportCommentService } from '@/lib/services/comments'
 import { fetchPlaceTextSearchJson } from '@/lib/services/googlePlaces'
@@ -31,6 +32,7 @@ export function usePostSafetyActions({
   setOperationError,
   setNoticeSheet,
 }: SafetyActionsOptions) {
+  const { requireOnline } = useConnectivity()
   const handleSafetyAction = useCallback(async (value: string) => {
     if (!user || !resolvedPost) {
       requireAuth()
@@ -41,7 +43,15 @@ export function usePostSafetyActions({
       return
     }
     if (value === 'delete_post') {
+      if (!requireOnline()) {
+        setOperationError({ title: 'You are offline', message: 'Reconnect to delete this post.' })
+        return
+      }
       setDeleteConfirmVisible(true)
+      return
+    }
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to report or block content.' })
       return
     }
     if (value === 'report_post') {
@@ -82,17 +92,21 @@ export function usePostSafetyActions({
       if (err) setOperationError({ title: 'Block failed', message: err })
       else setNoticeSheet({ title: 'User blocked', subtitle: 'You will have a record of this block for moderation review.' })
     }
-  }, [user, requireAuth, resolvedPost, router, setDeleteConfirmVisible, setOperationError, setNoticeSheet])
+  }, [user, requireAuth, requireOnline, resolvedPost, router, setDeleteConfirmVisible, setOperationError, setNoticeSheet])
 
   const reportComment = useCallback(async (commentId: string) => {
     if (!user) {
       requireAuth()
       return
     }
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to report this comment.' })
+      return
+    }
     const err = await reportCommentService(commentId, user.id)
     if (err) setOperationError({ title: 'Report failed', message: err })
     else setNoticeSheet({ title: 'Report received', subtitle: 'Thanks. We will review this comment.' })
-  }, [user, requireAuth, setOperationError, setNoticeSheet])
+  }, [user, requireAuth, requireOnline, setOperationError, setNoticeSheet])
 
   return { handleSafetyAction, reportComment }
 }

@@ -51,6 +51,7 @@ export function IconButton({
       hitSlop={hitSlop}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: !!disabled }}
     >
       {children}
     </TouchableOpacity>

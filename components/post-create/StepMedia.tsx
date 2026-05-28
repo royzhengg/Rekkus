@@ -22,10 +22,13 @@ import {
 } from '@/components/icons'
 import DraggableMediaStrip from '@/components/post-create/DraggableMediaStrip'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { spacing } from '@/constants/Spacing'
 import { analytics } from '@/lib/analytics'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { isEnabled } from '@/lib/featureFlags'
+import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { useRestaurantSearch } from '@/lib/hooks/useRestaurantSearch'
 import { MEDIA_LIMITS, validatePickedPostMedia } from '@/lib/services/media'
 import { preparePostMedia } from '@/lib/services/postMediaProcessing'
@@ -57,6 +60,7 @@ export default function StepMedia({
   setDishTags,
 }: Props) {
   const c = useThemeColors()
+  const reduceMotion = useReducedMotion()
   const styles = useMemo(() => makeStyles(c), [c])
   const { width: screenWidth } = useWindowDimensions()
 
@@ -64,6 +68,7 @@ export default function StepMedia({
   const [dishTagModal, setDishTagModal] = useState(false)
   const [activeTagPhotoIndex, setActiveTagPhotoIndex] = useState(0)
   const [mediaError, setMediaError] = useState<string | null>(null)
+  const { request: requestPermission, recoveryVisible, recoveryMessage, dismissRecovery, openSettings } = usePermissionRecovery()
 
   const {
     locationSearch,
@@ -124,26 +129,26 @@ export default function StepMedia({
 
   async function takePhoto() {
     setMediaError(null)
-    const permission = await ImagePicker.requestCameraPermissionsAsync()
-    if (!permission.granted) {
-      showMediaError('Camera permission is needed to take a food photo.')
-      return
-    }
-    const result = await ImagePicker.launchCameraAsync({
+    const permResult = await requestPermission(
+      () => ImagePicker.requestCameraPermissionsAsync(),
+      'Camera access is needed to take a food photo. Enable it in Settings.'
+    )
+    if (!permResult.granted) return
+    const cameraResult = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
       quality: 0.85,
       allowsEditing: false,
     })
-    if (!result.canceled) {
+    if (!cameraResult.canceled) {
       analytics.mediaEvent(null, 'media_selected', 'post_create', {
-        media_count: result.assets.length,
+        media_count: cameraResult.assets.length,
         media_type: 'image',
       })
       analytics.mediaEvent(null, 'media_prepare_started', 'post_create', {
-        media_count: result.assets.length,
+        media_count: cameraResult.assets.length,
         media_type: 'image',
       })
-      const { media: nextMedia, rejectedCount, error } = await preparePostMedia(result.assets, media)
+      const { media: nextMedia, rejectedCount, error } = await preparePostMedia(cameraResult.assets, media)
       if (error) showMediaError(error)
       if (rejectedCount > 0) {
         analytics.uploadFailure(null, 'post_camera', 'validation_rejected', rejectedCount)
@@ -421,7 +426,7 @@ export default function StepMedia({
           {/* Photo action row */}
           {photos.length > 0 && (
             <View style={styles.photoActions}>
-              <TouchableOpacity style={styles.photoActionBtn} onPress={replaceCoverWithCrop}>
+              <TouchableOpacity style={styles.photoActionBtn} onPress={replaceCoverWithCrop} accessibilityRole="button">
                 <ImagePlaceholder size={13} color={c.accent} />
                 <Text style={styles.photoActionText}>3:4 cover</Text>
               </TouchableOpacity>
@@ -458,7 +463,7 @@ export default function StepMedia({
       {/* Dish tag modal */}
       <Modal
         visible={dishTagModal}
-        animationType="slide"
+        animationType={reduceMotion ? 'none' : 'slide'}
         presentationStyle="pageSheet"
         onRequestClose={() => setDishTagModal(false)}
       >
@@ -466,7 +471,7 @@ export default function StepMedia({
           {/* Header */}
           <View style={styles.tagModalHeader}>
             <Text style={styles.tagModalTitle}>Tag dishes</Text>
-            <TouchableOpacity style={styles.tagModalDone} onPress={() => setDishTagModal(false)}>
+            <TouchableOpacity style={styles.tagModalDone} onPress={() => setDishTagModal(false)} accessibilityRole="button">
               <Text style={styles.tagModalDoneText}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -548,6 +553,18 @@ export default function StepMedia({
           )}
         </View>
       </Modal>
+
+      <RekkusActionSheet
+        visible={recoveryVisible}
+        title="Permission required"
+        subtitle={recoveryMessage}
+        options={[
+          { label: 'Open Settings', value: 'settings', accentColor: c.accent },
+          { label: 'Not now', value: 'cancel' },
+        ]}
+        onSelect={v => v === 'settings' ? openSettings() : dismissRecovery()}
+        onDismiss={dismissRecovery}
+      />
     </ScrollView>
   )
 }

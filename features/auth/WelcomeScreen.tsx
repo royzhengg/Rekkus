@@ -42,14 +42,15 @@ export default function WelcomeScreen() {
         <Text style={styles.wordmark}>
           rekkus<Text style={styles.dot}>.</Text>
         </Text>
-        <Text style={styles.tagline}>Honest food,{'\n'}real reviews.</Text>
+        <Text style={styles.tagline}>Discover the best dishes near you.</Text>
+        <Text style={styles.subTagline}>Real reviews from real people.</Text>
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push('/(auth)/login')}>
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push('/(auth)/login')} accessibilityRole="button">
           <Text style={styles.primaryBtnText}>Sign in</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/(auth)/signup')}>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/(auth)/signup')} accessibilityRole="button">
           <Text style={styles.secondaryBtnText}>Create account</Text>
         </TouchableOpacity>
         <View style={styles.dividerRow}>
@@ -61,7 +62,7 @@ export default function WelcomeScreen() {
           <GoogleIcon />
           <Text style={styles.googleBtnText}>Continue with Google</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/(auth)/forgot-password')}>
+        <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/(auth)/forgot-password')} accessibilityRole="button">
           <Text style={styles.forgotText}>Forgot password?</Text>
         </TouchableOpacity>
         <Text style={styles.terms}>
@@ -85,7 +86,8 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       marginBottom: spacing[4],
     },
     dot: { color: c.accent },
-    tagline: { fontSize: fontSize['2.5xl'], color: c.text2, lineHeight: lineHeight.hero, letterSpacing: -0.2 },
+    tagline: { fontSize: fontSize['2.5xl'], color: c.text, lineHeight: lineHeight.hero, letterSpacing: -0.5, marginBottom: spacing[2] },
+    subTagline: { fontSize: fontSize.lg, color: c.text2, letterSpacing: -0.1 },
     actions: { paddingBottom: spacing[2], gap: spacing.px10 },
     primaryBtn: {
       backgroundColor: c.text,

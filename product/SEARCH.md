@@ -95,8 +95,8 @@ Intent drives which RPCs fire in parallel:
 
 | RPC | Purpose |
 | --- | --- |
-| `search_restaurants_full_text` | Weighted FTS + geo multiplier. Now includes `suburb` in FTS vector + optional `suburb_filter` for direct B-tree index hit |
-| `search_posts_full_text` | Weighted FTS (A=dish/tags, B=cuisine/hashtags, C=caption, D=occasion). `ts_rank_cd` for phrase queries |
+| `search_restaurants_full_text` | Weighted FTS + geo multiplier. Includes `suburb` in FTS vector + optional `suburb_filter`. Supports prefix matching (`tonkat:*` matches "tonkatsu") so results populate as the user types. |
+| `search_posts_full_text` | Weighted FTS (A=dish/tags, B=cuisine/hashtags, C=caption, D=occasion). `ts_rank_cd` for phrase queries. Also supports prefix matching for as-you-type results. |
 | `search_posts_by_dish` | Targets `best_dish` + `dish_tags.name` at weight A. Falls back to pg_trgm when FTS returns 0 (returns `match_source`) |
 | `suggest_searches` | Prefix FTS across restaurant names, dish names, hashtags. Returns in < 50ms |
 | `match_embeddings` | pgvector cosine similarity. Called when FTS returns < 5 results |
@@ -264,7 +264,7 @@ Google Autocomplete returns a `types` array per prediction. Food establishments 
 
 ### Distance boost (posts + places)
 
-Requires an explicit user action in `lib/hooks/useUserLocation.ts`: either "Use current location" for GPS permission or a manual suburb/postcode fallback geocoded for the active search session. Search and Places must not request foreground location on mount, and precise coordinates must not be written to analytics.
+Requires an explicit user action in `lib/hooks/useUserLocation.ts`: either "Use current location" for GPS permission or a manual suburb/postcode fallback geocoded for the active search session. Search and Places must not request foreground location on mount, and precise coordinates must not be written to analytics. `B-524` removed the former mount-time request path and `check:risk-guardrails` prevents it from returning.
 
 | Distance | Boost |
 | -------- | ----- |

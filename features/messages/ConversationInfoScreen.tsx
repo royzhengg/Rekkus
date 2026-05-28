@@ -16,23 +16,25 @@ import { Skeleton, SkeletonText } from '@/components/ui/Skeleton'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from       '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { routes } from '@/lib/routes'
 import {
+  archiveConversation,
   fetchConversationAllParticipants,
   fetchSharedMedia,
   fetchPinnedMessages,
-  muteConversation,
-  unmuteConversation,
-  archiveConversation,
-  pinConversation,
-  unpinConversation,
-  markConversationUnread,
   leaveGroup,
   deleteDirectConversation,
+  markConversationUnread,
+  muteConversation,
+  pinConversation,
   removeGroupMember,
   promoteToAdmin,
+  unpinConversation,
   unpinMessage,
+  unmuteConversation,
   type ConversationParticipant,
   type DirectMessage,
   type PinnedMessage,
@@ -49,7 +51,9 @@ export default function ConversationInfoScreen() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>()
   const router = useRouter()
   const { user } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
+  const reduceMotion = useReducedMotion()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
   const [tab, setTab] = useState<Tab>('members')
@@ -104,32 +108,52 @@ export default function ConversationInfoScreen() {
   async function handleMute(duration: MuteDuration) {
     if (!conversationId || !user) return
     setMuteSheet(false)
-    await muteConversation(conversationId, user.id, duration)
-    setIsMuted(true)
-    Alert.alert('Muted', 'Notifications for this conversation are muted.')
+    if (!requireOnline()) { setOperationError({ title: 'You are offline', message: 'Connect to the internet to mute this conversation.' }); return }
+    try {
+      await muteConversation(conversationId, user.id, duration)
+      setIsMuted(true)
+      Alert.alert('Muted', 'Notifications for this conversation are muted.')
+    } catch {
+      setOperationError({ title: 'Could not update notifications', message: 'Try again when your connection is stable.' })
+    }
   }
 
   async function handleUnmute() {
     if (!conversationId || !user) return
-    await unmuteConversation(conversationId, user.id)
-    setIsMuted(false)
+    if (!requireOnline()) { setOperationError({ title: 'You are offline', message: 'Connect to the internet to unmute this conversation.' }); return }
+    try {
+      await unmuteConversation(conversationId, user.id)
+      setIsMuted(false)
+    } catch {
+      setOperationError({ title: 'Could not update notifications', message: 'Try again when your connection is stable.' })
+    }
   }
 
   async function handleTogglePin() {
     if (!conversationId || !user) return
-    if (isPinned) {
-      await unpinConversation(conversationId, user.id)
-      setIsPinned(false)
-    } else {
-      await pinConversation(conversationId, user.id)
-      setIsPinned(true)
+    if (!requireOnline()) { setOperationError({ title: 'You are offline', message: 'Connect to the internet to pin or unpin conversations.' }); return }
+    try {
+      if (isPinned) {
+        await unpinConversation(conversationId, user.id)
+        setIsPinned(false)
+      } else {
+        await pinConversation(conversationId, user.id)
+        setIsPinned(true)
+      }
+    } catch {
+      setOperationError({ title: 'Could not update conversation', message: 'Try again when your connection is stable.' })
     }
   }
 
   async function handleMarkUnread() {
     if (!conversationId || !user) return
-    await markConversationUnread(conversationId, user.id)
-    router.back()
+    if (!requireOnline()) { setOperationError({ title: 'You are offline', message: 'Connect to the internet to mark conversations as unread.' }); return }
+    try {
+      await markConversationUnread(conversationId, user.id)
+      router.back()
+    } catch {
+      setOperationError({ title: 'Could not update conversation', message: 'Try again when your connection is stable.' })
+    }
   }
 
   async function handleArchive() {
@@ -139,8 +163,13 @@ export default function ConversationInfoScreen() {
       {
         text: 'Archive',
         onPress: () => { void (async () => {
-          await archiveConversation(conversationId, user.id)
-          router.push('/messages')
+          if (!requireOnline()) { setOperationError({ title: 'You are offline', message: 'Connect to the internet to archive conversations.' }); return }
+          try {
+            await archiveConversation(conversationId, user.id)
+            router.push('/messages')
+          } catch {
+            setOperationError({ title: 'Could not archive conversation', message: 'Try again when your connection is stable.' })
+          }
         })() },
       },
     ])
@@ -148,6 +177,10 @@ export default function ConversationInfoScreen() {
 
   async function handleLeaveGroup() {
     if (!conversationId) return
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to leave this group.' })
+      return
+    }
     Alert.alert('Leave group', 'You will no longer receive messages from this group.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -164,6 +197,10 @@ export default function ConversationInfoScreen() {
 
   async function handleDeleteConversation() {
     if (!conversationId || !user) return
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to delete this conversation.' })
+      return
+    }
     Alert.alert('Delete conversation', 'This will remove the conversation from your inbox.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -179,6 +216,10 @@ export default function ConversationInfoScreen() {
 
   async function handleRemoveMember(participant: ConversationParticipant) {
     if (!conversationId) return
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to manage group members.' })
+      return
+    }
     Alert.alert('Remove member', `Remove @${participant.username} from this group?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -195,6 +236,10 @@ export default function ConversationInfoScreen() {
 
   async function handlePromoteAdmin(participant: ConversationParticipant) {
     if (!conversationId) return
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to manage group members.' })
+      return
+    }
     const { error } = await promoteToAdmin(conversationId, participant.user_id)
     if (error) setOperationError({ title: 'Could not promote member', message: error })
     else {
@@ -206,6 +251,10 @@ export default function ConversationInfoScreen() {
 
   async function handleReportUser(participant: ConversationParticipant) {
     if (!user) return
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to report this account.' })
+      return
+    }
     const reportError = await submitContentReport({
       reporterId: user.id,
       targetType: 'user',
@@ -219,6 +268,10 @@ export default function ConversationInfoScreen() {
 
   async function handleBlockUser(participant: ConversationParticipant) {
     if (!user) return
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to block this account.' })
+      return
+    }
     Alert.alert('Block user', `Block @${participant.username}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -234,6 +287,10 @@ export default function ConversationInfoScreen() {
   }
 
   async function handleUnpinMessage(pinned: PinnedMessage) {
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to unpin this message.' })
+      return
+    }
     const { error } = await unpinMessage(pinned.message_id)
     if (!error) {
       setPinnedMessages(prev => prev.filter(p => p.message_id !== pinned.message_id))
@@ -279,6 +336,8 @@ export default function ConversationInfoScreen() {
                 { text: 'Cancel', style: 'cancel' },
               ])
             }}
+            accessibilityRole="button"
+            accessibilityLabel="More options"
           >
             <Text style={styles.memberActionLabel}>•••</Text>
           </TouchableOpacity>
@@ -392,12 +451,14 @@ export default function ConversationInfoScreen() {
           })()}
 
           {/* Tabs */}
-          <View style={styles.tabs}>
+          <View style={styles.tabs} accessibilityRole="tablist">
             {(['members', 'media', 'pinned'] as Tab[]).map(t => (
               <TouchableOpacity
                 key={t}
                 style={[styles.tab, tab === t && styles.tabActive]}
                 onPress={() => setTab(t)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: tab === t }}
               >
                 <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>
                   {t === 'members' ? 'Members' : t === 'media' ? 'Media' : 'Pinned'}
@@ -437,31 +498,32 @@ export default function ConversationInfoScreen() {
 
           {/* Chat management actions */}
           <View style={styles.actionsSection}>
-            <TouchableOpacity style={styles.actionRow} onPress={handleTogglePin}>
+            <TouchableOpacity style={styles.actionRow} onPress={handleTogglePin} accessibilityRole="button">
               <Text style={styles.actionLabel}>{isPinned ? 'Unpin conversation' : 'Pin conversation'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.actionRow}
               onPress={isMuted ? handleUnmute : () => setMuteSheet(true)}
+              accessibilityRole="button"
             >
               <Text style={styles.actionLabel}>{isMuted ? 'Unmute notifications' : 'Mute notifications'}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionRow} onPress={handleMarkUnread}>
+            <TouchableOpacity style={styles.actionRow} onPress={handleMarkUnread} accessibilityRole="button">
               <Text style={styles.actionLabel}>Mark as unread</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionRow} onPress={handleArchive}>
+            <TouchableOpacity style={styles.actionRow} onPress={handleArchive} accessibilityRole="button">
               <Text style={styles.actionLabel}>Archive conversation</Text>
             </TouchableOpacity>
 
             {isGroup ? (
-              <TouchableOpacity style={[styles.actionRow, styles.actionRowDestructive]} onPress={handleLeaveGroup}>
+              <TouchableOpacity style={[styles.actionRow, styles.actionRowDestructive]} onPress={handleLeaveGroup} accessibilityRole="button">
                 <Text style={[styles.actionLabel, styles.actionLabelDestructive]}>Leave group</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={[styles.actionRow, styles.actionRowDestructive]} onPress={handleDeleteConversation}>
+              <TouchableOpacity style={[styles.actionRow, styles.actionRowDestructive]} onPress={handleDeleteConversation} accessibilityRole="button">
                 <Text style={[styles.actionLabel, styles.actionLabelDestructive]}>Delete conversation</Text>
               </TouchableOpacity>
             )}
@@ -470,7 +532,7 @@ export default function ConversationInfoScreen() {
       )}
 
       {/* Mute duration sheet */}
-      <Modal visible={muteSheet} transparent animationType="slide" onRequestClose={() => setMuteSheet(false)}>
+      <Modal visible={muteSheet} transparent animationType={reduceMotion ? 'none' : 'slide'} onRequestClose={() => setMuteSheet(false)}>
         <TouchableOpacity style={styles.muteOverlay} activeOpacity={1} onPress={() => setMuteSheet(false)}>
           <View style={styles.muteSheet}>
             <Text style={styles.muteTitle}>Mute notifications</Text>
@@ -485,11 +547,12 @@ export default function ConversationInfoScreen() {
                 key={opt.value}
                 style={styles.muteOption}
                 onPress={() => handleMute(opt.value)}
+                accessibilityRole="button"
               >
                 <Text style={styles.muteOptionLabel}>{opt.label}</Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.muteCancelBtn} onPress={() => setMuteSheet(false)}>
+            <TouchableOpacity style={styles.muteCancelBtn} onPress={() => setMuteSheet(false)} accessibilityRole="button">
               <Text style={styles.muteCancelLabel}>Cancel</Text>
             </TouchableOpacity>
           </View>

@@ -1,4 +1,4 @@
-import { mapRowToPost, fetchPostLikes, type SavedPostRow } from '@/lib/services/posts'
+import { fetchPostLikes, mapRowToPost, savePost, type SavedPostRow } from '@/lib/services/posts'
 import { supabase } from '@/lib/supabase'
 
 jest.mock('@/lib/supabase', () => ({
@@ -146,5 +146,19 @@ describe('fetchPostLikes', () => {
 
     const count = await fetchPostLikes('post-1')
     expect(count).toBe(0)
+  })
+})
+
+describe('savePost', () => {
+  afterEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('rejects when Supabase cannot persist a save', async () => {
+    mockFrom.mockReturnValue({
+      upsert: jest.fn().mockResolvedValue({ error: new Error('Network request failed') }),
+    } as never)
+
+    await expect(savePost('post-1', 'user-1')).rejects.toThrow('Network request failed')
   })
 })

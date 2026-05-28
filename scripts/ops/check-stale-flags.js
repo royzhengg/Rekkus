@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fails if any flag in lib/featureFlags.ts has no isEnabled() call site in source files.
+// Fails if any flag in lib/featureFlags.ts has no runtime call site in source files.
 // Run after adding a new flag to ensure it is actually gated before merging.
 const path = require('path')
 const { listFiles, readText } = require('./lib/files')
@@ -16,26 +16,42 @@ while ((match = flagKeyPattern.exec(flagsSource)) !== null) {
 }
 
 if (flagKeys.length === 0) {
-  process.stderr.write('check:stale-flags: could not parse any flag keys from lib/featureFlags.ts\n')
+  process.stderr.write(
+    'check:stale-flags: could not parse any flag keys from lib/featureFlags.ts\n'
+  )
   process.exit(1)
 }
 
-const searchDirs = ['app', 'features', 'lib/hooks', 'lib/contexts', 'lib/services', 'lib/utils', 'components']
+const searchDirs = [
+  'app',
+  'features',
+  'lib/hooks',
+  'lib/contexts',
+  'lib/services',
+  'lib/utils',
+  'components',
+]
 const searchFiles = searchDirs.flatMap(dir =>
-  listFiles(dir, (filePath) => /\.[jt]sx?$/.test(filePath)).filter(f => f !== 'lib/featureFlags.ts')
+  listFiles(dir, filePath => /\.[jt]sx?$/.test(filePath)).filter(f => f !== 'lib/featureFlags.ts')
 )
 const searchableText = searchFiles.map(f => readText(f)).join('\n')
 
 const stale = flagKeys.filter(key => {
-  const single = `isEnabled('${key}')`
-  const double = `isEnabled("${key}")`
-  return !searchableText.includes(single) && !searchableText.includes(double)
+  const callSites = [
+    `isEnabled('${key}')`,
+    `isEnabled("${key}")`,
+    `useFeatureFlag('${key}')`,
+    `useFeatureFlag("${key}")`,
+  ]
+  return !callSites.some(callSite => searchableText.includes(callSite))
 })
 
 const failures = []
 for (const key of stale) {
   if (!allowlist.has(key)) {
-    failures.push(`Feature flag ${key} has no isEnabled() call site and is not tracked in BACKLOG.md.`)
+    failures.push(
+      `Feature flag ${key} has no isEnabled() or useFeatureFlag() call site and is not tracked in BACKLOG.md.`
+    )
   }
 }
 for (const [key, reason] of allowlist) {
@@ -51,8 +67,7 @@ for (const [key, reason] of allowlist) {
 
 if (failures.length > 0) {
   process.stderr.write(
-    'check:stale-flags failed:\n' +
-    failures.map(failure => `  - ${failure}`).join('\n') + '\n'
+    'check:stale-flags failed:\n' + failures.map(failure => `  - ${failure}`).join('\n') + '\n'
   )
   process.exit(1)
 }

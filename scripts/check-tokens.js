@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 const { lineFailures, readText, walkFiles } = require('./lib/scan-files')
+const { fontSizeFailures } = require('./lib/font-size-rules')
 
 const files = walkFiles(['features', 'components'])
 const sourceFiles = files.filter(file => /\.[jt]sx?$/.test(file))
+
+// Also scan app/ and lib/contexts/ for typography token violations (B-527 guardrail).
+// Colors and spacing are intentionally not extended here — those dirs have legitimate platform values.
+const typographyOnlyFiles = walkFiles(['app', 'lib/contexts']).filter(file => /\.[jt]sx?$/.test(file))
 const colorFailures = []
 const rawFailures = []
 
@@ -58,6 +63,26 @@ for (const file of sourceFiles) {
   }))
 }
 
+const typographyCheck = rawChecks.find(c => c.name === 'typography')
+if (typographyCheck) {
+  for (const file of typographyOnlyFiles) {
+    const source = readText(file)
+    rawFailures.push(...lineFailures(file, source, (line, lineNumber) => {
+      if (allowed.some(token => line.includes(token))) return null
+      if (typographyCheck.regex.test(line)) {
+        return `${file}:${lineNumber}: ${typographyCheck.name}: ${line.trim()} — ${typographyCheck.guidance}`
+      }
+      return null
+    }))
+  }
+}
+
+const fontSizeFailuresList = []
+for (const file of [...sourceFiles, ...typographyOnlyFiles]) {
+  const source = readText(file)
+  fontSizeFailuresList.push(...fontSizeFailures(file, source))
+}
+
 if (colorFailures.length > 0) {
   console.error('FAIL [TOKENS] Hardcoded hex/rgba colour values found — use useThemeColors() tokens from constants/Colors.ts:')
   console.error(colorFailures.join('\n'))
@@ -67,6 +92,12 @@ if (colorFailures.length > 0) {
 if (rawFailures.length > 0) {
   console.error('FAIL [TOKENS] Raw design values found:')
   for (const failure of rawFailures) console.error(`- ${failure}`)
+  process.exit(1)
+}
+
+if (fontSizeFailuresList.length > 0) {
+  console.error('FAIL [TOKENS] Minimum font size violations found — fontSize must be ≥ 12 (B-532):')
+  for (const failure of fontSizeFailuresList) console.error(`- ${failure}`)
   process.exit(1)
 }
 

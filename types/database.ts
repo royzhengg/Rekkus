@@ -2607,6 +2607,7 @@ export type Database = {
         Row: {
           allow_comments: boolean
           allow_tags: boolean
+          autoplay_videos: boolean
           dark_mode: boolean
           id: string
           notif_comments: boolean
@@ -2622,6 +2623,7 @@ export type Database = {
         Insert: {
           allow_comments?: boolean
           allow_tags?: boolean
+          autoplay_videos?: boolean
           dark_mode?: boolean
           id: string
           notif_comments?: boolean
@@ -2637,6 +2639,7 @@ export type Database = {
         Update: {
           allow_comments?: boolean
           allow_tags?: boolean
+          autoplay_videos?: boolean
           dark_mode?: boolean
           id?: string
           notif_comments?: boolean
@@ -3183,4 +3186,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

@@ -16,6 +16,7 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import type { Post } from '@/types/domain'
 
 type Props = {
@@ -34,6 +35,7 @@ export const ThumbGrid = React.memo(function ThumbGrid({
   onPressPost,
 }: Props) {
   const c = useThemeColors()
+  const reduceMotion = useReducedMotion()
   const { width } = useWindowDimensions()
   const styles = useMemo(() => makeStyles(c), [c])
   const thumbSize = (width - 4) / 3
@@ -90,6 +92,7 @@ export const ThumbGrid = React.memo(function ThumbGrid({
           onPress={onLoadMore}
           disabled={loadingMore}
           activeOpacity={0.7}
+          accessibilityRole="button"
         >
           {loadingMore ? (
             <ActivityIndicator size="small" color={c.text3} />
@@ -101,11 +104,11 @@ export const ThumbGrid = React.memo(function ThumbGrid({
       <Modal
         visible={!!peekPost}
         transparent
-        animationType="fade"
+        animationType={reduceMotion ? 'none' : 'fade'}
         onRequestClose={() => setPeekPost(null)}
         accessibilityViewIsModal
       >
-        <Pressable style={styles.peekBackdrop} onPress={() => setPeekPost(null)}>
+        <Pressable style={styles.peekBackdrop} onPress={() => setPeekPost(null)} accessibilityRole="button" accessibilityLabel="Close preview">
           <View style={[styles.peekCard, { width: width * 0.82 }]}>
             {peekPost?.imageUrl ? (
               <CachedImage

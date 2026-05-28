@@ -1,6 +1,6 @@
-import { useRouter, useLocalSearchParams  } from 'expo-router'
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, BackHandler } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ChevronLeft } from '@/components/icons'
 import StepDetails from '@/components/post-create/StepDetails'
@@ -11,9 +11,11 @@ import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { usePosts } from '@/lib/contexts/PostsContext'
 import { usePostUploadQueue } from '@/lib/contexts/PostUploadContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { haptic } from '@/lib/haptics'
 import { tasteToLegacyFood, valueToLegacyCost } from '@/lib/dataSources/rekkusPicks'
 import { routes } from '@/lib/routes'
 import { findOrCreateDish } from '@/lib/services/dishes'
@@ -48,6 +50,7 @@ export default function PostScreen() {
   const { refresh } = usePosts()
   const uploadQueue = usePostUploadQueue()
   const { user } = useAuth()
+  const { requireOnline } = useConnectivity()
   const { requireAuth } = useAuthGate()
   const c = useThemeColors()
   const styles = useMemo(() => makeStyles(c), [c])
@@ -257,6 +260,20 @@ export default function PostScreen() {
     refreshDraftSummaries,
   ])
 
+  // Ref keeps BackHandler current: handleBack is defined after the early return below.
+  const handleBackRef = useRef<() => void>(() => {})
+
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleBackRef.current()
+        return true
+      })
+      return () => sub.remove()
+    }, [])
+  )
+
   if (!user) return null
 
   function handleBack() {
@@ -273,6 +290,7 @@ export default function PostScreen() {
     }
     else setStep((step - 1) as Step)
   }
+  handleBackRef.current = handleBack
 
   function handleNext() {
     if (step < 3) setStep((step + 1) as Step)
@@ -347,6 +365,14 @@ export default function PostScreen() {
   }
 
   async function handlePost() {
+    if (!requireOnline()) {
+      setRetryPostAvailable(true)
+      setDraftNotice({
+        title: 'You are offline',
+        subtitle: 'Your review stays here. Reconnect, then tap Try again to publish.',
+      })
+      return
+    }
     if (isEditingPost && postId && user?.id) {
       setPosting(true)
       try {
@@ -434,6 +460,7 @@ export default function PostScreen() {
       clearForm()
       await markCreatePostDraftPublished(currentDraftId)
       uploadQueue.completeJob(jobId)
+      void haptic.confirmPublish()
       await refresh()
       setPosting(false)
       router.replace('/(tabs)/feed')
@@ -498,8 +525,7 @@ export default function PostScreen() {
               return
             }
             if (value === 'all') {
-
-              router.push('/create/drafts')
+              router.push(routes.createDrafts())
               return
             }
           }}
@@ -568,6 +594,7 @@ export default function PostScreen() {
               hitSlop={8}
               style={styles.headerAction}
               disabled={savingDraft || posting}
+              accessibilityRole="button"
             >
               <Text style={[styles.saveText, (savingDraft || posting) && styles.saveTextDisabled]}>
                 {savingDraft ? 'Saving' : 'Save'}
@@ -579,6 +606,7 @@ export default function PostScreen() {
               style={[styles.nextBtn, !canAdvance && styles.nextBtnDisabled]}
               onPress={canAdvance ? handleNext : undefined}
               disabled={!canAdvance}
+              accessibilityRole="button"
             >
               <Text style={[styles.nextBtnText, !canAdvance && styles.nextBtnTextDisabled]}>
                 Next
@@ -592,7 +620,7 @@ export default function PostScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {step === 1 && (
           <StepMedia {...mediaProps} />

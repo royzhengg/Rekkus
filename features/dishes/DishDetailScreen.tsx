@@ -18,6 +18,7 @@ import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { haptic } from '@/lib/haptics'
 import { useCollectionPicker } from '@/lib/hooks/useCollectionPicker'
 import { useDishDetail } from '@/lib/hooks/useDishDetail'
 import { routes } from '@/lib/routes'
@@ -47,7 +48,10 @@ export default function DishDetailScreen() {
     }
     try {
       await detail.toggleSaved()
-      if (!detail.saved && user) analytics.saveDish(user.id, dishId)
+      if (!detail.saved && user) {
+        analytics.saveDish(user.id, dishId)
+        void haptic.confirmSave()
+      }
     } catch {
       setOperationError('Could not update this bookmark. Please try again.')
     }
@@ -175,7 +179,9 @@ export default function DishDetailScreen() {
         ]}
         onSelect={value => {
           if (value !== 'remove') return
-          void detail.toggleSaved(true).catch(() => setOperationError('Could not remove this bookmark.'))
+          void detail.toggleSaved(true).then(() => {
+            void haptic.confirmSave()
+          }).catch(() => setOperationError('Could not remove this bookmark.'))
         }}
         onDismiss={() => setConfirmUnsave(false)}
       />

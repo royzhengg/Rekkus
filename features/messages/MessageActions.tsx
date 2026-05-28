@@ -31,13 +31,14 @@ import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { EMOJI_STAGGER_MS, DUR_FAST } from '@/lib/animations'
 import type { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import {
   addReaction,
-  removeReaction,
   deleteMessage,
   pinMessage,
   forwardMessage,
   fetchDirectConversations,
+  removeReaction,
   type DirectMessage,
   type MessageReaction,
   type ConversationSummary,
@@ -45,6 +46,7 @@ import {
 } from '@/lib/services/messaging'
 import { submitContentReport as submitReport } from '@/lib/services/moderation'
 import { avatarPalette } from '@/lib/utils/format'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 
 // iOS-style action card entrance: fade + subtle upward translate, no overshoot
 const actionCardEntry = new Keyframe({
@@ -75,7 +77,9 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
   { conversationId, currentUserId, reactions, colors, onReply, onReact, onMessageDeleted, onMessagePinned, onShowNotice, onShowError },
   ref
 ) {
+  const { requireOnline } = useConnectivity()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const reduceMotion = useReducedMotion()
   const [messageSheet, setMessageSheet] = useState(false)
   const [selectedMessage, setSelectedMessage] = useState<DirectMessage | null>(null)
   const [longPressY, setLongPressY] = useState(Dimensions.get('window').height / 2)
@@ -115,6 +119,7 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
     if (value === 'reply') {
       onReply(selectedMessage)
     } else if (value.startsWith('react_')) {
+      if (!requireOnline()) return
       const emoji = value.slice(6)
       const myReactions = reactions.get(selectedMessage.id)?.filter(r => r.user_id === currentUserId) ?? []
       const existingWithEmoji = myReactions.find(r => r.emoji === emoji)
@@ -129,6 +134,10 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
     } else if (value === 'copy' && selectedMessage.body) {
       await Clipboard.setStringAsync(selectedMessage.body)
     } else if (value === 'forward') {
+      if (!requireOnline()) {
+        onShowError({ title: 'You are offline', message: 'Reconnect to forward this message.' })
+        return
+      }
       setForwardSourceMessage(selectedMessage)
       setLoadingForwardTargets(true)
       setForwardPickerVisible(true)
@@ -142,9 +151,17 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
       }
       return
     } else if (value === 'pin') {
+      if (!requireOnline()) {
+        onShowError({ title: 'You are offline', message: 'Reconnect to pin this message.' })
+        return
+      }
       await pinMessage(selectedMessage.id)
       onMessagePinned(selectedMessage)
     } else if (value === 'report') {
+      if (!requireOnline()) {
+        onShowError({ title: 'You are offline', message: 'Reconnect to report this message.' })
+        return
+      }
       const reportError = await submitReport({
         reporterId: currentUserId,
         targetType: 'message',
@@ -160,6 +177,10 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
 
   async function confirmDeleteSelectedMessage() {
     if (!selectedMessage) return
+    if (!requireOnline()) {
+      onShowError({ title: 'You are offline', message: 'Reconnect to delete this message.' })
+      return
+    }
     const messageToDelete = selectedMessage
     const { error: delError } = await deleteMessage(messageToDelete.id)
     if (delError) {
@@ -172,6 +193,10 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
 
   async function handleForwardToConversation(targetConversationId: string) {
     if (!forwardSourceMessage) return
+    if (!requireOnline()) {
+      onShowError({ title: 'You are offline', message: 'Reconnect to forward this message.' })
+      return
+    }
     setForwardingConversationId(targetConversationId)
     const { error } = await forwardMessage(forwardSourceMessage.id, targetConversationId, currentUserId)
     setForwardingConversationId(null)
@@ -223,12 +248,16 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
 
           return (
             <>
-              <Animated.View entering={FadeIn.duration(DUR_FAST)} style={StyleSheet.absoluteFill}>
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 22 : 0}
-                  tint="dark"
-                  style={[StyleSheet.absoluteFill, styles.contextBackdrop]}
-                />
+              <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(DUR_FAST)} style={StyleSheet.absoluteFill}>
+                {Platform.OS === 'ios' ? (
+                  <BlurView
+                    intensity={22}
+                    tint="dark"
+                    style={[StyleSheet.absoluteFill, styles.contextBackdrop]}
+                  />
+                ) : (
+                  <View style={[StyleSheet.absoluteFill, styles.contextBackdrop]} />
+                )}
               </Animated.View>
 
               <TouchableOpacity
@@ -242,7 +271,7 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
                     return (
                       <Animated.View
                         key={emoji}
-                        entering={ZoomIn.springify().damping(11).stiffness(255).delay(i * EMOJI_STAGGER_MS)}
+                        entering={reduceMotion ? undefined : ZoomIn.springify().damping(11).stiffness(255).delay(i * EMOJI_STAGGER_MS)}
                       >
                         <TouchableOpacity
                           style={[styles.reactionBtn, selected && styles.reactionBtnActive]}
@@ -252,6 +281,7 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
                             setSelectedMessage(null)
                           }}
                           activeOpacity={0.7}
+                          accessibilityRole="button"
                         >
                           <Text style={styles.contextReactionEmoji}>{emoji}</Text>
                           {selected ? (
@@ -264,10 +294,10 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
                 </View>
 
                 <Animated.View
-                  entering={actionCardEntry}
+                  entering={reduceMotion ? undefined : actionCardEntry}
                   style={[styles.contextActionCard, { top: actionCardTop }]}
                 >
-                  <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+                  <TouchableOpacity activeOpacity={1} onPress={() => {}} accessibilityRole="button" accessibilityLabel="Message actions">
                     {messageActions.map((action, i) => (
                       <React.Fragment key={action.value}>
                         {i > 0 ? <View style={styles.contextActionDivider} /> : null}
@@ -275,6 +305,7 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
                           style={styles.contextActionRow}
                           onPress={() => handleMessageAction(action.value)}
                           activeOpacity={0.65}
+                          accessibilityRole="button"
                         >
                           <View style={styles.contextActionIcon}>
                             {ACTION_ICONS[action.value] ?? null}
@@ -316,7 +347,7 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
       <Modal
         visible={forwardPickerVisible}
         transparent
-        animationType="slide"
+        animationType={reduceMotion ? 'none' : 'slide'}
         onRequestClose={() => setForwardPickerVisible(false)}
       >
         <View style={styles.pickerOverlay}>

@@ -33,7 +33,7 @@ export class ErrorBoundary extends React.Component<
           <Text style={styles.msg} numberOfLines={3}>
             {this.state.error.message}
           </Text>
-          <TouchableOpacity style={styles.btn} onPress={this.reset}>
+          <TouchableOpacity style={styles.btn} onPress={this.reset} accessibilityRole="button">
             <Text style={styles.btnText}>Try again</Text>
           </TouchableOpacity>
         </View>

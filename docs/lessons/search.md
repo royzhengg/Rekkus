@@ -18,6 +18,16 @@ Every external API call (Google Places, geocoding) should store its result in ou
 
 ---
 
+## Location permission is initiated by intent, not screen entry
+
+Search previously requested foreground GPS as soon as the screen rendered, even though its manual area path works without that permission and the product policy promised contextual prompts. Keep `useUserLocation` explicit-only: a location-powered control may request GPS; mounting a search, map, or discovery surface may not.
+
+**Guardrail:** `check:risk-guardrails` rejects the implicit `autoRequest` pattern and the hook unit test asserts that mount does not call the Expo permission API.
+
+**Apply when:** changing search, nearby discovery, map, or saved-place location flows.
+
+---
+
 ## Await DB resolution before paid provider fallback
 
 DB-first search is not just an ordering preference; the fallback decision must wait for the DB lookup that can satisfy it. A floating `resolveSuburbQuery(...).then(...)` lets the same search request race ahead into Google while the local DB answer is still pending.

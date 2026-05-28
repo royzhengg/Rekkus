@@ -32,6 +32,8 @@ Accessibility rule: icon-only buttons need an accessible label or adjacent visib
 | `FilterIcon` | 18 | `text2` | `color?` |
 | `SortIcon` | 13 | `text2` | — |
 | `CheckIcon` | 18 | `text2` | `color?` |
+| `DishIcon` | 18 | `text3` | `color?` — dish and best-dish fields |
+| `TagIcon` | 18 | `text3` | `color?` — tag fields and metadata |
 
 ### Social
 
@@ -108,15 +110,22 @@ Zero business logic. Theme-aware via `useThemeColors()`.
 | `ScreenHeader` | `ui/ScreenHeader` | 56 px top bar. Props: `title`, `left` (slot), `right` (slot) |
 | `FormInput` | `ui/FormInput` | Labelled text input. Props: `label`, `right` (slot), `error` |
 | `ErrorMessage` | `ui/ErrorMessage` | Shared accessible error box. Props: `message`, `title?`, `style?` |
+| `ConnectivityNotice` | `ui/ConnectivityNotice` | Root-level accessible status notice for offline, pending sync, and reconnect outcomes. Render once under providers; do not make per-screen banner variants. |
 | `IconButton` | `ui/IconButton` | Icon-only actions with a minimum 44x44pt hit area. Props: `children`, `onPress`, `accessibilityLabel`, `size?`, `variant?`, `style?`, `disabled?` |
+| `FloatingActionButton` | `ui/FloatingActionButton` | Presentation-only primary floating action with a 56pt circular target. The owning route/layout supplies behavior and accessible label. |
+| `TabBarMaterialBackground` | `ui/TabBarMaterialBackground` | B-531 iOS-only tab material presentation; opaque fallback for disabled state, Android, and Reduce Transparency. |
 | `PrimaryButton` | `ui/PrimaryButton` | Primary CTA. Props: `label`, `onPress`, `loading?`, `disabled?` |
-| `Chip` | `ui/Chip` | Selectable filters, quick starts, and compact pill actions. Props: `label`, `onPress`, `selected?`, `variant?`, `leading?`, `detail?`, `disabled?` |
+| `Chip` | `ui/Chip` | Selectable filters, quick starts, and compact pill actions with a 44pt interaction area. Props: `label`, `onPress`, `selected?`, `variant?`, `leading?`, `detail?`, `disabled?` |
 | `EmptyState` | `ui/EmptyState` | Empty / error placeholders and shape-less blocking loading. Props: `icon`, `title`, `subtitle`, `loading?` |
 | `Skeleton` | `ui/Skeleton` | Content-shaped loading placeholders for screen/list loading states. |
 | `RekkusActionSheet` | `ui/RekkusActionSheet` | Rekkus bottom-sheet chooser for sort, map app, cuisine, create launchers, post options, confirmations, and other action lists. Supports descriptions, icons, accents, tile rows, loading, selected, and destructive states. |
 
+Root navigation uses tabs for destinations only. `FloatingActionButton` exposes Create above the bar while launcher, authentication, and typed route ownership remain in the tab/provider coordination layer; see [ADR 0012](../docs/adr/0012-destination-tabs-and-floating-create.md).
+The B-531 `TabBarMaterialBackground` spike is disabled by default and may only be enabled in development/staging iOS builds. It preserves the same destination and Create semantics; beta, production, Android, and Reduce Transparency use the existing opaque bar; see [ADR 0015](../docs/adr/0015-gated-ios-tab-material.md).
+
 Use `IconButton` for compact icon-only controls instead of raw `TouchableOpacity`; it preserves 34-40px visual buttons while adding hitSlop for a 44pt touch target.
 Use `ErrorMessage` for routine load and mutation failures. Do not create inline error boxes, failure alerts, or dismiss-only error sheets; an action sheet is appropriate only when failure recovery includes a real action such as retry or review.
+Use `ConnectivityNotice` once at app root for network/sync state. Screens still use `ErrorMessage` for explicit-retry submissions that cannot be safely replayed.
 Use `Chip` instead of screen-local `*Pill` / `*Chip` styles. Use `EmptyState` instead of inline empty markup.
 Loading has three canonical surfaces: use `ActivityIndicator` for action, row, or pagination waits; use `Skeleton` / `SkeletonText` when the final content shape is predictable; use `<EmptyState loading>` only for blocking full-screen waits with no meaningful silhouette yet. For list screens, render 3–4 skeleton rows (`{ flexDirection: 'row', gap }` with avatar circle + two text lines). Never render a centered bare `<ActivityIndicator>` for an initial screen/content load — `check:design` will fail CI.
 
@@ -140,7 +149,7 @@ import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 />
 ```
 
-Behavior: themed `Modal`, slide animation, backdrop dismiss, Android back support via `onRequestClose`, safe-area bottom padding, selected option checkmark, and scroll support for long option lists.
+Behavior: themed `Modal`, slide animation unless Reduce Motion is enabled, backdrop dismiss, Android back support via `onRequestClose`, safe-area bottom padding, selected option checkmark, and scroll support for long option lists.
 
 Supported patterns: informational/success notice, two-button confirmation, destructive confirmation, picker list, selected-state list, loading row, icon row, tile actions, and failure recovery with an explicit next action. Routine failures render through `ErrorMessage`, not a dismiss-only sheet. Use accent colours for positive actions and the destructive style only for irreversible or safety-sensitive actions.
 
@@ -153,7 +162,7 @@ Supported patterns: informational/success notice, two-button confirmation, destr
 | `Avatar` | Avatar circle with initials fallback and image |
 | `ProfileHeader` | Shared profile header — stats, bio, avatar, badge |
 | `PostCard` | Shared feed post surface: media, creator, dish/title/body, Rekkus Picks, place, tags, actions |
-| `PostMediaCarousel` | Shared image/video carousel for feed, detail, and share preview; shows video and count badges |
+| `PostMediaCarousel` | Shared image/video carousel with native controls; feed/detail can pass visible-only autoplay eligibility, while preview surfaces stay manual |
 | `PostPicksSummary` | Compact Taste/Value/Occasion summary for every post surface |
 | `ThumbGrid` | 3-col thumbnail grid for post collections with video/carousel badges |
 | `PostCardSkeleton` | Feed-level content-shaped loading placeholder (`components/post/PostCardSkeleton`). Use when `!followingLoaded`. Never use `ActivityIndicator` for feed content loading — only for action buttons and pagination footers. |

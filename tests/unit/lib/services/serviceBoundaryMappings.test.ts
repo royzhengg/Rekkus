@@ -34,16 +34,18 @@ describe('service-boundary normalisation', () => {
     }])
   })
 
-  it('normalises settings and rejects unknown theme modes', () => {
+  it('normalises settings and defaults legacy autoplay while rejecting unknown theme modes', () => {
     expect(normalizeSettings({
       ...DEFAULT_SETTINGS,
       notif_likes: false,
       theme_mode: 'sepia',
+      autoplay_videos: 'yes',
     })).toEqual({
       ...DEFAULT_SETTINGS,
       notif_likes: false,
       theme_mode: 'system',
     })
+    expect(normalizeSettings({ ...DEFAULT_SETTINGS, autoplay_videos: false }).autoplay_videos).toBe(false)
   })
 
   it('maps related actors and reply ids for alert rows', () => {

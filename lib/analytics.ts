@@ -74,6 +74,7 @@ const SAFE_METADATA_KEYS = new Set([
   'request_type',
   'feature',
   'cache_status',
+  'mutation_kind',
 ])
 const SENSITIVE_VALUE_PATTERN =
   /(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\+?\d[\d\s().-]{7,}|password|secret|token|service_role|reset_link|private_note|raw_provider_payload|precise_location)/i
@@ -139,6 +140,14 @@ export const analytics = {
 
   saveDish: (userId: string, dishId: string): void =>
     void track(userId, { event_type: 'dish_save', entity_type: 'dish', entity_id: dishId }),
+
+  // Privacy: only userId, mutationKind (enum), and outcome are permitted.
+  // Banned: message body, post captions, profile values, media URLs, collection names, report/moderation content.
+  offlineMutation: (userId: string, mutationKind: string, outcome: 'queued' | 'synced' | 'sync_failed'): void =>
+    void track(userId, {
+      event_type: 'offline_mutation_sync',
+      metadata: { mutation_kind: mutationKind, outcome },
+    }),
 
   dwellPost: (userId: string | null, postId: string, durationMs: number): void =>
     void track(userId, {

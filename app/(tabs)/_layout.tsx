@@ -1,8 +1,19 @@
-import { Tabs } from 'expo-router'
+import { Tabs, useSegments } from 'expo-router'
 import React from 'react'
+import { Platform, StyleSheet, View } from 'react-native'
 import { Svg, Circle, Path, Polyline, Line } from 'react-native-svg'
-import { TabBarPostButton } from '@/components/TabBarPostButton'
+import { PlusIcon } from '@/components/icons'
+import { FloatingActionButton } from '@/components/ui/FloatingActionButton'
+import { TabBarMaterialBackground } from '@/components/ui/TabBarMaterialBackground'
+import { spacing } from '@/constants/Spacing'
+import { fontSize, fontWeight } from '@/constants/Typography'
+import { APP_ENV } from '@/lib/config'
+import { useCreateLauncher } from '@/lib/contexts/CreateLauncherContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { canUseIosTabBarMaterial } from '@/lib/utils/iosTabMaterial'
+
+const TAB_BAR_HEIGHT = 72
 
 const HomeIcon = React.memo(function HomeIcon({ color }: { color: string }) {
   return (
@@ -77,51 +88,86 @@ const PersonIcon = React.memo(function PersonIcon({ color }: { color: string }) 
 
 export default function TabLayout() {
   const colors = useThemeColors()
+  const materialFlagEnabled = useFeatureFlag('iosTabBarMaterial')
+  const { openCreateLauncher } = useCreateLauncher()
+  const segments = useSegments()
+  const isCreateRoute = segments[segments.length - 1] === 'create'
+  const materialEligible = canUseIosTabBarMaterial(Platform.OS, APP_ENV, materialFlagEnabled)
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.text,
-        tabBarInactiveTintColor: colors.text3,
-        tabBarStyle: {
-          backgroundColor: colors.bg,
-          borderTopColor: colors.border,
-          borderTopWidth: 0.5,
-          height: 72,
-          paddingBottom: 10,
-          paddingTop: 0,
-        },
-        tabBarLabelStyle: {
-          fontSize: 9.5,
-          fontWeight: '400',
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="feed"
-        options={{ title: 'Feed', tabBarIcon: ({ color }) => <HomeIcon color={color} /> }}
-      />
-      <Tabs.Screen
-        name="search"
-        options={{ title: 'Search', tabBarIcon: ({ color }) => <SearchIcon color={color} /> }}
-      />
-      <Tabs.Screen
-        name="create"
-        options={{ title: '', tabBarButton: props => <TabBarPostButton {...props} /> }}
-      />
-      <Tabs.Screen
-        name="saved"
-        options={{ title: 'Saved', tabBarIcon: ({ color }) => <SavedIcon color={color} /> }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{ title: 'Profile', tabBarIcon: ({ color }) => <PersonIcon color={color} /> }}
-      />
-      <Tabs.Screen name="alerts" options={{ href: null }} />
-      <Tabs.Screen name="post" options={{ href: null }} />
-      <Tabs.Screen name="places" options={{ href: null }} />
-      <Tabs.Screen name="restaurants" options={{ href: null }} />
-    </Tabs>
+    <View style={styles.container}>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.text,
+          tabBarInactiveTintColor: colors.text3,
+          tabBarStyle: {
+            backgroundColor: materialEligible ? 'transparent' : colors.bg,
+            borderTopColor: colors.border,
+            borderTopWidth: spacing.hairline,
+            height: TAB_BAR_HEIGHT,
+            paddingBottom: spacing.px10,
+            paddingTop: spacing[0],
+            ...(materialEligible ? styles.materialTabBar : {}),
+          },
+          ...(materialEligible
+            ? {
+                sceneStyle: styles.materialScene,
+                tabBarBackground: () => <TabBarMaterialBackground materialEnabled />,
+              }
+            : {}),
+          tabBarLabelStyle: {
+            fontSize: fontSize.sm,
+            fontWeight: fontWeight.regular,
+          },
+        }}
+      >
+        <Tabs.Screen
+          name="feed"
+          options={{ title: 'Feed', tabBarIcon: ({ color }) => <HomeIcon color={color} /> }}
+        />
+        <Tabs.Screen
+          name="search"
+          options={{ title: 'Search', tabBarIcon: ({ color }) => <SearchIcon color={color} /> }}
+        />
+        <Tabs.Screen name="create" options={{ href: null }} />
+        <Tabs.Screen
+          name="saved"
+          options={{ title: 'Saved', tabBarIcon: ({ color }) => <SavedIcon color={color} /> }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{ title: 'Profile', tabBarIcon: ({ color }) => <PersonIcon color={color} /> }}
+        />
+        <Tabs.Screen name="alerts" options={{ href: null }} />
+        <Tabs.Screen name="post" options={{ href: null }} />
+        <Tabs.Screen name="places" options={{ href: null }} />
+        <Tabs.Screen name="restaurants" options={{ href: null }} />
+      </Tabs>
+      {!isCreateRoute && (
+        <View pointerEvents="box-none" style={styles.floatingCreate}>
+          <FloatingActionButton accessibilityLabel="Create post" onPress={openCreateLauncher}>
+            <PlusIcon color={colors.bg} size={22} />
+          </FloatingActionButton>
+        </View>
+      )}
+    </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  materialTabBar: {
+    position: 'absolute',
+  },
+  materialScene: {
+    paddingBottom: TAB_BAR_HEIGHT,
+  },
+  floatingCreate: {
+    position: 'absolute',
+    bottom: spacing.px40,
+    left: spacing[0],
+    right: spacing[0],
+    alignItems: 'center',
+  },
+})

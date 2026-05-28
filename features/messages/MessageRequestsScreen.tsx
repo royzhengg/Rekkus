@@ -11,11 +11,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft } from '@/components/icons'
 import { CachedImage } from '@/components/ui/CachedImage'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { routes } from '@/lib/routes'
 import {
@@ -42,11 +44,13 @@ function richTypePreview(msg: { message_type: string; body: string | null }): st
 export default function MessageRequestsScreen() {
   const router = useRouter()
   const { user } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
   const [requests, setRequests] = useState<ConversationSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [operationError, setOperationError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!user) return
@@ -59,6 +63,11 @@ export default function MessageRequestsScreen() {
   useEffect(() => { void load() }, [load])
 
   async function handleAccept(conversationId: string) {
+    if (!requireOnline()) {
+      setOperationError('Reconnect to accept a message request.')
+      return
+    }
+    setOperationError(null)
     await acceptMessageRequest(conversationId)
     setRequests(prev => prev.filter(r => r.id !== conversationId))
 
@@ -66,6 +75,10 @@ export default function MessageRequestsScreen() {
   }
 
   async function handleDecline(conversationId: string) {
+    if (!requireOnline()) {
+      setOperationError('Reconnect to decline a message request.')
+      return
+    }
     Alert.alert('Decline request', 'This conversation will be blocked.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -85,9 +98,9 @@ export default function MessageRequestsScreen() {
       <View style={styles.row}>
         <TouchableOpacity
           style={styles.rowMain}
-
           onPress={() => router.push(routes.conversation(item.id))}
           activeOpacity={0.7}
+          accessibilityRole="button"
         >
           {item.participant.avatar_url ? (
             <CachedImage source={{ uri: item.participant.avatar_url }} style={styles.avatar} />
@@ -104,10 +117,10 @@ export default function MessageRequestsScreen() {
           </View>
         </TouchableOpacity>
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(item.id)}>
+          <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(item.id)} accessibilityRole="button">
             <Text style={styles.acceptLabel}>Accept</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.declineBtn} onPress={() => handleDecline(item.id)}>
+          <TouchableOpacity style={styles.declineBtn} onPress={() => handleDecline(item.id)} accessibilityRole="button">
             <Text style={styles.declineLabel}>Decline</Text>
           </TouchableOpacity>
         </View>
@@ -129,6 +142,7 @@ export default function MessageRequestsScreen() {
         <Text style={styles.title}>Message requests</Text>
         <View style={{ width: 36 }} />
       </View>
+      {operationError ? <ErrorMessage message={operationError} style={{ marginHorizontal: spacing[4] }} /> : null}
 
       {loading ? (
         <>

@@ -37,6 +37,12 @@ The unsafe typing scanner and ESLint rules cover runtime boundaries, so casts an
 
 `CREATE OR REPLACE FUNCTION` only replaces the identical PostgreSQL signature. Adding parameters creates a new overload and leaves older signatures callable; PostgREST and generated TypeScript may then bind to a legacy return shape. When an RPC's canonical result expands, explicitly drop obsolete overloads in the migration and regenerate `types/database.ts`.
 
+## Audit wiring ships with the mutable domain
+
+When adding an entity domain with mutable state, create its append-only audit table and include it in `platform_audit_events_view` in the same migration. Keep writes behind a `SECURITY DEFINER` RPC or the owned database trigger, and preserve delete evidence without cascade deletion.
+
+**Guardrail:** `check:audit` scans migrations for audit entities that are missing from the unified view or required write-boundary coverage.
+
 ## Server-side auth audit uses a trigger, not an Edge Function
 
 For auth events that must be ISO A.12.4.1-compliant, a PostgreSQL trigger on `auth.users` is more reliable than a client-side RPC or a Database Webhook → Edge Function chain. The trigger fires atomically within the auth transaction — no network hop, no cold-start, no gap from a client crash. Client-side `recordAuthAuditEvent` calls are kept as belt-and-suspenders; duplicate records in an append-only audit log are acceptable. `logout` is client-only because session invalidation does not update `auth.users` rows. The `check:audit` guardrail verifies the trigger exists in migrations and that all server-capturable event types are handled in the trigger function.
@@ -44,6 +50,26 @@ For auth events that must be ISO A.12.4.1-compliant, a PostgreSQL trigger on `au
 ## Audit operational controls at the database write boundary
 
 Runtime controls such as `feature_flag_overrides` can be changed by service-role SQL, scripts, or a future admin UI. Auditing only a UI toggle leaves existing write paths invisible. `feature_flag_audit_events` is therefore written by a fail-closed trigger on the override table: every insert, update, and delete commits with its audit row or neither commits. `check:audit` requires this trigger coverage and rejects exception swallowing in that trigger.
+
+## PostgreSQL FTS requires prefix matching for as-you-type search
+
+`websearch_to_tsquery('simple', 'tonkat')` performs **exact token matching** — it does not match "tonkatsu". Users typing partial words get 0 FTS results, falling through to Google Autocomplete (slow, 1 result). The fix: add a `prefix_query` alongside the exact query in the normalized CTE using the `:*` operator, then OR it into the WHERE clause and rank expressions.
+
+```sql
+-- Pattern: safe prefix tsquery (strips non-alphanumeric, collapses spaces, adds :* per word)
+case
+  when trim(regexp_replace(regexp_replace(lower(coalesce(q, '')), '[^a-z0-9\s]', '', 'g'), '\s+', ' ', 'g')) = ''
+  then null::tsquery
+  else to_tsquery('simple',
+    replace(trim(regexp_replace(regexp_replace(lower(coalesce(q, '')), '[^a-z0-9\s]', '', 'g'), '\s+', ' ', 'g')), ' ', ':* & ') || ':*'
+  )
+end
+-- "tonkat" → 'tonkat:*' → matches "tonkatsu" ✓
+-- "gyukatsu tonkat" → 'gyukatsu:* & tonkat:*' ✓
+-- Special chars / empty → null (no match, safe) ✓
+```
+
+Use `greatest(ts_rank(tsv, exact_query), ts_rank(tsv, prefix_query) * 0.8)` so prefix matches naturally rank below exact matches. `suggest_searches` already used `:*`; the main search RPCs (`search_restaurants_full_text`, `search_posts_full_text`) were added in migration `20260526000011`.
 
 ## Narrow untrusted data once at its boundary
 

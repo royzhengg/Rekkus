@@ -10,6 +10,8 @@
     "noImplicitOverride": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
+    "incremental": true,
+    "tsBuildInfoFile": ".temp/.tsbuildinfo",
     "jsx": "react-native",
     "paths": {
       "@/*": ["./*"]

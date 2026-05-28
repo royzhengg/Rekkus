@@ -9,6 +9,9 @@ const legacyImageAllowlist = new Set([
   'components/post-create/StepMedia.tsx',
 ])
 
+// B-534: all screens remediated — allowlist now empty.
+const textRoleLegacyAllowlist = new Set()
+
 function extractThemeColors(themeName) {
   const source = readText('constants/Colors.ts')
   const match = source.match(new RegExp(`export const ${themeName}Colors = \\{([\\s\\S]*?)\\n\\}`))
@@ -111,6 +114,23 @@ function hasCompactLegacyStyle(source) {
   return blocks.some(block => /(width|height):\s*([0-3]?\d|4[0-3])\b/.test(block))
 }
 
+function reportTextOnlyButtonsMissingRole(relative, source) {
+  const lines = source.split('\n')
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]
+    if (!/<(TouchableOpacity|Pressable)\b/.test(line)) continue
+    const end = lines.findIndex((candidate, index) => index >= i && /<\/(TouchableOpacity|Pressable)>/.test(candidate))
+    const chunk = lines.slice(i, end >= i ? end + 1 : Math.min(i + 10, lines.length)).join('\n')
+    // Skip self-closing elements — they have no text children to audit
+    if (/<(TouchableOpacity|Pressable)\b[^>]*\/>/.test(chunk.slice(0, 500))) continue
+    if (!(/onPress/.test(chunk))) continue
+    if (!/<Text\b/.test(chunk)) continue
+    if (/<(?:[A-Z][A-Za-z0-9]*Icon|ArrowLeft|ChevronLeft|CloseIcon|DotsIcon|SearchIcon|FilterIcon|SendIcon|BookmarkIcon|HeartIcon|ShareIcon|CameraIcon|PinIcon|PhoneIcon|SortIcon|PlusIcon)\b/.test(chunk)) continue
+    if (/accessibilityRole=/.test(chunk)) continue
+    failures.push(`${relative}:${i + 1}: interactive text element needs accessibilityRole (required for VoiceOver and TalkBack).`)
+  }
+}
+
 function reportIconOnlyButtons(relative, source) {
   const lines = source.split('\n')
   for (let i = 0; i < lines.length; i += 1) {
@@ -132,6 +152,9 @@ for (const relative of walkFiles(['features', 'components'], { extensions: ['.ts
     failures.push(`${relative}: compact legacy icon-button style found; use IconButton or a 44pt hit target.`)
   }
   reportIconOnlyButtons(relative, source)
+  if (!textRoleLegacyAllowlist.has(relative)) {
+    reportTextOnlyButtonsMissingRole(relative, source)
+  }
   if (
     !legacyImageAllowlist.has(relative) &&
     /import\s*\{[^}]*\bImage\b[^}]*\}\s*from ['"]react-native['"]/.test(source)

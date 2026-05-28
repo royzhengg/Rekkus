@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { analytics } from '@/lib/analytics'
-import { DEFAULT_SETTINGS, fetchSettings, updateSettings, type Settings } from '@/lib/services/settings'
+import { DEFAULT_SETTINGS, fetchSettings, type Settings } from '@/lib/services/settings'
 import { useAuth } from './AuthContext'
+import { useConnectivity } from './ConnectivityContext'
 
 interface SettingsContextValue {
   settings: Settings
@@ -17,6 +18,7 @@ const SettingsContext = createContext<SettingsContextValue>({
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
+  const { runDeferredMutation } = useConnectivity()
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(false)
 
@@ -44,7 +46,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setSettings(next)
     if (!user) return
     try {
-      await updateSettings(user.id, next)
+      await runDeferredMutation({ kind: 'setting', setting: key, value })
     } catch {
       analytics.actionError(user.id, 'update_settings', 'provider_error')
     }

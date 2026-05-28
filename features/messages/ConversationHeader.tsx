@@ -106,6 +106,7 @@ export function ConversationHeader({
           <TouchableOpacity
             style={styles.headerText}
             onPress={() => router.push(routes.conversationInfo(conversationId))}
+            accessibilityRole="button"
           >
             {headerTitle ? (
               <Text style={styles.title} numberOfLines={1}>{headerTitle}</Text>

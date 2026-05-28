@@ -27,6 +27,7 @@ const REQUIRED = [
   'check:automation',
   'check:performance',
   'check:risk-guardrails',
+  'check:hig-acceptance',
 ]
 
 const workflowPath = path.resolve(__dirname, '../.github/workflows/ops-checks.yml')

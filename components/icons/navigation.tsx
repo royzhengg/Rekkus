@@ -130,10 +130,10 @@ export const ChevronRight = React.memo(function ChevronRight({ size = 16 }: { si
   )
 })
 
-export const ArrowLeft = React.memo(function ArrowLeft({ size = 20 }: { size?: number }) {
+export const ArrowLeft = React.memo(function ArrowLeft({ size = 20, color }: { size?: number; color?: string }) {
   const { text } = useThemeColors()
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={text} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color ?? text} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M19 12H5M12 5l-7 7 7 7" />
     </Svg>
   )

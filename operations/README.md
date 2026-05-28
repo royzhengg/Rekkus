@@ -5,6 +5,7 @@ Operations docs own release flow, beta readiness, operational cadence, support, 
 ## Active Docs
 
 - [RELEASE.md](RELEASE.md): staging, beta, production, rollback, and release gates
+- [IPHONE_HIG_ACCEPTANCE.md](IPHONE_HIG_ACCEPTANCE.md): append-only physical-iPhone acceptance evidence required for beta/production candidates
 - [BETA.md](BETA.md): beta-specific readiness and testing notes
 - [FOUNDER_OS.md](FOUNDER_OS.md): founder command center and operational control-plane strategy
 - [CURRENT_STATE.md](CURRENT_STATE.md): living priorities, blockers, release state, and risks

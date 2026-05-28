@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useIsFocused } from '@react-navigation/native'
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import {
   View,
@@ -28,24 +29,17 @@ import { fontSize, fontWeight } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { usePosts } from '@/lib/contexts/PostsContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { haptic } from '@/lib/haptics'
 import { useCollectionPicker } from '@/lib/hooks/useCollectionPicker'
 import { routes } from '@/lib/routes'
-import { fetchTargetCollectionItems, unsaveTarget } from '@/lib/services/collections'
+import { fetchTargetCollectionItems } from '@/lib/services/collections'
 import { addPostComment } from '@/lib/services/comments'
-import {
-  addPostReaction,
-  deletePost,
-  fetchPostSocialState,
-  removePostReaction,
-  togglePostLike,
-  togglePostSave,
-  type PostCommentRow,
-  type PostReactionType,
-} from '@/lib/services/posts'
-import { saveLocation, unsaveLocation, upsertResolvedRestaurant } from '@/lib/services/restaurants'
-import { fetchIsFollowing, fetchUserIdByUsername, followUser, unfollowUser } from '@/lib/services/users'
+import { addPostReaction, deletePost, fetchPostSocialState, removePostReaction, type PostCommentRow, type PostReactionType } from '@/lib/services/posts'
+import { upsertResolvedRestaurant } from '@/lib/services/restaurants'
+import { fetchIsFollowing, fetchUserIdByUsername } from '@/lib/services/users'
 import { navigateToRestaurantFromPost } from '@/lib/utils/restaurantNavigation'
 import { PostActionsBar } from './PostActionsBar'
 import { PostComments } from './PostComments'
@@ -62,8 +56,10 @@ export default function PostDetailScreen() {
   const { posts } = usePosts()
   const { requireAuth } = useAuthGate()
   const { user } = useAuth()
+  const { runDeferredMutation, requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const isFocused = useIsFocused()
 
   const { resolvedPost, fetchingPost } = useResolvedPost(posts, resolvedPostId)
 
@@ -164,7 +160,8 @@ export default function PostDetailScreen() {
     setLiked(!wasLiked)
     setLikeCount(c => (wasLiked ? c - 1 : c + 1))
     try {
-      await togglePostLike(resolvedPost.dbId, user.id, !wasLiked)
+      await runDeferredMutation({ kind: 'post_like', postId: resolvedPost.dbId, targetState: !wasLiked })
+      void haptic.confirmLike()
     } catch {
       setLiked(wasLiked)
       setLikeCount(c => (wasLiked ? c + 1 : c - 1))
@@ -187,11 +184,12 @@ export default function PostDetailScreen() {
           setConfirmCollectionUnsave(true)
           return
         }
-        await unsaveTarget('post', resolvedPost.dbId, false)
+        await runDeferredMutation({ kind: 'post_save', postId: resolvedPost.dbId, targetState: false })
         setSaved(false)
       } else {
         setSaved(true)
-        await togglePostSave(resolvedPost.dbId, user.id, true)
+        await runDeferredMutation({ kind: 'post_save', postId: resolvedPost.dbId, targetState: true })
+        void haptic.confirmSave()
         setSaveSheet(true)
       }
     } catch {
@@ -207,6 +205,7 @@ export default function PostDetailScreen() {
   async function resolveAndSaveLocation(restaurantId?: string): Promise<string | null> {
     if (restaurantId) return restaurantId
     if (!resolvedPost?.location) return null
+    if (!requireOnline()) return null
     const resolved = await geocodeLocation(resolvedPost.location)
     if (!resolved) return null
     return upsertResolvedRestaurant(resolved)
@@ -228,7 +227,7 @@ export default function PostDetailScreen() {
     }
     if (wasLocationSaved) {
       try {
-        await unsaveLocation(user.id, restaurantId)
+        await runDeferredMutation({ kind: 'place_save', restaurantId, targetState: false })
       } catch {
         setLocationSaved(wasLocationSaved)
         setOperationError({
@@ -238,7 +237,8 @@ export default function PostDetailScreen() {
       }
     } else {
       try {
-        await saveLocation(user.id, restaurantId)
+        await runDeferredMutation({ kind: 'place_save', restaurantId, targetState: true })
+        void haptic.confirmSave()
       } catch {
         setLocationSaved(wasLocationSaved)
         setOperationError({
@@ -257,9 +257,8 @@ export default function PostDetailScreen() {
     setOperationError(null)
     setFollowing(!wasFollowing)
     try {
-      if (wasFollowing) await unfollowUser(user.id, creatorUserId)
-      else {
-        await followUser(user.id, creatorUserId)
+      await runDeferredMutation({ kind: 'follow', targetUserId: creatorUserId, targetState: !wasFollowing })
+      if (!wasFollowing) {
         analytics.follow(user.id, creatorUserId)
       }
     } catch {
@@ -316,11 +315,9 @@ export default function PostDetailScreen() {
     setMyReactions(prev => isOn ? prev.filter(r => r !== type) : [...prev, type])
     setReactionCounts(prev => ({ ...prev, [type]: Math.max(0, (prev[type] ?? 0) + (isOn ? -1 : 1)) }))
     try {
-      if (isOn) {
-        await removePostReaction(resolvedPost.dbId, user.id, type)
-      } else {
-        await addPostReaction(resolvedPost.dbId, user.id, type)
-      }
+      if (!requireOnline()) throw new Error('offline')
+      if (isOn) await removePostReaction(resolvedPost.dbId, user.id, type)
+      else await addPostReaction(resolvedPost.dbId, user.id, type)
     } catch {
       setMyReactions(previousReactions)
       setReactionCounts(previousCounts)
@@ -334,6 +331,10 @@ export default function PostDetailScreen() {
 
   async function submitComment() {
     if (!comment.trim() || !resolvedPost?.dbId || !user || submitting) return
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to post your comment. Your text is still here.' })
+      return
+    }
     setSubmitting(true)
     setOperationError(null)
     const text = comment.trim()
@@ -424,7 +425,7 @@ export default function PostDetailScreen() {
           />
         }
       >
-        <PostMediaCarousel post={resolvedPost} />
+        <PostMediaCarousel post={resolvedPost} autoplayActive={isFocused} />
 
         <PostActionsBar
           liked={liked}
@@ -499,6 +500,13 @@ export default function PostDetailScreen() {
         onDismissDeleteConfirm={() => setDeleteConfirmVisible(false)}
         onDeleteConfirm={async () => {
           if (!resolvedPost.dbId) return
+          if (!requireOnline()) {
+            setOperationError({
+              title: 'You are offline',
+              message: 'Reconnect to delete this post.',
+            })
+            return
+          }
           try {
             await deletePost(resolvedPost.dbId)
             router.replace('/(tabs)/feed')
@@ -557,7 +565,7 @@ export default function PostDetailScreen() {
         onDismissConfirmUnsave={() => setConfirmCollectionUnsave(false)}
         onConfirmUnsave={() => {
           if (!resolvedPost.dbId) return
-          void unsaveTarget('post', resolvedPost.dbId, true).then(() => {
+          void runDeferredMutation({ kind: 'post_save', postId: resolvedPost.dbId, targetState: false, removeCollectionMemberships: true }).then(() => {
             setSaved(false)
           }).catch(() => setOperationError({
             title: 'Could not remove saved post',

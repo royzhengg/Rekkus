@@ -2,11 +2,13 @@ import { useRouter } from 'expo-router'
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { Text, View, StyleSheet } from 'react-native'
 import { EditIcon, PlusIcon } from '@/components/icons'
+import { fontSize, fontWeight } from '@/constants/Typography'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { routes } from '@/lib/routes'
 import { listCreatePostDraftSummaries } from '@/lib/services/postDrafts'
 
 type CreateLauncherContextValue = {
@@ -27,10 +29,7 @@ export function CreateLauncherProvider({ children }: { children: React.ReactNode
   const [loading, setLoading] = useState(false)
 
   const openBlankCreate = useCallback(() => {
-    router.push({
-      pathname: '/(tabs)/create',
-      params: { intent: 'new', nonce: String(Date.now()) },
-    } as never)
+    router.push(routes.createPost({ intent: 'new', nonce: String(Date.now()) }))
   }, [router])
 
   const openCreateLauncher = useCallback(() => {
@@ -92,7 +91,7 @@ export function CreateLauncherProvider({ children }: { children: React.ReactNode
           if (!user?.id) return
           analytics.createLauncher(user.id, value === 'new' ? 'new_post' : 'edit_draft')
           if (value === 'new') openBlankCreate()
-          if (value === 'drafts') router.push('/create/drafts')
+          if (value === 'drafts') router.push(routes.createDrafts())
         }}
       />
     </CreateLauncherContext.Provider>
@@ -110,9 +109,9 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingBottom: 8,
     },
     headerTitle: {
-      fontSize: 13,
+      fontSize: fontSize.base,
       color: c.text2,
-      fontWeight: '500',
+      fontWeight: fontWeight.medium,
     },
   })
 }

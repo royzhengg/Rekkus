@@ -4,6 +4,7 @@ import { Modal, Text, TouchableOpacity, View } from 'react-native'
 import { BookmarkIcon } from '@/components/icons'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import type { ColorTokens } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { routes } from '@/lib/routes'
 import type { makeStyles } from './RestaurantDetailScreen.styles'
 import type { PlaceDetail, PostSort } from './restaurantTypes'
@@ -60,10 +61,11 @@ export function RestaurantDetailSheets({
   setNotice,
 }: Props) {
   const router = useRouter()
+  const reduceMotion = useReducedMotion()
 
   return (
     <>
-      <Modal visible={saveSheet} transparent animationType="fade" onRequestClose={() => setSaveSheet(false)}>
+      <Modal visible={saveSheet} transparent animationType={reduceMotion ? 'none' : 'fade'} onRequestClose={() => setSaveSheet(false)}>
         <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setSaveSheet(false)} />
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
@@ -79,10 +81,11 @@ export function RestaurantDetailSheets({
               router.push(routes.saved('places'))
             }}
             activeOpacity={0.8}
+            accessibilityRole="button"
           >
             <Text style={styles.sheetBtnPrimaryText}>View saved places</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.sheetBtnSecondary} onPress={() => setSaveSheet(false)} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.sheetBtnSecondary} onPress={() => setSaveSheet(false)} activeOpacity={0.8} accessibilityRole="button">
             <Text style={styles.sheetBtnSecondaryText}>Stay here</Text>
           </TouchableOpacity>
         </View>

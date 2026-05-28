@@ -16,11 +16,13 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { getCurrentUser, reauthenticate, updatePassword } from '@/lib/services/auth'
 import { hasCurrentPassword, isValidPassword, passwordMinLengthMessage, passwordsMatch as doPasswordsMatch } from '@/lib/utils/validation'
 
 export default function ChangePasswordScreen() {
   const router = useRouter()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [currentPassword, setCurrentPassword] = useState('')
@@ -37,6 +39,10 @@ export default function ChangePasswordScreen() {
 
   async function handleSave() {
     setError(null)
+    if (!requireOnline()) {
+      setError('Reconnect to change your password.')
+      return
+    }
     setLoading(true)
     let user
     try {
@@ -100,6 +106,9 @@ export default function ChangePasswordScreen() {
               placeholder="Current password"
               placeholderTextColor={colors.text3}
               secureTextEntry={!showCurrent}
+              textContentType="password"
+              autoComplete="current-password"
+              returnKeyType="next"
             />
             <TouchableOpacity
               onPress={() => setShowCurrent(v => !v)}
@@ -122,6 +131,9 @@ export default function ChangePasswordScreen() {
               placeholder={passwordMinLengthMessage()}
               placeholderTextColor={colors.text3}
               secureTextEntry={!showNew}
+              textContentType="newPassword"
+              autoComplete="new-password"
+              returnKeyType="next"
             />
             <TouchableOpacity
               onPress={() => setShowNew(v => !v)}
@@ -149,6 +161,9 @@ export default function ChangePasswordScreen() {
               placeholder="Confirm new password"
               placeholderTextColor={colors.text3}
               secureTextEntry={!showConfirm}
+              textContentType="newPassword"
+              autoComplete="new-password"
+              returnKeyType="done"
             />
             <TouchableOpacity
               onPress={() => setShowConfirm(v => !v)}
@@ -169,6 +184,7 @@ export default function ChangePasswordScreen() {
           onPress={handleSave}
           disabled={!canSave || loading}
           activeOpacity={0.85}
+          accessibilityRole="button"
         >
           {loading ? (
             <ActivityIndicator size="small" color={colors.bg} />

@@ -12,6 +12,7 @@ import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { usePosts } from '@/lib/contexts/PostsContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { demoUsers } from '@/lib/dataSources/demoData'
@@ -23,8 +24,6 @@ import { blockUser, submitContentReport } from '@/lib/services/moderation'
 import {
   fetchUserIdByUsername,
   fetchIsFollowing,
-  followUser,
-  unfollowUser,
   fetchFollowCounts,
 } from '@/lib/services/users'
 import { contributorBadgeLabel } from '@/lib/utils/contributorStatus'
@@ -35,6 +34,7 @@ export default function UserProfileScreen() {
   const router = useRouter()
   const { user } = useAuth()
   const { requireAuth } = useAuthGate()
+  const { runDeferredMutation, requireOnline } = useConnectivity()
   const { posts } = usePosts()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
@@ -106,13 +106,11 @@ export default function UserProfileScreen() {
     setOperationError(null)
     setFollowing(next)
     try {
-      if (next) {
-        await followUser(user.id, targetUserId)
-      } else {
-        await unfollowUser(user.id, targetUserId)
+      const result = await runDeferredMutation({ kind: 'follow', targetUserId, targetState: next })
+      if (!result.queued) {
+        const counts = await fetchFollowCounts(targetUserId)
+        setFollowCounts(counts)
       }
-      const counts = await fetchFollowCounts(targetUserId)
-      setFollowCounts(counts)
     } catch {
       setFollowing(previous)
       setOperationError({ title: 'Could not update follow', message: 'Check your connection and try again.' })
@@ -126,6 +124,10 @@ export default function UserProfileScreen() {
     }
     if (!targetUserId) {
       setOperationError({ title: 'Not available', message: 'We could not find this user right now.' })
+      return
+    }
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to report or block this account.' })
       return
     }
     if (value === 'report_user') {
@@ -154,6 +156,10 @@ export default function UserProfileScreen() {
     }
     if (!targetUserId) {
       setOperationError({ title: 'Not available', message: 'We could not find this user right now.' })
+      return
+    }
+    if (!requireOnline()) {
+      setOperationError({ title: 'You are offline', message: 'Reconnect to start a conversation.' })
       return
     }
     if (!isEnabled('directMessages')) {
@@ -225,18 +231,20 @@ export default function UserProfileScreen() {
             style={[styles.followBtn, following && styles.followBtnActive]}
             onPress={handleFollow}
             activeOpacity={0.8}
+            accessibilityRole="button"
           >
             <Text style={[styles.followBtnText, following && styles.followBtnTextActive]}>
               {following ? 'Following' : 'Follow'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.messageBtn} activeOpacity={0.8} onPress={handleMessage}>
+          <TouchableOpacity style={styles.messageBtn} activeOpacity={0.8} onPress={handleMessage} accessibilityRole="button">
             <Text style={styles.messageBtnText}>{startingMessage ? 'Opening...' : 'Message'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.messageBtn}
             activeOpacity={0.8}
             onPress={() => requireAuth(() => setSafetySheet(true))}
+            accessibilityRole="button"
           >
             <Text style={styles.messageBtnText}>Report</Text>
           </TouchableOpacity>

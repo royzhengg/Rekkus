@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { View } from 'react-native'
 import Animated, {
+  cancelAnimation,
   useSharedValue,
   useAnimatedStyle,
   withDelay,
@@ -11,13 +12,24 @@ import Animated, {
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import type { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 
 export function TypingDots({ colors }: { colors: ReturnType<typeof useThemeColors> }) {
+  const reduceMotion = useReducedMotion()
   const dot1 = useSharedValue(0)
   const dot2 = useSharedValue(0)
   const dot3 = useSharedValue(0)
 
   useEffect(() => {
+    if (reduceMotion) {
+      cancelAnimation(dot1)
+      cancelAnimation(dot2)
+      cancelAnimation(dot3)
+      dot1.value = 0
+      dot2.value = 0
+      dot3.value = 0
+      return
+    }
     const bounce = (sv: typeof dot1, delay: number) => {
       sv.value = withDelay(
         delay,
@@ -34,7 +46,12 @@ export function TypingDots({ colors }: { colors: ReturnType<typeof useThemeColor
     bounce(dot1, 0)
     bounce(dot2, 130)
     bounce(dot3, 260)
-  }, [dot1, dot2, dot3])
+    return () => {
+      cancelAnimation(dot1)
+      cancelAnimation(dot2)
+      cancelAnimation(dot3)
+    }
+  }, [dot1, dot2, dot3, reduceMotion])
 
   const s1 = useAnimatedStyle(() => ({ transform: [{ translateY: dot1.value }] }))
   const s2 = useAnimatedStyle(() => ({ transform: [{ translateY: dot2.value }] }))

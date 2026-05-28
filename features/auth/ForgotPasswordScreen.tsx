@@ -17,11 +17,13 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export default function ForgotPasswordScreen() {
   const router = useRouter()
   const { resetPasswordForEmail } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
@@ -35,6 +37,10 @@ export default function ForgotPasswordScreen() {
   async function handleSend() {
     if (!canSubmit || loading) return
     setError('')
+    if (!requireOnline()) {
+      setError('Reconnect to request a reset link.')
+      return
+    }
     setLoading(true)
     const err = await resetPasswordForEmail(email.trim())
     setLoading(false)
@@ -68,7 +74,7 @@ export default function ForgotPasswordScreen() {
                 <Text style={styles.emailHighlight}>{email.trim()}</Text>. Tap the link in the
                 email to set a new password.
               </Text>
-              <TouchableOpacity style={styles.primaryBtn} onPress={() => router.back()}>
+              <TouchableOpacity style={styles.primaryBtn} onPress={() => router.back()} accessibilityRole="button">
                 <Text style={styles.primaryBtnText}>Back to sign in</Text>
               </TouchableOpacity>
             </>
@@ -93,12 +99,15 @@ export default function ForgotPasswordScreen() {
                 autoCorrect={false}
                 returnKeyType="send"
                 onSubmitEditing={handleSend}
+                textContentType="emailAddress"
+                autoComplete="email"
               />
 
               <TouchableOpacity
                 style={[styles.primaryBtn, !canSubmit && styles.primaryBtnDisabled]}
                 onPress={handleSend}
                 disabled={!canSubmit || loading}
+                accessibilityRole="button"
               >
                 {loading ? (
                   <ActivityIndicator color={colors.bg} />

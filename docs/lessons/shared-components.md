@@ -1,5 +1,9 @@
 # Lessons: Shared Components
 
+## Service-owning shared components become architecture hotspots
+
+Reusable UI components should not own provider calls, entity upserts, or search orchestration. `components/post-create/StepMedia.tsx` grew around those mixed responsibilities; future work should extract async/provider ownership into hooks and services before extending the component.
+
 ## Never re-implement UI that already exists in components/
 
 Before writing any icon, badge, rating display, or profile block — check `components/` first.
@@ -83,6 +87,10 @@ import { PostCardSkeleton } from '@/components/post/PostCardSkeleton'
 ```
 
 Four skeletons fill a typical iPhone viewport (~880px) without leaving blank space below the fold.
+
+## Content-shaped lists use skeleton rows while loading
+
+For message, contact, or similar list screens, render several skeleton rows that resemble the eventual content. Do not introduce centered `ActivityIndicator` placeholders for list content; keep spinners for actions and pagination only.
 
 ## Failed upload UX requires explicit recovery
 

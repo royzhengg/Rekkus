@@ -21,12 +21,15 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { DARK_MAP_STYLE } from '@/constants/mapStyles'
 import { analytics } from '@/lib/analytics'
+import { SPRING_CARD } from '@/lib/animations'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors, useIsDarkMode } from '@/lib/contexts/ThemeContext'
 import { useCollections } from '@/lib/hooks/useCollections'
 import { usePostVisitPrompt } from '@/lib/hooks/usePostVisitPrompt'
 import { useSavedLocations, type SavedLocation } from '@/lib/hooks/useSavedLocations'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { routes } from '@/lib/routes'
 import { updateSavedLocationStatus } from '@/lib/services/collections'
 import {
@@ -42,7 +45,6 @@ type PlaceFilter =
   | { type: 'all'; id: 'all'; label: string }
   | { type: 'status'; id: 'want_to_try' | 'been_here'; label: string }
   | { type: 'collection'; id: string; label: string }
-
 function groupAlpha(locations: SavedLocation[]): { letter: string; items: SavedLocation[] }[] {
   const sorted = [...locations].sort((a, b) =>
     (a.restaurants?.name ?? '').localeCompare(b.restaurants?.name ?? '')
@@ -58,7 +60,6 @@ function groupAlpha(locations: SavedLocation[]): { letter: string; items: SavedL
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([letter, items]) => ({ letter, items }))
 }
-
 const LocationRow = React.memo(function LocationRow({
   loc,
   onPress,
@@ -83,11 +84,12 @@ const LocationRow = React.memo(function LocationRow({
     </TouchableOpacity>
   )
 })
-
 export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => void }) {
   const router = useRouter()
   const { user } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
+  const reduceMotion = useReducedMotion()
   const isDark = useIsDarkMode()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const { savedLocations, error, refresh, refreshing } = useSavedLocations(user?.id)
@@ -101,8 +103,7 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
   const gps = userLocation.coords
   const visitPrompt = usePostVisitPrompt(savedLocations, gps)
   const [dismissedPromptId, setDismissedPromptId] = useState<string | null>(null)
-  const activePrompt =
-    visitPrompt && visitPrompt.restaurant_id !== dismissedPromptId ? visitPrompt : null
+  const activePrompt = visitPrompt && visitPrompt.restaurant_id !== dismissedPromptId ? visitPrompt : null
   const [placesView, setPlacesView] = useState<'list' | 'map'>('list')
   const [sortBy, setSortBy] = useState<'alpha' | 'recent' | 'oldest'>('alpha')
   const [activeFilter, setActiveFilter] = useState<PlaceFilter>({
@@ -198,9 +199,9 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
         latitudeDelta: 0.08,
         longitudeDelta: 0.08,
       },
-      600
+      reduceMotion ? 0 : 600
     )
-  }, [gps])
+  }, [gps, reduceMotion])
 
   const zoom = useCallback((direction: 'in' | 'out') => {
     const factor = direction === 'in' ? 0.5 : 2
@@ -215,15 +216,17 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
         latitudeDelta: deltaRef.current,
         longitudeDelta: deltaRef.current,
       },
-      300
+      reduceMotion ? 0 : 300
     )
-  }, [])
+  }, [reduceMotion])
 
   const slideY = useSharedValue(300)
 
   useEffect(() => {
-    slideY.value = withSpring(selectedLocation ? 0 : 300, { damping: 20, stiffness: 180 })
-  }, [selectedLocation, slideY])
+    slideY.value = reduceMotion
+      ? (selectedLocation ? 0 : 300)
+      : withSpring(selectedLocation ? 0 : 300, SPRING_CARD)
+  }, [reduceMotion, selectedLocation, slideY])
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: slideY.value }],
@@ -271,16 +274,20 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
       (selectedLocation.save_status ?? 'want_to_try') === 'been_here'
         ? 'want_to_try'
         : 'been_here'
-    const err = await updateSavedLocationStatus(selectedLocation.id, next)
-    if (!err) {
+    if (!requireOnline()) return
+    try {
+      const error = await updateSavedLocationStatus(selectedLocation.id, next)
+      if (error) throw new Error(error)
       setSelectedLocation({ ...selectedLocation, save_status: next })
       analytics.collectionInteraction(user?.id ?? null, 'saved_location_status_changed', undefined, {
         status: next,
         restaurant_id: selectedLocation.restaurant_id,
       })
       void refreshAll()
+    } catch {
+      // Silently ignore — status can be retried; offline guard above prevents silent data loss
     }
-  }, [refreshAll, selectedLocation, user?.id])
+  }, [refreshAll, requireOnline, selectedLocation, user?.id])
 
   const navigateTo = useCallback(
     (loc: SavedLocation) => { navigateToRestaurant(router, loc) },
@@ -337,6 +344,8 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
             <TouchableOpacity
               style={[styles.toggleBtn, placesView === 'list' && styles.toggleBtnActive]}
               onPress={() => setPlacesView('list')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: placesView === 'list' }}
             >
               <Text style={[styles.toggleText, placesView === 'list' && styles.toggleTextActive]}>
                 List
@@ -348,6 +357,8 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
                 setPlacesView('map')
                 setSelectedLocation(null)
               }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: placesView === 'map' }}
             >
               <Text style={[styles.toggleText, placesView === 'map' && styles.toggleTextActive]}>
                 Map
@@ -415,6 +426,7 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
                 {activePrompt && (
                   <TouchableOpacity
                     style={styles.visitBanner}
+                    accessibilityRole="button"
                     onPress={() =>
                       router.push(routes.createPost({
                         prefillName: activePrompt.restaurants?.name ?? '',
@@ -437,6 +449,8 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
                       style={styles.visitBannerClose}
                       onPress={() => setDismissedPromptId(activePrompt.restaurant_id)}
                       hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Dismiss"
                     >
                       <Text style={styles.visitBannerCloseText}>✕</Text>
                     </TouchableOpacity>
@@ -525,7 +539,7 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
                       latitudeDelta: currentRegionRef.current.latitudeDelta,
                       longitudeDelta: currentRegionRef.current.longitudeDelta,
                     },
-                    400
+                    reduceMotion ? 0 : 400
                   )
                 }}
                 activeOpacity={0.8}
@@ -542,6 +556,8 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
                   style={styles.zoomBtn}
                   onPress={() => zoom('in')}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Zoom in"
                 >
                   <Text style={styles.zoomBtnText}>+</Text>
                 </TouchableOpacity>
@@ -550,6 +566,8 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
                   style={styles.zoomBtn}
                   onPress={() => zoom('out')}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Zoom out"
                 >
                   <Text style={styles.zoomBtnText}>−</Text>
                 </TouchableOpacity>

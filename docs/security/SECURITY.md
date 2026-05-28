@@ -25,6 +25,7 @@ This document tracks Rekkus security controls, risks, and ISO 27001-readiness. I
 | `feature_flag_audit_events` | Compliance evidence | Runtime flag override mutations; fail-closed database trigger; service-role only |
 | `platform_audit_events_view` | Unified compliance read surface | UNION ALL over all domain audit tables; query via service-role for incident investigation and compliance evidence |
 | Direct message body and attachments | User-private | Accessible only to conversation participants via RLS; body nulled on user delete |
+| Device-local pending intents (`rekkus:pending-mutations:v1`) | User-private/transient | Phase 1 scope: save/like/follow/setting. Contains only user IDs, entity IDs, target states, and timestamps. No authored text, media URLs, captions, message bodies, or report details. Entries expire after 7 days (TTL) or 5 retry failures. Cleared on sign-out via `clearDeferredMutationsForUser`. Queue is capped at 50 entries. |
 | Message audit rows (deleted_at, sender_id, conversation_id) | Compliance evidence | Retained after body is nulled; participant-only RLS |
 | Supabase service role, SMTP/Resend secrets | Secret | Backend/Supabase only |
 | Google Maps/Places client keys | Public client keys | Must be provider-restricted |
@@ -51,6 +52,7 @@ This document tracks Rekkus security controls, risks, and ISO 27001-readiness. I
 - All domain audit tables are unified under `platform_audit_events_view` (ADR 0011). The `check:audit` guardrail enforces that every `*_audit_events` table is present in the view.
 - New data/provider features must pass the compliance, data inventory, RLS, audit, provider, privacy, and ISO checks before release.
 - Saved-library writes use owner-scoped rows. Collection adds atomically establish the target bookmark; confirmed unsave removes owned memberships and the bookmark together so private intent does not drift.
+- Offline write recovery persists only strictly validated reversible desired-state intents in `AsyncStorage`. Authored posts/comments/messages, safety reports/blocks, profile/auth/account writes, collection creation/sharing/deletion, and publishing require explicit retry while online.
 - Public beta requires a monitored vulnerability disclosure path with scope, expected response time, and escalation to incident handling.
 
 ## Auth And Email Cooldowns

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchTargetCollectionItems, unsaveTarget, type CollectionItem } from '@/lib/services/collections'
-import { fetchDishDetail, fetchIsDishSaved, saveDish } from '@/lib/services/dishes'
+import { fetchTargetCollectionItems, type CollectionItem } from '@/lib/services/collections'
+import { fetchDishDetail, fetchIsDishSaved } from '@/lib/services/dishes'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { fetchDishPostsPage, mapRowToPost } from '@/lib/services/posts'
 import type { DishDetail, Post } from '@/types/domain'
 
 export function useDishDetail(dishId: string, userId: string | undefined) {
+  const { runDeferredMutation } = useConnectivity()
   const [dish, setDish] = useState<DishDetail | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
   const [saved, setSaved] = useState(false)
@@ -67,14 +69,14 @@ export function useDishDetail(dishId: string, userId: string | undefined) {
   const toggleSaved = useCallback(async (removeCollectionMemberships = false) => {
     if (!userId) return
     if (saved) {
-      await unsaveTarget('dish', dishId, removeCollectionMemberships)
+      await runDeferredMutation({ kind: 'dish_save', dishId, targetState: false, removeCollectionMemberships })
       setSaved(false)
       if (removeCollectionMemberships) setCollectionItems([])
       return
     }
-    await saveDish(userId, dishId)
+    await runDeferredMutation({ kind: 'dish_save', dishId, targetState: true })
     setSaved(true)
-  }, [dishId, saved, userId])
+  }, [dishId, runDeferredMutation, saved, userId])
 
   return {
     dish,

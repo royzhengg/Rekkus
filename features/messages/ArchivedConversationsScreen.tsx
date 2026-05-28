@@ -16,6 +16,7 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { routes } from '@/lib/routes'
 import {
@@ -67,6 +68,7 @@ function richPreview(item: ConversationSummary): string {
 export default function ArchivedConversationsScreen() {
   const router = useRouter()
   const { user } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
@@ -96,10 +98,15 @@ export default function ArchivedConversationsScreen() {
   const handleUnarchive = useCallback(
     async (conversationId: string) => {
       if (!user) return
-      await unarchiveConversation(conversationId, user.id)
-      setConversations(prev => prev.filter(item => item.id !== conversationId))
+      if (!requireOnline()) return
+      try {
+        await unarchiveConversation(conversationId, user.id)
+        setConversations(prev => prev.filter(item => item.id !== conversationId))
+      } catch {
+        // Silently ignore — user can retry by pulling to refresh
+      }
     },
-    [user]
+    [requireOnline, user]
   )
 
   function renderItem({ item }: { item: ConversationSummary }) {
@@ -143,6 +150,7 @@ export default function ArchivedConversationsScreen() {
           style={styles.unarchiveBtn}
           onPress={() => handleUnarchive(item.id)}
           activeOpacity={0.8}
+          accessibilityRole="button"
         >
           <Text style={styles.unarchiveText}>Unarchive</Text>
         </TouchableOpacity>

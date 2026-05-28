@@ -10,7 +10,6 @@ import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { DUR_FAST, DUR_MID, SPRING_SNAPPY } from '@/lib/animations'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { haptic } from '@/lib/haptics'
 import { usePressScale } from '@/lib/hooks/usePressScale'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import type { Post } from '@/types/domain'
@@ -25,9 +24,10 @@ type Props = {
   onPressTag?: ((tag: string) => void) | undefined
   onDoubleTapLike?: (() => void) | undefined
   onLongPressPost?: (() => void) | undefined
+  autoplayActive?: boolean | undefined
 }
 
-export function PostCard({ post, compact, onPressPost, onPressCreator, onPressTag, onDoubleTapLike, onLongPressPost }: Props) {
+export function PostCard({ post, compact, onPressPost, onPressCreator, onPressTag, onDoubleTapLike, onLongPressPost, autoplayActive = false }: Props) {
   const c = useThemeColors()
   const styles = useMemo(() => makeStyles(c), [c])
   const press = usePressScale()
@@ -48,7 +48,7 @@ export function PostCard({ post, compact, onPressPost, onPressCreator, onPressTa
       if (delta < DOUBLE_TAP_MS) {
         lastTapMs.current = 0
         onDoubleTapLike()
-        void haptic.light()
+        if (reduceMotion) return
         heartOpacity.value = 1
         heartScale.value = 0.3
         heartScale.value = withSpring(1.2, SPRING_SNAPPY, () => {
@@ -76,7 +76,7 @@ export function PostCard({ post, compact, onPressPost, onPressCreator, onPressTa
         delayLongPress={380}
       >
       <View style={styles.mediaWrap}>
-        <PostMediaCarousel post={post} compact={compact} height={compact ? 188 : undefined} />
+        <PostMediaCarousel post={post} compact={compact} height={compact ? 188 : undefined} autoplayActive={autoplayActive} />
         {onDoubleTapLike != null && (
           <Animated.View style={[styles.heartOverlay, heartStyle]} pointerEvents="none">
             <HeartIcon filled size={80} />
@@ -88,6 +88,8 @@ export function PostCard({ post, compact, onPressPost, onPressCreator, onPressTa
           style={styles.creatorRow}
           onPress={() => onPressCreator(post.creator)}
           activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel={`View @${post.creator}'s profile`}
         >
           <Avatar initials={post.initials} bg={post.avatarBg} color={post.avatarColor} size={24} />
           <View style={styles.creatorCopy}>

@@ -9,15 +9,16 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Animated,
   PanResponder,
   type GestureResponderEvent,
 } from 'react-native'
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { CloseIcon } from '@/components/icons'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import type { DishTag } from '@/types/domain'
 
 interface Props {
@@ -40,8 +41,8 @@ type ChipProps = {
 }
 
 function DraggableChip({ tag, absoluteIndex, size, editable, onRemove, onMove, styles }: ChipProps) {
-  const offsetX = useRef(new Animated.Value(0)).current
-  const offsetY = useRef(new Animated.Value(0)).current
+  const offsetX = useSharedValue(0)
+  const offsetY = useSharedValue(0)
   const stateRef = useRef({ tag, absoluteIndex, size, editable, onRemove, onMove })
   stateRef.current = { tag, absoluteIndex, size, editable, onRemove, onMove }
 
@@ -51,12 +52,12 @@ function DraggableChip({ tag, absoluteIndex, size, editable, onRemove, onMove, s
       onMoveShouldSetPanResponder: (_, gs) =>
         !!stateRef.current.editable && (Math.abs(gs.dx) > 3 || Math.abs(gs.dy) > 3),
       onPanResponderGrant: () => {
-        offsetX.setValue(0)
-        offsetY.setValue(0)
+        offsetX.value = 0
+        offsetY.value = 0
       },
       onPanResponderMove: (_, gs) => {
-        offsetX.setValue(gs.dx)
-        offsetY.setValue(gs.dy)
+        offsetX.value = gs.dx
+        offsetY.value = gs.dy
       },
       onPanResponderRelease: (_, gs) => {
         const { tag: t, absoluteIndex: ai, size: s, onMove: mv } = stateRef.current
@@ -64,8 +65,8 @@ function DraggableChip({ tag, absoluteIndex, size, editable, onRemove, onMove, s
         const baseY = t.y * s.height
         const newX = Math.max(0.02, Math.min(0.96, (baseX + gs.dx) / s.width))
         const newY = Math.max(0.02, Math.min(0.96, (baseY + gs.dy) / s.height))
-        offsetX.setValue(0)
-        offsetY.setValue(0)
+        offsetX.value = 0
+        offsetY.value = 0
         mv(ai, newX, newY)
       },
     })
@@ -73,6 +74,9 @@ function DraggableChip({ tag, absoluteIndex, size, editable, onRemove, onMove, s
 
   const baseX = tag.x * size.width
   const baseY = tag.y * size.height
+  const positionStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: offsetX.value }, { translateY: offsetY.value }],
+  }))
 
   return (
     <Animated.View
@@ -82,8 +86,8 @@ function DraggableChip({ tag, absoluteIndex, size, editable, onRemove, onMove, s
         {
           left: baseX - 4,
           top: baseY - 10,
-          transform: [{ translateX: offsetX }, { translateY: offsetY }],
         },
+        positionStyle,
       ]}
     >
       <View style={styles.chipDot} />
@@ -113,6 +117,7 @@ export default function DishTagOverlay({
   editable,
 }: Props) {
   const c = useThemeColors()
+  const reduceMotion = useReducedMotion()
   const styles = useMemo(() => makeStyles(c), [c])
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [pending, setPending] = useState<{ x: number; y: number } | null>(null)
@@ -164,10 +169,10 @@ export default function DishTagOverlay({
       <Modal
         visible={!!pending}
         transparent
-        animationType="fade"
+        animationType={reduceMotion ? 'none' : 'fade'}
         onRequestClose={() => setPending(null)}
       >
-        <Pressable style={styles.backdrop} onPress={() => setPending(null)} />
+        <Pressable style={styles.backdrop} onPress={() => setPending(null)} accessibilityRole="button" accessibilityLabel="Close tag sheet" />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'position' : undefined}
           style={styles.sheetWrap}
@@ -187,13 +192,14 @@ export default function DishTagOverlay({
               maxLength={50}
             />
             <View style={styles.sheetActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setPending(null)}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setPending(null)} accessibilityRole="button">
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.addBtn, !nameInput.trim() && styles.addBtnDisabled]}
                 onPress={handleConfirm}
                 disabled={!nameInput.trim()}
+                accessibilityRole="button"
               >
                 <Text style={styles.addBtnText}>Add tag</Text>
               </TouchableOpacity>

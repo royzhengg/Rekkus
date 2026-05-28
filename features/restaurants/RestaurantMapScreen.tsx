@@ -21,7 +21,9 @@ import { DARK_MAP_STYLE } from '@/constants/mapStyles'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { SPRING_CARD } from '@/lib/animations'
 import { useThemeColors, useIsDarkMode } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { routeParamNumber, routeParamString } from '@/lib/utils/routeParams'
 
 export default function RestaurantMapScreen() {
@@ -58,6 +60,7 @@ export default function RestaurantMapScreen() {
   const colors = useThemeColors()
   const isDark = useIsDarkMode()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const reduceMotion = useReducedMotion()
 
   const displayName = routeParamString(name) ?? ''
   const displayPhone = routeParamString(phone) ?? ''
@@ -91,16 +94,18 @@ export default function RestaurantMapScreen() {
           latitudeDelta: deltaRef.current,
           longitudeDelta: deltaRef.current,
         },
-        300
+        reduceMotion ? 0 : 300
       )
     },
-    [parsedLat, parsedLng]
+    [parsedLat, parsedLng, reduceMotion]
   )
 
   const slideY = useSharedValue(300)
   useEffect(() => {
-    slideY.value = withSpring(cardVisible ? 0 : 300, { damping: 20, stiffness: 180 })
-  }, [cardVisible, slideY])
+    slideY.value = reduceMotion
+      ? (cardVisible ? 0 : 300)
+      : withSpring(cardVisible ? 0 : 300, SPRING_CARD)
+  }, [cardVisible, reduceMotion, slideY])
   const cardStyle = useAnimatedStyle(() => ({ transform: [{ translateY: slideY.value }] }))
 
   const openInMaps = useCallback(() => {
@@ -162,11 +167,11 @@ export default function RestaurantMapScreen() {
           </Marker>
         </MapView>
         <View style={styles.zoomControls}>
-          <TouchableOpacity style={styles.zoomBtn} onPress={() => zoom('in')} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.zoomBtn} onPress={() => zoom('in')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Zoom in">
             <Text style={styles.zoomBtnText}>+</Text>
           </TouchableOpacity>
           <View style={styles.zoomDivider} />
-          <TouchableOpacity style={styles.zoomBtn} onPress={() => zoom('out')} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.zoomBtn} onPress={() => zoom('out')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Zoom out">
             <Text style={styles.zoomBtnText}>−</Text>
           </TouchableOpacity>
         </View>
@@ -231,10 +236,10 @@ export default function RestaurantMapScreen() {
         )}
 
         <View style={styles.cardActions}>
-          <TouchableOpacity style={styles.cardBtnSecondary} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.cardBtnSecondary} onPress={() => router.back()} accessibilityRole="button">
             <Text style={styles.cardBtnSecondaryText}>View details</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cardBtnPrimary} onPress={openInMaps}>
+          <TouchableOpacity style={styles.cardBtnPrimary} onPress={openInMaps} accessibilityRole="button">
             <Text style={styles.cardBtnPrimaryText}>Open in Maps</Text>
           </TouchableOpacity>
         </View>

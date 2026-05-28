@@ -19,6 +19,7 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { routes } from '@/lib/routes'
 import { createGroupConversation } from '@/lib/services/messaging'
@@ -34,6 +35,7 @@ type Contact = {
 export default function CreateGroupScreen() {
   const router = useRouter()
   const { user } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
@@ -83,6 +85,10 @@ export default function CreateGroupScreen() {
       Alert.alert('Add members', 'A group needs at least 2 other members.')
       return
     }
+    if (!requireOnline()) {
+      setOperationError('Reconnect to create a group conversation.')
+      return
+    }
 
     setCreating(true)
     setOperationError(null)
@@ -103,7 +109,7 @@ export default function CreateGroupScreen() {
   function renderItem({ item }: { item: Contact }) {
     const isSelected = selected.has(item.user_id)
     return (
-      <TouchableOpacity style={styles.contactRow} onPress={() => toggleSelect(item.user_id)} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.contactRow} onPress={() => toggleSelect(item.user_id)} activeOpacity={0.7} accessibilityRole="button">
         <View style={styles.avatarContainer}>
           {item.avatar_url ? (
             <CachedImage source={{ uri: item.avatar_url }} style={styles.avatar} />
@@ -144,6 +150,7 @@ export default function CreateGroupScreen() {
           style={[styles.createBtn, (selected.size < 2 || !groupName.trim() || creating) && styles.createBtnDisabled]}
           onPress={handleCreate}
           disabled={selected.size < 2 || !groupName.trim() || creating}
+          accessibilityRole="button"
         >
           {creating
             ? <ActivityIndicator size="small" color={colors.bg} />

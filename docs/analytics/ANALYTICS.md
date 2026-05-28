@@ -80,6 +80,7 @@ Industry reference: Yelp, Google Maps, Xiaohongshu, and Zomato all use a two-tie
 | `onboarding_anomaly`               | null                           | null          | `{ step, reason }`                                                                                   | Login, signup, OAuth, or password reset fails/cools down |
 | `upload_failure`                   | null                           | null          | `{ surface, reason, rejected_count? }`                                                               | Media picker validation or avatar upload fails           |
 | `abuse_signal`                     | null                           | null          | `{ action, target_type, reason }`                                                                    | Report/block or moderation-adjacent user safety event    |
+| `offline_mutation_sync`            | null                           | null          | `{ mutation_kind, outcome }`                                                                         | Reversible intent queued, synced, or failed after reconnect |
 | `message_sent`                     | null                           | null          | `{ conversation_id, message_type, has_attachment, is_reply, is_group }` — never log body or recipient identity | User sends a message |
 | `message_deleted`                  | null                           | null          | `{ conversation_id, message_type }`                                                                  | User deletes a message (true erasure)                    |
 | `message_reacted`                  | null                           | null          | `{ conversation_id, emoji }`                                                                         | User reacts to a message                                 |
@@ -148,6 +149,20 @@ Events are **fire-and-forget** — tracked with `.then(() => {})` and never bloc
 | `lib/contexts/PostUploadContext.tsx`            | `post_upload_started`, `post_upload_progress`, `post_upload_failed`, `post_published`     | Background post publish queue                                   |
 | `features/settings/EditProfileScreen.tsx`       | `upload_failure`                                                                          | Avatar validation or storage upload fails                       |
 | `lib/services/moderation.ts`                    | `abuse_signal`                                                                            | User reports, blocks, or unblocks a target                      |
+| `lib/contexts/ConnectivityContext.tsx`          | `offline_mutation_sync`                                                                  | Reversible writes queue or replay without payload content       |
+
+### Offline mutation telemetry ban list
+
+`offline_mutation_sync` events must contain only: `userId` (anonymised per analytics config), `mutation_kind` (short enum string, e.g. `post_like`), and `outcome` (`queued` | `synced` | `sync_failed`). The following are explicitly banned from this event and from all offline-queue-related analytics:
+
+- Message body or any text authored by a user
+- Post captions, media URLs, or content metadata
+- Profile values (username, bio, display name)
+- Collection names
+- Report or moderation content
+- Any value longer than 100 characters
+
+These restrictions are enforced by the `sanitizeAnalyticsMetadata` allowlist in `lib/analytics.ts`. The `offlineMutation` call site in `ConnectivityContext` passes only enum-bounded string arguments.
 
 ---
 

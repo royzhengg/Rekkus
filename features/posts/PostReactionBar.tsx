@@ -12,7 +12,6 @@ import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { EMOJI_STAGGER_MS, SPRING_SNAPPY } from '@/lib/animations'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { haptic } from '@/lib/haptics'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import type { PostReactionType } from '@/lib/services/posts'
 
@@ -43,7 +42,6 @@ function ReactionButton({ type, emoji, label, index, active, count, onToggle, st
     if (!reduceMotion) {
       scale.value = withSequence(withSpring(1.22, SPRING_SNAPPY), withSpring(1, SPRING_SNAPPY))
     }
-    void haptic.medium()
     void onToggle(type)
   }
 

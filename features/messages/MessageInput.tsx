@@ -4,7 +4,6 @@ import * as Location from 'expo-location'
 import React, { useRef, useState, useMemo, forwardRef, useImperativeHandle } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Text,
@@ -36,7 +35,10 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize } from '@/constants/Typography'
 import { SPRING_SNAPPY, PRESS_SCALE_ICON } from '@/lib/animations'
+import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import type { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { isEnabled } from '@/lib/featureFlags'
 import { fetchGifs, hasGifProvider, type GifResult } from '@/lib/services/gifs'
 import { validatePickedMessageAttachment } from '@/lib/services/media'
@@ -50,7 +52,6 @@ import { makeMessageInputStyles } from './MessageInput.styles'
 export type MessageInputHandle = {
   focus: () => void
 }
-
 interface MessageInputProps {
   conversationId: string
   currentUserId: string
@@ -62,14 +63,13 @@ interface MessageInputProps {
   onTyping?: () => void
   colors: ReturnType<typeof useThemeColors>
 }
-
 export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(function MessageInput(
   { conversationId, currentUserId, replyingTo, onClearReply, onMessageSent, onScrollToEnd, onShowError, onTyping, colors },
   ref
 ) {
+  const { requireOnline } = useConnectivity()
   const inputRef = useRef<TextInput>(null)
   const styles = useMemo(() => makeMessageInputStyles(colors), [colors])
-
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [attachmentTrayOpen, setAttachmentTrayOpen] = useState(false)
@@ -82,18 +82,21 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
   const [savedPlacePickerVisible, setSavedPlacePickerVisible] = useState(false)
   const [savedPlaces, setSavedPlaces] = useState<SavedLocationWithRestaurant[]>([])
   const [loadingSavedPlaces, setLoadingSavedPlaces] = useState(false)
-
+  const { request: requestPermission, recoveryVisible, recoveryMessage, dismissRecovery, openSettings } = usePermissionRecovery()
+  const reduceMotion = useReducedMotion()
   const sendScale = useSharedValue(1)
   const sendAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: sendScale.value }],
   }))
-
   useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }))
-
   async function handleSend() {
     if (!conversationId || !currentUserId || sending) return
     const text = input.trim()
     if (!text) return
+    if (!requireOnline()) {
+      onShowError({ title: 'You are offline', message: 'Reconnect to send this message. Your text is still here.' })
+      return
+    }
     setAttachmentTrayOpen(false)
     setSending(true)
     setInput('')
@@ -110,14 +113,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
     }
     setSending(false)
   }
-
   async function handlePickMedia() {
     setAttachmentTrayOpen(false)
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
-      Alert.alert('Permission required', 'Enable photo library access in Settings.')
-      return
-    }
+    const permission = await requestPermission(
+      () => ImagePicker.requestMediaLibraryPermissionsAsync(),
+      'Photo library access is needed to share images. Enable it in Settings.'
+    )
+    if (!permission.granted) return
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
       quality: 0.8,
@@ -137,14 +139,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
     }
     await sendMedia(uri, mimeType, 'image')
   }
-
   async function handleCamera() {
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync()
-      if (status !== 'granted') {
-        Alert.alert('Permission required', 'Enable camera access in Settings.')
-        return
-      }
+      const permission = await requestPermission(
+        () => ImagePicker.requestCameraPermissionsAsync(),
+        'Camera access is needed to take a photo. Enable it in Settings.'
+      )
+      if (!permission.granted) return
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
       if (result.canceled || !result.assets[0]) return
       const { uri, mimeType, error } = validatePickedMessageAttachment(result.assets[0])
@@ -194,6 +195,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
 
   async function handleSelectGif(gif: GifResult) {
     if (!conversationId || !currentUserId) return
+    if (!requireOnline()) {
+      onShowError({ title: 'You are offline', message: 'Reconnect to send this GIF.' })
+      return
+    }
     setGifPickerVisible(false)
     setSending(true)
     const { message, error } = await sendRichMessage(
@@ -229,12 +234,16 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
   }
 
   async function doShareCurrentLocation() {
+    if (!requireOnline()) {
+      onShowError({ title: 'You are offline', message: 'Reconnect to share your location.' })
+      return
+    }
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync()
-      if (status !== 'granted') {
-        Alert.alert('Permission required', 'Enable location access in Settings.')
-        return
-      }
+      const permission = await requestPermission(
+        () => Location.requestForegroundPermissionsAsync(),
+        'Location access is needed to share your current position. Enable it in Settings.'
+      )
+      if (!permission.granted) return
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
       const { message, error } = await sendRichMessage(conversationId, currentUserId, 'location', null, null, {
         lat: loc.coords.latitude,
@@ -255,6 +264,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
   async function handleSavedPlaceSelect(place: SavedLocationWithRestaurant) {
     setSavedPlacePickerVisible(false)
     if (!place.restaurants) return
+    if (!requireOnline()) {
+      onShowError({ title: 'You are offline', message: 'Reconnect to share this place.' })
+      return
+    }
     const { name, address, latitude, longitude, google_place_id } = place.restaurants
     const { message, error } = await sendRichMessage(conversationId, currentUserId, 'place_share', null, null, {
       name,
@@ -273,6 +286,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
   }
 
   async function sendMedia(uri: string, mimeType: string, msgType: MessageType) {
+    if (!requireOnline()) {
+      onShowError({ title: 'You are offline', message: 'Reconnect to send this attachment.' })
+      return
+    }
     setAttachmentTrayOpen(false)
     setSending(true)
     try {
@@ -318,7 +335,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
     <>
       {/* Reply context bar */}
       {replyingTo ? (
-        <Animated.View entering={FadeInDown.duration(180)} style={styles.replyBar}>
+        <Animated.View entering={reduceMotion ? undefined : FadeInDown.duration(180)} style={styles.replyBar}>
           <View style={styles.replyBarAccent} />
           <View style={styles.replyBarContent}>
             <Text style={styles.replyBarLabel}>Replying to</Text>
@@ -339,7 +356,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
       {/* Input area */}
       <View style={styles.inputArea}>
         {attachmentTrayOpen ? (
-          <Animated.View entering={FadeInDown.duration(150)} style={styles.attachmentTray}>
+          <Animated.View entering={reduceMotion ? undefined : FadeInDown.duration(150)} style={styles.attachmentTray}>
             <TouchableOpacity style={styles.trayAction} onPress={handlePickMedia} activeOpacity={0.74}>
               <View style={styles.trayIconWrap}>
                 <GalleryIcon size={21} color={colors.accent} />
@@ -347,7 +364,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
               <Text style={styles.trayActionLabel}>Media</Text>
             </TouchableOpacity>
             {isEnabled('gifSearch') && (
-              <TouchableOpacity style={styles.trayAction} onPress={openGifPicker} activeOpacity={0.74}>
+              <TouchableOpacity style={styles.trayAction} onPress={openGifPicker} activeOpacity={0.74} accessibilityRole="button">
                 <View style={styles.trayIconWrap}>
                   <Text style={styles.gifTrayIcon}>GIF</Text>
                 </View>
@@ -397,14 +414,16 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
             multiline
             maxLength={2000}
             returnKeyType="default"
+            textContentType="none"
+            autoComplete="off"
             onFocus={() => { setAttachmentTrayOpen(false); onScrollToEnd() }}
           />
           <Animated.View style={sendAnimStyle}>
             <TouchableOpacity
               style={[styles.sendBtn, input.trim() ? styles.sendBtnActive : styles.sendBtnInactive]}
               onPress={handleSend}
-              onPressIn={() => { if (input.trim()) sendScale.value = withSpring(PRESS_SCALE_ICON, SPRING_SNAPPY) }}
-              onPressOut={() => { sendScale.value = withSpring(1, SPRING_SNAPPY) }}
+              onPressIn={() => { if (input.trim() && !reduceMotion) sendScale.value = withSpring(PRESS_SCALE_ICON, SPRING_SNAPPY) }}
+              onPressOut={() => { if (!reduceMotion) sendScale.value = withSpring(1, SPRING_SNAPPY) }}
               disabled={!input.trim() || sending}
               accessibilityRole="button"
               accessibilityLabel="Send message"
@@ -434,7 +453,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
       <Modal
         visible={gifPickerVisible}
         transparent
-        animationType="slide"
+        animationType={reduceMotion ? 'none' : 'slide'}
         onRequestClose={() => setGifPickerVisible(false)}
       >
         <View style={styles.pickerOverlay}>
@@ -465,6 +484,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
                 placeholder="Search GIFs"
                 placeholderTextColor={colors.text3}
                 autoCorrect={false}
+                autoComplete="off"
+                textContentType="none"
+                spellCheck={false}
                 returnKeyType="search"
               />
             </View>
@@ -508,11 +530,24 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
         </View>
       </Modal>
 
+      {/* Permission recovery sheet — shown when a permission is permanently denied (canAskAgain false) */}
+      <RekkusActionSheet
+        visible={recoveryVisible}
+        title="Permission required"
+        subtitle={recoveryMessage}
+        options={[
+          { label: 'Open Settings', value: 'settings', accentColor: colors.accent },
+          { label: 'Not now', value: 'cancel' },
+        ]}
+        onSelect={v => v === 'settings' ? openSettings() : dismissRecovery()}
+        onDismiss={dismissRecovery}
+      />
+
       {/* Saved place picker modal */}
       <Modal
         visible={savedPlacePickerVisible}
         transparent
-        animationType="slide"
+        animationType={reduceMotion ? 'none' : 'slide'}
         onRequestClose={() => setSavedPlacePickerVisible(false)}
       >
         <View style={styles.pickerOverlay}>

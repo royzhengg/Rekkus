@@ -22,6 +22,7 @@ import {
   VALUE_PICK_OPTIONS,
 } from '@/lib/dataSources/rekkusPicks'
 import type { SearchFilters } from '@/lib/hooks/useSearch'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import type { useUserLocation } from '@/lib/hooks/useUserLocation'
 import { fetchAreaSuggestionsJson } from '@/lib/services/googlePlaces'
 import { SEARCH_RADIUS_OPTIONS, SEARCH_SORTS, MEDIA_FILTERS } from './searchConstants'
@@ -48,6 +49,7 @@ export function SearchFiltersSheet({
   onEnableNearby,
 }: SearchFiltersSheetProps) {
   const colors = useThemeColors()
+  const reduceMotion = useReducedMotion()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [cuisineQuery, setCuisineQuery] = useState('')
   const cuisineOptions = useMemo(() => searchCuisines(cuisineQuery).slice(0, 10), [cuisineQuery])
@@ -103,7 +105,7 @@ export function SearchFiltersSheet({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={reduceMotion ? 'none' : 'slide'} onRequestClose={onClose}>
       <View style={styles.sheetBackdrop}>
         <TouchableOpacity style={styles.sheetDismissArea} activeOpacity={1} onPress={onClose} />
         <View style={styles.nearbySheet}>
@@ -188,6 +190,8 @@ export function SearchFiltersSheet({
                       style={styles.locationSuggestionRow}
                       onPress={() => selectAreaSuggestion(s)}
                       activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel={s.main_text}
                     >
                       <Text style={styles.locationSuggestionMain}>{s.main_text}</Text>
                       <Text style={styles.locationSuggestionSub}>{s.secondary_text}</Text>
@@ -319,6 +323,9 @@ export function SearchFiltersSheet({
               style={[styles.sheetOption, filters.openNow && styles.sheetOptionActive]}
               onPress={() => patchFilters({ openNow: !filters.openNow })}
               activeOpacity={0.75}
+              accessibilityRole="switch"
+              accessibilityLabel="Open now"
+              accessibilityState={{ checked: !!filters.openNow }}
             >
               <View style={styles.sheetOptionText}>
                 <Text style={styles.sheetOptionTitle}>Open now</Text>
@@ -332,10 +339,17 @@ export function SearchFiltersSheet({
             <TouchableOpacity
               style={styles.sheetSecondaryButton}
               onPress={() => setFilters({ sort: 'best_match' })}
+              accessibilityRole="button"
+              accessibilityLabel="Reset filters"
             >
               <Text style={styles.sheetSecondaryText}>Reset</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.sheetDoneButton} onPress={onClose}>
+            <TouchableOpacity
+              style={styles.sheetDoneButton}
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Apply filters"
+            >
               <Text style={styles.sheetDoneText}>Done</Text>
             </TouchableOpacity>
           </View>

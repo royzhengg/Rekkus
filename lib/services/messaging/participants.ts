@@ -44,45 +44,51 @@ export async function muteConversation(
     forever: 100 * 365 * 24 * 60 * 60 * 1000,
   }
   const mutedUntil = new Date(Date.now() + durations[duration]).toISOString()
-  await supabase.from('conversation_participants')
+  const { error } = await supabase.from('conversation_participants')
     .update({ muted_until: mutedUntil })
     .eq('conversation_id', conversationId)
     .eq('user_id', userId)
+  if (error) throw error
 }
 
 export async function unmuteConversation(conversationId: string, userId: string): Promise<void> {
-  await supabase.from('conversation_participants')
+  const { error } = await supabase.from('conversation_participants')
     .update({ muted_until: null })
     .eq('conversation_id', conversationId)
     .eq('user_id', userId)
+  if (error) throw error
 }
 
 export async function archiveConversation(conversationId: string, userId: string): Promise<void> {
-  await supabase.from('conversation_participants')
+  const { error } = await supabase.from('conversation_participants')
     .update({ archived_at: new Date().toISOString() })
     .eq('conversation_id', conversationId)
     .eq('user_id', userId)
+  if (error) throw error
 }
 
 export async function unarchiveConversation(conversationId: string, userId: string): Promise<void> {
-  await supabase.from('conversation_participants')
+  const { error } = await supabase.from('conversation_participants')
     .update({ archived_at: null })
     .eq('conversation_id', conversationId)
     .eq('user_id', userId)
+  if (error) throw error
 }
 
 export async function pinConversation(conversationId: string, userId: string): Promise<void> {
-  await supabase.from('conversation_participants')
+  const { error } = await supabase.from('conversation_participants')
     .update({ pinned_at: new Date().toISOString() })
     .eq('conversation_id', conversationId)
     .eq('user_id', userId)
+  if (error) throw error
 }
 
 export async function unpinConversation(conversationId: string, userId: string): Promise<void> {
-  await supabase.from('conversation_participants')
+  const { error } = await supabase.from('conversation_participants')
     .update({ pinned_at: null })
     .eq('conversation_id', conversationId)
     .eq('user_id', userId)
+  if (error) throw error
 }
 
 export async function addGroupMember(
@@ -169,10 +175,11 @@ export async function markConversationUnread(
   conversationId: string,
   userId: string
 ): Promise<void> {
-  await supabase.from('conversation_participants')
+  const { error } = await supabase.from('conversation_participants')
     .update({ last_read_at: null, last_read_message_id: null })
     .eq('conversation_id', conversationId)
     .eq('user_id', userId)
+  if (error) throw error
 }
 
 type ConversationMetaRow = {

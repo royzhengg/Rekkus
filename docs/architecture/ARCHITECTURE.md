@@ -25,6 +25,7 @@ Source-of-truth ownership and engineering constraints live in [ENGINEERING_GOVER
 | Images     | `expo-image-picker`                        |
 | Media prep | `react-native-compressor` + Supabase Edge Function orchestration |
 | Local DB   | `expo-sqlite` (session persistence)        |
+| Connectivity | `expo-network` + device-local pending-intent replay |
 
 ---
 
@@ -86,7 +87,21 @@ Post media is modeled as ordered mixed media while keeping the physical `post_ph
 
 Client selection flows through `lib/services/media.ts` for validation and `lib/services/postMediaProcessing.ts` for on-device compression/metadata preparation. Server fallback starts at `supabase/functions/process-post-media`; the function is intentionally an orchestrator so a dedicated media worker can replace the implementation without changing app-facing types. Rollout flags live in `lib/featureFlags.ts`: `mixedMediaPosts`, `hybridMediaProcessing`, `rekkusPicks`, `searchFiltersV2`, and `draftList`.
 
-Create drafts are account-synced through `post_drafts`, `post_draft_media`, and `lib/services/postDrafts.ts`. Explicit **Save** stores `status='saved'` rows and private media in the `post-drafts` bucket from any create step; saved draft editing can either update the current draft or branch via **Save as new draft**. The tab bar Create button opens the app-wide `CreateLauncherProvider` over the current screen; with saved drafts it offers **New post** or **Edit a draft** only, and draft rows stay inside `/create/drafts`. Background autosave stores `status='autosave'` rows for recovery and stays out of the visible Drafts list. AsyncStorage remains a migration/recovery cache for older local drafts. The app-wide `PostUploadProvider` tracks preparation/upload/publish progress so the feed can show non-blocking publish state.
+Create drafts are account-synced through `post_drafts`, `post_draft_media`, and `lib/services/postDrafts.ts`. Explicit **Save** stores `status='saved'` rows and private media in the `post-drafts` bucket from any create step; saved draft editing can either update the current draft or branch via **Save as new draft**. The floating Create action opens the app-wide `CreateLauncherProvider` over the current screen while the tab bar remains destination-only; with saved drafts it offers **New post** or **Edit a draft** only, and draft rows stay inside `/create/drafts`. Background autosave stores `status='autosave'` rows for recovery and stays out of the visible Drafts list. AsyncStorage remains a migration/recovery cache for older local drafts. The app-wide `PostUploadProvider` tracks preparation/upload/publish progress so the feed can show non-blocking publish state.
+
+`ConnectivityProvider`, mounted below `AuthProvider`, owns connectivity status and the device-local pending-intent queue. Phase 1 scope (reversible latest-state intents): `post_save`, `dish_save`, `place_save`, `post_like`, `follow`, `setting`. Phase 2 mutations (message reactions, conversation prefs) are deferred to B-239b and fall back to a `requireOnline()` gate. Records are versioned, strictly validated, coalesced by user/domain/entity, and contain only user/entity identifiers, target state, and timestamps. Authored, destructive, safety, account, group membership, and publishing submissions never auto-replay; their screens keep user input available and show explicit reconnect guidance through `ErrorMessage` or an actionable sheet. `ConnectivityNotice` is the canonical app-wide pending/sync status surface.
+
+**Queue state machine:** `idle → queued → replaying → synced | permanent_failure | retryable_kept`. Entries are pruned at read time if older than 7 days or have exceeded `MAX_RETRY_COUNT` (5) attempts. The queue is capped at 50 entries; new enqueues beyond that throw `offline_queue_full`. Coalescing is in-place (FIFO order preserved). On `writeDeferredMutations` failure (storage quota), an analytics event is emitted and the error is rethrown so callers can surface it.
+
+**Connectivity states:** `checking` (initial / indeterminate) → `online` (device + internet reachable) → `offline` (no connectivity) → `degraded` (device online but 3+ consecutive retryable flush failures; resets on next network event). `requireOnline()` returns `true` for `checking`, `online`, and `degraded`; only `offline` blocks user-initiated writes that cannot queue.
+
+**Flush guards:** flush exits early if: (a) no authenticated user, (b) state is not `online`, (c) `flushingRef` is already set (concurrent call prevention), or (d) `getSession()` returns null (session expired). Mutations whose `userId` differs from the current user are skipped within the loop (mid-flush sign-out protection).
+
+**Optimistic state lifecycle:** `applied (optimistic) → { queued: true } → syncEpoch increment → hook re-fetch → server_confirmed | rolled_back`. When `runDeferredMutation` resolves with `{ queued: true }`, optimistic state is kept and reconciled on the next `syncEpoch` increment. When it throws (non-retryable), the caller must revert local state immediately. Rollback ownership: the component that applied optimistic state holds `previousState` and reverts on catch.
+
+**Cache invalidation:** `syncEpoch` (integer, zero-based) increments after every flush (success or partial) when `pending.length > 0`. Data hooks (`useSavedPosts`, `useLikedPosts`) subscribe to `syncEpoch` from `useConnectivity()` and re-fetch when it changes, reconciling stale optimistic state with server truth.
+
+**Failure classification:** retryable = transport-like errors matching `/network|fetch|offline|timeout|timed out|connection|socket/i`; permanent = all others (auth, validation, 4xx). Permanent failures remove the mutation from the queue immediately. Retryable failures increment `retryCount`; at `MAX_RETRY_COUNT` the mutation is also dropped and treated as permanent failure.
 
 Owner-only post editing reuses the Create composer via `intent='edit'` and `postId`. Saves update the same `posts.id`, bump `posts.edit_count`, set `posts.last_edited_at`, and write a minimized `post_edit_events` row containing changed field names/count only. Edit audit rows must never store captions, media URLs, place names, full addresses, or before/after content.
 
@@ -105,7 +120,7 @@ Keep iOS and Android supported together. Before release or native config changes
 
 Canonical routes use plural domain names:
 
-- Create tab: `/(tabs)/create`
+- Create composer route (hidden from destination tabs): `/(tabs)/create`
 - Saved tab implementation: `/(tabs)/saved`, with `section=places` hosting the existing places list/map surface
 - Post detail: `/posts/[postId]`
 - Dish detail: `/dishes/[dishId]`
@@ -240,7 +255,7 @@ Mounted in `app/_layout.tsx` from outermost to innermost:
 | `conversations`               | Private-message conversation containers                                                        |
 | `conversation_participants`   | Participant membership and read state for private conversations                                |
 | `messages`                    | Participant-only private message bodies                                                        |
-| `user_settings`               | Per-user toggle preferences (notifications, privacy)                                           |
+| `user_settings`               | Per-user toggle preferences (notifications, privacy, theme, media autoplay)                    |
 | `push_tokens`                 | Expo push tokens for notifications                                                             |
 | `analytics_events`            | Raw event log (event_type, event_version, entity_type, entity_id) with 90-day retention        |
 | `feature_flag_overrides`      | Service-role emergency overrides for code-defined feature flags                                |
@@ -305,6 +320,7 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 | `20260526000008_auth_audit_events_device_context.sql` | Document pseudonymised IP/device context contract for authentication audit evidence                              |
 | `20260526000009_feature_flag_audit_events.sql`       | Fail-closed runtime feature flag override audit events and unified-view extension                                |
 | `20260526000010_delete_own_account.sql`              | Self-service account deletion RPC with pre-deletion content lifecycle audit for owned posts (B-522)              |
+| `20260527000000_video_autoplay_setting.sql`           | Persisted autoplay preference for visible muted post video playback with Reduce Motion override (B-529)         |
 
 ---
 

@@ -9,6 +9,7 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 function GoogleIcon() {
@@ -37,6 +38,7 @@ function GoogleIcon() {
 export default function ConnectedAccountsScreen() {
   const router = useRouter()
   const { user, linkGoogle, unlinkIdentity } = useAuth()
+  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [loading, setLoading] = useState(false)
@@ -50,6 +52,10 @@ export default function ConnectedAccountsScreen() {
 
   async function handleGoogleConnect() {
     setError(null)
+    if (!requireOnline()) {
+      setError('Reconnect to connect an account.')
+      return
+    }
     setLoading(true)
     const err = await linkGoogle()
     setLoading(false)
@@ -58,6 +64,10 @@ export default function ConnectedAccountsScreen() {
 
   async function handleGoogleDisconnect() {
     if (!googleIdentity) return
+    if (!requireOnline()) {
+      setError('Reconnect to disconnect an account.')
+      return
+    }
     if (!canUnlinkGoogle) {
       Alert.alert(
         'Cannot disconnect',
@@ -114,11 +124,11 @@ export default function ConnectedAccountsScreen() {
             {loading ? (
               <ActivityIndicator size="small" color={colors.text3} />
             ) : isGoogleConnected ? (
-              <TouchableOpacity onPress={handleGoogleDisconnect} activeOpacity={0.7}>
+              <TouchableOpacity onPress={handleGoogleDisconnect} activeOpacity={0.7} accessibilityRole="button">
                 <Text style={styles.actionDisconnect}>Disconnect</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity onPress={handleGoogleConnect} activeOpacity={0.7}>
+              <TouchableOpacity onPress={handleGoogleConnect} activeOpacity={0.7} accessibilityRole="button">
                 <Text style={styles.actionConnect}>Connect</Text>
               </TouchableOpacity>
             )}

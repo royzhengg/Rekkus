@@ -39,6 +39,14 @@ Each flag in `lib/featureFlags.ts` must include:
 - Production overrides live in `feature_flag_overrides` and are read through the `feature-flags` Edge Function. The app never receives service-role access.
 - Every `feature_flag_overrides` insert, update, or delete writes an append-only `feature_flag_audit_events` row through a fail-closed database trigger; no UI or service write path may bypass it.
 - Runtime override cache refreshes every 60 seconds; failed refreshes fall back to code defaults.
+- Persistent rendered chrome controlled by a flag must use the reactive `useFeatureFlag()` read so a runtime disable visibly rolls back without relaunch.
+
+## iOS Tab Material Spike
+
+- `iosTabBarMaterial` is disabled by default and eligible only in development or staging builds.
+- Android, beta, production, and iOS Reduce Transparency always use the opaque tab-bar fallback.
+- Before any future beta or production enablement, record passing physical-iPhone Reduce Transparency evidence in [IPHONE_HIG_ACCEPTANCE.md](IPHONE_HIG_ACCEPTANCE.md).
+- Rollback: set `iosTabBarMaterial=false` in `feature_flag_overrides`, then confirm opaque navigation returns within 60 seconds.
 
 ## Human Override
 

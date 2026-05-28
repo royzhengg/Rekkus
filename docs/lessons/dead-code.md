@@ -1,5 +1,9 @@
 # Lessons: Dead Code
 
+## Start dead-code tooling in report-only mode
+
+Expo dynamic imports and feature-flagged code can produce false positives in dead-code reports. Audit and establish an explicit baseline before making the tool CI-blocking, then ratchet new violations rather than failing on unexplained historical noise.
+
 ## Expo template files must be deleted at project setup
 
 `EditScreenInfo`, `ExternalLink`, `StyledText`, `Themed`, `useColorScheme`, `useClientOnlyValue` are Expo template artifacts. They conflict with the app's theme system and confuse new engineers. Delete them during project initialisation — never leave them in place.

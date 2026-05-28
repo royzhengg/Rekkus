@@ -1,4 +1,5 @@
-import { useScrollToTop } from '@react-navigation/native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useIsFocused, useScrollToTop } from '@react-navigation/native'
 import { useRouter } from 'expo-router'
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import {
@@ -25,36 +26,42 @@ import { PostCardSkeleton } from '@/components/post/PostCardSkeleton'
 import { PostUploadProgress } from '@/components/post/PostUploadProgress'
 import { Chip } from '@/components/ui/Chip'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { IconButton } from '@/components/ui/IconButton'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, lineHeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { SPRING_SNAPPY } from '@/lib/animations'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { usePosts } from '@/lib/contexts/PostsContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { demoUsers, demoCurrentUser } from '@/lib/dataSources/demoData'
 import { haptic } from '@/lib/haptics'
 import { useDiscover } from '@/lib/hooks/useDiscover'
 import { useFollowingFeed } from '@/lib/hooks/useFollowingFeed'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { routes } from '@/lib/routes'
-import { togglePostLike, togglePostSave } from '@/lib/services/posts'
 import type { Post } from '@/types/domain'
 
 const FEED_PAGE_SIZE = 20
+const FIRST_FEED_VISIT_KEY = 'rekkus:first-feed-visit:v1'
 
 export default function FeedScreen() {
   const [activeTab, setActiveTab] = useState<'Following' | 'Discover'>('Following')
   const { refresh, loadMore, hasMore } = usePosts()
   const { user } = useAuth()
   const { requireAuth } = useAuthGate()
+  const { runDeferredMutation } = useConnectivity()
   const [longPressPost, setLongPressPost] = useState<Post | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [showNewUserNudge, setShowNewUserNudge] = useState(false)
   const [newPostCount, setNewPostCount] = useState(0)
   const [visibleCount, setVisibleCount] = useState(FEED_PAGE_SIZE)
+  const [operationError, setOperationError] = useState<string | null>(null)
   const lastTopPostId = useRef<string | null>(null)
   const { posts: followingPosts, isLoaded: followingLoaded } = useFollowingFeed()
   const discoverPosts = useDiscover()
@@ -62,6 +69,10 @@ export default function FeedScreen() {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const router = useRouter()
+  const reduceMotion = useReducedMotion()
+  const isFocused = useIsFocused()
+  const [visiblePostId, setVisiblePostId] = useState<string | null>(null)
+  const cardLayouts = useRef<Record<string, { y: number; height: number }>>({})
 
   // B-410: scroll-to-top when feed tab is re-tapped
   const scrollRef = useRef<ScrollView>(null)
@@ -86,17 +97,18 @@ export default function FeedScreen() {
   }
 
   function handleTabPress(tab: 'Following' | 'Discover') {
-    void haptic.light()
     setActiveTab(tab)
     const layout = tabLayouts.current[tab]
     if (layout) {
-      indicatorLeft.value = withSpring(layout.x, SPRING_SNAPPY)
-      indicatorWidth.value = withSpring(layout.width, SPRING_SNAPPY)
+      indicatorLeft.value = reduceMotion ? layout.x : withSpring(layout.x, SPRING_SNAPPY)
+      indicatorWidth.value = reduceMotion ? layout.width : withSpring(layout.width, SPRING_SNAPPY)
     }
   }
 
   useEffect(() => {
     setVisibleCount(FEED_PAGE_SIZE)
+    cardLayouts.current = {}
+    setVisiblePostId(null)
   }, [activeTab])
 
   const visiblePosts = useMemo(
@@ -123,8 +135,30 @@ export default function FeedScreen() {
     lastTopPostId.current = topId
   }, [activePosts])
 
+  // Fire once on mount: check if this is the user's first feed visit after onboarding
+  useEffect(() => {
+    void AsyncStorage.getItem(FIRST_FEED_VISIT_KEY).then(val => {
+      if (val) {
+        setShowNewUserNudge(true)
+        void AsyncStorage.removeItem(FIRST_FEED_VISIT_KEY)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (showNewUserNudge) {
+      analytics.onboardingStep(user?.id ?? null, 'first_feed_nudge', 'shown')
+    }
+  }, [showNewUserNudge, user?.id])
+
   function handleScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent
+    const viewportCenter = contentOffset.y + layoutMeasurement.height / 2
+    const visibleCard = visiblePosts.find(post => {
+      const layout = cardLayouts.current[String(post.dbId || post.id)]
+      return layout && viewportCenter >= layout.y && viewportCenter < layout.y + layout.height
+    })
+    if (visibleCard) setVisiblePostId(String(visibleCard.dbId || visibleCard.id))
     if (
       contentOffset.y + layoutMeasurement.height >= contentSize.height - 200 &&
       visibleCount < activePosts.length
@@ -141,6 +175,11 @@ export default function FeedScreen() {
     setRefreshing(false)
   }
 
+  function dismissNewUserNudge(action: 'post' | 'explore' | 'dismiss') {
+    setShowNewUserNudge(false)
+    analytics.onboardingStep(user?.id ?? null, 'first_feed_nudge', action === 'post' ? 'tapped_post' : action === 'explore' ? 'tapped_explore' : 'dismissed')
+  }
+
   function handleLongPressAction(value: string) {
     const post = longPressPost
     setLongPressPost(null)
@@ -148,14 +187,18 @@ export default function FeedScreen() {
     if (value === 'like') {
       requireAuth(() => {
         if (!post.dbId || !user?.id) return
-        togglePostLike(post.dbId, user.id, true).catch(() => {})
+        void runDeferredMutation({ kind: 'post_like', postId: post.dbId, targetState: true })
+          .then(() => { void haptic.confirmLike() })
+          .catch(() => setOperationError('Could not update like. Check your connection and try again.'))
       })
       return
     }
     if (value === 'save') {
       requireAuth(() => {
         if (!post.dbId || !user?.id) return
-        togglePostSave(post.dbId, user.id, true).catch(() => {})
+        void runDeferredMutation({ kind: 'post_save', postId: post.dbId, targetState: true })
+          .then(() => { void haptic.confirmSave() })
+          .catch(() => setOperationError('Could not save this post. Check your connection and try again.'))
       })
       return
     }
@@ -175,7 +218,7 @@ export default function FeedScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
-        <Text style={styles.wordmark}>
+        <Text style={styles.wordmark} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
           rekkus<Text style={styles.wordmarkDot}>.</Text>
         </Text>
         <View style={styles.topActions}>
@@ -188,19 +231,63 @@ export default function FeedScreen() {
         </View>
       </View>
 
-      <View style={styles.tabs}>
+      <View style={styles.tabs} accessibilityRole="tablist">
         {(['Following', 'Discover'] as const).map(tab => (
           <TouchableOpacity
             key={tab}
             style={styles.tab}
             onPress={() => handleTabPress(tab)}
             onLayout={e => handleTabLayout(tab, e)}
+            accessibilityRole="tab"
+            accessibilityLabel={tab}
+            accessibilityState={{ selected: activeTab === tab }}
+            hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
+            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>{tab}</Text>
           </TouchableOpacity>
         ))}
-        <Animated.View style={[styles.tabSlider, indicatorStyle]} />
+        <Animated.View
+          style={[styles.tabSlider, indicatorStyle]}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        />
       </View>
+
+      {showNewUserNudge && (
+        <View style={styles.nudgeBanner}>
+          <View style={styles.nudgeText}>
+            <Text style={styles.nudgeTitle} maxFontSizeMultiplier={1.3}>Welcome to Rekkus.</Text>
+            <Text style={styles.nudgeSubtitle} maxFontSizeMultiplier={1.5}>Post a dish or explore what's nearby.</Text>
+          </View>
+          <View style={styles.nudgeActions}>
+            <TouchableOpacity
+              style={styles.nudgeBtn}
+              onPress={() => { dismissNewUserNudge('post'); router.push(routes.createPost()) }}
+              accessibilityRole="button"
+              accessibilityLabel="Post a dish review"
+            >
+              <Text style={styles.nudgeBtnText}>Post a dish</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.nudgeBtn, styles.nudgeBtnSecondary]}
+              onPress={() => { dismissNewUserNudge('explore'); setActiveTab('Discover') }}
+              accessibilityRole="button"
+              accessibilityLabel="Explore nearby dishes"
+            >
+              <Text style={[styles.nudgeBtnText, styles.nudgeBtnTextSecondary]}>Explore nearby</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={styles.nudgeDismiss}
+            onPress={() => dismissNewUserNudge('dismiss')}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss welcome message"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.nudgeDismissText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView
         ref={scrollRef}
@@ -225,7 +312,8 @@ export default function FeedScreen() {
             style={styles.newPostsChip}
           />
         )}
-        <PostUploadProgress onGoToDraft={() => router.push('/(tabs)/create')} />
+        <PostUploadProgress onGoToDraft={() => router.push(routes.createPost())} />
+        {operationError ? <ErrorMessage message={operationError} style={styles.actionError} /> : null}
         {activeTab === 'Following' && !followingLoaded ? (
           <View style={styles.feedList}>
             {Array.from({ length: 4 }).map((_, i) => (
@@ -244,12 +332,21 @@ export default function FeedScreen() {
                   key={username}
                   style={styles.suggestedRow}
                   onPress={() => router.push(routes.userProfile(username))}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View @${username}'s profile`}
+                  hitSlop={{ top: 3, bottom: 3, left: 0, right: 0 }}
                 >
                   <Text style={styles.suggestedName}>@{username}</Text>
                   <Text style={styles.suggestedMeta}>{profile.followers} followers</Text>
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity style={styles.discoverCta} onPress={() => setActiveTab('Discover')}>
+              <TouchableOpacity
+                style={styles.discoverCta}
+                onPress={() => setActiveTab('Discover')}
+                accessibilityRole="button"
+                accessibilityLabel="Find dishes in Discover"
+                hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+              >
                 <Text style={styles.discoverCtaText}>Find dishes in Discover</Text>
               </TouchableOpacity>
             </View>
@@ -258,20 +355,31 @@ export default function FeedScreen() {
           <>
             <View style={styles.feedList}>
               {visiblePosts.map(post => (
-                <RekkusPostCard
+                <View
                   key={post.dbId || post.id}
-                  post={post}
-                  onPressPost={item => router.push(routes.postDetail(String(item.dbId || item.id)))}
-                  onPressCreator={username => router.push(routes.userProfile(username))}
-                  onPressTag={tag => router.push(routes.search(tag))}
-                  onDoubleTapLike={() =>
-                    requireAuth(() => {
-                      if (!post.dbId || !user?.id) return
-                      togglePostLike(post.dbId, user.id, true).catch(() => {})
-                    })
-                  }
-                  onLongPressPost={() => setLongPressPost(post)}
-                />
+                  onLayout={event => {
+                    const key = String(post.dbId || post.id)
+                    cardLayouts.current[key] = event.nativeEvent.layout
+                    if (visiblePostId === null && post === visiblePosts[0]) setVisiblePostId(key)
+                  }}
+                >
+                  <RekkusPostCard
+                    post={post}
+                    autoplayActive={isFocused && visiblePostId === String(post.dbId || post.id)}
+                    onPressPost={item => router.push(routes.postDetail(String(item.dbId || item.id)))}
+                    onPressCreator={username => router.push(routes.userProfile(username))}
+                    onPressTag={tag => router.push(routes.search(tag))}
+                    onDoubleTapLike={() =>
+                      requireAuth(() => {
+                        if (!post.dbId || !user?.id) return
+                        void runDeferredMutation({ kind: 'post_like', postId: post.dbId, targetState: true })
+                          .then(() => { void haptic.confirmLike() })
+                          .catch(() => setOperationError('Could not update like. Check your connection and try again.'))
+                      })
+                    }
+                    onLongPressPost={() => setLongPressPost(post)}
+                  />
+                </View>
               ))}
             </View>
             {hasMoreFeed && (
@@ -337,6 +445,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       borderRadius: radius.micro,
     },
     scroll: { flex: 1 },
+    actionError: { marginHorizontal: spacing[4], marginTop: spacing[3] },
     newPostsChip: {
       alignSelf: 'center',
       marginTop: spacing[3],
@@ -393,5 +502,32 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     creatorName: { fontSize: fontSize.xs, color: c.text2 },
     likeCount: { flexDirection: 'row', alignItems: 'center', gap: spacing.px3 },
     likeText: { fontSize: fontSize.xs, color: c.text3 },
+    nudgeBanner: {
+      marginHorizontal: spacing[4],
+      marginTop: spacing[3],
+      backgroundColor: c.surface,
+      borderRadius: radius.lg,
+      padding: spacing[4],
+      borderWidth: 0.5,
+      borderColor: c.border,
+    },
+    nudgeText: { marginBottom: spacing[3] },
+    nudgeTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text, marginBottom: spacing[1] },
+    nudgeSubtitle: { fontSize: fontSize.bodySm, color: c.text2 },
+    nudgeActions: { flexDirection: 'row', gap: spacing[2] },
+    nudgeBtn: {
+      flex: 1,
+      backgroundColor: c.text,
+      borderRadius: radius.pill,
+      paddingVertical: spacing.px10,
+      alignItems: 'center',
+      minHeight: 44,
+      justifyContent: 'center',
+    },
+    nudgeBtnSecondary: { backgroundColor: c.bg, borderWidth: 0.5, borderColor: c.border2 },
+    nudgeBtnText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.medium, color: c.bg },
+    nudgeBtnTextSecondary: { color: c.text },
+    nudgeDismiss: { position: 'absolute', top: spacing[3], right: spacing[3], minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+    nudgeDismissText: { fontSize: fontSize.bodySm, color: c.text3 },
   })
 }
