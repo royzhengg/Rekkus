@@ -27,13 +27,11 @@ const PODFILE_PATH = path.join(ROOT, 'ios', 'Podfile')
 const PODLOCK_PATH = path.join(ROOT, 'ios', 'Podfile.lock')
 const MAPS_NODE = path.join(ROOT, 'node_modules', 'react-native-maps')
 
-const args = process.argv.slice(2)
-const targetVersion = (() => {
-  const idx = args.indexOf('--to')
-  return idx !== -1 ? args[idx + 1] : null
-})()
-const shouldRun = args.includes('--run')
-const help = args.includes('--help') || args.includes('-h')
+const { argv, getArg, hasFlag } = require('./lib/args')
+const args = argv()
+const targetVersion = getArg('--to')
+const shouldRun = hasFlag('--run')
+const help = hasFlag('--help') || hasFlag('-h')
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

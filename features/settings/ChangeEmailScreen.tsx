@@ -7,7 +7,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft } from '@/components/icons'
@@ -18,6 +17,7 @@ import { fontSize, fontWeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useToast } from '@/lib/contexts/ToastContext'
 import { getCurrentUser, reauthenticate, updateEmail } from '@/lib/services/auth'
 import { hasCurrentPassword } from '@/lib/utils/validation'
 
@@ -25,6 +25,7 @@ export default function ChangeEmailScreen() {
   const router = useRouter()
   const { user } = useAuth()
   const { requireOnline } = useConnectivity()
+  const { showToast } = useToast()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [newEmail, setNewEmail] = useState('')
@@ -65,15 +66,12 @@ export default function ChangeEmailScreen() {
       await updateEmail(newEmail)
     } catch (updateError) {
       setLoading(false)
-      setError(updateError instanceof Error ? updateError.message : 'Failed to update email.')
+      setError(updateError instanceof Error ? updateError.message : 'Your email could not be updated. Check your connection and try again.')
       return
     }
     setLoading(false)
-    Alert.alert(
-      'Verify your new email',
-      `We've sent a confirmation link to ${newEmail}. Tap it to complete the change.`,
-      [{ text: 'OK', onPress: () => router.back() }]
-    )
+    showToast('Verification email sent', { type: 'info' })
+    router.back()
   }
 
   return (

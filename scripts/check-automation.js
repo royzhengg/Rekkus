@@ -23,12 +23,12 @@ function runGit(args) {
 
 function lessonTopicPaths() {
   if (!fs.existsSync(lessonsIndexPath)) {
-    console.error('check:automation failed: docs/LESSONS.md is missing.')
+    console.error('FAIL [AUTOMATION] docs/LESSONS.md is missing.')
     process.exit(1)
   }
 
   if (!fs.existsSync(lessonsDirPath) || !fs.statSync(lessonsDirPath).isDirectory()) {
-    console.error('check:automation failed: docs/lessons/ topic directory is missing.')
+    console.error('FAIL [AUTOMATION] docs/lessons/ topic directory is missing.')
     process.exit(1)
   }
 
@@ -39,13 +39,13 @@ function lessonTopicPaths() {
     .sort()
 
   if (topicFiles.length === 0) {
-    console.error('check:automation failed: docs/lessons/ has no topic files.')
+    console.error('FAIL [AUTOMATION] docs/lessons/ has no topic files.')
     process.exit(1)
   }
 
   const missingLinks = topicFiles.filter(file => !index.includes(`(lessons/${file})`))
   if (missingLinks.length > 0) {
-    console.error('check:automation failed: docs/LESSONS.md does not link every lesson topic:')
+    console.error('FAIL [AUTOMATION] docs/LESSONS.md does not link every lesson topic:')
     for (const file of missingLinks) console.error(`- docs/lessons/${file}`)
     process.exit(1)
   }
@@ -74,7 +74,7 @@ const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000))
 if (ageMs > maxAgeMs) {
   const modifiedDate = new Date(modifiedMs).toISOString().slice(0, 10)
   console.error(
-    `check:automation failed: lesson topics are ${ageDays} days old (last updated ${modifiedDate}).`
+    `FAIL [AUTOMATION] Lesson topics are ${ageDays} days old (last updated ${modifiedDate}).`
   )
   console.error(
     'Record durable learning in the relevant docs/lessons/<topic>.md file before this becomes institutional amnesia.'

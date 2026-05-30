@@ -21,13 +21,11 @@ import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { isEnabled } from '@/lib/featureFlags'
 import { routes } from '@/lib/routes'
 import {
-  addReaction,
   fetchConversationMessages,
   fetchConversationParticipant,
   fetchConversationAllParticipants,
   fetchSharedMedia,
   markConversationRead,
-  removeReaction,
   sendRichMessage,
   fetchMessageReactions,
   subscribeToConversationMessages,
@@ -80,12 +78,13 @@ export default function ConversationScreen() {
   }>()
   const router = useRouter()
   const { user } = useAuth()
-  const { requireOnline } = useConnectivity()
+  const { requireOnline, runDeferredMutation } = useConnectivity()
   const { requireAuth } = useAuthGate()
   const colors = useThemeColors()
 
   const listRef = useRef<FlatList>(null)
   const isAtBottom = useRef(true)
+  const needsInitialScroll = useRef(false)
   const typingChannelRef = useRef<ReturnType<typeof subscribeToTypingIndicators> | null>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sentInitialShareRef = useRef<string | null>(null)
@@ -125,6 +124,7 @@ export default function ConversationScreen() {
 
   const load = useCallback(async () => {
     if (!conversationId || !user) { setLoading(false); return }
+    needsInitialScroll.current = true
     setLoading(true)
     setError(null)
     setOperationError(null)
@@ -158,13 +158,12 @@ export default function ConversationScreen() {
       }
       setReactions(map)
       await markRead(nextMessages)
-      scrollToEnd()
     } catch {
       setError('This conversation could not be loaded right now.')
     } finally {
       setLoading(false)
     }
-  }, [conversationId, markRead, scrollToEnd, user])
+  }, [conversationId, markRead, user])
 
   useEffect(() => { if (!user) requireAuth() }, [user, requireAuth])
 
@@ -278,15 +277,12 @@ export default function ConversationScreen() {
   }, [])
 
   const handleReact = useCallback((messageId: string, emoji: string) => {
-    if (!requireOnline()) return
     const myReactions = reactions.get(messageId)?.filter(r => r.user_id === user?.id) ?? []
     const existing = myReactions.find(r => r.emoji === emoji)
-    if (existing) {
-      void removeReaction(messageId).catch(() => {/* reaction failures are transient */ })
-    } else {
-      void addReaction(messageId, emoji).catch(() => {/* reaction failures are transient */ })
-    }
-  }, [reactions, requireOnline, user?.id])
+    void runDeferredMutation({ kind: 'message_reaction', messageId, emoji, targetState: !existing }).catch(() => {
+      // reaction failures are transient; UI reverts on syncEpoch re-fetch
+    })
+  }, [reactions, runDeferredMutation, user?.id])
 
   const handleLongPressMessage = useCallback((msg: DirectMessage, pageY: number) => {
     actionsRef.current?.open(msg, pageY)
@@ -443,6 +439,7 @@ export default function ConversationScreen() {
           searchQuery={searchQuery}
           listRef={listRef}
           isAtBottom={isAtBottom}
+          needsInitialScroll={needsInitialScroll}
           reactions={reactions}
           currentUserId={user?.id ?? ''}
           colors={colors}

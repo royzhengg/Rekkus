@@ -17,30 +17,27 @@ import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
-import { useThemeColors } from       '@/lib/contexts/ThemeContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useToast } from '@/lib/contexts/ToastContext'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { routes } from '@/lib/routes'
 import {
-  archiveConversation,
   fetchConversationAllParticipants,
+  fetchConversationMeta,
+  fetchMyParticipantPrefs,
   fetchSharedMedia,
   fetchPinnedMessages,
   leaveGroup,
   deleteDirectConversation,
-  markConversationUnread,
-  muteConversation,
-  pinConversation,
+  MUTE_DURATIONS_MS,
   removeGroupMember,
   promoteToAdmin,
-  unpinConversation,
   unpinMessage,
-  unmuteConversation,
   type ConversationParticipant,
   type DirectMessage,
   type PinnedMessage,
   type MuteDuration,
 } from '@/lib/services/messaging'
-import { fetchConversationMeta, fetchMyParticipantPrefs } from '@/lib/services/messaging'
 import { blockUser, submitContentReport } from '@/lib/services/moderation'
 import { avatarPalette } from '@/lib/utils/format'
 import { makeStyles } from './ConversationInfoScreen.styles'
@@ -51,7 +48,8 @@ export default function ConversationInfoScreen() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>()
   const router = useRouter()
   const { user } = useAuth()
-  const { requireOnline } = useConnectivity()
+  const { requireOnline, runDeferredMutation, syncEpoch } = useConnectivity()
+  const { showToast } = useToast()
   const colors = useThemeColors()
   const reduceMotion = useReducedMotion()
   const styles = useMemo(() => makeStyles(colors), [colors])
@@ -105,55 +103,38 @@ export default function ConversationInfoScreen() {
 
   useEffect(() => { void load() }, [load])
 
+  // Re-fetch prefs after offline queue flush
+  useEffect(() => { if (syncEpoch > 0) void load() }, [syncEpoch, load])
+
   async function handleMute(duration: MuteDuration) {
     if (!conversationId || !user) return
     setMuteSheet(false)
-    if (!requireOnline()) { setOperationError({ title: 'You are offline', message: 'Connect to the internet to mute this conversation.' }); return }
-    try {
-      await muteConversation(conversationId, user.id, duration)
-      setIsMuted(true)
-      Alert.alert('Muted', 'Notifications for this conversation are muted.')
-    } catch {
-      setOperationError({ title: 'Could not update notifications', message: 'Try again when your connection is stable.' })
-    }
+    const mutedUntil = new Date(Date.now() + MUTE_DURATIONS_MS[duration]).toISOString()
+    setIsMuted(true)
+    await runDeferredMutation({ kind: 'conversation_mute', conversationId, mutedUntil })
+    showToast('Conversation muted')
   }
 
   async function handleUnmute() {
     if (!conversationId || !user) return
-    if (!requireOnline()) { setOperationError({ title: 'You are offline', message: 'Connect to the internet to unmute this conversation.' }); return }
-    try {
-      await unmuteConversation(conversationId, user.id)
-      setIsMuted(false)
-    } catch {
-      setOperationError({ title: 'Could not update notifications', message: 'Try again when your connection is stable.' })
-    }
+    setIsMuted(false)
+    await runDeferredMutation({ kind: 'conversation_unmute', conversationId })
   }
 
   async function handleTogglePin() {
     if (!conversationId || !user) return
-    if (!requireOnline()) { setOperationError({ title: 'You are offline', message: 'Connect to the internet to pin or unpin conversations.' }); return }
-    try {
-      if (isPinned) {
-        await unpinConversation(conversationId, user.id)
-        setIsPinned(false)
-      } else {
-        await pinConversation(conversationId, user.id)
-        setIsPinned(true)
-      }
-    } catch {
-      setOperationError({ title: 'Could not update conversation', message: 'Try again when your connection is stable.' })
-    }
+    const nowPinned = !isPinned
+    setIsPinned(nowPinned)
+    await runDeferredMutation(nowPinned
+      ? { kind: 'conversation_pin', conversationId }
+      : { kind: 'conversation_unpin', conversationId }
+    )
   }
 
   async function handleMarkUnread() {
     if (!conversationId || !user) return
-    if (!requireOnline()) { setOperationError({ title: 'You are offline', message: 'Connect to the internet to mark conversations as unread.' }); return }
-    try {
-      await markConversationUnread(conversationId, user.id)
-      router.back()
-    } catch {
-      setOperationError({ title: 'Could not update conversation', message: 'Try again when your connection is stable.' })
-    }
+    await runDeferredMutation({ kind: 'conversation_unread', conversationId })
+    router.back()
   }
 
   async function handleArchive() {
@@ -163,13 +144,8 @@ export default function ConversationInfoScreen() {
       {
         text: 'Archive',
         onPress: () => { void (async () => {
-          if (!requireOnline()) { setOperationError({ title: 'You are offline', message: 'Connect to the internet to archive conversations.' }); return }
-          try {
-            await archiveConversation(conversationId, user.id)
-            router.push('/messages')
-          } catch {
-            setOperationError({ title: 'Could not archive conversation', message: 'Try again when your connection is stable.' })
-          }
+          await runDeferredMutation({ kind: 'conversation_archive', conversationId })
+          router.push('/messages')
         })() },
       },
     ])
@@ -263,7 +239,7 @@ export default function ConversationInfoScreen() {
       sourceSurface: 'message_thread',
     })
     if (reportError) setOperationError({ title: 'Report failed', message: reportError })
-    else Alert.alert('Report received', 'Thanks. We will review this account.')
+    else showToast('Report received')
   }
 
   async function handleBlockUser(participant: ConversationParticipant) {

@@ -21,7 +21,7 @@ export function extractPostRow(p: RawPost | null | undefined): SavedPostRow | nu
     vibe_rating: p.vibe_rating,
     cost_rating: p.cost_rating,
     cuisine_type: p.cuisine_type,
-    best_dish: p.best_dish,
+    must_order: p.must_order,
     dish_id: p.dish_id,
     dish_tags: p.dish_tags ?? null,
     restaurant_id: p.restaurant_id,
@@ -60,7 +60,7 @@ export function extractPostRow(p: RawPost | null | undefined): SavedPostRow | nu
 }
 
 const POST_SELECT = `
-  id, user_id, caption, food_rating, vibe_rating, cost_rating, taste_verdict, value_verdict, occasion_tags, cuisine_type, best_dish, dish_id, dish_tags, restaurant_id, created_at, last_edited_at, edit_count,
+  id, user_id, caption, food_rating, vibe_rating, cost_rating, taste_verdict, value_verdict, occasion_tags, cuisine_type, must_order, dish_id, dish_tags, restaurant_id, created_at, last_edited_at, edit_count,
   users ( username, full_name, avatar_url ),
   post_photos ( id, url, order_index, media_type, processed_url, thumbnail_url, mime_type, duration_ms, width, height, size_bytes, processing_status, processing_error, deleted_at ),
   restaurants ( name, address, latitude, longitude, google_place_id )

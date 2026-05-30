@@ -161,3 +161,34 @@ Custom sheets and full-screen overlays sit above Expo Router navigation, so plat
 Prevention: `check:risk-guardrails` runs `navigationSafetyFailures` across app, feature, and shared component runtime code; B-534 is the intentional create-post Android back exception.
 
 **Apply when:** adding or changing a modal, overlay, full-screen media experience, route gesture configuration, or custom hardware-back behavior.
+
+---
+
+## Success/info feedback belongs in Toast, not Alert.alert (B-402)
+
+`Alert.alert` is a modal interrupt — it blocks the UI and demands user acknowledgement. Using it for success or info messages (e.g., "Password updated", "Conversation muted") breaks the user's flow for no reason.
+
+**The canonical split:**
+
+- `showToast()` (`lib/contexts/ToastContext`) — success or info confirmations; 3 s auto-dismiss; bottom overlay; `accessibilityLiveRegion="polite"` for screen-reader announcement
+- `<ErrorMessage>` — inline routine errors that need persistent visibility
+- `Alert.alert` — destructive confirmations only (must always have a cancel/destructive-style button)
+
+**Root cause of the original gap:** no lightweight non-modal confirmation pattern existed, so developers reached for `Alert.alert` as the only available option.
+
+**Guardrail:** `check:hygiene` (`scripts/check-hygiene.js`) detects `Alert.alert` calls in `features/` and `components/` that have no `style: 'cancel'` or `style: 'destructive'` button, and fails CI. Allowlist is reserved for validation-error alerts pending migration to `<ErrorMessage>`.
+
+**accessibilityRole note:** React Native's `AccessibilityRole` type does not include `"status"`. Use `accessibilityLiveRegion="polite"` instead — this is the correct RN equivalent and is what `Toast.tsx` uses.
+
+**Apply when:** any action that completes successfully needs to confirm it to the user (save, follow, copy, mute, report, email change, password change, etc.).
+
+
+---
+
+## Use aspectRatio to cap empty-state height, not fixed height (B-404)
+
+Empty-state containers sized with a fixed `height` break on tablets and large phones; they also resist the layout engine's ability to compress on smaller screens. Using `aspectRatio` lets the container scale with its constrained width (e.g. screen width minus horizontal margins) while still providing a predictable visual footprint.
+
+`photoEmpty` in `StepMedia.styles.ts` uses `aspectRatio: 2.2` with `marginHorizontal: spacing[4]` (16px each side). On a 375px screen this yields ~156px tall — enough to show the icon, label, sub-text, and action buttons without dominating the viewport. The previous value of 1.42 produced ~241px, delaying the restaurant search and dish tagging fields below the fold.
+
+**Apply when:** designing any empty-state container that must fit gracefully across phone sizes — prefer `aspectRatio` over a hardcoded pixel height.

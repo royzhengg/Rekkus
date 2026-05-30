@@ -56,7 +56,7 @@ export function runRuntimeBoundaryGuardTests(assert: StrictAssert) {
   assert.equal(isRawPost(null), false)
   const rawPost = {
     id: 'p1', user_id: 'u1', caption: null, food_rating: null, vibe_rating: null,
-    cost_rating: null, cuisine_type: null, best_dish: null, restaurant_id: null,
+    cost_rating: null, cuisine_type: null, must_order: null, restaurant_id: null,
     taste_verdict: null, value_verdict: null, occasion_tags: null, created_at: null,
     last_edited_at: null, edit_count: null, users: null, restaurants: null, post_photos: [],
   }
@@ -76,7 +76,7 @@ export function runRuntimeBoundaryGuardTests(assert: StrictAssert) {
 
   const localDraft = {
     media: [], title: '', selectedPlace: null, dishTags: [], foodRating: 0, vibeRating: 0,
-    costRating: 0, body: '', bestDish: '', cuisineType: '', hashtags: [], hashtagInput: '', updatedAt: 'now',
+    costRating: 0, body: '', mustOrder: '', cuisineType: '', hashtags: [], hashtagInput: '', updatedAt: 'now',
   }
   assert.equal(isLocalDraftList([localDraft]), true)
   assert.equal(isLocalDraftList([{ ...localDraft, media: [{ type: 'bad' }] }]), false)

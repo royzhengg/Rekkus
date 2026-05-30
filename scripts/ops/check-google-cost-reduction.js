@@ -2,7 +2,8 @@
 const { printResult } = require('./lib/policy-checks')
 const { exists, readText } = require('./lib/files')
 
-const args = new Set(process.argv.slice(2))
+const { parseFlags } = require('../lib/args')
+const args = parseFlags()
 const failures = []
 const warnings = []
 

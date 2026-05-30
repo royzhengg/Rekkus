@@ -29,9 +29,9 @@ export class ErrorBoundary extends React.Component<
       if (this.props.fallback) return this.props.fallback
       return (
         <View style={styles.wrap}>
-          <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.msg} numberOfLines={3}>
-            {this.state.error.message}
+          <Text style={styles.title}>This section ran into a problem</Text>
+          <Text style={styles.msg}>
+            Tap Try again to reload it.
           </Text>
           <TouchableOpacity style={styles.btn} onPress={this.reset} accessibilityRole="button">
             <Text style={styles.btnText}>Try again</Text>

@@ -3,11 +3,13 @@ import { analytics } from '@/lib/analytics'
 import {
   clearDeferredMutationsForUser,
   enqueueDeferredMutation,
+  executeDeferredMutation,
   incrementRetryCount,
   isDeferredMutation,
   isRetryableDeferredMutationError,
   MAX_RETRY_COUNT,
   readDeferredMutations,
+  type DeferredMutation,
 } from '@/lib/services/deferredMutations'
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -29,7 +31,7 @@ jest.mock('@/lib/services/messaging', () => ({
   addReaction: jest.fn(),
   archiveConversation: jest.fn(),
   markConversationUnread: jest.fn(),
-  muteConversation: jest.fn(),
+  muteConversationUntil: jest.fn(),
   pinConversation: jest.fn(),
   removeReaction: jest.fn(),
   unarchiveConversation: jest.fn(),
@@ -135,7 +137,7 @@ describe('deferred mutations', () => {
 
     const result = await readDeferredMutations()
     expect(result).toHaveLength(1)
-    expect(result[0]?.postId).toBe('p1')
+    expect(result[0]).toMatchObject({ postId: 'p1' })
     // pruned list must be written back
     const written = JSON.parse(String(mockSetItem.mock.calls[0]?.[1])) as { mutations: unknown[] }
     expect(written.mutations).toHaveLength(1)
@@ -158,7 +160,7 @@ describe('deferred mutations', () => {
   })
 
   it('incrementRetryCount reaches MAX_RETRY_COUNT after MAX_RETRY_COUNT increments', () => {
-    let m = { kind: 'post_like' as const, userId: 'u', updatedAt: now, retryCount: 0, postId: 'p', targetState: true }
+    let m: DeferredMutation = { kind: 'post_like', userId: 'u', updatedAt: now, retryCount: 0, postId: 'p', targetState: true }
     for (let i = 0; i < MAX_RETRY_COUNT; i++) {
       expect(m.retryCount).toBeLessThan(MAX_RETRY_COUNT)
       m = incrementRetryCount(m)
@@ -208,5 +210,90 @@ describe('deferred mutations', () => {
         expect(String(arg).length).toBeLessThanOrEqual(100)
       }
     }
+  })
+
+  // Phase 2 boundary validation
+  it('rejects message_reaction with extra keys or wrong field types', () => {
+    expect(isDeferredMutation({
+      kind: 'message_reaction', userId: 'u', updatedAt: now, retryCount: 0,
+      messageId: 'msg-1', emoji: '❤️', targetState: true, extra: 'bad',
+    })).toBe(false)
+    expect(isDeferredMutation({
+      kind: 'message_reaction', userId: 'u', updatedAt: now, retryCount: 0,
+      messageId: 'msg-1', emoji: '❤️', targetState: 'yes',
+    })).toBe(false)
+  })
+
+  it('rejects conversation_mute with non-string mutedUntil', () => {
+    expect(isDeferredMutation({
+      kind: 'conversation_mute', userId: 'u', updatedAt: now, retryCount: 0,
+      conversationId: 'conv-1', mutedUntil: 12345,
+    })).toBe(false)
+  })
+
+  it('accepts valid Phase 2 conversation pref mutation kinds', () => {
+    const base = { userId: 'u', updatedAt: now, retryCount: 0, conversationId: 'conv-1' }
+    for (const kind of ['conversation_unmute', 'conversation_archive', 'conversation_unarchive', 'conversation_pin', 'conversation_unpin', 'conversation_unread'] as const) {
+      expect(isDeferredMutation({ kind, ...base })).toBe(true)
+    }
+  })
+
+  it('coalesces message_reaction toggle: add then remove for same message yields targetState false', async () => {
+    mockGetItem.mockResolvedValue(JSON.stringify({
+      version: 1,
+      mutations: [{ kind: 'message_reaction', userId: 'user-1', updatedAt: now, retryCount: 0, messageId: 'msg-1', emoji: '❤️', targetState: true }],
+    }))
+
+    await enqueueDeferredMutation({
+      kind: 'message_reaction', userId: 'user-1', updatedAt: now, retryCount: 0,
+      messageId: 'msg-1', emoji: '❤️', targetState: false,
+    })
+
+    const saved = JSON.parse(String(mockSetItem.mock.calls[0]?.[1])) as { mutations: Array<{ targetState: boolean }> }
+    expect(saved.mutations).toHaveLength(1)
+    expect(saved.mutations[0]?.targetState).toBe(false)
+  })
+
+  it('executeDeferredMutation calls the right service function for each Phase 2 kind', async () => {
+    const messaging = jest.requireMock('@/lib/services/messaging') as {
+      addReaction: jest.Mock
+      removeReaction: jest.Mock
+      muteConversationUntil: jest.Mock
+      unmuteConversation: jest.Mock
+      archiveConversation: jest.Mock
+      unarchiveConversation: jest.Mock
+      pinConversation: jest.Mock
+      unpinConversation: jest.Mock
+      markConversationUnread: jest.Mock
+    }
+    const base = { userId: 'u1', updatedAt: now, retryCount: 0 }
+    const mutedUntil = '2026-06-01T00:00:00.000Z'
+
+    await executeDeferredMutation({ kind: 'message_reaction', ...base, messageId: 'msg-1', emoji: '❤️', targetState: true })
+    expect(messaging.addReaction).toHaveBeenCalledWith('msg-1', '❤️')
+
+    await executeDeferredMutation({ kind: 'message_reaction', ...base, messageId: 'msg-1', emoji: '❤️', targetState: false })
+    expect(messaging.removeReaction).toHaveBeenCalledWith('msg-1', 'u1')
+
+    await executeDeferredMutation({ kind: 'conversation_mute', ...base, conversationId: 'conv-1', mutedUntil })
+    expect(messaging.muteConversationUntil).toHaveBeenCalledWith('conv-1', 'u1', mutedUntil)
+
+    await executeDeferredMutation({ kind: 'conversation_unmute', ...base, conversationId: 'conv-1' })
+    expect(messaging.unmuteConversation).toHaveBeenCalledWith('conv-1', 'u1')
+
+    await executeDeferredMutation({ kind: 'conversation_archive', ...base, conversationId: 'conv-1' })
+    expect(messaging.archiveConversation).toHaveBeenCalledWith('conv-1', 'u1')
+
+    await executeDeferredMutation({ kind: 'conversation_unarchive', ...base, conversationId: 'conv-1' })
+    expect(messaging.unarchiveConversation).toHaveBeenCalledWith('conv-1', 'u1')
+
+    await executeDeferredMutation({ kind: 'conversation_pin', ...base, conversationId: 'conv-1' })
+    expect(messaging.pinConversation).toHaveBeenCalledWith('conv-1', 'u1')
+
+    await executeDeferredMutation({ kind: 'conversation_unpin', ...base, conversationId: 'conv-1' })
+    expect(messaging.unpinConversation).toHaveBeenCalledWith('conv-1', 'u1')
+
+    await executeDeferredMutation({ kind: 'conversation_unread', ...base, conversationId: 'conv-1' })
+    expect(messaging.markConversationUnread).toHaveBeenCalledWith('conv-1', 'u1')
   })
 })

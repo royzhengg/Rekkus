@@ -484,6 +484,8 @@ Never use module-level `StyleSheet.create` with colour tokens.
 
 **Feed nudge**: shown once after onboarding on `/(tabs)/feed`. Dismissable card above the scroll area (inside the safe area): `c.surface` background, `radius.lg`, border `c.border`. Title + subtitle row, then two equal-width pill buttons ("Post a dish" primary, "Explore nearby" secondary). Dismiss ✕ in top-right corner (44pt hit area). Cleared from AsyncStorage (`rekkus:first-feed-visit:v1`) on first interaction or dismiss.
 
+**Dish tag onboarding tooltip** (B-405): shown once on first photo add in `StepMedia`. Inline row between the media strip and the "Tag dishes" button. Accent-tinted background (`c.accent + 12` fill, `c.accent + 24` border), `radius.md3`. One-line body text (`fontSize.bodySm`, `c.text2`) with a ✕ dismiss button (44pt hit area, `accessibilityRole="button"`, `accessibilityLabel="Dismiss tip"`). Fades in via `FadeIn.duration(200)` (skipped when `reduceMotion`). Gated by AsyncStorage key `rekkus:dish-tag-onboarding:v1`; fires `dish_tag_onboarding_shown` analytics event on show. Never reappears after dismiss.
+
 ### Bottom Navigation
 
 Four destination tabs: Feed · Search · Saved · Profile. A centred floating Create action sits above the bar and launches contribution without changing the meaning of tab navigation.
@@ -512,10 +514,13 @@ Post detail action states:
 
 Default: search bar + category chips + trending list.
 Active: result count label + 2-col grid (same as feed).
+Zero-results: `NoResultsCard` (`features/search/NoResultsCard.tsx`) — heading "No results for X" + 3 alternative `Chip` actions drawn from `CHIPS` in `searchConstants.ts`. Never show a blank screen.
 
 ### Create Review
 
 Create composer: Title -> restaurant/place -> food media, then Review, then Share preview. Camera and Library are primary actions; mixed media uses drag-to-reorder thumbnails, item 0 is Cover, and dish tags apply to photos only. 3:4 cover and Tag dishes are compact icon pills below the strip. Review is core-first: compact icon-led Taste/Value/Occasion chips -> written review -> always-visible Best dish -> collapsed Optional details for Cuisine and Tags. Existing cuisine/tag values automatically expand Optional details and remain summarised when collapsed. Selected pick helper copy remains visible; visible Food/Vibe/Cost cards do not return. Header actions share size, weight, hit area, and disabled styling; Share hides the top Save and keeps Save draft in the final action area. Share edit actions use step names: Edit media and Edit review.
+
+**Step 1 (Media) spacing tokens (B-404):** `titleSection.paddingTop` = `spacing.px10` (10px); `locationSection.paddingTop` = `spacing[1]` (4px); `photoEmpty.marginTop` = `spacing[2]` (8px); `photoEmpty.aspectRatio` = 2.2 (~156px tall on 375px screen). These values keep the restaurant search and dish tagging prompt visible above the fold without scrolling on standard phone sizes.
 
 ### Post Collections
 
@@ -547,6 +552,7 @@ Same header. Actions: Follow + Message. Tab: Posts only.
 
 - **Loading:** `ActivityIndicator` for compact actions and pagination; skeleton placeholders (`c.surface2` background) for predictable content; `<EmptyState loading>` only for blocking full-screen waits without a useful content shape
 - **Errors:** `<ErrorMessage>` for routine failures; `RekkusActionSheet` only when recovery choices are available
+- **Success/info:** `useToast()` from `lib/contexts/ToastContext` — 3 s auto-dismiss bottom overlay, `accessibilityLiveRegion="polite"`; never use `Alert.alert` for success/info; never add per-screen banner variants
 - **Connectivity:** one root `<ConnectivityNotice>` for offline/pending/sync status; do not duplicate banners in individual screens
 - **Empty states:** `EmptyState` component — icon + title + subtitle, generous padding
 - **Haptics:** light on like/save; medium on post submit

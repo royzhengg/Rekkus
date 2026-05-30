@@ -7,7 +7,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, EyeIcon } from '@/components/icons'
@@ -15,14 +14,16 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
-import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
+import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useToast } from '@/lib/contexts/ToastContext'
 import { getCurrentUser, reauthenticate, updatePassword } from '@/lib/services/auth'
 import { hasCurrentPassword, isValidPassword, passwordMinLengthMessage, passwordsMatch as doPasswordsMatch } from '@/lib/utils/validation'
 
 export default function ChangePasswordScreen() {
   const router = useRouter()
   const { requireOnline } = useConnectivity()
+  const { showToast } = useToast()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [currentPassword, setCurrentPassword] = useState('')
@@ -68,13 +69,12 @@ export default function ChangePasswordScreen() {
       await updatePassword(newPassword)
     } catch (updateError) {
       setLoading(false)
-      setError(updateError instanceof Error ? updateError.message : 'Failed to update password.')
+      setError(updateError instanceof Error ? updateError.message : 'Your password could not be updated. Check your connection and try again.')
       return
     }
     setLoading(false)
-    Alert.alert('Password updated', 'Your password has been changed successfully.', [
-      { text: 'OK', onPress: () => router.back() },
-    ])
+    showToast('Password updated')
+    router.back()
   }
 
   return (

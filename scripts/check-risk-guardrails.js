@@ -200,6 +200,26 @@ for (const relativeRoot of ['app', 'features', 'lib', 'components']) {
   })
 }
 
+// B-239b: Phase 2 deferrable functions must go through runDeferredMutation in feature files.
+// Direct calls bypass the offline queue and break offline write recovery.
+const DEFERRABLE_FNS = [
+  'addReaction', 'removeReaction',
+  'muteConversation', 'unmuteConversation',
+  'archiveConversation', 'unarchiveConversation',
+  'pinConversation', 'unpinConversation',
+  'markConversationUnread',
+]
+const deferrablePattern = new RegExp(`\\b(${DEFERRABLE_FNS.join('|')})\\b`)
+walk('features', (file, source) => {
+  if (!/\.tsx?$/.test(file)) return
+  if (deferrablePattern.test(source)) {
+    failures.push(
+      `${file} directly uses a Phase 2 deferrable function; ` +
+        'call runDeferredMutation({ kind: ... }) instead (B-239b).'
+    )
+  }
+})
+
 if (failures.length) {
   console.error('Hidden-risk guardrails failed:')
   for (const failure of failures) console.error(`- ${failure}`)

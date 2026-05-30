@@ -115,7 +115,7 @@ export default function CollectionDetailScreen() {
               return (
                 <CollectionRow
                   key={item.id ?? item.target_id}
-                  title={post.best_dish ?? post.title}
+                  title={post.mustOrder ?? post.title}
                   subtitle={`@${post.creator}`}
                   leading={post.imageUrl ? <CachedImage source={{ uri: post.imageUrl }} style={styles.thumbnail} /> : <ImagePlaceholder size={22} />}
                   onPress={() => router.push(routes.postDetail(post.dbId))}

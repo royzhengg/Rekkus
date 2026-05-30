@@ -75,6 +75,10 @@ const SAFE_METADATA_KEYS = new Set([
   'feature',
   'cache_status',
   'mutation_kind',
+  'tap_count',
+  'session_duration_ms',
+  'had_results',
+  'result_clicked',
 ])
 const SENSITIVE_VALUE_PATTERN =
   /(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\+?\d[\d\s().-]{7,}|password|secret|token|service_role|reset_link|private_note|raw_provider_payload|precise_location)/i
@@ -244,6 +248,42 @@ export const analytics = {
       },
     }),
 
+  searchSessionEnd: (
+    userId: string | null,
+    searchSessionId: string,
+    sessionDurationMs: number,
+    hadResults: boolean,
+    resultClicked: boolean,
+    query: string | null
+  ): void =>
+    void track(userId, {
+      event_type: 'search_session_end',
+      metadata: {
+        search_session_id: searchSessionId,
+        session_duration_ms: Math.max(0, Math.round(sessionDurationMs)),
+        had_results: hadResults,
+        result_clicked: resultClicked,
+        ...(query ? { query } : {}),
+      },
+    }),
+
+  searchAbandon: (
+    userId: string | null,
+    query: string,
+    resultCount: number,
+    sessionDurationMs: number,
+    searchSessionId: string
+  ): void =>
+    void track(userId, {
+      event_type: 'search_abandon',
+      metadata: {
+        query,
+        result_count: resultCount,
+        session_duration_ms: Math.max(0, Math.round(sessionDurationMs)),
+        search_session_id: searchSessionId,
+      },
+    }),
+
   feedDiagnostic: (
     userId: string | null,
     action: string,
@@ -286,6 +326,9 @@ export const analytics = {
 
   onboardingAnomaly: (userId: string | null, step: string, reason: string): void =>
     void track(userId, { event_type: 'onboarding_anomaly', metadata: { step, reason } }),
+
+  dishTagOnboardingShown: (userId: string | null): void =>
+    void track(userId, { event_type: 'dish_tag_onboarding_shown', entity_type: 'dish' }),
 
   uploadFailure: (userId: string | null, surface: string, reason: string, rejectedCount?: number): void =>
     void track(userId, {
@@ -359,6 +402,43 @@ export const analytics = {
     void track(userId, {
       event_type: 'action_error',
       metadata: { action, error_class: errorClass },
+    }),
+
+  // Funnel events for multi-step user flows.
+  // outcome: 'viewed' on step entry, 'completed' on advance, 'abandoned' on back/discard.
+  createPostFunnel: (
+    userId: string | null,
+    step: number,
+    outcome: 'viewed' | 'completed' | 'abandoned',
+    metadata?: { duration_ms?: number; reason?: string; session_duration_ms?: number }
+  ): void =>
+    void track(userId, {
+      event_type: 'create_post_funnel',
+      metadata: { step, outcome, ...metadata },
+    }),
+
+  // Rapid repeated taps on the same element within 1 s (≥3 = rage proxy).
+  // Sampled at 0.5 — high-volume diagnostic, not a conversion event.
+  rageTap: (
+    userId: string | null,
+    surface: string,
+    action: string,
+    step: number,
+    tapCount: number
+  ): void =>
+    void track(userId, {
+      event_type: 'interaction_rage_tap',
+      sampleRate: 0.5,
+      metadata: { surface, action, step, tap_count: tapCount },
+    }),
+
+  // Tap on a visually active but currently disabled interactive element.
+  // Sampled at 0.5.
+  deadClick: (userId: string | null, surface: string, action: string, step: number): void =>
+    void track(userId, {
+      event_type: 'interaction_dead_click',
+      sampleRate: 0.5,
+      metadata: { surface, action, step },
     }),
 
   providerUsage: (

@@ -5,14 +5,15 @@ import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import 'react-native-reanimated'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { ConnectivityNotice } from '@/components/ui/ConnectivityNotice'
 import { AuthProvider, useAuth } from '@/lib/contexts/AuthContext'
 import { AuthGateProvider } from '@/lib/contexts/AuthGateContext'
-import { CreateLauncherProvider } from '@/lib/contexts/CreateLauncherContext'
 import { ConnectivityProvider } from '@/lib/contexts/ConnectivityContext'
+import { CreateLauncherProvider } from '@/lib/contexts/CreateLauncherContext'
 import { PostsProvider } from '@/lib/contexts/PostsContext'
 import { PostUploadProvider } from '@/lib/contexts/PostUploadContext'
 import { SettingsProvider } from '@/lib/contexts/SettingsContext'
-import { ConnectivityNotice } from '@/components/ui/ConnectivityNotice'
+import { ToastProvider } from '@/lib/contexts/ToastContext'
 import { refreshFeatureFlagOverrides } from '@/lib/featureFlags'
 import { restoreSession } from '@/lib/services/auth'
 import { initializeCrashReporting, withCrashReporting } from '@/lib/services/crashReporting'
@@ -94,6 +95,7 @@ function RootLayout() {
       <PostsProvider>
         <PostUploadProvider>
           <SettingsProvider>
+            <ToastProvider>
             <ConnectivityNotice />
             <AuthGateProvider>
               <CreateLauncherProvider>
@@ -111,6 +113,7 @@ function RootLayout() {
                 </Stack>
               </CreateLauncherProvider>
             </AuthGateProvider>
+            </ToastProvider>
           </SettingsProvider>
         </PostUploadProvider>
       </PostsProvider>

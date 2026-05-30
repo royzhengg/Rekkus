@@ -1,8 +1,8 @@
 import * as Network from 'expo-network'
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { analytics } from '@/lib/analytics'
-import { getSession } from '@/lib/services/auth'
 import { useAuth } from '@/lib/contexts/AuthContext'
+import { getSession } from '@/lib/services/auth'
 import {
   clearDeferredMutationsForUser,
   deferredMutationDomain,
@@ -58,6 +58,14 @@ function withIdentity(input: DeferredMutationInput, userId: string): DeferredMut
     case 'follow': return { ...input, userId, updatedAt, retryCount }
     case 'post_like': return { ...input, userId, updatedAt, retryCount }
     case 'setting': return { ...input, userId, updatedAt, retryCount }
+    case 'message_reaction': return { ...input, userId, updatedAt, retryCount }
+    case 'conversation_mute': return { ...input, userId, updatedAt, retryCount }
+    case 'conversation_unmute': return { ...input, userId, updatedAt, retryCount }
+    case 'conversation_archive': return { ...input, userId, updatedAt, retryCount }
+    case 'conversation_unarchive': return { ...input, userId, updatedAt, retryCount }
+    case 'conversation_pin': return { ...input, userId, updatedAt, retryCount }
+    case 'conversation_unpin': return { ...input, userId, updatedAt, retryCount }
+    case 'conversation_unread': return { ...input, userId, updatedAt, retryCount }
   }
 }
 
@@ -76,18 +84,18 @@ export function ConnectivityProvider({ children }: { children: React.ReactNode }
 
   const flush = useCallback(async () => {
     if (!user || state !== 'online' || flushingRef.current) return
-    const session = await getSession()
-    if (!session) return  // session expired — do not replay
-    const pending = await readDeferredMutations(user.id)
-    if (pending.length === 0) {
-      setPendingCount(0)
-      return
-    }
     flushingRef.current = true
-    setSyncState('syncing')
-    let failed = false
-    let consecutiveRetryable = 0
     try {
+      const session = await getSession()
+      if (!session) return  // session expired — do not replay
+      const pending = await readDeferredMutations(user.id)
+      if (pending.length === 0) {
+        setPendingCount(0)
+        return
+      }
+      setSyncState('syncing')
+      let failed = false
+      let consecutiveRetryable = 0
       for (const mutation of pending) {
         // Guard: skip mutations that belong to a different user (mid-flush user change)
         if (mutation.userId !== user.id) continue

@@ -492,13 +492,13 @@ type PostRatingRow = {
   vibe_rating: number | null
   cost_rating: number | null
   created_at: string
-  best_dish: string | null
+  must_order: string | null
   dish_id: string | null
 }
 
 export async function fetchRestaurantPostRatings(restaurantId: string): Promise<PostRatingRow[]> {
   const { data } = await supabase.from('posts')
-    .select('food_rating, vibe_rating, cost_rating, created_at, best_dish, dish_id')
+    .select('food_rating, vibe_rating, cost_rating, created_at, must_order, dish_id')
     .eq('restaurant_id', restaurantId)
     .limit(100)
   return (data ?? []).filter((row): row is PostRatingRow =>
@@ -506,7 +506,7 @@ export async function fetchRestaurantPostRatings(restaurantId: string): Promise<
     (row.food_rating === null || typeof row.food_rating === 'number') &&
     (row.vibe_rating === null || typeof row.vibe_rating === 'number') &&
     (row.cost_rating === null || typeof row.cost_rating === 'number') &&
-    (row.best_dish === null || typeof row.best_dish === 'string') &&
+    (row.must_order === null || typeof row.must_order === 'string') &&
     (row.dish_id === null || typeof row.dish_id === 'string')
   )
 }

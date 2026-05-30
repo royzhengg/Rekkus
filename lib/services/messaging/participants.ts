@@ -31,24 +31,32 @@ export async function fetchConversationAllParticipants(
   return (data ?? []).map(parseConversationParticipant).filter((participant): participant is ConversationParticipant => participant !== null)
 }
 
-export async function muteConversation(
+export const MUTE_DURATIONS_MS: Record<MuteDuration, number> = {
+  '1h': 60 * 60 * 1000,
+  '8h': 8 * 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '1w': 7 * 24 * 60 * 60 * 1000,
+  forever: 100 * 365 * 24 * 60 * 60 * 1000,
+}
+
+export async function muteConversationUntil(
   conversationId: string,
   userId: string,
-  duration: MuteDuration = '8h'
+  mutedUntil: string
 ): Promise<void> {
-  const durations: Record<MuteDuration, number> = {
-    '1h': 60 * 60 * 1000,
-    '8h': 8 * 60 * 60 * 1000,
-    '24h': 24 * 60 * 60 * 1000,
-    '1w': 7 * 24 * 60 * 60 * 1000,
-    forever: 100 * 365 * 24 * 60 * 60 * 1000,
-  }
-  const mutedUntil = new Date(Date.now() + durations[duration]).toISOString()
   const { error } = await supabase.from('conversation_participants')
     .update({ muted_until: mutedUntil })
     .eq('conversation_id', conversationId)
     .eq('user_id', userId)
   if (error) throw error
+}
+
+export async function muteConversation(
+  conversationId: string,
+  userId: string,
+  duration: MuteDuration = '8h'
+): Promise<void> {
+  await muteConversationUntil(conversationId, userId, new Date(Date.now() + MUTE_DURATIONS_MS[duration]).toISOString())
 }
 
 export async function unmuteConversation(conversationId: string, userId: string): Promise<void> {

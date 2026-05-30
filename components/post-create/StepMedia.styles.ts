@@ -7,7 +7,7 @@ import type { useThemeColors } from '@/lib/contexts/ThemeContext'
 export function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
     scroll: { flex: 1 },
-    locationSection: { paddingHorizontal: spacing[4], paddingTop: spacing.px10, zIndex: 10 },
+    locationSection: { paddingHorizontal: spacing[4], paddingTop: spacing[1], zIndex: 10 },
     searchWrap: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -60,12 +60,12 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
     nearbyLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.text3, paddingHorizontal: spacing[3], paddingTop: spacing.px10, paddingBottom: spacing[1] },
     photoEmpty: {
       marginHorizontal: spacing[4],
-      marginTop: spacing[3],
+      marginTop: spacing[2],
       borderWidth: 1.5,
       borderStyle: 'dashed',
       borderColor: `${c.accent}55`,
       borderRadius: radius.lg2,
-      aspectRatio: 1.42,
+      aspectRatio: 2.2,
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.px10,
@@ -102,7 +102,7 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingHorizontal: spacing.px10,
       paddingVertical: spacing.px5,
     },
-    titleSection: { paddingHorizontal: spacing[4], paddingTop: spacing.px14 },
+    titleSection: { paddingHorizontal: spacing[4], paddingTop: spacing.px10 },
     titleInput: {
       minHeight: 54,
       borderRadius: radius.lg,
@@ -164,5 +164,29 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
     tagListItem: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
     tagListDot: { width: 6, height: 6, borderRadius: radius.tiny, backgroundColor: c.accent },
     tagListName: { flex: 1, fontSize: fontSize.base, color: c.text },
+    dishTagTooltip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.px10,
+      marginHorizontal: spacing[4],
+      marginTop: spacing.px10,
+      backgroundColor: `${c.accent}12`,
+      borderRadius: radius.md3,
+      paddingHorizontal: spacing.px13,
+      paddingVertical: spacing.px10,
+      borderWidth: 0.5,
+      borderColor: `${c.accent}24`,
+    },
+    dishTagTooltipText: {
+      flex: 1,
+      fontSize: fontSize.bodySm,
+      color: c.text2,
+    },
+    dishTagTooltipDismiss: {
+      minWidth: 44,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
   })
 }

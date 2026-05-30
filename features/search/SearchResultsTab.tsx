@@ -51,6 +51,7 @@ interface SearchResultsTabProps {
   user: { id: string } | null | undefined
   searchSessionId: string
   activeTabEmpty: boolean
+  onResultClick?: (() => void) | undefined
 }
 
 export function SearchResultsTab({
@@ -73,6 +74,7 @@ export function SearchResultsTab({
   user,
   searchSessionId,
   activeTabEmpty,
+  onResultClick,
 }: SearchResultsTabProps) {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
@@ -140,6 +142,7 @@ export function SearchResultsTab({
                     query={query}
                     position={index + 1}
                     searchSessionId={searchSessionId}
+                    onResultClick={onResultClick}
                   />
                 ))}
               </View>
@@ -157,6 +160,7 @@ export function SearchResultsTab({
                     query={query}
                     searchSessionId={searchSessionId}
                     user={user}
+                    onResultClick={onResultClick}
                   />
                 ))}
               </View>
@@ -167,7 +171,7 @@ export function SearchResultsTab({
               <SectionHeader title="People" count={peopleResults.length} />
               <View>
                 {topPeople.map(p => (
-                  <PersonRow key={p.username} person={p} />
+                  <PersonRow key={p.username} person={p} onResultClick={onResultClick} />
                 ))}
               </View>
             </View>
@@ -180,7 +184,7 @@ export function SearchResultsTab({
           <SectionHeader title="People" count={peopleResults.length} />
           <View>
             {peopleResults.map(p => (
-              <PersonRow key={p.username} person={p} />
+              <PersonRow key={p.username} person={p} onResultClick={onResultClick} />
             ))}
           </View>
         </View>
@@ -198,6 +202,7 @@ export function SearchResultsTab({
                 query={query}
                 searchSessionId={searchSessionId}
                 user={user}
+                onResultClick={onResultClick}
               />
             ))}
             {postResults.length > visiblePostCount && (
@@ -225,6 +230,7 @@ export function SearchResultsTab({
                 query={query}
                 position={index + 1}
                 searchSessionId={searchSessionId}
+                onResultClick={onResultClick}
               />
             ))}
           </View>
@@ -236,7 +242,13 @@ export function SearchResultsTab({
 
 // ─── PersonRow ────────────────────────────────────────────────────────────────
 
-const PersonRow = React.memo(function PersonRow({ person }: { person: PersonResult }) {
+const PersonRow = React.memo(function PersonRow({
+  person,
+  onResultClick,
+}: {
+  person: PersonResult
+  onResultClick?: (() => void) | undefined
+}) {
   const router = useRouter()
   const { user } = useAuth()
   const { requireAuth } = useAuthGate()
@@ -267,9 +279,10 @@ const PersonRow = React.memo(function PersonRow({ person }: { person: PersonResu
     <Animated.View style={press.animatedStyle}>
       <TouchableOpacity
         style={styles.personRow}
-        onPress={() =>
+        onPress={() => {
+          onResultClick?.()
           router.push(routes.userProfile(person.username))
-        }
+        }}
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
         activeOpacity={1}
@@ -310,12 +323,14 @@ const PostCompactRow = React.memo(function PostCompactRow({
   query,
   searchSessionId,
   user,
+  onResultClick,
 }: {
   post: Post
   position?: number | undefined
   query?: string | undefined
   searchSessionId?: string | undefined
   user?: { id: string } | null | undefined
+  onResultClick?: (() => void) | undefined
 }) {
   const router = useRouter()
   const colors = useThemeColors()
@@ -330,6 +345,7 @@ const PostCompactRow = React.memo(function PostCompactRow({
         onPressOut={press.onPressOut}
         activeOpacity={1}
         onPress={() => {
+          onResultClick?.()
           if (post.dbId && query && searchSessionId && position != null) {
             analytics.searchResultClick(
               user?.id ?? null,

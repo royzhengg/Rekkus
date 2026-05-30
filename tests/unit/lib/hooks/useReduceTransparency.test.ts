@@ -10,12 +10,12 @@ describe('useReduceTransparency', () => {
     Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
     onChange = undefined
     jest.spyOn(AccessibilityInfo, 'isReduceTransparencyEnabled').mockResolvedValue(false)
-    jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
+    jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation(((event: string, listener: (enabled: boolean) => void) => {
       if (event === 'reduceTransparencyChanged') {
         onChange = listener
       }
       return { remove: jest.fn() }
-    })
+    }) as never)
   })
 
   afterEach(() => {

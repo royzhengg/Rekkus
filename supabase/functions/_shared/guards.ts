@@ -10,7 +10,7 @@ export type NotifyPayload = {
 }
 
 export type EmbedTable = 'posts' | 'restaurants'
-export type PostTextRow = { id: string; best_dish?: string | null; caption?: string | null; cuisine_type?: string | null }
+export type PostTextRow = { id: string; must_order?: string | null; caption?: string | null; cuisine_type?: string | null }
 export type RestaurantTextRow = { id: string; name?: string | null; cuisine_type?: string | null; suburb?: string | null; city?: string | null }
 
 export type ModerateContentPayload = {
@@ -70,7 +70,7 @@ export function isRestaurantTextRow(value: unknown): value is RestaurantTextRow 
 }
 
 export function postToText(post: PostTextRow): string {
-  return [post.best_dish, post.caption, post.cuisine_type]
+  return [post.must_order, post.caption, post.cuisine_type]
     .filter(Boolean)
     .join(' ')
     .trim()

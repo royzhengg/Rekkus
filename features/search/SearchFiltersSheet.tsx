@@ -21,8 +21,8 @@ import {
   OCCASION_PICK_OPTIONS,
   VALUE_PICK_OPTIONS,
 } from '@/lib/dataSources/rekkusPicks'
-import type { SearchFilters } from '@/lib/hooks/useSearch'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
+import type { SearchFilters } from '@/lib/hooks/useSearch'
 import type { useUserLocation } from '@/lib/hooks/useUserLocation'
 import { fetchAreaSuggestionsJson } from '@/lib/services/googlePlaces'
 import { SEARCH_RADIUS_OPTIONS, SEARCH_SORTS, MEDIA_FILTERS } from './searchConstants'

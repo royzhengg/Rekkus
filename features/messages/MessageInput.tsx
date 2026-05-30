@@ -35,11 +35,11 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize } from '@/constants/Typography'
 import { SPRING_SNAPPY, PRESS_SCALE_ICON } from '@/lib/animations'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
+import type { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { isEnabled } from '@/lib/featureFlags'
 import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
-import type { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
-import { isEnabled } from '@/lib/featureFlags'
 import { fetchGifs, hasGifProvider, type GifResult } from '@/lib/services/gifs'
 import { validatePickedMessageAttachment } from '@/lib/services/media'
 import { uploadAttachment, computeFileHash } from '@/lib/services/messageAttachments'
@@ -335,7 +335,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
     <>
       {/* Reply context bar */}
       {replyingTo ? (
-        <Animated.View entering={reduceMotion ? undefined : FadeInDown.duration(180)} style={styles.replyBar}>
+        <Animated.View {...(!reduceMotion ? { entering: FadeInDown.duration(180) } : {})} style={styles.replyBar}>
           <View style={styles.replyBarAccent} />
           <View style={styles.replyBarContent}>
             <Text style={styles.replyBarLabel}>Replying to</Text>
@@ -356,7 +356,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
       {/* Input area */}
       <View style={styles.inputArea}>
         {attachmentTrayOpen ? (
-          <Animated.View entering={reduceMotion ? undefined : FadeInDown.duration(150)} style={styles.attachmentTray}>
+          <Animated.View {...(!reduceMotion ? { entering: FadeInDown.duration(150) } : {})} style={styles.attachmentTray}>
             <TouchableOpacity style={styles.trayAction} onPress={handlePickMedia} activeOpacity={0.74}>
               <View style={styles.trayIconWrap}>
                 <GalleryIcon size={21} color={colors.accent} />

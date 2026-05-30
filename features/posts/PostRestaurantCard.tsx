@@ -57,13 +57,13 @@ export function PostRestaurantCard({
       <Text style={styles.postTitle}>{post.title}</Text>
       <Text style={styles.postBody}>{post.body}</Text>
 
-      {(post.dishId && post.best_dish && onDishPress) || onAddToCollection ? (
+      {(post.dishId && post.mustOrder && onDishPress) || onAddToCollection ? (
         <View style={styles.dishActions}>
-          {post.dishId && post.best_dish && onDishPress ? (
+          {post.dishId && post.mustOrder && onDishPress ? (
             <Chip
-              label={post.best_dish}
+              label={post.mustOrder}
               onPress={onDishPress}
-              accessibilityLabel={`Open dish ${post.best_dish}`}
+              accessibilityLabel={`Open dish ${post.mustOrder}`}
               style={styles.actionChip}
             />
           ) : null}

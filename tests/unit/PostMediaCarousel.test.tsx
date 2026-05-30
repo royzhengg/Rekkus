@@ -1,14 +1,16 @@
-import React from 'react'
-import { View } from 'react-native'
 import { render } from '@testing-library/react-native'
+import React from 'react'
 import { PostMediaCarousel } from '@/components/post/PostMediaCarousel'
 import { usePostVideoPlayback } from '@/lib/hooks/usePostVideoPlayback'
 
-jest.mock('expo-video', () => ({
-  VideoView: ({ accessibilityLabel }: { accessibilityLabel: string }) => (
-    <View accessibilityLabel={accessibilityLabel} />
-  ),
-}))
+jest.mock('expo-video', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+  return {
+    VideoView: ({ accessibilityLabel }: { accessibilityLabel: string }) =>
+      React.createElement(View, { accessibilityLabel }),
+  }
+})
 jest.mock('@/lib/hooks/usePostVideoPlayback', () => ({
   usePostVideoPlayback: jest.fn(() => ({})),
 }))

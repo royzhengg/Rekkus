@@ -49,7 +49,7 @@ export type RemoteDraftRow = {
   taste_verdict: RekkusTasteVerdict | null
   value_verdict: RekkusValueVerdict | null
   occasion_tags: RekkusOccasionTag[] | null
-  best_dish: string | null
+  must_order: string | null
   cuisine_type: string | null
   hashtags: string[] | null
   hashtag_input: string | null
@@ -140,7 +140,7 @@ export function isLocalDraft(value: unknown): value is CreatePostDraft {
     typeof value.vibeRating === 'number' &&
     typeof value.costRating === 'number' &&
     typeof value.body === 'string' &&
-    typeof value.bestDish === 'string' &&
+    typeof value.mustOrder === 'string' &&
     typeof value.cuisineType === 'string' &&
     Array.isArray(value.hashtags) && value.hashtags.every(tag => typeof tag === 'string') &&
     typeof value.hashtagInput === 'string' &&
@@ -193,7 +193,7 @@ export function isRemoteDraftRow(value: unknown): value is RemoteDraftRow {
     (value.taste_verdict === null || isTaste(value.taste_verdict)) &&
     (value.value_verdict === null || isValue(value.value_verdict)) &&
     (value.occasion_tags === null || (Array.isArray(value.occasion_tags) && value.occasion_tags.every(isOccasion))) &&
-    nullableString(value.best_dish) &&
+    nullableString(value.must_order) &&
     nullableString(value.cuisine_type) &&
     (value.hashtags === null || (Array.isArray(value.hashtags) && value.hashtags.every(tag => typeof tag === 'string'))) &&
     nullableString(value.hashtag_input) &&

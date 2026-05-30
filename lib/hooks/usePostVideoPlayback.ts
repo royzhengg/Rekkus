@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
 import { useVideoPlayer } from 'expo-video'
+import { useEffect } from 'react'
 import { useSettings } from '@/lib/contexts/SettingsContext'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 

@@ -117,7 +117,7 @@ export interface Post {
   valueVerdict?: RekkusValueVerdict | undefined
   occasionTags?: RekkusOccasionTag[] | undefined
   cuisine_type?: string | undefined
-  best_dish?: string | undefined
+  mustOrder?: string | undefined
   restaurantId?: string | undefined
   placeId?: string | undefined
   lat?: number | undefined

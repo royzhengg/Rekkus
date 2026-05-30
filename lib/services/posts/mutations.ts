@@ -63,9 +63,9 @@ export async function updatePost(postId: string, payload: UpdatePostPayload): Pr
     patch.cuisine_type = payload.cuisineType
     changedFields.push('cuisine_type')
   }
-  if ('bestDish' in payload) {
-    patch.best_dish = payload.bestDish
-    changedFields.push('best_dish')
+  if ('mustOrder' in payload) {
+    patch.must_order = payload.mustOrder
+    changedFields.push('must_order')
   }
   if ('dishId' in payload) {
     patch.dish_id = payload.dishId
@@ -147,7 +147,7 @@ export async function createPost(params: {
   valueVerdict: RekkusValueVerdict | null
   occasionTags: RekkusOccasionTag[]
   cuisineType: string | null
-  bestDish: string | null
+  mustOrder: string | null
   dishId?: string | null
   dishTags: DishTag[]
   media: PostMediaAsset[]
@@ -164,7 +164,7 @@ export async function createPost(params: {
       value_verdict: params.valueVerdict,
       occasion_tags: params.occasionTags,
       cuisine_type: params.cuisineType,
-      best_dish: params.bestDish,
+      must_order: params.mustOrder,
       dish_id: params.dishId ?? null,
       dish_tags: params.dishTags,
       edit_count: 0,

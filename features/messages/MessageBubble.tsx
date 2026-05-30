@@ -13,8 +13,8 @@ import { CachedImage } from '@/components/ui/CachedImage'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
-import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import type { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import type { DirectMessage, MessageReaction } from '@/lib/services/messaging'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -300,7 +300,7 @@ export function MessageBubble({
 
   if (message.message_type === 'system') {
     return (
-      <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(200)} style={styles.systemRow}>
+      <Animated.View {...(!reduceMotion ? { entering: FadeIn.duration(200) } : {})} style={styles.systemRow}>
         {renderContent()}
       </Animated.View>
     )
@@ -308,7 +308,7 @@ export function MessageBubble({
 
   return (
     <Animated.View
-      entering={reduceMotion ? undefined : FadeIn.duration(220)}
+      {...(!reduceMotion ? { entering: FadeIn.duration(220) } : {})}
       style={[styles.messageRow, isMine && styles.messageRowMine]}
     >
       {isGroup && !isMine && showSenderName ? (

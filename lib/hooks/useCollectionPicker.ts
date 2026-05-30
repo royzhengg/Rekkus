@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import {
   addTargetToCollection,
   createPrivateCollection,
   fetchCollections,
   type Collection,
 } from '@/lib/services/collections'
-import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import type { CollectionTargetType } from '@/types/domain'
 
 export function useCollectionPicker(

@@ -13,7 +13,7 @@ When docs conflict, prefer the most specific doc inside that authority order and
 
 ## Product Direction
 
-Build Rekkus as a dish-first social taste graph and hyperlocal food discovery utility.
+Build Rekkus as a social review and recommendation platform. Food is the current niche; dish-first discovery is the key differentiator within that niche, not the platform identity.
 
 Do not turn Rekkus into:
 
@@ -123,6 +123,7 @@ Deprecation workflow: mark deprecated → block new usage → migrate incrementa
 | Loading state (blocking full-screen, no meaningful shape) | `<EmptyState loading>` | Stable | [ADR 0005](docs/adr/0005-contextual-loading-surfaces.md) |
 | Error display | `<ErrorMessage>` (`components/ui/ErrorMessage.tsx`); no inline failure text, failure alerts, or dismiss-only failure sheets | Stable | [ADR 0006](docs/adr/0006-routine-and-actionable-failures.md) |
 | Actionable failure recovery | `<RekkusActionSheet>` only when it offers a recovery action such as retry/review | Stable | [ADR 0006](docs/adr/0006-routine-and-actionable-failures.md) |
+| Success/info confirmation | `<Toast>` via `useToast()` (`lib/contexts/ToastContext.tsx`, `components/ui/Toast.tsx`) — 3 s auto-dismiss, bottom overlay, `accessibilityLiveRegion="polite"`; `ErrorMessage` for errors; `Alert.alert` only for destructive confirmations | Stable | [ADR 0017](docs/adr/0017-success-confirmation-patterns.md) |
 | Connectivity and deferred sync status | `<ConnectivityNotice>` rendered once in the root provider tree; no per-screen banner variants | Stable | [ADR 0016](docs/adr/0016-offline-write-recovery.md) |
 | Modal / choice sheet | `<RekkusActionSheet>` (`components/ui/RekkusActionSheet.tsx`) | Stable | [ADR 0007](docs/adr/0007-in-app-choice-surfaces.md) |
 | Image display | `<CachedImage>` (`components/ui/CachedImage.tsx`) | Stable | [ADR 0008](docs/adr/0008-remote-image-display.md) |
@@ -200,6 +201,7 @@ Use [docs/GOVERNANCE.md](docs/GOVERNANCE.md) for documentation lifecycle, budget
 - **Do not touch `StepMedia.tsx` during stabilisation** unless the task explicitly requires modifying adjacent logic. It is tracked in B-506.
 - **Regression surface awareness:** Before adding a pattern, abstraction, or optional behaviour — ask whether it consolidates or expands the surface area of things that can break. Prefer consolidation.
 - **Common AI failure modes to avoid:** over-abstraction, duplicate patterns, excessive file splitting, unsafe type bypasses (`as any`, `as unknown as`, `!`), unnecessary rewrites, dependency overuse, solving a local problem while harming global consistency.
+- **Review Flow UX Gate:** For any change to the create-post flow (Media, Review, Share screens), evaluate: (1) cognitive load — max 3–4 choices per section; (2) empty state quality — fact + next action, not filler; (3) CTA clarity — one visually dominant primary action; (4) information hierarchy — most important recommendation content above the fold; (5) product differentiation — dish-first and recommendation-first framing; (6) recommendation visibility — Must Order visible without scrolling on Review step; (7) accessibility — all touch targets ≥ 44pt, descriptive labels on all interactive elements; (8) completion friction — minimum taps to post; (9) form fatigue — optional details collapsed by default. Run `design/REVIEW_FLOW_CHECKLIST.md` before finishing.
 
 ## Pre-Merge Review Checklist
 

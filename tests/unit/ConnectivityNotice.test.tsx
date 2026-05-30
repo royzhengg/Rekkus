@@ -32,7 +32,7 @@ describe('ConnectivityNotice', () => {
     const screen = render(<ConnectivityNotice />)
 
     expect(screen.getByText('Offline. 2 changes waiting to sync.')).toBeTruthy()
-    expect(screen.getByRole('alert')).toBeTruthy()
+    expect(screen.UNSAFE_getByProps({ accessibilityRole: 'alert' })).toBeTruthy()
   })
 
   it('reports syncing and completion after reconnect', () => {

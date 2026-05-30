@@ -19,6 +19,17 @@ jest.mock('expo-network', () => ({
     capturedNetworkListener = cb
     return { remove: jest.fn() }
   }),
+  NetworkStateType: {
+    WIFI: 'wifi',
+    CELLULAR: 'cellular',
+    BLUETOOTH: 'bluetooth',
+    ETHERNET: 'ethernet',
+    WIMAX: 'wimax',
+    VPN: 'vpn',
+    OTHER: 'other',
+    NONE: 'none',
+    UNKNOWN: 'unknown',
+  },
 }))
 
 jest.mock('@/lib/contexts/AuthContext', () => ({
@@ -84,7 +95,7 @@ describe('ConnectivityContext flush behaviour', () => {
     jest.clearAllMocks()
     capturedNetworkListener = null
     mockUseAuth.mockReturnValue(fakeAuthContext)
-    mockGetNetworkStateAsync.mockResolvedValue({ isConnected: null, isInternetReachable: null, type: Network.NetworkStateType.UNKNOWN })
+    mockGetNetworkStateAsync.mockResolvedValue({ type: Network.NetworkStateType.UNKNOWN })
     mockGetSession.mockResolvedValue({ access_token: 'tok' } as Awaited<ReturnType<typeof getSession>>)
     mockReadDeferredMutations.mockResolvedValue([])
     mockExecuteDeferredMutation.mockResolvedValue(undefined)
@@ -129,6 +140,9 @@ describe('ConnectivityContext flush behaviour', () => {
 
     const { result } = renderHook(() => useConnectivity(), { wrapper })
 
+    // Drain the getNetworkStateAsync promise so it doesn't race with the listener below
+    await act(async () => {})
+
     expect(result.current.syncEpoch).toBe(0)
 
     await act(async () => {
@@ -152,8 +166,13 @@ describe('ConnectivityContext flush behaviour', () => {
 
     renderHook(() => useConnectivity(), { wrapper })
 
-    // Trigger online twice in quick succession
-    act(() => { capturedNetworkListener?.(ONLINE) })
+    // Drain the getNetworkStateAsync promise so it doesn't race with listener calls below
+    await act(async () => {})
+
+    // First trigger: flush starts and suspends at the slow executeDeferredMutation
+    await act(async () => { capturedNetworkListener?.(ONLINE) })
+
+    // Rapid offline/online while first flush is still in-flight (flushingRef guard should block second flush)
     act(() => { capturedNetworkListener?.(OFFLINE) })
     act(() => { capturedNetworkListener?.(ONLINE) })
 

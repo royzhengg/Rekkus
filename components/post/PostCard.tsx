@@ -100,7 +100,7 @@ export function PostCard({ post, compact, onPressPost, onPressCreator, onPressTa
           </View>
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={2}>
-          {post.best_dish || post.title}
+          {post.mustOrder || post.title}
         </Text>
         {!!post.body && (
           <Text style={styles.bodyText} numberOfLines={2}>

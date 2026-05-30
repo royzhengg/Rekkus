@@ -1,5 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as ImagePicker from 'expo-image-picker'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -12,6 +13,7 @@ import {
   Modal,
   useWindowDimensions,
 } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import DishTagOverlay from '@/components/DishTagOverlay'
 import {
   CloseIcon,
@@ -66,6 +68,8 @@ export default function StepMedia({
 
   const [titleFocused, setTitleFocused] = useState(false)
   const [dishTagModal, setDishTagModal] = useState(false)
+  const [showDishTagTooltip, setShowDishTagTooltip] = useState(false)
+  const [tooltipSeen, setTooltipSeen] = useState(true)
   const [activeTagPhotoIndex, setActiveTagPhotoIndex] = useState(0)
   const [mediaError, setMediaError] = useState<string | null>(null)
   const { request: requestPermission, recoveryVisible, recoveryMessage, dismissRecovery, openSettings } = usePermissionRecovery()
@@ -251,6 +255,25 @@ export default function StepMedia({
     setDishTags(dishTags.map((t, i) => (i === absoluteIndex ? { ...t, x, y } : t)))
   }
 
+  useEffect(() => {
+    void AsyncStorage.getItem('rekkus:dish-tag-onboarding:v1').then(val => {
+      if (!val) setTooltipSeen(false)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (photos.length > 0 && !tooltipSeen) {
+      setTooltipSeen(true)
+      setShowDishTagTooltip(true)
+      void AsyncStorage.setItem('rekkus:dish-tag-onboarding:v1', '1')
+      analytics.dishTagOnboardingShown(null)
+    }
+  }, [photos.length, tooltipSeen])
+
+  function dismissDishTagTooltip() {
+    setShowDishTagTooltip(false)
+  }
+
   function openDishTagModal() {
     if (photos.length === 0) return
     setActiveTagPhotoIndex(0)
@@ -270,7 +293,7 @@ export default function StepMedia({
       <View style={styles.titleSection}>
         <TextInput
           style={[styles.titleInput, titleFocused && styles.fieldFocused]}
-          placeholder="What's your take?"
+          placeholder="What did you try?"
           placeholderTextColor={c.text3}
           value={title}
           onChangeText={setTitle}
@@ -392,7 +415,7 @@ export default function StepMedia({
         <View style={styles.photoEmpty}>
           <ImagePlaceholder size={32} color={c.text3} />
           <Text style={styles.photoEmptyLabel}>Add food media</Text>
-          <Text style={styles.photoEmptySub}>Take a photo or choose photos/video from your library</Text>
+          <Text style={styles.photoEmptySub}>Add a photo or video — then tag the dishes people should order</Text>
           <View style={styles.mediaActionRow}>
             <TouchableOpacity
               style={styles.mediaActionBtn}
@@ -422,6 +445,26 @@ export default function StepMedia({
             onRemove={removeMedia}
             onAdd={media.length < MEDIA_LIMITS.maxPostMedia ? addMedia : undefined}
           />
+
+          {showDishTagTooltip && (
+            <Animated.View
+              {...(!reduceMotion ? { entering: FadeIn.duration(200) } : {})}
+              style={styles.dishTagTooltip}
+            >
+              <Text style={styles.dishTagTooltipText}>
+                Tag the dishes in your photos — it helps friends discover what to order
+              </Text>
+              <TouchableOpacity
+                onPress={dismissDishTagTooltip}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss tip"
+                style={styles.dishTagTooltipDismiss}
+              >
+                <CloseIcon size={12} color={c.accent} />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
 
           {/* Photo action row */}
           {photos.length > 0 && (

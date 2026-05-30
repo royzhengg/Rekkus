@@ -11,6 +11,16 @@ const warnings = []
 const locAllowlist = new Map([
   // B-282: dish resolution (+15 LOC) pushed CreatePostScreen over 600; extract handlePost helpers to reduce — B-282
   ['features/create-post/CreatePostScreen.tsx', 'B-282'],
+  // B-239b: offline mutation handlers and syncEpoch subscriptions added to messaging inbox — B-239b
+  ['features/messages/MessagesListScreen.tsx', 'B-239b'],
+  // B-239: explicit offline recovery covers rich message submissions in the existing composer — B-239
+  ['features/messages/MessageInput.tsx', 'B-239'],
+  // B-282: dish detail additions pushed PostDetailScreen over 600; extract detail panels to reduce — B-282
+  ['features/posts/PostDetailScreen.tsx', 'B-282'],
+  // B-239: place save and governance recovery remain coordinated in the existing detail workflow — B-239
+  ['features/restaurants/RestaurantDetailScreen.tsx', 'B-239'],
+  // B-239: saved-place intent sync remains coordinated in the existing places tab workflow — B-239
+  ['features/restaurants/RestaurantsTabScreen.tsx', 'B-239'],
 ])
 
 function lineCount(source) {

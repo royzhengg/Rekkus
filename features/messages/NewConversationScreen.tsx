@@ -135,7 +135,7 @@ export default function NewConversationScreen() {
     const { conversationId, error } = await getOrCreateDirectConversation(user.id, targetId)
     setActing(false)
     if (error || !conversationId) {
-      setOperationError({ title: 'Could not start conversation', message: error ?? 'Please try again.' })
+      setOperationError({ title: 'Could not start conversation', message: error ?? 'Check your connection and try again.' })
       return
     }
     router.replace(routes.conversation(conversationId, shareParams))
@@ -153,7 +153,7 @@ export default function NewConversationScreen() {
     const { conversationId, error } = await createGroupConversation(name, Array.from(selected))
     setActing(false)
     if (error || !conversationId) {
-      setOperationError({ title: 'Could not create group', message: error ?? 'Please try again.' })
+      setOperationError({ title: 'Could not create group', message: error ?? 'Check your connection and try again.' })
       return
     }
     router.replace(routes.conversation(conversationId, shareParams))
@@ -250,7 +250,7 @@ export default function NewConversationScreen() {
 
       {/* Group name input — appears when 2+ selected */}
       {selectedCount >= 2 ? (
-        <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(200)} style={styles.groupNameRow}>
+        <Animated.View {...(!reduceMotion ? { entering: FadeIn.duration(200) } : {})} style={styles.groupNameRow}>
           <TextInput
             style={styles.groupNameInput}
             value={groupName}
@@ -267,7 +267,7 @@ export default function NewConversationScreen() {
       {selectedPeople.length > 0 ? (
         <View style={styles.chipsRow}>
           {selectedPeople.map(p => (
-            <Animated.View key={p.user_id} entering={reduceMotion ? undefined : FadeInRight.duration(180)}>
+            <Animated.View key={p.user_id} {...(!reduceMotion ? { entering: FadeInRight.duration(180) } : {})}>
               <TouchableOpacity
                 style={styles.chip}
                 onPress={() => toggleSelect(p)}

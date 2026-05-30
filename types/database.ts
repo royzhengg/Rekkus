@@ -7,30 +7,10 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -227,35 +207,35 @@ export type Database = {
       comments: {
         Row: {
           content: string
-          created_at: string
+          created_at: string | null
           deleted_at: string | null
           deleted_reason: string | null
           id: string
           parent_id: string | null
           post_id: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           content: string
-          created_at?: string
+          created_at?: string | null
           deleted_at?: string | null
           deleted_reason?: string | null
           id?: string
           parent_id?: string | null
           post_id: string
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           content?: string
-          created_at?: string
+          created_at?: string | null
           deleted_at?: string | null
           deleted_reason?: string | null
           id?: string
           parent_id?: string | null
           post_id?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -839,19 +819,19 @@ export type Database = {
       }
       follows: {
         Row: {
-          created_at: string
+          created_at: string | null
           follower_id: string
           following_id: string
           id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           follower_id: string
           following_id: string
           id?: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           follower_id?: string
           following_id?: string
           id?: string
@@ -875,17 +855,17 @@ export type Database = {
       }
       hashtags: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: string
           name: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           name: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           name?: string
         }
@@ -893,19 +873,19 @@ export type Database = {
       }
       likes: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: string
           post_id: string
           user_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           post_id: string
           user_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           post_id?: string
           user_id?: string
@@ -1258,7 +1238,6 @@ export type Database = {
       }
       post_drafts: {
         Row: {
-          best_dish: string
           body: string
           cost_rating: number
           created_at: string
@@ -1269,6 +1248,7 @@ export type Database = {
           hashtags: string[]
           id: string
           last_saved_at: string | null
+          must_order: string
           occasion_tags: string[]
           restaurant_id: string | null
           selected_place: Json | null
@@ -1281,7 +1261,6 @@ export type Database = {
           vibe_rating: number
         }
         Insert: {
-          best_dish?: string
           body?: string
           cost_rating?: number
           created_at?: string
@@ -1292,6 +1271,7 @@ export type Database = {
           hashtags?: string[]
           id?: string
           last_saved_at?: string | null
+          must_order?: string
           occasion_tags?: string[]
           restaurant_id?: string | null
           selected_place?: Json | null
@@ -1304,7 +1284,6 @@ export type Database = {
           vibe_rating?: number
         }
         Update: {
-          best_dish?: string
           body?: string
           cost_rating?: number
           created_at?: string
@@ -1315,6 +1294,7 @@ export type Database = {
           hashtags?: string[]
           id?: string
           last_saved_at?: string | null
+          must_order?: string
           occasion_tags?: string[]
           restaurant_id?: string | null
           selected_place?: Json | null
@@ -1420,14 +1400,14 @@ export type Database = {
       }
       post_photos: {
         Row: {
-          created_at: string
+          created_at: string | null
           deleted_at: string | null
           duration_ms: number | null
           height: number | null
           id: string
           media_type: string
           mime_type: string | null
-          order_index: number
+          order_index: number | null
           original_url: string | null
           post_id: string
           processed_url: string | null
@@ -1439,14 +1419,14 @@ export type Database = {
           width: number | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           deleted_at?: string | null
           duration_ms?: number | null
           height?: number | null
           id?: string
           media_type?: string
           mime_type?: string | null
-          order_index?: number
+          order_index?: number | null
           original_url?: string | null
           post_id: string
           processed_url?: string | null
@@ -1458,14 +1438,14 @@ export type Database = {
           width?: number | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           deleted_at?: string | null
           duration_ms?: number | null
           height?: number | null
           id?: string
           media_type?: string
           mime_type?: string | null
-          order_index?: number
+          order_index?: number | null
           original_url?: string | null
           post_id?: string
           processed_url?: string | null
@@ -1527,10 +1507,9 @@ export type Database = {
       }
       posts: {
         Row: {
-          best_dish: string | null
           caption: string | null
           cost_rating: number | null
-          created_at: string
+          created_at: string | null
           cuisine_type: string | null
           deleted_at: string | null
           deleted_reason: string | null
@@ -1541,20 +1520,20 @@ export type Database = {
           food_rating: number | null
           id: string
           last_edited_at: string | null
+          must_order: string | null
           occasion_tags: string[]
           rating: number | null
           restaurant_id: string | null
           taste_verdict: string | null
-          updated_at: string
+          updated_at: string | null
           user_id: string
           value_verdict: string | null
           vibe_rating: number | null
         }
         Insert: {
-          best_dish?: string | null
           caption?: string | null
           cost_rating?: number | null
-          created_at?: string
+          created_at?: string | null
           cuisine_type?: string | null
           deleted_at?: string | null
           deleted_reason?: string | null
@@ -1565,20 +1544,20 @@ export type Database = {
           food_rating?: number | null
           id?: string
           last_edited_at?: string | null
+          must_order?: string | null
           occasion_tags?: string[]
           rating?: number | null
           restaurant_id?: string | null
           taste_verdict?: string | null
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
           value_verdict?: string | null
           vibe_rating?: number | null
         }
         Update: {
-          best_dish?: string | null
           caption?: string | null
           cost_rating?: number | null
-          created_at?: string
+          created_at?: string | null
           cuisine_type?: string | null
           deleted_at?: string | null
           deleted_reason?: string | null
@@ -1589,11 +1568,12 @@ export type Database = {
           food_rating?: number | null
           id?: string
           last_edited_at?: string | null
+          must_order?: string | null
           occasion_tags?: string[]
           rating?: number | null
           restaurant_id?: string | null
           taste_verdict?: string | null
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
           value_verdict?: string | null
           vibe_rating?: number | null
@@ -2220,7 +2200,7 @@ export type Database = {
           community_verification_score: number
           community_verified_at: string | null
           country: string | null
-          created_at: string
+          created_at: string | null
           created_by: string | null
           cuisine_type: string | null
           embedding: string | null
@@ -2249,7 +2229,7 @@ export type Database = {
           primary_photo_source: string
           restaurant_geog: unknown
           suburb: string | null
-          updated_at: string
+          updated_at: string | null
           verification_status: string
         }
         Insert: {
@@ -2259,7 +2239,7 @@ export type Database = {
           community_verification_score?: number
           community_verified_at?: string | null
           country?: string | null
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           cuisine_type?: string | null
           embedding?: string | null
@@ -2288,7 +2268,7 @@ export type Database = {
           primary_photo_source?: string
           restaurant_geog?: unknown
           suburb?: string | null
-          updated_at?: string
+          updated_at?: string | null
           verification_status?: string
         }
         Update: {
@@ -2298,7 +2278,7 @@ export type Database = {
           community_verification_score?: number
           community_verified_at?: string | null
           country?: string | null
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           cuisine_type?: string | null
           embedding?: string | null
@@ -2327,7 +2307,7 @@ export type Database = {
           primary_photo_source?: string
           restaurant_geog?: unknown
           suburb?: string | null
-          updated_at?: string
+          updated_at?: string | null
           verification_status?: string
         }
         Relationships: [
@@ -2423,19 +2403,19 @@ export type Database = {
       }
       saves: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: string
           post_id: string
           user_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           post_id: string
           user_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           post_id?: string
           user_id?: string
@@ -2727,12 +2707,12 @@ export type Database = {
           bio: string | null
           city: string | null
           country: string | null
-          created_at: string
+          created_at: string | null
           full_name: string | null
           id: string
           last_seen_at: string | null
           suburb: string | null
-          updated_at: string
+          updated_at: string | null
           username: string
           website: string | null
         }
@@ -2741,12 +2721,12 @@ export type Database = {
           bio?: string | null
           city?: string | null
           country?: string | null
-          created_at?: string
+          created_at?: string | null
           full_name?: string | null
           id: string
           last_seen_at?: string | null
           suburb?: string | null
-          updated_at?: string
+          updated_at?: string | null
           username: string
           website?: string | null
         }
@@ -2755,12 +2735,12 @@ export type Database = {
           bio?: string | null
           city?: string | null
           country?: string | null
-          created_at?: string
+          created_at?: string | null
           full_name?: string | null
           id?: string
           last_seen_at?: string | null
           suburb?: string | null
-          updated_at?: string
+          updated_at?: string | null
           username?: string
           website?: string | null
         }
@@ -3179,9 +3159,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

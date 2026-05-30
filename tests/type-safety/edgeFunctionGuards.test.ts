@@ -22,7 +22,7 @@ export function runEdgeFunctionGuardTests(assert: StrictAssert) {
   assert.equal(isPostTextRow({ id: 'p1' }), true)
   assert.equal(isRestaurantTextRow({ id: 'r1' }), true)
   assert.equal(isPostTextRow({ id: 1 }), false)
-  assert.equal(postToText({ id: 'p1', best_dish: 'ramen', caption: null, cuisine_type: 'Japanese' }), 'ramen Japanese')
+  assert.equal(postToText({ id: 'p1', must_order: 'ramen', caption: null, cuisine_type: 'Japanese' }), 'ramen Japanese')
   assert.equal(restaurantToText({ id: 'r1', name: 'Cafe', suburb: 'Surry Hills' }), 'Cafe Surry Hills')
 
   assert.deepEqual(parseModerateContentPayload({

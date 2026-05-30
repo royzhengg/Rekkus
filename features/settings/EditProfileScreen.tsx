@@ -21,8 +21,8 @@ import { fontSize, fontWeight } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
-import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
 import { uploadAvatarImage, validatePickedAvatarImage } from '@/lib/services/media'
 import { fetchProfile, updateProfile as updateUserProfile } from '@/lib/services/users'
 
@@ -93,7 +93,7 @@ export default function EditProfileScreen() {
       return await uploadAvatarImage(user.id, uri)
     } catch (error) {
       analytics.uploadFailure(user.id, 'avatar_upload', 'storage_upload_error')
-      setError(error instanceof Error ? error.message : 'Please try again.')
+      setError(error instanceof Error ? error.message : 'Your profile photo could not be uploaded. Tap Save again to retry.')
       return null
     } finally {
       setUploading(false)
@@ -129,7 +129,7 @@ export default function EditProfileScreen() {
         country: country.trim() || null,
       })
     } catch (profileError) {
-      setError(profileError instanceof Error ? profileError.message : 'Could not update profile.')
+      setError(profileError instanceof Error ? profileError.message : 'Your profile could not be updated. Check your connection and try again.')
       setLoading(false)
       return
     }

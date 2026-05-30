@@ -74,6 +74,6 @@ export async function updateSettingValue<K extends keyof Settings>(
   const { error } = await supabase.from('user_settings').update({
     [key]: value,
     updated_at: new Date().toISOString(),
-  }).eq('id', userId)
+  } as never).eq('id', userId)
   if (error) throw error
 }

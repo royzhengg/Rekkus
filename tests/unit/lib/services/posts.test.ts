@@ -24,7 +24,7 @@ function makeRow(overrides: Partial<SavedPostRow> = {}): SavedPostRow {
     vibe_rating: 4,
     cost_rating: 3,
     cuisine_type: 'Japanese',
-    best_dish: 'Tonkotsu ramen',
+    must_order: 'Tonkotsu ramen',
     dish_tags: null,
     restaurant_id: null,
     dish_id: null,
@@ -59,7 +59,7 @@ describe('mapRowToPost', () => {
     expect(post.cost).toBe(3)
     expect(post.location).toBe('Noodle Bar')
     expect(post.cuisine_type).toBe('Japanese')
-    expect(post.best_dish).toBe('Tonkotsu ramen')
+    expect(post.mustOrder).toBe('Tonkotsu ramen')
     expect(post.createdAt).toBe('2024-01-01T00:00:00Z')
   })
 

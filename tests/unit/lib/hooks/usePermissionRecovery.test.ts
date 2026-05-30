@@ -2,10 +2,9 @@ import { act, renderHook } from '@testing-library/react-native'
 import { Linking } from 'react-native'
 import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
 
-jest.mock('react-native', () => {
-  const rn = jest.requireActual('react-native')
-  return { ...rn, Linking: { openSettings: jest.fn() } }
-})
+jest.mock('react-native', () => ({
+  Linking: { openSettings: jest.fn().mockResolvedValue(undefined) },
+}))
 
 const mockOpenSettings = jest.mocked(Linking.openSettings)
 

@@ -4,7 +4,7 @@
 
 ## What Rekkus Is
 
-Rekkus is a dish-first, hyperlocal food discovery app built around a social taste graph.
+Rekkus is a social review and recommendation platform built on honest, real, human opinions. We are starting with food — a rich, local, and deeply personal niche — and dish-first discovery is what makes Rekkus more useful than a generic restaurant directory.
 
 It helps people answer:
 
@@ -21,6 +21,7 @@ It helps people answer:
 - Not an influencer platform
 - Not an AI chatbot app
 - Not a generic engagement feed
+- Not a dish catalog with reviews bolted on
 
 ## North Star
 
@@ -30,16 +31,18 @@ Increase high-quality saved food intent: people discovering, saving, revisiting,
 
 Priority order:
 
-1. Dish graph
-2. Taste graph
-3. Hyperlocal discovery density
-4. Collections and saves
-5. Restaurant-owned content
-6. Community-generated metadata
-7. Restaurant analytics and insights
+1. Trust and authenticity of reviews
+2. Dish graph
+3. Taste graph
+4. Hyperlocal discovery density
+5. Collections and saves
+6. Restaurant-owned content
+7. Community-generated metadata
+8. Restaurant analytics and insights
 
 ## Product Principles
 
+- Honest, real, human reviews over aggregated scores.
 - Dish-first discovery over restaurant-first browsing.
 - Saves over likes.
 - Local relevance over global popularity.

@@ -3,7 +3,8 @@ const fs = require('fs')
 const path = require('path')
 
 const repoRoot = path.resolve(__dirname, '../..')
-const args = new Set(process.argv.slice(2))
+const { parseFlags } = require('../lib/args')
+const args = parseFlags()
 
 const CRITICAL_TABLES = [
   'users',

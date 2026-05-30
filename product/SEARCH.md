@@ -18,6 +18,7 @@ Search is local-first. Supabase and Google should enrich discovery, not become a
 | Freshness       | Ranking changes that use recency, trending, or interaction windows must document the window and fallback.                    |
 | Fairness        | Avoid ranking changes that permanently bury new or low-volume restaurants without a discovery reason.                        |
 | Observability   | Search changes should expose enough signal to debug zero results, provider fallback, and surprising top results.             |
+| Zero-results UX | Zero-results state must never be a blank screen. `NoResultsCard` renders "No results for X" + 3 alternative chips. Any change to the `totalResults === 0` branch in `SearchScreen.tsx` must preserve this invariant (enforced by `tests/unit/NoResultsCard.test.tsx`). |
 | Transparency    | Public/help copy may explain main ranking factors, sources, and paid-placement status without exposing exact weights.        |
 
 Update this section whenever search adds a new indexed field, external provider dependency, ranking signal, cache, or fairness rule.

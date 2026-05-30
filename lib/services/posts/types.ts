@@ -9,7 +9,7 @@ export type SavedPostRow = {
   vibe_rating: number | null
   cost_rating: number | null
   cuisine_type: string | null
-  best_dish: string | null
+  must_order: string | null
   dish_id: string | null
   dish_tags: { photoIndex: number; x: number; y: number; name: string }[] | null
   restaurant_id: string | null
@@ -83,7 +83,7 @@ export type UpdatePostPayload = {
   valueVerdict?: RekkusValueVerdict | null
   occasionTags?: RekkusOccasionTag[]
   cuisineType?: string | null
-  bestDish?: string | null
+  mustOrder?: string | null
   dishId?: string | null
   dishTags?: DishTag[]
   media?: PostMediaAsset[]
@@ -117,7 +117,7 @@ export type RawPost = {
   vibe_rating: number | null
   cost_rating: number | null
   cuisine_type: string | null
-  best_dish: string | null
+  must_order: string | null
   dish_id: string | null
   dish_tags: { photoIndex: number; x: number; y: number; name: string }[] | null
   restaurant_id: string | null
@@ -178,7 +178,7 @@ export function mapRowToPost(row: SavedPostRow, index: number): Post {
     valueVerdict: row.value_verdict ?? undefined,
     occasionTags: row.occasion_tags ?? [],
     cuisine_type: row.cuisine_type ?? undefined,
-    best_dish: row.best_dish ?? undefined,
+    mustOrder: row.must_order ?? undefined,
     dishTags: row.dish_tags ?? undefined,
     dishId: row.dish_id ?? undefined,
     restaurantId: row.restaurant_id ?? undefined,

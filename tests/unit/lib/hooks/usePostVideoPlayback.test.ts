@@ -34,7 +34,7 @@ describe('usePostVideoPlayback', () => {
 
   it('autoplays only while active and autoplay is permitted', () => {
     const { rerender } = renderHook(
-      ({ active }) => usePostVideoPlayback('video.mp4', { autoplayActive: active }),
+      ({ active }: { active: boolean }) => usePostVideoPlayback('video.mp4', { autoplayActive: active }),
       { initialProps: { active: false } },
     )
     expect(player.pause).toHaveBeenCalled()

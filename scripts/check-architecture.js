@@ -2,6 +2,12 @@
 const fs = require('fs')
 const { readText, walkFiles } = require('./lib/scan-files')
 const { serviceBoundaryFailures } = require('./lib/service-boundary-rules')
+const { hasFlag, printHelp } = require('./lib/args')
+
+if (hasFlag('--help') || hasFlag('-h')) {
+  printHelp('check:architecture', 'Enforces file-size ratchets, allowlists, and service boundary rules.')
+  process.exit(0)
+}
 
 let failed = false
 let warned = false
@@ -17,8 +23,13 @@ const locAllowlist = new Set([
   'features/restaurants/RestaurantDetailScreen.tsx',
   // B-239: saved-place intent sync remains coordinated in the existing places tab workflow.
   'features/restaurants/RestaurantsTabScreen.tsx',
+  // B-282: dish detail additions pushed PostDetailScreen over 600; extract detail panels to reduce — B-282
+  'features/posts/PostDetailScreen.tsx',
 ])
-const sharedLocAllowlist = new Map()
+const sharedLocAllowlist = new Map([
+  // B-405: dish tag onboarding tooltip added first-time disclosure; extract tag modal to reduce — B-405
+  ['components/post-create/StepMedia.tsx', 'B-405: dish tag onboarding tooltip added first-time disclosure; extract tag modal to reduce — B-405'],
+])
 const supabaseAllowlist = new Map()
 
 function lineCount(source) {
@@ -107,6 +118,15 @@ for (const file of walkFiles(['features', 'app', 'lib/hooks', 'lib/contexts'], {
     console.error(failure)
     failed = true
   }
+}
+
+// Guardrail: MessageList FlatList must handle initial scroll independently of isAtBottom.
+// Without needsInitialScroll, an initial onScroll event at y=0 sets isAtBottom=false before
+// onContentSizeChange fires, so the auto-scroll to latest message silently never runs.
+const messageListSrc = readText('features/messages/MessageList.tsx')
+if (!messageListSrc.includes('needsInitialScroll.current')) {
+  console.error('FAIL [SCROLL] features/messages/MessageList.tsx: FlatList onContentSizeChange must include needsInitialScroll.current bypass so entering a conversation always lands at the latest message.')
+  failed = true
 }
 
 if (failed) process.exit(1)

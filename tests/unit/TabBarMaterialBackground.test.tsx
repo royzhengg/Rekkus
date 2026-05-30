@@ -1,12 +1,16 @@
 import { render } from '@testing-library/react-native'
-import { Platform, View } from 'react-native'
+import { Platform } from 'react-native'
 import { TabBarMaterialBackground } from '@/components/ui/TabBarMaterialBackground'
 import { useIsDarkMode } from '@/lib/contexts/ThemeContext'
 import { useReduceTransparency } from '@/lib/hooks/useReduceTransparency'
 
-jest.mock('expo-blur', () => ({
-  BlurView: ({ testID }: { testID?: string }) => <View testID={testID} />,
-}))
+jest.mock('expo-blur', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+  return {
+    BlurView: ({ testID }: { testID?: string }) => React.createElement(View, { testID }),
+  }
+})
 
 jest.mock('@/lib/contexts/ThemeContext', () => ({
   useThemeColors: () => ({ bg: '#FAFAF8' }),

@@ -282,7 +282,7 @@ export default function RestaurantDetailScreen() {
           )
           const dishCounts: Record<string, { count: number; dishId?: string | undefined }> = {}
           for (const r of rows) {
-            const d = r.best_dish?.trim()
+            const d = r.must_order?.trim()
             if (d) {
               const key = d.toLowerCase()
               const existing = dishCounts[key]
@@ -434,7 +434,7 @@ export default function RestaurantDetailScreen() {
           setNotice({ title: 'Claim submitted', subtitle: 'Your claim is pending review before any owner tools are enabled.' })
         }
       } catch {
-        setOperationError({ title: 'Could not submit', message: 'Please try again in a moment.' })
+        setOperationError({ title: 'Could not submit', message: 'Check your connection and try again.' })
       }
     },
     [findOrCreateRestaurant, displayName, displayAddress, resolvedPid, requireOnline]
@@ -562,7 +562,7 @@ export default function RestaurantDetailScreen() {
             analytics.collectionInteraction(user?.id ?? null, 'add_item', collectionId, { target_type: 'restaurant' })
             setCollectionPickerVisible(false)
             setSaved(true)
-          }).catch(() => setOperationError({ title: 'Could not add to collection', message: 'Please try again.' }))
+          }).catch(() => setOperationError({ title: 'Could not add to collection', message: 'Check your connection and try again.' }))
         }}
         onCreateCollection={collectionName => {
           void collectionPicker.createAndAdd(collectionName).then(collection => {
@@ -570,14 +570,14 @@ export default function RestaurantDetailScreen() {
             analytics.collectionInteraction(user?.id ?? null, 'create_and_add', collection.id, { target_type: 'restaurant' })
             setCollectionPickerVisible(false)
             setSaved(true)
-          }).catch(() => setOperationError({ title: 'Could not create collection', message: 'Please try again.' }))
+          }).catch(() => setOperationError({ title: 'Could not create collection', message: 'Check your connection and try again.' }))
         }}
         onDismissConfirmUnsave={() => setConfirmCollectionUnsave(false)}
         onConfirmUnsave={() => {
           if (!restaurantId) return
           void runDeferredMutation({ kind: 'place_save', restaurantId, targetState: false, removeCollectionMemberships: true }).then(() => {
             setSaved(false)
-          }).catch(() => setOperationError({ title: 'Could not remove saved place', message: 'Please try again.' }))
+          }).catch(() => setOperationError({ title: 'Could not remove saved place', message: 'Check your connection and try again.' }))
         }}
       />
       <RestaurantPhotoGallery

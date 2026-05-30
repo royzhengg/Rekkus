@@ -12,6 +12,7 @@ Rekkus should feel like a trusted local friend who remembers what is actually wo
 - Remember places and dishes you care about.
 - Learn from people whose taste is useful, not loud.
 - Make local food choices feel easier.
+- Trust that recommendations come from real people who have actually eaten there.
 
 ## Avoid
 
@@ -20,6 +21,7 @@ Rekkus should feel like a trusted local friend who remembers what is actually wo
 - AI mystique.
 - Empty hype around "best" without evidence.
 - Restaurant-directory completeness as the emotional core.
+- Dish-catalog feel where the review is an afterthought.
 
 ## Copy Tone
 

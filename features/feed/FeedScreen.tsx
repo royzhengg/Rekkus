@@ -392,7 +392,7 @@ export default function FeedScreen() {
       </ScrollView>
       <RekkusActionSheet
         visible={!!longPressPost}
-        title={longPressPost?.best_dish ?? longPressPost?.title ?? 'Post'}
+        title={longPressPost?.mustOrder ?? longPressPost?.title ?? 'Post'}
         subtitle={longPressPost ? `by @${longPressPost.creator}` : undefined}
         options={[
           { label: 'Open post', value: 'open' },

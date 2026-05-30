@@ -2,7 +2,8 @@
 const { exists, readText } = require('./lib/files')
 const { printResult, requiredScriptMissing } = require('./lib/policy-checks')
 
-const args = new Set(process.argv.slice(2))
+const { parseFlags } = require('../lib/args')
+const args = parseFlags()
 const failures = []
 const warnings = []
 
@@ -79,13 +80,15 @@ requireTerms(featureFlagDoc, ['Admin platform', 'operations/ADMIN_PLATFORM.md'])
 requireTerms(dataDoc, ['Admin platform', 'data_repair_events', 'restaurant_merge_events'])
 
 const backlog = source('BACKLOG.md')
+const completedItems = source('COMPLETED_ITEMS.md')
+const backlogAndCompleted = backlog + '\n' + completedItems
 for (let id = 370; id <= 382; id += 1) {
   const backlogId = `B-${id}`
-  const row = backlog
+  const row = backlogAndCompleted
     .split('\n')
     .find((line) => line.includes(`>${backlogId} |`) || line.includes(`>${backlogId}</a>`))
   if (!row) {
-    failures.push(`BACKLOG.md is missing ${backlogId}.`)
+    failures.push(`Backlog is missing ${backlogId}.`)
     continue
   }
   if (!row.includes('[x]')) failures.push(`${backlogId} must be marked shipped after admin platform foundation ships.`)

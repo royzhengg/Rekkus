@@ -43,7 +43,7 @@ function Harness({ initialCuisine = '', initialHashtags = [] }: HarnessProps) {
   const [valueVerdict, setValueVerdict] = useState<RekkusValueVerdict | undefined>()
   const [occasionTags, setOccasionTags] = useState<RekkusOccasionTag[]>([])
   const [body, setBody] = useState('')
-  const [bestDish, setBestDish] = useState('')
+  const [mustOrder, setMustOrder] = useState('')
   const [cuisineType, setCuisineType] = useState(initialCuisine)
   const [hashtags, setHashtags] = useState(initialHashtags)
   const [hashtagInput, setHashtagInput] = useState('')
@@ -64,8 +64,8 @@ function Harness({ initialCuisine = '', initialHashtags = [] }: HarnessProps) {
       setOccasionTags={setOccasionTags}
       body={body}
       setBody={setBody}
-      bestDish={bestDish}
-      setBestDish={setBestDish}
+      mustOrder={mustOrder}
+      setMustOrder={setMustOrder}
       cuisineType={cuisineType}
       setCuisineType={setCuisineType}
       hashtags={hashtags}
@@ -92,8 +92,8 @@ function props(overrides: Partial<ComponentProps<typeof StepDetails>> = {}) {
     setOccasionTags: jest.fn(),
     body: '',
     setBody: jest.fn(),
-    bestDish: '',
-    setBestDish: jest.fn(),
+    mustOrder: '',
+    setMustOrder: jest.fn(),
     cuisineType: '',
     setCuisineType: jest.fn(),
     hashtags: [],
@@ -110,7 +110,7 @@ describe('StepDetails', () => {
 
     expect(screen.getByText('Rekkus Picks')).toBeTruthy()
     expect(screen.getByText('Your review')).toBeTruthy()
-    expect(screen.getByText('Best dish')).toBeTruthy()
+    expect(screen.getByText('Helps people know exactly what to get.')).toBeTruthy()
     expect(screen.getByLabelText('Add optional details')).toBeTruthy()
     expect(screen.queryByText('Cuisine')).toBeNull()
   })
@@ -147,11 +147,11 @@ describe('StepDetails', () => {
   })
 
   test('supports optional cuisine and tags while preserving best-dish length limiting', () => {
-    const bestDishSetter = jest.fn()
-    const coreScreen = render(<StepDetails {...props({ setBestDish: bestDishSetter })} />)
+    const mustOrderSetter = jest.fn()
+    const coreScreen = render(<StepDetails {...props({ setMustOrder: mustOrderSetter })} />)
 
     fireEvent.changeText(coreScreen.getByPlaceholderText('e.g. tonkotsu ramen'), 'x'.repeat(65))
-    expect(bestDishSetter).toHaveBeenCalledWith('x'.repeat(60))
+    expect(mustOrderSetter).toHaveBeenCalledWith('x'.repeat(60))
 
     const screen = render(<Harness />)
     fireEvent.press(screen.getByLabelText('Add optional details'))

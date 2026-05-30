@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
       while (true) {
         let query = supabase
           .from(table)
-          .select('id, best_dish, caption, cuisine_type, name, suburb, city')
+          .select('id, must_order, caption, cuisine_type, name, suburb, city')
           .is('embedding', null)
           .range(from, from + batchSize - 1)
 

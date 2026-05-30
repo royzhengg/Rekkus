@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import {
   View,
@@ -32,6 +32,7 @@ import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { usePosts } from '@/lib/contexts/PostsContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useToast } from '@/lib/contexts/ToastContext'
 import { haptic } from '@/lib/haptics'
 import { useCollectionPicker } from '@/lib/hooks/useCollectionPicker'
 import { routes } from '@/lib/routes'
@@ -57,6 +58,7 @@ export default function PostDetailScreen() {
   const { requireAuth } = useAuthGate()
   const { user } = useAuth()
   const { runDeferredMutation, requireOnline } = useConnectivity()
+  const { showToast } = useToast()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const isFocused = useIsFocused()
@@ -190,6 +192,7 @@ export default function PostDetailScreen() {
         setSaved(true)
         await runDeferredMutation({ kind: 'post_save', postId: resolvedPost.dbId, targetState: true })
         void haptic.confirmSave()
+        showToast('Post saved')
         setSaveSheet(true)
       }
     } catch {
@@ -259,6 +262,7 @@ export default function PostDetailScreen() {
     try {
       await runDeferredMutation({ kind: 'follow', targetUserId: creatorUserId, targetState: !wasFollowing })
       if (!wasFollowing) {
+        showToast('Following')
         analytics.follow(user.id, creatorUserId)
       }
     } catch {

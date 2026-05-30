@@ -24,6 +24,7 @@ export const PlaceRow = React.memo(function PlaceRow({
   query,
   position,
   searchSessionId,
+  onResultClick,
 }: {
   place: PlaceResult
   distanceKm?: number | undefined
@@ -31,6 +32,7 @@ export const PlaceRow = React.memo(function PlaceRow({
   query?: string | undefined
   position?: number | undefined
   searchSessionId?: string | undefined
+  onResultClick?: (() => void) | undefined
 }) {
   const router = useRouter()
   const colors = useThemeColors()
@@ -47,6 +49,7 @@ export const PlaceRow = React.memo(function PlaceRow({
   const badges = place.badges ?? []
 
   function handlePress() {
+    onResultClick?.()
     if (place.id) {
       analytics.clickPlace(user?.id ?? null, place.id)
       if (query && searchSessionId && position != null) {

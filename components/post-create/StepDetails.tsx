@@ -52,8 +52,8 @@ type Props = {
   setOccasionTags: (v: RekkusOccasionTag[]) => void
   body: string
   setBody: (v: string) => void
-  bestDish: string
-  setBestDish: (v: string) => void
+  mustOrder: string
+  setMustOrder: (v: string) => void
   cuisineType: string
   setCuisineType: (v: string) => void
   hashtags: string[]
@@ -75,8 +75,8 @@ export default function StepDetails({
   setOccasionTags,
   body,
   setBody,
-  bestDish,
-  setBestDish,
+  mustOrder,
+  setMustOrder,
   cuisineType,
   setCuisineType,
   hashtags,
@@ -255,7 +255,7 @@ export default function StepDetails({
       <View style={[styles.card, styles.coreCard]}>
         <TextInput
           style={styles.bodyInput}
-          placeholder="What did you try? Any standout dishes? Would you go back?"
+          placeholder="What would you recommend? What stood out? Would you go back?"
           placeholderTextColor={c.text3}
           value={body}
           onChangeText={setBody}
@@ -269,12 +269,12 @@ export default function StepDetails({
           <View style={styles.detailStackHeader}>
             <View style={styles.fieldLabelRow}>
               <DishIcon size={spacing.px17} color={c.text3} />
-              <Text style={styles.detailLabel}>Best dish</Text>
+              <Text style={styles.detailLabel}>Must order</Text>
             </View>
-            {bestDish ? (
+            {mustOrder ? (
               <IconButton
-                onPress={() => setBestDish('')}
-                accessibilityLabel="Clear best dish"
+                onPress={() => setMustOrder('')}
+                accessibilityLabel="Clear must order"
                 size={spacing.px34}
                 variant="plain"
               >
@@ -286,13 +286,13 @@ export default function StepDetails({
             style={styles.detailStackInput}
             placeholder="e.g. tonkotsu ramen"
             placeholderTextColor={c.text3}
-            value={bestDish}
-            onChangeText={v => setBestDish(v.slice(0, 60))}
+            value={mustOrder}
+            onChangeText={v => setMustOrder(v.slice(0, 60))}
             returnKeyType="done"
             textContentType="none"
             autoComplete="off"
           />
-          <Text style={styles.detailHint}>Best dish helps people know what to order.</Text>
+          <Text style={styles.detailHint}>Helps people know exactly what to get.</Text>
         </View>
       </View>
 

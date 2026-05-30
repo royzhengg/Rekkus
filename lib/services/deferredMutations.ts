@@ -3,6 +3,17 @@ import { analytics } from '@/lib/analytics'
 import { unsaveTarget } from '@/lib/services/collections'
 import { saveDish } from '@/lib/services/dishes'
 import {
+  addReaction,
+  archiveConversation,
+  markConversationUnread,
+  muteConversationUntil,
+  pinConversation,
+  removeReaction,
+  unarchiveConversation,
+  unmuteConversation,
+  unpinConversation,
+} from '@/lib/services/messaging'
+import {
   togglePostLike,
   togglePostSave,
 } from '@/lib/services/posts'
@@ -12,7 +23,8 @@ import { followUser, unfollowUser } from '@/lib/services/users'
 import { isRecord, parseJsonWithGuard } from '@/lib/utils/safeJson'
 
 // Phase 1 scope: saves, likes, follows, settings.
-// Phase 2 (B-239b): message_reaction, conversation_*, place_status, post_reaction.
+// Phase 2 (B-239b): message_reaction, conversation_*.
+// place_status deferred — no service implementation yet.
 
 const STORAGE_KEY = 'rekkus:pending-mutations:v1'
 const STORAGE_VERSION = 1
@@ -33,6 +45,14 @@ export type DeferredMutation =
   | (BaseMutation & { kind: 'follow'; targetUserId: string; targetState: boolean })
   | (BaseMutation & { kind: 'post_like'; postId: string; targetState: boolean })
   | (BaseMutation & { kind: 'setting'; setting: keyof Settings; value: Settings[keyof Settings] })
+  | (BaseMutation & { kind: 'message_reaction'; messageId: string; emoji: string; targetState: boolean })
+  | (BaseMutation & { kind: 'conversation_mute'; conversationId: string; mutedUntil: string })
+  | (BaseMutation & { kind: 'conversation_unmute'; conversationId: string })
+  | (BaseMutation & { kind: 'conversation_archive'; conversationId: string })
+  | (BaseMutation & { kind: 'conversation_unarchive'; conversationId: string })
+  | (BaseMutation & { kind: 'conversation_pin'; conversationId: string })
+  | (BaseMutation & { kind: 'conversation_unpin'; conversationId: string })
+  | (BaseMutation & { kind: 'conversation_unread'; conversationId: string })
 
 export type DeferredMutationInput = DeferredMutation extends infer T
   ? T extends DeferredMutation
@@ -91,6 +111,19 @@ export function isDeferredMutation(value: unknown): value is DeferredMutation {
         notif_messages: true, private_account: true, allow_comments: true, allow_tags: true,
         autoplay_videos: true, theme_mode: true,
       } && isSettingValue(value.setting, value.value)
+    case 'message_reaction':
+      return hasOnlyKeys(value, [...BASE_KEYS, 'messageId', 'emoji', 'targetState']) &&
+        typeof value.messageId === 'string' && typeof value.emoji === 'string' && isBoolean(value.targetState)
+    case 'conversation_mute':
+      return hasOnlyKeys(value, [...BASE_KEYS, 'conversationId', 'mutedUntil']) &&
+        typeof value.conversationId === 'string' && typeof value.mutedUntil === 'string'
+    case 'conversation_unmute':
+    case 'conversation_archive':
+    case 'conversation_unarchive':
+    case 'conversation_pin':
+    case 'conversation_unpin':
+    case 'conversation_unread':
+      return hasOnlyKeys(value, [...BASE_KEYS, 'conversationId']) && typeof value.conversationId === 'string'
     default:
       return false
   }
@@ -109,6 +142,15 @@ export function deferredMutationKey(mutation: DeferredMutation): string {
     case 'follow': return `${mutation.userId}:follow:${mutation.targetUserId}`
     case 'post_like': return `${mutation.userId}:post_like:${mutation.postId}`
     case 'setting': return `${mutation.userId}:setting:${mutation.setting}`
+    case 'message_reaction': return `${mutation.userId}:message_reaction:${mutation.messageId}`
+    case 'conversation_mute':
+    case 'conversation_unmute':
+    case 'conversation_archive':
+    case 'conversation_unarchive':
+    case 'conversation_pin':
+    case 'conversation_unpin':
+    case 'conversation_unread':
+      return `${mutation.userId}:${mutation.kind}:${mutation.conversationId}`
   }
 }
 
@@ -220,5 +262,31 @@ export async function executeDeferredMutation(mutation: DeferredMutation): Promi
       return
     case 'setting':
       await updateSettingValue(mutation.userId, mutation.setting, mutation.value)
+      return
+    case 'message_reaction':
+      if (mutation.targetState) await addReaction(mutation.messageId, mutation.emoji)
+      else await removeReaction(mutation.messageId, mutation.userId)
+      return
+    case 'conversation_mute':
+      await muteConversationUntil(mutation.conversationId, mutation.userId, mutation.mutedUntil)
+      return
+    case 'conversation_unmute':
+      await unmuteConversation(mutation.conversationId, mutation.userId)
+      return
+    case 'conversation_archive':
+      await archiveConversation(mutation.conversationId, mutation.userId)
+      return
+    case 'conversation_unarchive':
+      await unarchiveConversation(mutation.conversationId, mutation.userId)
+      return
+    case 'conversation_pin':
+      await pinConversation(mutation.conversationId, mutation.userId)
+      return
+    case 'conversation_unpin':
+      await unpinConversation(mutation.conversationId, mutation.userId)
+      return
+    case 'conversation_unread':
+      await markConversationUnread(mutation.conversationId, mutation.userId)
+      return
   }
 }

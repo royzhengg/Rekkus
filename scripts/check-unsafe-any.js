@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 const { readText, walkFiles } = require('./lib/scan-files')
 const { unsafeAnyFailures } = require('./lib/unsafe-any-rules')
+const { hasFlag, printHelp } = require('./lib/args')
+
+if (hasFlag('--help') || hasFlag('-h')) {
+  printHelp('check:unsafe-any', 'Rejects `as any`, `: any`, @ts-ignore, and other type-safety bypasses.')
+  process.exit(0)
+}
 
 const roots = ['app', 'features', 'components', 'lib', 'supabase/functions']
 // This allowlist must not grow. Adding a file here requires an explicit B-### ticket

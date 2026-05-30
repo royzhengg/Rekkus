@@ -59,6 +59,8 @@ Industry reference: Yelp, Google Maps, Xiaohongshu, and Zomato all use a two-tie
 | ---------------------------------- | ------------------------------ | ------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `search_query`                     | null                           | null          | `{ query, result_count, search_session_id, query_position, previous_query, radius_km, search_mode }` | User pauses typing (600ms debounce) in search tab        |
 | `search_result_click`              | `post` / `restaurant` / `user` | entity id     | `{ query, result_type, result_position, search_session_id }`                                         | User taps a ranked search result                         |
+| `search_session_end`               | null                           | null          | `{ search_session_id, session_duration_ms, had_results, result_clicked, query? }`                    | SearchScreen loses focus or unmounts after a session     |
+| `search_abandon`                   | null                           | null          | `{ query, result_count, session_duration_ms, search_session_id }`                                    | Session ends with non-empty query and no result click    |
 | `place_click`                      | `restaurant`                   | restaurant.id | `{ query: string }`                                                                                  | User taps a place in search results                      |
 | `place_view`                       | `restaurant`                   | restaurant.id | null                                                                                                 | User opens a location detail page                        |
 | `post_view`                        | `post`                         | post.id       | null                                                                                                 | User opens a post detail page                            |
@@ -121,6 +123,9 @@ Industry reference: Yelp, Google Maps, Xiaohongshu, and Zomato all use a two-tie
 | `post_share`                       | `post`                         | post.id       | `{ share_target }`                                                                                   | User shares a post through an in-app surface             |
 | `modal_action`                     | null                           | null          | `{ modal_id, option_id }`                                                                            | User chooses a non-sensitive modal action                |
 | `action_error`                     | null                           | null          | `{ action, error_class }`                                                                            | Recoverable app action fails                             |
+| `create_post_funnel`               | null                           | null          | `{ step (1–3), outcome ('viewed'\|'completed'\|'abandoned'), duration_ms?, session_duration_ms?, reason? }` — `session_duration_ms` present on step-3 completion only; measures total time from flow entry to publish | Step viewed, completed, or abandoned in the create-post flow |
+| `interaction_rage_tap`             | null                           | null          | `{ surface, action, step, tap_count }` — sampled 0.5                                                | ≥3 rapid taps on same element within 1 s (rage proxy)   |
+| `interaction_dead_click`           | null                           | null          | `{ surface, action, step }` — sampled 0.5                                                           | Tap on a disabled interactive element                    |
 
 Events are **fire-and-forget** — tracked with `.then(() => {})` and never block navigation or UI.
 
@@ -136,6 +141,7 @@ Events are **fire-and-forget** — tracked with `.then(() => {})` and never bloc
 | File                                            | Event                                                                                     | When                                                            |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | `features/search/SearchScreen.tsx`              | `search_query`, `search_result_click`, `place_click`, `collection_interaction`            | Query debounces, user taps search results, or opens staff picks |
+| `features/search/SearchScreen.tsx`              | `search_session_end`, `search_abandon`                                                    | Session ends on focus loss or unmount (B-538, B-539)            |
 | `features/feed/FeedScreen.tsx`                  | `feed_diagnostic`                                                                         | Feed tab view and refresh diagnostics                           |
 | `features/posts/PostDetailScreen.tsx`           | `post_view`, `post_like`, `post_save`, `post_dwell`, `post_comment`, `restaurant_revisit` | Post detail engagement and restaurant revisit signals           |
 | `features/posts/PostDetailScreen.tsx`           | `post_edit`, `post_share`                                                                    | Owner edit entry and privacy-safe sharing target                |
@@ -145,6 +151,7 @@ Events are **fire-and-forget** — tracked with `.then(() => {})` and never bloc
 | `features/auth/SignupProfileScreen.tsx`         | `onboarding_step`                                                                         | Interest onboarding completes                                   |
 | `lib/contexts/AuthContext.tsx`                  | `onboarding_step`, `onboarding_anomaly`                                                   | Auth actions succeed, fail, or cool down                        |
 | `components/post-create/StepMedia.tsx`          | `upload_failure`                                                                          | Post media picker rejects invalid assets                        |
+| `features/create-post/CreatePostScreen.tsx`     | `create_post_funnel`, `interaction_rage_tap`, `interaction_dead_click`                    | Step transitions, rage-tap on Next, dead-click on disabled Next |
 | `lib/services/postMediaProcessing.ts`           | `media_prepare_started`, `media_prepare_completed`, `media_prepare_failed`                | Post media preparation and compression lifecycle                |
 | `lib/contexts/PostUploadContext.tsx`            | `post_upload_started`, `post_upload_progress`, `post_upload_failed`, `post_published`     | Background post publish queue                                   |
 | `features/settings/EditProfileScreen.tsx`       | `upload_failure`                                                                          | Avatar validation or storage upload fails                       |
@@ -269,6 +276,65 @@ Query the view via service-role for cross-domain incident investigation. See [AD
 
 ---
 
+## Search observability queries
+
+Run these in the Supabase SQL editor (service-role) to answer the four key search quality questions. All queries require `search_session_end` events (B-538).
+
+```sql
+-- 1. Daily zero-result rate (last 30 days)
+SELECT
+  date_trunc('day', created_at) AS day,
+  ROUND(COUNT(*) FILTER (WHERE NOT (metadata->>'had_results')::boolean) * 100.0 / COUNT(*), 1) AS zero_result_pct,
+  COUNT(*) AS total_sessions
+FROM analytics_events
+WHERE event_type = 'search_session_end'
+  AND created_at > now() - interval '30 days'
+GROUP BY 1
+ORDER BY 1 DESC;
+
+-- 2. Top zero-result queries (last 30 days)
+SELECT
+  metadata->>'query' AS query,
+  COUNT(*) AS zero_result_sessions
+FROM analytics_events
+WHERE event_type = 'search_session_end'
+  AND (metadata->>'had_results')::boolean = false
+  AND metadata->>'query' IS NOT NULL
+  AND created_at > now() - interval '30 days'
+GROUP BY 1
+ORDER BY 2 DESC
+LIMIT 20;
+
+-- 3. P50 / P95 session duration (proxy for search latency, last 30 days)
+SELECT
+  date_trunc('day', created_at) AS day,
+  PERCENTILE_CONT(0.5)  WITHIN GROUP (ORDER BY (metadata->>'session_duration_ms')::int) AS p50_ms,
+  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY (metadata->>'session_duration_ms')::int) AS p95_ms
+FROM analytics_events
+WHERE event_type = 'search_session_end'
+  AND created_at > now() - interval '30 days'
+GROUP BY 1
+ORDER BY 1 DESC;
+
+-- 4. Search-to-click conversion and abandonment rate (last 30 days)
+SELECT
+  date_trunc('day', created_at) AS day,
+  ROUND(COUNT(*) FILTER (WHERE (metadata->>'result_clicked')::boolean)
+    * 100.0 / NULLIF(COUNT(*), 0), 1) AS click_rate_pct,
+  ROUND(COUNT(*) FILTER (
+      WHERE NOT (metadata->>'result_clicked')::boolean
+        AND (metadata->>'had_results')::boolean)
+    * 100.0 / NULLIF(COUNT(*), 0), 1) AS abandonment_pct
+FROM analytics_events
+WHERE event_type = 'search_session_end'
+  AND metadata->>'query' IS NOT NULL
+  AND created_at > now() - interval '30 days'
+GROUP BY 1
+ORDER BY 1 DESC;
+```
+
+---
+
 ## Tuning log
 
 | Date       | Change                                                                                                                                                                   | Reason                                                       |
@@ -281,6 +347,7 @@ Query the view via service-role for cross-domain incident investigation. See [AD
 | 2026-05-08 | Google Autocomplete food-type boost (+2.0)                                                                                                                               | Churches, laundries, consulates rank below restaurants       |
 | 2026-05-12 | Post, dwell, search-position, collection, revisit, and feed diagnostic events shipped                                                                                    | Ranking and retention diagnostics for V1 feed work           |
 | 2026-05-12 | Search query chains now include previous query, mode, and selected radius; search ranking adds bounded saved-place personalization and reduced interaction boost weights | Better diagnostics and less popularity-heavy local discovery |
+| 2026-05-30 | UX quality signals shipped: `interaction_rage_tap`, `interaction_dead_click`, `create_post_funnel` (B-241). Added `session_duration_ms` to step-3 completion for time-to-first-post signal | Enables data-driven UX regression detection for the create-post flow |
 
 ---
 

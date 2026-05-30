@@ -30,15 +30,15 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { EMOJI_STAGGER_MS, DUR_FAST } from '@/lib/animations'
-import type { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
+import type { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useToast } from '@/lib/contexts/ToastContext'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import {
-  addReaction,
   deleteMessage,
   pinMessage,
   forwardMessage,
   fetchDirectConversations,
-  removeReaction,
   type DirectMessage,
   type MessageReaction,
   type ConversationSummary,
@@ -46,7 +46,6 @@ import {
 } from '@/lib/services/messaging'
 import { submitContentReport as submitReport } from '@/lib/services/moderation'
 import { avatarPalette } from '@/lib/utils/format'
-import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 
 // iOS-style action card entrance: fade + subtle upward translate, no overshoot
 const actionCardEntry = new Keyframe({
@@ -77,7 +76,8 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
   { conversationId, currentUserId, reactions, colors, onReply, onReact, onMessageDeleted, onMessagePinned, onShowNotice, onShowError },
   ref
 ) {
-  const { requireOnline } = useConnectivity()
+  const { requireOnline, runDeferredMutation } = useConnectivity()
+  const { showToast } = useToast()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const reduceMotion = useReducedMotion()
   const [messageSheet, setMessageSheet] = useState(false)
@@ -119,20 +119,16 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
     if (value === 'reply') {
       onReply(selectedMessage)
     } else if (value.startsWith('react_')) {
-      if (!requireOnline()) return
       const emoji = value.slice(6)
       const myReactions = reactions.get(selectedMessage.id)?.filter(r => r.user_id === currentUserId) ?? []
       const existingWithEmoji = myReactions.find(r => r.emoji === emoji)
-      if (existingWithEmoji) {
-        await removeReaction(selectedMessage.id)
-      } else {
-        await addReaction(selectedMessage.id, emoji)
-      }
+      await runDeferredMutation({ kind: 'message_reaction', messageId: selectedMessage.id, emoji, targetState: !existingWithEmoji })
     } else if (value === 'delete' && selectedMessage.sender_id === currentUserId) {
       setDeleteConfirmVisible(true)
       return
     } else if (value === 'copy' && selectedMessage.body) {
       await Clipboard.setStringAsync(selectedMessage.body)
+      showToast('Copied to clipboard')
     } else if (value === 'forward') {
       if (!requireOnline()) {
         onShowError({ title: 'You are offline', message: 'Reconnect to forward this message.' })
@@ -248,7 +244,7 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
 
           return (
             <>
-              <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(DUR_FAST)} style={StyleSheet.absoluteFill}>
+              <Animated.View {...(!reduceMotion ? { entering: FadeIn.duration(DUR_FAST) } : {})} style={StyleSheet.absoluteFill}>
                 {Platform.OS === 'ios' ? (
                   <BlurView
                     intensity={22}
@@ -271,7 +267,7 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
                     return (
                       <Animated.View
                         key={emoji}
-                        entering={reduceMotion ? undefined : ZoomIn.springify().damping(11).stiffness(255).delay(i * EMOJI_STAGGER_MS)}
+                        {...(!reduceMotion ? { entering: ZoomIn.springify().damping(11).stiffness(255).delay(i * EMOJI_STAGGER_MS) } : {})}
                       >
                         <TouchableOpacity
                           style={[styles.reactionBtn, selected && styles.reactionBtnActive]}
@@ -294,7 +290,7 @@ export const MessageActions = forwardRef<MessageActionsHandle, MessageActionsPro
                 </View>
 
                 <Animated.View
-                  entering={reduceMotion ? undefined : actionCardEntry}
+                  {...(!reduceMotion ? { entering: actionCardEntry } : {})}
                   style={[styles.contextActionCard, { top: actionCardTop }]}
                 >
                   <TouchableOpacity activeOpacity={1} onPress={() => {}} accessibilityRole="button" accessibilityLabel="Message actions">

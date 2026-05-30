@@ -23,26 +23,22 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { IconButton } from '@/components/ui/IconButton'
 import { RekkusActionSheet, type RekkusActionSheetOption } from '@/components/ui/RekkusActionSheet'
 import { Skeleton, SkeletonText } from '@/components/ui/Skeleton'
+import { spacing } from '@/constants/Spacing'
 import { DUR_FAST } from '@/lib/animations'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { isEnabled } from '@/lib/featureFlags'
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { routes } from '@/lib/routes'
 import {
-  archiveConversation,
   fetchDirectConversations,
   fetchArchivedConversations,
   fetchMessageRequests,
   deleteDirectConversation,
   leaveGroup,
-  markConversationUnread,
-  muteConversation,
-  pinConversation,
-  unmuteConversation,
-  unpinConversation,
+  MUTE_DURATIONS_MS,
   type ConversationSummary,
 } from '@/lib/services/messaging'
 import { subscribeToInboxMessages, removeChannel } from '@/lib/services/messaging'
@@ -198,7 +194,7 @@ const ConversationRow = React.memo(function ConversationRow({
 export default function MessagesListScreen() {
   const router = useRouter()
   const { user } = useAuth()
-  const { requireOnline } = useConnectivity()
+  const { requireOnline, runDeferredMutation, syncEpoch } = useConnectivity()
   const { requireAuth } = useAuthGate()
   const colors = useThemeColors()
   const reduceMotion = useReducedMotion()
@@ -271,24 +267,23 @@ export default function MessagesListScreen() {
     return () => { removeChannel(channel) }
   }, [user, load])
 
+  // Re-fetch after offline queue flush so deferred prefs are reflected
+  useEffect(() => {
+    if (syncEpoch > 0 && isEnabled('directMessages')) void load(false)
+  }, [syncEpoch, load])
 
   async function handleMute(conversationId: string, currentlyMuted: boolean) {
     if (!user) return
-    if (!requireOnline()) { setOperationError('Connect to the internet to mute or unmute conversations.'); return }
-    try {
-      if (currentlyMuted) {
-        await unmuteConversation(conversationId, user.id)
-      } else {
-        await muteConversation(conversationId, user.id, '8h')
-      }
-      setConversations(prev =>
-        prev.map(c => c.id === conversationId
-          ? { ...c, muted_until: currentlyMuted ? null : new Date(Date.now() + 8 * 3600 * 1000).toISOString() }
-          : c)
-      )
-    } catch {
-      setOperationError('Could not update notification settings. Try again when your connection is stable.')
-    }
+    const mutedUntil = new Date(Date.now() + MUTE_DURATIONS_MS['8h']).toISOString()
+    setConversations(prev =>
+      prev.map(c => c.id === conversationId
+        ? { ...c, muted_until: currentlyMuted ? null : mutedUntil }
+        : c)
+    )
+    await runDeferredMutation(currentlyMuted
+      ? { kind: 'conversation_unmute', conversationId }
+      : { kind: 'conversation_mute', conversationId, mutedUntil }
+    )
   }
 
   async function handleArchive(conversationId: string) {
@@ -298,14 +293,9 @@ export default function MessagesListScreen() {
       {
         text: 'Archive',
         onPress: () => { void (async () => {
-          if (!requireOnline()) { setOperationError('Connect to the internet to archive conversations.'); return }
-          try {
-            await archiveConversation(conversationId, user.id)
-            setConversations(prev => prev.filter(c => c.id !== conversationId))
-            setArchivedCount(count => count + 1)
-          } catch {
-            setOperationError('Could not archive this conversation. Try again when your connection is stable.')
-          }
+          setConversations(prev => prev.filter(c => c.id !== conversationId))
+          setArchivedCount(count => count + 1)
+          await runDeferredMutation({ kind: 'conversation_archive', conversationId })
         })() },
       },
     ])
@@ -313,30 +303,19 @@ export default function MessagesListScreen() {
 
   async function handleTogglePin(conversationId: string, currently: boolean) {
     if (!user) return
-    if (!requireOnline()) { setOperationError('Connect to the internet to pin or unpin conversations.'); return }
-    try {
-      if (currently) {
-        await unpinConversation(conversationId, user.id)
-      } else {
-        await pinConversation(conversationId, user.id)
-      }
-      setConversations(prev => prev.map(c => c.id === conversationId
-        ? { ...c, pinned_at: currently ? null : new Date().toISOString() }
-        : c))
-    } catch {
-      setOperationError('Could not update this conversation. Try again when your connection is stable.')
-    }
+    setConversations(prev => prev.map(c => c.id === conversationId
+      ? { ...c, pinned_at: currently ? null : new Date().toISOString() }
+      : c))
+    await runDeferredMutation(currently
+      ? { kind: 'conversation_unpin', conversationId }
+      : { kind: 'conversation_pin', conversationId }
+    )
   }
 
   async function handleMarkUnread(conversationId: string) {
     if (!user) return
-    if (!requireOnline()) { setOperationError('Connect to the internet to mark conversations as unread.'); return }
-    try {
-      await markConversationUnread(conversationId, user.id)
-      setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unread_count: 1 } : c))
-    } catch {
-      setOperationError('Could not update this conversation. Try again when your connection is stable.')
-    }
+    setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unread_count: 1 } : c))
+    await runDeferredMutation({ kind: 'conversation_unread', conversationId })
   }
 
   function buildConvOptions(conv: ConversationSummary): RekkusActionSheetOption[] {
@@ -564,7 +543,7 @@ export default function MessagesListScreen() {
           const cardLeft = (SCREEN_W - CARD_W) / 2
           return (
             <>
-              <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(DUR_FAST)} style={StyleSheet.absoluteFill}>
+              <Animated.View {...(!reduceMotion ? { entering: FadeIn.duration(DUR_FAST) } : {})} style={StyleSheet.absoluteFill}>
                 {Platform.OS === 'ios' ? (
                   <BlurView
                     intensity={22}
@@ -583,7 +562,7 @@ export default function MessagesListScreen() {
                 accessibilityLabel="Dismiss"
               >
                 <Animated.View
-                  entering={reduceMotion ? undefined : ZoomIn.springify().damping(18).stiffness(350)}
+                  {...(!reduceMotion ? { entering: ZoomIn.springify().damping(18).stiffness(350) } : {})}
                   style={[styles.convContextCard, { top: cardTop, left: cardLeft, width: CARD_W }]}
                 >
                   <TouchableOpacity activeOpacity={1} onPress={() => {}} accessibilityRole="button" accessibilityLabel="Conversation actions">

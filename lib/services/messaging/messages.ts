@@ -142,14 +142,11 @@ export async function addReaction(messageId: string, emoji: string): Promise<voi
   if (error) throw error
 }
 
-export async function removeReaction(messageId: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated.')
-
+export async function removeReaction(messageId: string, userId: string): Promise<void> {
   const { error } = await supabase.from('message_reactions')
     .delete()
     .eq('message_id', messageId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
 
   if (error) throw error
 }

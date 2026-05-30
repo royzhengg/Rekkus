@@ -8,7 +8,8 @@ const {
   readSchemaSource,
 } = require('./lib/policy-checks')
 
-const args = new Set(process.argv.slice(2))
+const { parseFlags } = require('../lib/args')
+const args = parseFlags()
 const failures = []
 const warnings = []
 const schema = readSchemaSource()

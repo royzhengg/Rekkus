@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from 'expo-router'
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import { useLocalSearchParams, useFocusEffect } from 'expo-router'
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { SearchIcon, CloseIcon, FilterIcon } from '@/components/icons'
@@ -21,6 +21,7 @@ import { useUserLocation } from '@/lib/hooks/useUserLocation'
 import { fetchStaffPickCollections, type Collection } from '@/lib/services/collections'
 import { CUISINE_SYNONYMS, CUISINE_ALIASES } from '@/lib/utils/cuisineSynonyms'
 import { DiscoveryPage } from './DiscoveryPage'
+import { NoResultsCard } from './NoResultsCard'
 import { TRENDING, SEARCH_SORTS, type ResultTab } from './searchConstants'
 import { SearchFiltersSheet } from './SearchFiltersSheet'
 import { SearchResultsTab } from './SearchResultsTab'
@@ -46,6 +47,10 @@ export default function SearchScreen() {
   const searchSessionId = useRef(`search-${Date.now().toString(36)}`)
   const queryPosition = useRef(0)
   const previousTrackedQuery = useRef('')
+  const sessionStartTime = useRef(Date.now())
+  const sessionHadClick = useRef(false)
+  const sessionHadResults = useRef(false)
+  const sessionLastResultCount = useRef(0)
 
   const {
     postResults,
@@ -82,6 +87,42 @@ export default function SearchScreen() {
   useEffect(() => {
     void fetchStaffPickCollections().then(setStaffPicks)
   }, [])
+
+  useEffect(() => {
+    sessionLastResultCount.current = totalResults
+    if (totalResults > 0) sessionHadResults.current = true
+  }, [totalResults])
+
+  useFocusEffect(
+    useCallback(() => {
+      sessionStartTime.current = Date.now()
+      sessionHadClick.current = false
+      sessionHadResults.current = false
+      sessionLastResultCount.current = 0
+
+      return () => {
+        const durationMs = Date.now() - sessionStartTime.current
+        const lastQuery = previousTrackedQuery.current || null
+        analytics.searchSessionEnd(
+          user?.id ?? null,
+          searchSessionId.current,
+          durationMs,
+          sessionHadResults.current,
+          sessionHadClick.current,
+          lastQuery
+        )
+        if (lastQuery && !sessionHadClick.current) {
+          analytics.searchAbandon(
+            user?.id ?? null,
+            lastQuery,
+            sessionLastResultCount.current,
+            durationMs,
+            searchSessionId.current
+          )
+        }
+      }
+    }, [user?.id])
+  )
 
   useEffect(() => {
     const trimmed = query.trim()
@@ -203,6 +244,10 @@ export default function SearchScreen() {
     typeaheadSuggestions.length > 0 &&
     (!hasQuery || totalResults === 0 || query.trim().length < 2)
 
+  const handleResultClick = useCallback(() => {
+    sessionHadClick.current = true
+  }, [])
+
   function handleChip(chip: { label: string; emoji: string; query: string }) {
     setActiveChip(chip.query)
     setQuery(chip.query)
@@ -232,6 +277,13 @@ export default function SearchScreen() {
   function handleSelectRecent(item: string) {
     setQuery(item)
     setIsFocused(false)
+    setSearchMode('search')
+    setResultTab('top')
+  }
+
+  function handleNoResultsChip(q: string) {
+    setQuery(q)
+    setActiveChip('')
     setSearchMode('search')
     setResultTab('top')
   }
@@ -324,7 +376,7 @@ export default function SearchScreen() {
         {!!userLocation.error && searchMode === 'aroundMe' && (
           <View style={styles.locationErrorRow}>
             <Text style={styles.locationError}>{userLocation.error}</Text>
-            {userLocation.canAskAgain ? (
+            {userLocation.status !== 'denied' ? (
               <TouchableOpacity
                 onPress={() => { void userLocation.requestLocation() }}
                 accessibilityRole="button"
@@ -391,17 +443,7 @@ export default function SearchScreen() {
             userId={user?.id}
           />
         ) : totalResults === 0 ? (
-          <View style={styles.noResults}>
-            <Text style={styles.noResultsTitle}>
-              {searchMode === 'aroundMe' ? 'No nearby food finds yet' : `No food finds for "${query}"`}
-            </Text>
-            <Text style={styles.noResultsBody}>Try a dish, neighbourhood, or creator with similar taste.</Text>
-            {searchMode === 'aroundMe' && !userLocation.coords && (
-              <Text style={styles.noResultsBody}>
-                Use current location or set a suburb first.
-              </Text>
-            )}
-          </View>
+          <NoResultsCard query={query} onChipPress={handleNoResultsChip} />
         ) : (
           <SearchResultsTab
             resultTab={resultTab}
@@ -423,6 +465,7 @@ export default function SearchScreen() {
             user={user}
             searchSessionId={searchSessionId.current}
             activeTabEmpty={activeTabEmpty}
+            onResultClick={handleResultClick}
           />
         )}
       </ScrollView>
@@ -517,18 +560,5 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       alignItems: 'center',
     },
     suggestionOption: { height: 34, maxWidth: 156 },
-    noResults: {
-      alignItems: 'center',
-      paddingTop: spacing.px60,
-      paddingHorizontal: spacing.px40,
-      gap: spacing[2],
-    },
-    noResultsTitle: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.medium,
-      color: c.text,
-      textAlign: 'center',
-    },
-    noResultsBody: { fontSize: fontSize.bodySm, color: c.text3, textAlign: 'center' },
   })
 }

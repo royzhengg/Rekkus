@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, BackHandler } from 'react-native'
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, BackHandler, Pressable } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ChevronLeft } from '@/components/icons'
 import StepDetails from '@/components/post-create/StepDetails'
@@ -15,8 +15,8 @@ import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { usePosts } from '@/lib/contexts/PostsContext'
 import { usePostUploadQueue } from '@/lib/contexts/PostUploadContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { haptic } from '@/lib/haptics'
 import { tasteToLegacyFood, valueToLegacyCost } from '@/lib/dataSources/rekkusPicks'
+import { haptic } from '@/lib/haptics'
 import { routes } from '@/lib/routes'
 import { findOrCreateDish } from '@/lib/services/dishes'
 import type { CreatePostDraft, CreatePostDraftStatus } from '@/lib/services/postDrafts'
@@ -68,6 +68,9 @@ export default function PostScreen() {
   const [editBaselineCount, setEditBaselineCount] = useState<number | null>(null)
   const [retryPostAvailable, setRetryPostAvailable] = useState(false)
   const ignoreNextChooserDismiss = useRef(false)
+  const sessionStartedAt = useRef<number>(Date.now())
+  const stepEnteredAt = useRef<number>(Date.now())
+  const rageTapNextTimestamps = useRef<number[]>([])
   const isEditingPost = intent === 'edit' && !!postId
   // Step 1 state
   const [media, setMedia] = useState<PostMedia[]>([])
@@ -83,7 +86,7 @@ export default function PostScreen() {
   const [valueVerdict, setValueVerdict] = useState<RekkusValueVerdict | undefined>(undefined)
   const [occasionTags, setOccasionTags] = useState<RekkusOccasionTag[]>([])
   const [body, setBody] = useState('')
-  const [bestDish, setBestDish] = useState('')
+  const [mustOrder, setMustOrder] = useState('')
   const [cuisineType, setCuisineType] = useState('')
   const [hashtags, setHashtags] = useState<string[]>([])
   const [hashtagInput, setHashtagInput] = useState('')
@@ -100,7 +103,7 @@ export default function PostScreen() {
     !!valueVerdict ||
     occasionTags.length > 0 ||
     body.trim().length > 0 ||
-    bestDish.trim().length > 0 ||
+    mustOrder.trim().length > 0 ||
     cuisineType.trim().length > 0 ||
     hashtags.length > 0 ||
     hashtagInput.trim().length > 0
@@ -156,7 +159,7 @@ export default function PostScreen() {
     setValueVerdict(draft.valueVerdict)
     setOccasionTags(draft.occasionTags ?? [])
     setBody(draft.body ?? '')
-    setBestDish(draft.bestDish ?? '')
+    setMustOrder(draft.mustOrder ?? '')
     setCuisineType(draft.cuisineType ?? '')
     setHashtags(draft.hashtags ?? [])
     setHashtagInput(draft.hashtagInput ?? '')
@@ -198,7 +201,7 @@ export default function PostScreen() {
       setValueVerdict(post.valueVerdict)
       setOccasionTags(post.occasionTags ?? [])
       setBody(post.body ?? '')
-      setBestDish(post.best_dish ?? '')
+      setMustOrder(post.mustOrder ?? '')
       setCuisineType(post.cuisine_type ?? '')
       setHashtags(post.tags ?? [])
       setHashtagInput('')
@@ -230,13 +233,13 @@ export default function PostScreen() {
       valueVerdict,
       occasionTags,
       body,
-      bestDish,
+      mustOrder,
       cuisineType,
       hashtags,
       hashtagInput,
       updatedAt: new Date().toISOString(),
     }
-  }, [media, currentDraftId, user?.id, currentDraftStatus, title, selectedPlace, dishTags, foodRating, vibeRating, costRating, tasteVerdict, valueVerdict, occasionTags, body, bestDish, cuisineType, hashtags, hashtagInput])
+  }, [media, currentDraftId, user?.id, currentDraftStatus, title, selectedPlace, dishTags, foodRating, vibeRating, costRating, tasteVerdict, valueVerdict, occasionTags, body, mustOrder, cuisineType, hashtags, hashtagInput])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -260,6 +263,11 @@ export default function PostScreen() {
     refreshDraftSummaries,
   ])
 
+  useEffect(() => {
+    stepEnteredAt.current = Date.now()
+    analytics.createPostFunnel(user?.id ?? null, step, 'viewed')
+  }, [step, user?.id])
+
   // Ref keeps BackHandler current: handleBack is defined after the early return below.
   const handleBackRef = useRef<() => void>(() => {})
 
@@ -277,6 +285,7 @@ export default function PostScreen() {
   if (!user) return null
 
   function handleBack() {
+    if (!user) return
     if (entryMode === 'choosing') {
       router.replace('/(tabs)/feed')
       return
@@ -286,6 +295,10 @@ export default function PostScreen() {
         router.replace('/(tabs)/feed')
         return
       }
+      analytics.createPostFunnel(user?.id ?? null, step, 'abandoned', {
+        duration_ms: Date.now() - stepEnteredAt.current,
+        reason: 'back_from_step_1',
+      })
       setLeaveConfirmVisible(true)
     }
     else setStep((step - 1) as Step)
@@ -293,7 +306,21 @@ export default function PostScreen() {
   handleBackRef.current = handleBack
 
   function handleNext() {
-    if (step < 3) setStep((step + 1) as Step)
+    if (!user) return
+    if (step < 3) {
+      const now = Date.now()
+      const recent = rageTapNextTimestamps.current.filter(t => now - t < 1000)
+      recent.push(now)
+      rageTapNextTimestamps.current = recent
+      if (recent.length >= 3) {
+        analytics.rageTap(user.id, 'create_post', 'next', step, recent.length)
+        rageTapNextTimestamps.current = []
+      }
+      analytics.createPostFunnel(user.id, step, 'completed', {
+        duration_ms: now - stepEnteredAt.current,
+      })
+      setStep((step + 1) as Step)
+    }
   }
 
   function clearForm() {
@@ -309,7 +336,7 @@ export default function PostScreen() {
     setValueVerdict(undefined)
     setOccasionTags([])
     setBody('')
-    setBestDish('')
+    setMustOrder('')
     setCuisineType('')
     setHashtags([])
     setHashtagInput('')
@@ -387,7 +414,7 @@ export default function PostScreen() {
           valueVerdict: valueVerdict ?? null,
           occasionTags,
           cuisineType: cuisineType || null,
-          bestDish: bestDish.trim() || null,
+          mustOrder: mustOrder.trim() || null,
           dishTags,
           media,
           expectedEditCount: editBaselineCount,
@@ -427,10 +454,10 @@ export default function PostScreen() {
       await enqueueServerMediaProcessing(media)
       uploadQueue.updateJob(jobId, { status: 'publishing', progress: 0.84 })
       let dishId: string | null = null
-      if (bestDish.trim() && selectedPlace?.restaurantId) {
+      if (mustOrder.trim() && selectedPlace?.restaurantId) {
         try {
           dishId = await findOrCreateDish({
-            name: bestDish.trim(),
+            name: mustOrder.trim(),
             restaurantId: selectedPlace.restaurantId,
             cuisineType: cuisineType || null,
             userId: user.id,
@@ -452,10 +479,14 @@ export default function PostScreen() {
         valueVerdict: valueVerdict ?? null,
         occasionTags,
         cuisineType: cuisineType || null,
-        bestDish: bestDish.trim() || null,
+        mustOrder: mustOrder.trim() || null,
         dishId,
         dishTags,
         media,
+      })
+      analytics.createPostFunnel(user.id, 3, 'completed', {
+        duration_ms: Date.now() - stepEnteredAt.current,
+        session_duration_ms: Date.now() - sessionStartedAt.current,
       })
       clearForm()
       await markCreatePostDraftPublished(currentDraftId)
@@ -547,6 +578,10 @@ export default function PostScreen() {
     isEditingPost, onSaveDraft: saveDraftWithMode, onDraftDone: () => router.replace('/(tabs)/feed'),
     ...(retryPostAvailable ? { onRetryPost: handleRetryPost } : {}),
     onDiscard: async () => {
+      analytics.createPostFunnel(user.id, step, 'abandoned', {
+        duration_ms: Date.now() - stepEnteredAt.current,
+        reason: 'discard',
+      })
       if (isEditingPost && postId && user?.id) recordPostEditEvent(postId, user.id, 'edit_discarded').catch(() => {})
       if (currentDraftId) await clearCreatePostDraft(currentDraftId)
       clearForm()
@@ -561,8 +596,8 @@ export default function PostScreen() {
     },
   }
   const mediaProps = { media, setMedia, title, setTitle, selectedPlace, setSelectedPlace, cuisineType, dishTags, setDishTags }
-  const detailsProps = { foodRating, setFoodRating, vibeRating, setVibeRating, costRating, setCostRating, tasteVerdict, setTasteVerdict, valueVerdict, setValueVerdict, occasionTags, setOccasionTags, body, setBody, bestDish, setBestDish, cuisineType, setCuisineType, hashtags, setHashtags, hashtagInput, setHashtagInput }
-  const reviewProps = { title, body, media, selectedPlace, foodRating, vibeRating, costRating, tasteVerdict, valueVerdict, occasionTags, cuisineType, bestDish, hashtags, onEditBasics: () => setStep(1), onEditDetails: () => setStep(2), onPost: handlePost, primaryLabel: isEditingPost ? 'Save changes' : 'Post review', posting, onSaveDraft: openSaveDraftOptions, savingDraft }
+  const detailsProps = { foodRating, setFoodRating, vibeRating, setVibeRating, costRating, setCostRating, tasteVerdict, setTasteVerdict, valueVerdict, setValueVerdict, occasionTags, setOccasionTags, body, setBody, mustOrder, setMustOrder, cuisineType, setCuisineType, hashtags, setHashtags, hashtagInput, setHashtagInput }
+  const reviewProps = { title, body, media, selectedPlace, foodRating, vibeRating, costRating, tasteVerdict, valueVerdict, occasionTags, cuisineType, mustOrder, hashtags, onEditBasics: () => setStep(1), onEditDetails: () => setStep(2), onPost: handlePost, primaryLabel: isEditingPost ? 'Save changes' : 'Post review', posting, onSaveDraft: openSaveDraftOptions, savingDraft }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -580,11 +615,7 @@ export default function PostScreen() {
 
         <View style={styles.centerWrap}>
           <Text style={styles.stepTitle}>{STEP_TITLES[step]}</Text>
-          <View style={styles.dots}>
-            {([1, 2, 3] as Step[]).map(s => (
-              <View key={s} style={[styles.dot, s === step && styles.dotActive]} />
-            ))}
-          </View>
+          <Text style={styles.stepProgress}>{step} of 3</Text>
         </View>
 
         <View style={styles.rightActions}>
@@ -602,16 +633,25 @@ export default function PostScreen() {
             </TouchableOpacity>
           )}
           {step < 3 ? (
-            <TouchableOpacity
-              style={[styles.nextBtn, !canAdvance && styles.nextBtnDisabled]}
-              onPress={canAdvance ? handleNext : undefined}
-              disabled={!canAdvance}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.nextBtnText, !canAdvance && styles.nextBtnTextDisabled]}>
-                Next
-              </Text>
-            </TouchableOpacity>
+            <View style={{ position: 'relative' }}>
+              <TouchableOpacity
+                style={[styles.nextBtn, !canAdvance && styles.nextBtnDisabled]}
+                onPress={canAdvance ? handleNext : undefined}
+                disabled={!canAdvance}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.nextBtnText, !canAdvance && styles.nextBtnTextDisabled]}>
+                  Next
+                </Text>
+              </TouchableOpacity>
+              {!canAdvance && (
+                <Pressable
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                  onPress={() => analytics.deadClick(user.id, 'create_post', 'next', step)}
+                  accessible={false}
+                />
+              )}
+            </View>
           ) : (
             <View style={styles.headerAction} />
           )}

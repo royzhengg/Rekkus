@@ -1,6 +1,12 @@
 const fs = require('fs')
 const path = require('path')
 const { execFileSync } = require('child_process')
+const { hasFlag, printHelp } = require('./lib/args')
+
+if (hasFlag('--help') || hasFlag('-h')) {
+  printHelp('check:hygiene', 'Source hygiene and safety rules — runs as part of validate and validate:full.')
+  process.exit(0)
+}
 
 const repoRoot = path.resolve(__dirname, '..')
 const sourceRoots = ['app', 'features', 'components', 'lib', 'types', 'constants', 'scripts', 'supabase']
@@ -107,6 +113,33 @@ for (const root of sourceRoots) {
         !/validatePicked(?:PostImages|PostMedia|AvatarImage|MessageAttachment)/.test(source)
       ) {
         failures.push(`${relativePath} uses ImagePicker without shared media validation.`)
+      }
+
+      // B-402: Dismiss-only Alert.alert calls are modal interrupts used for success/info notifications.
+      // Use showToast() (lib/contexts/ToastContext) for success/info feedback.
+      // Alert.alert is correct ONLY for confirmations that have cancel/destructive buttons.
+      // Allowlist below is for pre-existing validation-error alerts tracked in separate backlog items.
+      const dismissOnlyAlertAllowlist = new Set([
+        // B-403: validation errors — replace with inline <ErrorMessage> in a follow-up
+        'features/messages/CreateGroupScreen.tsx',
+        'features/settings/ConnectedAccountsScreen.tsx',
+      ])
+      if (
+        /^(features|components)\//.test(relativePath) &&
+        !dismissOnlyAlertAllowlist.has(relativePath)
+      ) {
+        const alertOccurrences = [...source.matchAll(/Alert\.alert\(/g)]
+        for (const match of alertOccurrences) {
+          const pos = match.index ?? 0
+          const fragment = source.slice(pos, pos + 500)
+          const hasConfirmationButton = /'cancel'|"cancel"|'destructive'|"destructive"/.test(fragment)
+          if (!hasConfirmationButton) {
+            failures.push(
+              `${relativePath}: dismiss-only Alert.alert found. Use showToast() for success/info, or <ErrorMessage> for validation errors. Alert.alert is reserved for confirmations with cancel/destructive buttons.`
+            )
+            break
+          }
+        }
       }
     }
   })

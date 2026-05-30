@@ -86,7 +86,7 @@ export function isRawPost(value: unknown): value is RawPost {
     isNullableNumber(value.vibe_rating) &&
     isNullableNumber(value.cost_rating) &&
     isNullableString(value.cuisine_type) &&
-    isNullableString(value.best_dish) &&
+    isNullableString(value.must_order) &&
     isNullableString(value.restaurant_id) &&
     (value.taste_verdict === null || isTasteVerdict(value.taste_verdict)) &&
     (value.value_verdict === null || isValueVerdict(value.value_verdict)) &&

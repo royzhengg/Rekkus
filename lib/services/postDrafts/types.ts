@@ -46,7 +46,7 @@ export type CreatePostDraft = {
   valueVerdict?: RekkusValueVerdict | undefined
   occasionTags?: RekkusOccasionTag[] | undefined
   body: string
-  bestDish: string
+  mustOrder: string
   cuisineType: string
   hashtags: string[]
   hashtagInput: string

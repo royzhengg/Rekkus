@@ -72,16 +72,9 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
       width: 96,
     },
     backText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text2 },
-    centerWrap: { alignItems: 'center', gap: spacing[1] },
+    centerWrap: { alignItems: 'center', gap: spacing.px2 },
     stepTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
-    dots: { flexDirection: 'row', gap: spacing.px5 },
-    dot: {
-      width: 6,
-      height: 6,
-      borderRadius: radius.tiny,
-      backgroundColor: c.border2,
-    },
-    dotActive: { width: 18, backgroundColor: c.accent },
+    stepProgress: { fontSize: fontSize.xs, color: c.text3, textAlign: 'center' },
     rightActions: {
       width: 96,
       flexDirection: 'row',

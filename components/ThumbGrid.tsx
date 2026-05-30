@@ -122,7 +122,7 @@ export const ThumbGrid = React.memo(function ThumbGrid({
             )}
             <View style={styles.peekInfo}>
               <Text style={styles.peekTitle} numberOfLines={2}>
-                {peekPost?.best_dish ?? peekPost?.title ?? ''}
+                {peekPost?.mustOrder ?? peekPost?.title ?? ''}
               </Text>
               <Text style={styles.peekCreator}>@{peekPost?.creator ?? ''}</Text>
             </View>

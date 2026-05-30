@@ -21,7 +21,6 @@ import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { routes } from '@/lib/routes'
 import {
   fetchArchivedConversations,
-  unarchiveConversation,
   type ConversationSummary,
 } from '@/lib/services/messaging'
 import { avatarPalette } from '@/lib/utils/format'
@@ -68,7 +67,7 @@ function richPreview(item: ConversationSummary): string {
 export default function ArchivedConversationsScreen() {
   const router = useRouter()
   const { user } = useAuth()
-  const { requireOnline } = useConnectivity()
+  const { runDeferredMutation, syncEpoch } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
@@ -95,18 +94,16 @@ export default function ArchivedConversationsScreen() {
     void load(false)
   }, [load])
 
+  // Re-fetch after offline queue flush
+  useEffect(() => { if (syncEpoch > 0) void load(false) }, [syncEpoch, load])
+
   const handleUnarchive = useCallback(
     async (conversationId: string) => {
       if (!user) return
-      if (!requireOnline()) return
-      try {
-        await unarchiveConversation(conversationId, user.id)
-        setConversations(prev => prev.filter(item => item.id !== conversationId))
-      } catch {
-        // Silently ignore — user can retry by pulling to refresh
-      }
+      setConversations(prev => prev.filter(item => item.id !== conversationId))
+      await runDeferredMutation({ kind: 'conversation_unarchive', conversationId })
     },
-    [requireOnline, user]
+    [runDeferredMutation, user]
   )
 
   function renderItem({ item }: { item: ConversationSummary }) {

@@ -31,7 +31,7 @@ type Props = {
   valueVerdict?: RekkusValueVerdict | undefined
   occasionTags?: RekkusOccasionTag[] | undefined
   cuisineType: string
-  bestDish: string
+  mustOrder: string
   hashtags: string[]
   onEditBasics: () => void
   onEditDetails: () => void
@@ -51,7 +51,7 @@ export default function StepReview({
   valueVerdict,
   occasionTags,
   cuisineType,
-  bestDish,
+  mustOrder,
   hashtags,
   onEditBasics,
   onEditDetails,
@@ -133,16 +133,16 @@ export default function StepReview({
         )}
 
         {/* Cuisine + best dish */}
-        {(cuisineType || bestDish.trim().length > 0) && (
+        {(cuisineType || mustOrder.trim().length > 0) && (
           <View style={styles.metaRow}>
             {cuisineType ? (
               <View style={styles.metaPill}>
                 <Text style={styles.metaPillText}>{cuisineType}</Text>
               </View>
             ) : null}
-            {bestDish.trim().length > 0 ? (
+            {mustOrder.trim().length > 0 ? (
               <View style={styles.metaPill}>
-                <Text style={styles.metaPillText}>🍜 {bestDish}</Text>
+                <Text style={styles.metaPillText}>🍜 {mustOrder}</Text>
               </View>
             ) : null}
           </View>
@@ -180,22 +180,14 @@ export default function StepReview({
             <Text style={styles.editBtnText}>Edit review</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[styles.saveDraftBtn, (savingDraft || posting) && styles.saveDraftBtnDisabled]}
-          onPress={onSaveDraft}
-          disabled={savingDraft || posting}
-          activeOpacity={0.75}
-          accessibilityRole="button"
-          accessibilityLabel="Save draft"
-        >
-          <BookmarkIcon size={15} inactiveColor={c.text2} />
-          <Text style={styles.saveDraftText}>{savingDraft ? 'Saving draft…' : 'Save draft'}</Text>
-        </TouchableOpacity>
+        <Text style={styles.confidenceText}>Your review helps others discover great food.</Text>
         <TouchableOpacity
           style={[styles.postBtn, posting && styles.postBtnDisabled]}
           onPress={onPost}
           disabled={posting}
           activeOpacity={0.86}
+          accessibilityRole="button"
+          accessibilityLabel={primaryLabel}
         >
           {posting ? (
             <ActivityIndicator color={c.bg} size="small" />
@@ -205,6 +197,17 @@ export default function StepReview({
               <Text style={styles.postBtnText}>{primaryLabel}</Text>
             </>
           )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.saveDraftBtn, (savingDraft || posting) && styles.saveDraftBtnDisabled]}
+          onPress={onSaveDraft}
+          disabled={savingDraft || posting}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel="Save draft"
+        >
+          <BookmarkIcon size={13} inactiveColor={c.text3} />
+          <Text style={styles.saveDraftText}>{savingDraft ? 'Saving draft…' : 'Save draft'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -311,19 +314,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       justifyContent: 'center',
     },
     editBtnText: { fontSize: fontSize.base, color: c.text2, fontWeight: fontWeight.extrabold },
-    saveDraftBtn: {
-      minHeight: 46,
-      borderRadius: radius.pill,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'row',
-      gap: spacing.px7,
-      backgroundColor: c.bg,
-      borderWidth: 0.5,
-      borderColor: c.border,
-    },
-    saveDraftBtnDisabled: { opacity: 0.5 },
-    saveDraftText: { fontSize: fontSize.md, fontWeight: fontWeight.extrabold, color: c.text2 },
+    confidenceText: { fontSize: fontSize.xs, color: c.text3, textAlign: 'center' },
     postBtn: {
       minHeight: 52,
       borderRadius: radius.pill2,
@@ -335,5 +326,14 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     },
     postBtnDisabled: { opacity: 0.5 },
     postBtnText: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.bg },
+    saveDraftBtn: {
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: spacing.px6,
+    },
+    saveDraftBtnDisabled: { opacity: 0.4 },
+    saveDraftText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: c.text3 },
   })
 }

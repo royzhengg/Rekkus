@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { fetchTargetCollectionItems, type CollectionItem } from '@/lib/services/collections'
 import { fetchDishDetail, fetchIsDishSaved } from '@/lib/services/dishes'
-import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { fetchDishPostsPage, mapRowToPost } from '@/lib/services/posts'
 import type { DishDetail, Post } from '@/types/domain'
 
