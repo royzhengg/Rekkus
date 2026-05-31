@@ -62,7 +62,13 @@ Before promoting a beta or production build, record the release health result in
 | Jobs                    | `npm run check:jobs`                                                                               | Job-like workflows remain report-only or have retry/manual override policy.                                                             |
 | Dependencies/types      | `npm run check:deps`, `npm run typecheck`                                                          | No unresolved dependency or TypeScript blocker is accepted into release.                                                                |
 | iPhone HIG acceptance   | `REKKUS_RELEASE_CANDIDATE=<build-id> npm run check:hig-acceptance`                                 | The matching physical-iPhone matrix passes VoiceOver, Dynamic Type, Reduce Motion, Reduce Transparency, dark mode, permission, and touch-target checks. |
-| Manual smoke            | Auth, reset password, create post, search, post detail, restaurant detail, map, profile, redirects | No P0 regression; rollback build is identified.                                                                                         |
+| Manual smoke            | `REKKUS_RELEASE_CANDIDATE=<build-id> npm run release:smoke -- --write`                             | Filled checklist covers auth, reset password, create post, search, post detail, restaurant detail, map, profile, redirects, known issues, and rollback. |
+
+Validate a filled smoke checklist before promotion:
+
+```sh
+npm run release:smoke -- --check .temp/release-smoke/<env>-<build-id>.md
+```
 
 ## Security Release Checklist
 
@@ -95,7 +101,7 @@ Before promoting a beta or production build, record the release health result in
 - Vulnerability disclosure and NDB/OAIC incident readiness reviewed before public beta.
 - Provider attribution requirements are reviewed for Google, maps, OSM/open data, and future providers.
 - iOS and Android builds install and launch.
-- Auth, reset password, create post, search, post detail, restaurant detail, map, profile, and redirects pass smoke testing.
+- Generate and complete the release smoke checklist with `REKKUS_RELEASE_CANDIDATE=<build-id> npm run release:smoke -- --write`, then validate the filled checklist with `npm run release:smoke -- --check <path>`.
 - Known issues documented.
 
 ## Beta To Production

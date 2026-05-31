@@ -45,6 +45,7 @@ jest.mock('@/lib/services/search', () => ({
   searchUsers: jest.fn().mockResolvedValue([]),
   searchPostIds: jest.fn().mockResolvedValue([]),
   searchDishPostIds: jest.fn().mockResolvedValue([]),
+  searchDishes: jest.fn().mockResolvedValue([]),
   resolveSearchExpansion: jest.fn().mockResolvedValue({
     cuisines: [],
     expandedPosts: [],

@@ -1,10 +1,12 @@
 import {
-  CUISINE_SYNONYMS,
   CUISINE_ALIASES,
-  OCCASION_SYNONYMS,
-  DIETARY_TERMS,
   QUALITY_TERMS,
   LOCATION_INDICATORS,
+  getDietaryTerms,
+  getOccasionSynonym,
+  getSearchPhraseKeys,
+  getCuisineSynonymTerms,
+  hasCuisineSynonym,
 } from './cuisineSynonyms'
 import { resolveFromAliasCache } from './locationResolver'
 import type { RekkusOccasionTag } from '../../types/domain'
@@ -69,11 +71,7 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     const removedIndices = new Set<number>()
     const detectedPhrases: string[] = []
 
-    const phraseSources = [
-      ...Object.keys(CUISINE_SYNONYMS),
-      ...Object.keys(OCCASION_SYNONYMS),
-      ...Object.keys(DIETARY_TERMS),
-    ].filter(k => k.includes(' '))
+    const phraseSources = getSearchPhraseKeys().filter(k => k.includes(' '))
 
     for (const n of [3, 2]) {
       for (let i = 0; i <= allWords.length - n; i++) {
@@ -117,7 +115,7 @@ export function parseSearchQuery(raw: string): ParsedQuery {
       const second = remaining[i + 1]
       if (!first || !second) continue
       const bigram = `${first} ${second}`
-      const occasion = OCCASION_SYNONYMS[bigram]
+      const occasion = getOccasionSynonym(bigram)
       if (occasion) {
         occasionTerms.push(occasion)
         occasionRemoved.add(i)
@@ -129,7 +127,7 @@ export function parseSearchQuery(raw: string): ParsedQuery {
       if (occasionRemoved.has(i)) continue
       const word = remaining[i]
       if (!word) continue
-      const occasion = OCCASION_SYNONYMS[word]
+      const occasion = getOccasionSynonym(word)
       if (occasion) {
         occasionTerms.push(occasion)
         occasionRemoved.add(i)
@@ -145,8 +143,9 @@ export function parseSearchQuery(raw: string): ParsedQuery {
       const second = remaining[i + 1]
       if (!first || !second) continue
       const bigram = `${first} ${second}`
-      if (DIETARY_TERMS[bigram]) {
-        dietaryTerms.push(...DIETARY_TERMS[bigram])
+      const dietary = getDietaryTerms(bigram)
+      if (dietary.length > 0) {
+        dietaryTerms.push(...dietary)
         dietaryRemoved.add(i)
         dietaryRemoved.add(i + 1)
       }
@@ -155,8 +154,8 @@ export function parseSearchQuery(raw: string): ParsedQuery {
       if (dietaryRemoved.has(i)) continue
       const word = remaining[i]
       if (!word) continue
-      const dietary = DIETARY_TERMS[word]
-      if (dietary) {
+      const dietary = getDietaryTerms(word)
+      if (dietary.length > 0) {
         dietaryTerms.push(...dietary)
         dietaryRemoved.add(i)
       }
@@ -183,7 +182,7 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     for (const word of remaining) {
       if (Object.keys(CUISINE_ALIASES).includes(word)) {
         cuisineTerms.push(word)
-      } else if (CUISINE_SYNONYMS[word] !== undefined) {
+      } else if (hasCuisineSynonym(word)) {
         dishTerms.push(word)
       } else {
         restaurantTokens.push(word)
@@ -192,14 +191,18 @@ export function parseSearchQuery(raw: string): ParsedQuery {
 
     // Phrases classified into dishes or cuisine
     for (const phrase of detectedPhrases) {
-      if (CUISINE_SYNONYMS[phrase] !== undefined) {
+      if (hasCuisineSynonym(phrase)) {
         dishTerms.push(phrase)
-      } else if (OCCASION_SYNONYMS[phrase] !== undefined) {
-        // already captured above in occasionTerms
-      } else if (DIETARY_TERMS[phrase] !== undefined) {
-        // already captured above
       } else {
-        dishTerms.push(phrase)
+        const occasion = getOccasionSynonym(phrase)
+        const dietary = getDietaryTerms(phrase)
+        if (occasion) {
+          occasionTerms.push(occasion)
+        } else if (dietary.length > 0) {
+          dietaryTerms.push(...dietary)
+        } else {
+          dishTerms.push(phrase)
+        }
       }
     }
 
@@ -236,7 +239,7 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     const isPrefix =
       raw.trim().length < 4 ||
       (!raw.includes(' ') &&
-        !Object.keys(CUISINE_SYNONYMS).includes(normalised) &&
+        !getCuisineSynonymTerms().includes(normalised) &&
         !Object.keys(CUISINE_ALIASES).includes(normalised))
 
     // Step 9: Build searchWords (FTS-worthy terms, no noise)

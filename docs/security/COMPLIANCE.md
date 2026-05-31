@@ -54,7 +54,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | suburb_aliases | Product/Data | Public local discovery taxonomy | Rekkus/system | Retained while local search taxonomy exists | Not user-owned | Public select, migration/admin write |
 | suburb_lookups | Product/Data | Public locality lookup metadata | Public/open locality data and admin seed | Retained while local search taxonomy exists | Not user-owned | Public select, migration/admin seed |
 | restaurant_popularity_cache | Analytics/Data | Aggregate restaurant engagement signal | Derived from public posts and privacy-safe events | Refreshed aggregate cache | Aggregated/de-identified | Public select, service refresh |
-| trending_searches | Analytics | Aggregate discovery signal | Derived from privacy-safe search events | Refreshed aggregate cache | Aggregated/de-identified | Public select, service refresh |
+| trending_searches | Analytics | Aggregate discovery signal, partitioned by coarse city | Derived from privacy-safe search events | Refreshed aggregate cache | Aggregated/de-identified | Public select, service refresh |
 | restaurant_sources | Data | Source/provenance | Provider/user/admin | Retain while linked | Source-attributed; unlink by review | Public select, limited insert |
 | restaurant_provider_cache | Data | Provider-derived cache | Google/OSM/future provider | TTL/terms based | Provider-terms governed | Public select, service writes |
 | restaurant_observations | Data/Trust | First-party facts | User/behavior/post/save/search | Account lifetime or superseded | User-linked rows included | Trusted public or owner select |
@@ -69,10 +69,10 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | moderation_appeals | Trust/Safety | Appeal record | User/admin | Manual review/audit retention | Appellant-linked rows included | Appellant insert/select, admin/service review |
 | user_trust_profiles | Trust/Safety | Private trust/restriction state | System/admin | Account lifetime or review expiry | Included where user-linked | Owner select, admin/service write |
 | privacy_requests | Security | User-private legal request | User/support | Legal retention | User visible | Owner RLS |
-| analytics_events | Analytics | Internal telemetry | User behavior/system | 90-day raw retention, aggregate later | De-identify or delete link when required | Insert own, aggregate/public read |
+| analytics_events | Analytics | Internal telemetry, including coarse search `near_city`, no-results recovery queries, and optional cuisine metadata when available | User behavior/system | 90-day raw retention, aggregate later | De-identify or delete link when required | Insert own, aggregate/public read |
 | feature_flag_overrides | Operations | Emergency feature flag rollback state | Engineering/admin | Until flag retirement or incident closure | Internal only | Service-role only |
 | feature_flag_audit_events | Security/Operations | Feature flag change audit evidence | Database trigger on runtime overrides | Compliance audit retention | Minimized; not normal export | Service-role only |
-| Device-local pending intents (`rekkus:pending-mutations:v1`) | Product | User-private transient identifiers and target state for reversible writes (Phase 1: save/like/follow/setting) | User action while offline/transport failure | 7-day TTL max; removed on sync completion, non-retryable failure (including after 5 retries), sign-out, or app-data removal | Cleared locally; server remains source of truth | Device `AsyncStorage` only; active-user scoped replay; Phase 2 mutations (message reactions, conversation prefs) deferred to B-239b |
+| Device-local pending intents (`rekkus:pending-mutations:v1`) | Product | User-private transient identifiers, target state, and optional cuisine label for post-save analytics replay | User action while offline/transport failure | 7-day TTL max; removed on sync completion, non-retryable failure (including after 5 retries), sign-out, or app-data removal | Cleared locally; server remains source of truth | Device `AsyncStorage` only; active-user scoped replay; Phase 2 mutations (message reactions, conversation prefs) deferred to B-239b |
 
 ### B-529 Compliance Impact Review
 
@@ -80,6 +80,13 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 - Collection/provider impact: none; video playback uses existing public post media and adds no media upload, analytics route, external provider, or location access.
 - Security/RLS: the field remains within existing owner-RLS `user_settings`; no new mutable entity domain or audit table is introduced.
 - Rollback: disable the UI/autoplay eligibility path and retain or later drop the additive preference column through a follow-up migration.
+
+### B-550 Compliance Impact Review
+
+- Data added: optional coarse `near_city` in `search_query` analytics metadata and aggregate `trending_searches.near_city` partitions; no precise coordinates are written to analytics.
+- Collection/provider impact: city is resolved from existing restaurant rows near already-known user coordinates; no new external provider call, permission prompt, or location storage path is introduced.
+- Security/RLS: raw analytics retention remains 90 days; `trending_searches` stays aggregate/public-read and does not expose individual searchers.
+- Rollback: keep global rows and disable passing `near_city` from SearchScreen; city partitions can be ignored or dropped in a follow-up migration.
 | saved_locations | Product | User-private saved restaurant intent | User | Account lifetime | Included | Owner RLS |
 | saved_dishes | Product | User-private canonical dish intent | User | Account lifetime | Included | Owner RLS |
 | collections | Product | User-private/shareable collection metadata | User | Account lifetime unless deleted | Included | Owner RLS; unlisted/public select |
@@ -121,7 +128,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 - Deletion covers profile, settings, push tokens, user-owned observations, saves, and private linkage where legally/product-appropriate.
 - Audit/security records may be retained only when minimized and justified.
 - Precise location, raw free text, emails, phone numbers, secrets, tokens, reset links, private notes, and raw provider payloads must not enter analytics unless explicitly reviewed.
-- Analytics metadata is sanitized in `lib/analytics.ts` before insertion and checked by privacy/compliance automation.
+- Analytics metadata is sanitized in `lib/analytics.ts` before insertion and checked by privacy/compliance automation; no-results suggestion lists are stored as compact query strings, not raw result payloads.
 - Post edit audit data is minimized to changed field names/count. Do not store raw captions, media URLs, restaurant names, addresses, report notes, or before/after content in `post_edit_events`.
 
 ## Location Minimization

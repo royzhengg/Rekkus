@@ -4,16 +4,15 @@ import { Chip } from '@/components/ui/Chip'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { CHIPS } from './searchConstants'
-
-const SUGGESTION_CHIPS = CHIPS.slice(0, 3)
+import type { NoResultsSuggestionChip } from '@/lib/hooks/useNoResultsSuggestions'
 
 interface Props {
   query: string
+  chips: NoResultsSuggestionChip[]
   onChipPress: (query: string) => void
 }
 
-export function NoResultsCard({ query, onChipPress }: Props) {
+export function NoResultsCard({ query, chips, onChipPress }: Props) {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
@@ -25,10 +24,10 @@ export function NoResultsCard({ query, onChipPress }: Props) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chips}
       >
-        {SUGGESTION_CHIPS.map(chip => (
+        {chips.map(chip => (
           <Chip
             key={chip.query}
-            label={`${chip.emoji} ${chip.label}`}
+            label={chip.emoji ? `${chip.emoji} ${chip.label}` : chip.label}
             onPress={() => onChipPress(chip.query)}
             accessibilityLabel={`Search for ${chip.label}`}
           />

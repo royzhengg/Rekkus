@@ -1,5 +1,6 @@
 import { fireEvent, render } from '@testing-library/react-native'
 import { NoResultsCard } from '@/features/search/NoResultsCard'
+import type { NoResultsSuggestionChip } from '@/lib/hooks/useNoResultsSuggestions'
 
 jest.mock('@/lib/contexts/ThemeContext', () => ({
   useThemeColors: () => ({
@@ -15,17 +16,23 @@ jest.mock('@/lib/contexts/ThemeContext', () => ({
   }),
 }))
 
+const chips: NoResultsSuggestionChip[] = [
+  { label: 'Sushi', emoji: '🍣', query: 'sushi' },
+  { label: 'Pasta', query: 'pasta' },
+  { label: 'Dumplings', emoji: '🥟', query: 'dumplings' },
+]
+
 describe('NoResultsCard', () => {
   it('shows the search term in the heading', () => {
     const { getByText } = render(
-      <NoResultsCard query="xyzzy" onChipPress={jest.fn()} />
+      <NoResultsCard query="xyzzy" chips={chips} onChipPress={jest.fn()} />
     )
     expect(getByText(/No results for "xyzzy"/)).toBeTruthy()
   })
 
   it('renders at least 2 alternative chips', () => {
     const { getAllByRole } = render(
-      <NoResultsCard query="xyzzy" onChipPress={jest.fn()} />
+      <NoResultsCard query="xyzzy" chips={chips} onChipPress={jest.fn()} />
     )
     expect(getAllByRole('button').length).toBeGreaterThanOrEqual(2)
   })
@@ -33,9 +40,9 @@ describe('NoResultsCard', () => {
   it('calls onChipPress with the chip query when a chip is tapped', () => {
     const onChipPress = jest.fn()
     const { getAllByRole } = render(
-      <NoResultsCard query="xyzzy" onChipPress={onChipPress} />
+      <NoResultsCard query="xyzzy" chips={chips} onChipPress={onChipPress} />
     )
     fireEvent.press(getAllByRole('button')[0])
-    expect(onChipPress).toHaveBeenCalledWith(expect.any(String))
+    expect(onChipPress).toHaveBeenCalledWith('sushi')
   })
 })

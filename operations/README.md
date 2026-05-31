@@ -21,6 +21,7 @@ Operations docs own release flow, beta readiness, operational cadence, support, 
 - [RISK_REVIEW.md](RISK_REVIEW.md): reversibility, blast-radius, burden, observability, and human override review
 - [DEBT.md](DEBT.md): technical, operational, security, product, data, cost, and growth debt taxonomy
 - [PR_REVIEW.md](PR_REVIEW.md): PR summary and manual review checklist used by `npm run ops:pr`
+- [RELEASE.md](RELEASE.md): release gates and smoke checklist flow used by `npm run release:smoke`
 - [OPERATIONAL_METADATA.md](OPERATIONAL_METADATA.md): standard metadata for durable/risky systems
 - [INCIDENTS.md](INCIDENTS.md): lightweight incident severity and support handling
 - [METRICS.md](METRICS.md): operational metric families and measurement rules
@@ -36,3 +37,4 @@ Operations docs own release flow, beta readiness, operational cadence, support, 
 - Use `npm run check:dr` for local backup/restore readiness and restored-schema verification.
 - Keep provider cost and feature-flag release controls visible before beta/prod promotion.
 - Use `npm run ops:pr` for a local PR summary and review checklist.
+- Use `REKKUS_RELEASE_CANDIDATE=<build-id> npm run release:smoke -- --write` before beta or production promotion.

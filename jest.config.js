@@ -35,7 +35,7 @@ const config = {
       statements: 100,
     },
     './lib/utils/searchScoring.ts': {
-      statements: 48,
+      statements: 68,
     },
     './lib/services/search.ts': {
       statements: 32,

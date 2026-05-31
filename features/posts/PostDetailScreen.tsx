@@ -147,13 +147,13 @@ export default function PostDetailScreen() {
     if (trackedPostView.current !== resolvedPost.dbId) {
       trackedPostView.current = resolvedPost.dbId
       dwellStartedAt.current = Date.now()
-      analytics.viewPost(user?.id ?? null, resolvedPost.dbId)
+      analytics.viewPost(user?.id ?? null, resolvedPost.dbId, resolvedPost.cuisine_type)
     }
     return () => {
       const duration = Date.now() - dwellStartedAt.current
       if (duration >= 3000) analytics.dwellPost(user?.id ?? null, resolvedPost.dbId, duration)
     }
-  }, [resolvedPost?.dbId, user?.id])
+  }, [resolvedPost?.cuisine_type, resolvedPost?.dbId, user?.id])
 
   async function toggleLike() {
     if (!resolvedPost?.dbId || !user) return
@@ -190,7 +190,12 @@ export default function PostDetailScreen() {
         setSaved(false)
       } else {
         setSaved(true)
-        await runDeferredMutation({ kind: 'post_save', postId: resolvedPost.dbId, targetState: true })
+        await runDeferredMutation({
+          kind: 'post_save',
+          postId: resolvedPost.dbId,
+          targetState: true,
+          cuisineType: resolvedPost.cuisine_type ?? null,
+        })
         void haptic.confirmSave()
         showToast('Post saved')
         setSaveSheet(true)
@@ -250,7 +255,7 @@ export default function PostDetailScreen() {
         })
         return
       }
-      analytics.savePlace(user.id, restaurantId)
+      analytics.savePlace(user.id, restaurantId, resolvedPost?.cuisine_type)
     }
   }
 

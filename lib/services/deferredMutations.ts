@@ -39,7 +39,7 @@ type BaseMutation = {
 }
 
 export type DeferredMutation =
-  | (BaseMutation & { kind: 'post_save'; postId: string; targetState: boolean; removeCollectionMemberships?: boolean })
+  | (BaseMutation & { kind: 'post_save'; postId: string; targetState: boolean; removeCollectionMemberships?: boolean; cuisineType?: string | null })
   | (BaseMutation & { kind: 'dish_save'; dishId: string; targetState: boolean; removeCollectionMemberships?: boolean })
   | (BaseMutation & { kind: 'place_save'; restaurantId: string; targetState: boolean; removeCollectionMemberships?: boolean })
   | (BaseMutation & { kind: 'follow'; targetUserId: string; targetState: boolean })
@@ -87,9 +87,10 @@ export function isDeferredMutation(value: unknown): value is DeferredMutation {
   }
   switch (value.kind) {
     case 'post_save':
-      return hasOnlyKeys(value, [...BASE_KEYS, 'postId', 'targetState', 'removeCollectionMemberships']) &&
+      return hasOnlyKeys(value, [...BASE_KEYS, 'postId', 'targetState', 'removeCollectionMemberships', 'cuisineType']) &&
         typeof value.postId === 'string' && isBoolean(value.targetState) &&
-        (value.removeCollectionMemberships === undefined || isBoolean(value.removeCollectionMemberships))
+        (value.removeCollectionMemberships === undefined || isBoolean(value.removeCollectionMemberships)) &&
+        (value.cuisineType === undefined || value.cuisineType === null || typeof value.cuisineType === 'string')
     case 'dish_save':
       return hasOnlyKeys(value, [...BASE_KEYS, 'dishId', 'targetState', 'removeCollectionMemberships']) &&
         typeof value.dishId === 'string' && isBoolean(value.targetState) &&
@@ -242,7 +243,7 @@ export function isRetryableDeferredMutationError(reason: unknown): boolean {
 export async function executeDeferredMutation(mutation: DeferredMutation): Promise<void> {
   switch (mutation.kind) {
     case 'post_save':
-      if (mutation.targetState) await togglePostSave(mutation.postId, mutation.userId, true)
+      if (mutation.targetState) await togglePostSave(mutation.postId, mutation.userId, true, mutation.cuisineType)
       else await unsaveTarget('post', mutation.postId, mutation.removeCollectionMemberships ?? false)
       return
     case 'dish_save':

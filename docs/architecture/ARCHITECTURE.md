@@ -321,6 +321,11 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 | `20260526000009_feature_flag_audit_events.sql`       | Fail-closed runtime feature flag override audit events and unified-view extension                                |
 | `20260526000010_delete_own_account.sql`              | Self-service account deletion RPC with pre-deletion content lifecycle audit for owned posts (B-522)              |
 | `20260527000000_video_autoplay_setting.sql`           | Persisted autoplay preference for visible muted post video playback with Reduce Motion override (B-529)         |
+| `20260526000011_search_prefix_matching.sql`          | Prefix-matching support for `search_restaurants_full_text` and `search_posts_full_text` RPCs (as-you-type results) |
+| `20260531000000_rename_best_dish_to_must_order.sql`  | Rename `best_dish` → `must_order` on posts and post_drafts; recreate all dependent stored functions              |
+| `20260531000001_top_dishes_on_search_results.sql`    | Adds `top_dishes` column to restaurant search results for richer place cards                                     |
+| `20260601000000_search_dishes_full_text.sql`         | `search_dishes_full_text` RPC: FTS on `dishes.search_tsv` + trigram fallback; returns canonical Dish rows with `save_count`, `post_count`, `top_photo_url` (B-544) |
+| `20260601000003_search_synonyms.sql`                 | Public-read `search_synonyms` reference table for operator-managed cuisine, occasion, and dietary query vocabulary (B-551) |
 
 ---
 

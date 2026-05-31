@@ -80,7 +80,7 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 - Search input with clear button
 - Live results and compact suggestions update as users type; suggestions use the `suggest_searches` RPC plus recent/cuisine fallbacks without taking over the results page.
 - Compact search header with a trailing filter button for Nearby, cuisine, occasion, value, media, open-now, and sort filters
-- Discovery page (no query): Quick starts row, compact Trending now suggestions, Popular places, staff-pick collections when available, and lower-priority Creators you may like
+- Discovery page (no query): time-aware Quick starts row with recent-search cuisine affinity, compact Trending now suggestions, Popular places, staff-pick collections when available, and lower-priority Creators you may like
 - Results page: Top / Dishes / People / Places tabs; Top shows the best available places, dish posts, and people from the existing ranked result sets
 - Active filters render as quiet tokens; permanent filter rails stay hidden until the user searches or opens the sheet
 - Search filters are applied in `useSearch`: cuisine, Rekkus Picks occasion/value, media type, open-now, and sort modes for Best match, Nearby, Newest, Most saved, and Highest Picks

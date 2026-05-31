@@ -52,12 +52,13 @@ export async function unsavePost(postId: string, userId: string): Promise<void> 
 export async function togglePostSave(
   postId: string,
   userId: string,
-  nextSaved?: boolean
+  nextSaved?: boolean,
+  cuisineType?: string | null
 ): Promise<boolean> {
   const targetState = nextSaved ?? !(await fetchUserSaves(userId)).includes(postId)
   if (targetState) {
     await savePost(postId, userId)
-    analytics.savePost(userId, postId)
+    analytics.savePost(userId, postId, cuisineType)
   } else {
     await unsavePost(postId, userId)
   }

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { analytics } from '../analytics'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchRecentSearchHistory, fetchRecentSearchHistoryFallback } from '../services/search'
-import { CUISINE_SYNONYMS } from '../utils/cuisineSynonyms'
+import { getCuisineSynonyms } from '../utils/cuisineSynonyms'
 import { isStringArray, parseJsonWithGuard } from '../utils/safeJson'
 import type { SearchHistoryRow } from '../services/search'
 
@@ -18,7 +18,7 @@ function buildAffinities(queries: string[]): CuisineAffinities {
       .split(/\s+/)
       .filter(w => w.length > 1)
     for (const word of words) {
-      const cuisines = CUISINE_SYNONYMS[word] ?? []
+      const cuisines = getCuisineSynonyms(word)
       for (const cuisine of cuisines) {
         counts[cuisine] = (counts[cuisine] ?? 0) + 1
       }

@@ -1,3 +1,13 @@
+import type { RekkusOccasionTag } from '../../types/domain'
+
+export type SearchSynonymType = 'cuisine' | 'occasion' | 'dietary'
+
+export type SearchSynonymRow = {
+  term: string
+  canonical: string
+  type: SearchSynonymType
+}
+
 export const CUISINE_SYNONYMS: Record<string, string[]> = {
   // Japanese
   ramen: ['japanese'],
@@ -116,8 +126,6 @@ export function cuisineMatchesAlias(cuisine: string | null | undefined, word: st
   return (CUISINE_ALIASES[normalized] ?? []).some(alias => alias.includes(word))
 }
 
-import type { RekkusOccasionTag } from '../../types/domain'
-
 export const OCCASION_SYNONYMS: Partial<Record<string, RekkusOccasionTag>> = {
   'date night': 'date_night', 'date': 'date_night', 'romantic': 'date_night',
   'casual': 'casual', 'catch up': 'casual', 'coffee': 'casual',
@@ -136,6 +144,117 @@ export const DIETARY_TERMS: Record<string, string[]> = {
   'gluten free': ['gluten_free'],
   'gluten-free': ['gluten_free'],
   'dairy free': ['dairy_free'],
+}
+
+export function fallbackSearchSynonymRows(): SearchSynonymRow[] {
+  return [
+    ...Object.entries(CUISINE_SYNONYMS).flatMap(([term, cuisines]) =>
+      cuisines.map(canonical => ({ term, canonical, type: 'cuisine' as const }))
+    ),
+    ...Object.entries(OCCASION_SYNONYMS).flatMap(([term, canonical]) =>
+      canonical ? [{ term, canonical, type: 'occasion' as const }] : []
+    ),
+    ...Object.entries(DIETARY_TERMS).flatMap(([term, canonicals]) =>
+      canonicals.map(canonical => ({ term, canonical, type: 'dietary' as const }))
+    ),
+  ]
+}
+
+let runtimeCuisineSynonyms: Record<string, string[]> = { ...CUISINE_SYNONYMS }
+let runtimeOccasionSynonyms: Partial<Record<string, RekkusOccasionTag>> = { ...OCCASION_SYNONYMS }
+let runtimeDietaryTerms: Record<string, string[]> = { ...DIETARY_TERMS }
+
+function normalizeKey(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function mergeRecordValue<T extends string>(record: Record<string, T[]>, key: string, value: T): void {
+  const current = record[key] ?? []
+  if (!current.includes(value)) record[key] = [...current, value]
+}
+
+export function applySearchSynonymRows(rows: SearchSynonymRow[]): void {
+  const cuisines: Record<string, string[]> = {}
+  const occasions: Partial<Record<string, RekkusOccasionTag>> = {}
+  const dietary: Record<string, string[]> = {}
+
+  for (const row of rows) {
+    const term = normalizeKey(row.term)
+    const canonical = normalizeKey(row.canonical)
+    if (!term || !canonical) continue
+    if (row.type === 'cuisine') {
+      mergeRecordValue(cuisines, term, canonical)
+    } else if (row.type === 'occasion' && isRekkusOccasionTag(canonical)) {
+      occasions[term] = canonical
+    } else if (row.type === 'dietary') {
+      mergeRecordValue(dietary, term, canonical)
+    }
+  }
+
+  runtimeCuisineSynonyms = { ...CUISINE_SYNONYMS, ...cuisines }
+  runtimeOccasionSynonyms = { ...OCCASION_SYNONYMS, ...occasions }
+  runtimeDietaryTerms = { ...DIETARY_TERMS, ...dietary }
+}
+
+export function resetSearchSynonymsForTest(): void {
+  runtimeCuisineSynonyms = { ...CUISINE_SYNONYMS }
+  runtimeOccasionSynonyms = { ...OCCASION_SYNONYMS }
+  runtimeDietaryTerms = { ...DIETARY_TERMS }
+}
+
+export function getCuisineSynonyms(term: string): string[] {
+  return runtimeCuisineSynonyms[normalizeKey(term)] ?? []
+}
+
+export function hasCuisineSynonym(term: string): boolean {
+  return runtimeCuisineSynonyms[normalizeKey(term)] !== undefined
+}
+
+export function getCuisineSynonymTerms(): string[] {
+  return Object.keys(runtimeCuisineSynonyms)
+}
+
+export function getOccasionSynonym(term: string): RekkusOccasionTag | undefined {
+  return runtimeOccasionSynonyms[normalizeKey(term)]
+}
+
+export function hasOccasionSynonym(term: string): boolean {
+  return runtimeOccasionSynonyms[normalizeKey(term)] !== undefined
+}
+
+export function getOccasionSynonymTerms(): string[] {
+  return Object.keys(runtimeOccasionSynonyms)
+}
+
+export function getDietaryTerms(term: string): string[] {
+  return runtimeDietaryTerms[normalizeKey(term)] ?? []
+}
+
+export function hasDietaryTerm(term: string): boolean {
+  return runtimeDietaryTerms[normalizeKey(term)] !== undefined
+}
+
+export function getDietaryTermKeys(): string[] {
+  return Object.keys(runtimeDietaryTerms)
+}
+
+export function getSearchPhraseKeys(): string[] {
+  return [
+    ...getCuisineSynonymTerms(),
+    ...getOccasionSynonymTerms(),
+    ...getDietaryTermKeys(),
+  ]
+}
+
+function isRekkusOccasionTag(value: string): value is RekkusOccasionTag {
+  return (
+    value === 'date_night' ||
+    value === 'casual' ||
+    value === 'quick_bite' ||
+    value === 'group' ||
+    value === 'special' ||
+    value === 'solo'
+  )
 }
 
 export const QUALITY_TERMS = new Set([

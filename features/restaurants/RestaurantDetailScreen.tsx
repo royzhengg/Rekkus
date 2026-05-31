@@ -191,6 +191,15 @@ export default function RestaurantDetailScreen() {
       }))
   }, [contextPosts])
 
+  const restaurantCuisineType = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const post of contextPosts) {
+      const cuisine = post.cuisine_type?.trim()
+      if (cuisine) counts[cuisine] = (counts[cuisine] ?? 0) + 1
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+  }, [contextPosts])
+
   useEffect(() => {
     let cancelled = false
 
@@ -260,7 +269,7 @@ export default function RestaurantDetailScreen() {
         })
       }
       if (resId && user) {
-        analytics.viewPlace(user.id, resId)
+        analytics.viewPlace(user.id, resId, undefined, restaurantCuisineType)
       }
 
       if (resId) {
@@ -316,7 +325,7 @@ export default function RestaurantDetailScreen() {
     return () => {
       cancelled = true
     }
-  }, [routePlaceId, routeRestaurantId, user, displayName, refreshTrigger, contextPhotoUrls])
+  }, [routePlaceId, routeRestaurantId, user, displayName, refreshTrigger, contextPhotoUrls, restaurantCuisineType])
 
   const findOrCreateRestaurant = useCallback(async (): Promise<string | null> => {
     if (restaurantId) return restaurantId
@@ -375,12 +384,13 @@ export default function RestaurantDetailScreen() {
         setSaved(true)
         await runDeferredMutation({ kind: 'place_save', restaurantId: resId, targetState: true })
         void haptic.confirmSave()
+        analytics.savePlace(user.id, resId, restaurantCuisineType)
         setSaveSheet(true)
       } catch {
         setSaved(wasSaved)
       }
     }
-  }, [user, saved, findOrCreateRestaurant, runDeferredMutation])
+  }, [user, saved, findOrCreateRestaurant, runDeferredMutation, restaurantCuisineType])
 
   const openCollectionPicker = useCallback(async () => {
     const resId = await findOrCreateRestaurant()

@@ -43,5 +43,5 @@ Always consult `design/UX_Copywriting_Guide.md` when designing new features or f
 ## Zero-results states (2026-05-31)
 
 - **A blank screen is never an acceptable zero-results state.** Users who hit zero results have nowhere to go and bounce. Always offer ≥2 forward actions (chips, suggestions, or a clear next step). A message alone ("No results for X") is insufficient.
-- **`NoResultsCard` is the canonical pattern for search zero-results.** It renders "No results for X" + 3 alternative chips from `CHIPS` in `searchConstants.ts`. Do not add a new inline dead-end block to `SearchScreen.tsx` — extend `NoResultsCard` if the alternatives need to change.
+- **`NoResultsCard` is the canonical pattern for search zero-results.** It renders "No results for X" + 3 alternative chips supplied by `SearchScreen`, prioritising local taste signals and falling back to `CHIPS`. Do not add a new inline dead-end block to `SearchScreen.tsx` — extend `NoResultsCard` if the alternatives need to change.
 - **Regression guard:** `tests/unit/NoResultsCard.test.tsx` asserts that the card always renders ≥2 chip buttons. If the test fails after a search refactor, the dead-end has been re-introduced.

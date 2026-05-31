@@ -196,7 +196,12 @@ export default function FeedScreen() {
     if (value === 'save') {
       requireAuth(() => {
         if (!post.dbId || !user?.id) return
-        void runDeferredMutation({ kind: 'post_save', postId: post.dbId, targetState: true })
+        void runDeferredMutation({
+          kind: 'post_save',
+          postId: post.dbId,
+          targetState: true,
+          cuisineType: post.cuisine_type ?? null,
+        })
           .then(() => { void haptic.confirmSave() })
           .catch(() => setOperationError('Could not save this post. Check your connection and try again.'))
       })

@@ -1,74 +1,98 @@
 import { useState, useEffect } from 'react'
-import { fetchTrendingPlaceClicks, fetchTrendingPostEvents, fetchTrendingSearches } from '../services/search'
+import {
+  fetchPopularPlacesByIds,
+  fetchTrendingPlaceClicks,
+  fetchTrendingPostEvents,
+  fetchTrendingSearches,
+} from '../services/search'
+import type { PlaceResult } from './searchTypes'
 
 export type TrendingData = {
   trendingSearches: string[]
   trendingPlaceIds: string[]
   trendingPostIds: string[]
+  popularPlaces: PlaceResult[]
 }
 
-export function useTrendingData(): TrendingData {
+export function useTrendingData(nearCity?: string | null): TrendingData {
   const [trendingSearches, setTrendingSearches] = useState<string[]>([])
   const [trendingPlaceIds, setTrendingPlaceIds] = useState<string[]>([])
   const [trendingPostIds, setTrendingPostIds] = useState<string[]>([])
+  const [popularPlaces, setPopularPlaces] = useState<PlaceResult[]>([])
 
   useEffect(() => {
+    let cancelled = false
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
-    void Promise.all([
-      fetchTrendingSearches(6),
-      fetchTrendingPlaceClicks(since),
-      fetchTrendingPostEvents(since),
-    ]).then(([trendingSearchRows, placeRows, postRows]) => {
-      const queries: string[] = []
-      const seenQueries = new Set<string>()
-      for (const row of trendingSearchRows) {
-        const query = typeof row.query === 'string' ? row.query.trim() : ''
-        const key = query.toLowerCase()
-        if (query.length > 1 && !seenQueries.has(key)) {
-          seenQueries.add(key)
-          queries.push(query)
-        }
-      }
-      setTrendingSearches(queries)
+    async function loadTrendingData() {
+      try {
+        const [trendingSearchRows, placeRows, postRows] = await Promise.all([
+          fetchTrendingSearches(6, nearCity),
+          fetchTrendingPlaceClicks(since, nearCity),
+          fetchTrendingPostEvents(since),
+        ])
+        if (cancelled) return
 
-      const placeCounts = new Map<string, number>()
-      for (const row of placeRows) {
-        if (row.entity_id) {
-          placeCounts.set(row.entity_id, (placeCounts.get(row.entity_id) ?? 0) + 1)
+        const queries: string[] = []
+        const seenQueries = new Set<string>()
+        for (const row of trendingSearchRows) {
+          const query = typeof row.query === 'string' ? row.query.trim() : ''
+          const key = query.toLowerCase()
+          if (query.length > 1 && !seenQueries.has(key)) {
+            seenQueries.add(key)
+            queries.push(query)
+          }
         }
-      }
-      setTrendingPlaceIds(
-        [...placeCounts.entries()]
+        setTrendingSearches(queries)
+
+        const placeCounts = new Map<string, number>()
+        for (const row of placeRows) {
+          if (row.entity_id) {
+            placeCounts.set(row.entity_id, (placeCounts.get(row.entity_id) ?? 0) + 1)
+          }
+        }
+        const nextTrendingPlaceIds = [...placeCounts.entries()]
           .sort((a, b) => b[1] - a[1])
           .slice(0, 10)
           .map(e => e[0])
-      )
+        setTrendingPlaceIds(nextTrendingPlaceIds)
 
-      const postCounts = new Map<string, number>()
-      const weights: Record<string, number> = {
-        post_view: 1,
-        post_like: 2,
-        post_save: 5,
-        post_dwell: 1.5,
-      }
-      for (const row of postRows) {
-        if (row.entity_id) {
-          postCounts.set(row.entity_id, (postCounts.get(row.entity_id) ?? 0) + (weights[row.event_type] ?? 1))
+        const places = await fetchPopularPlacesByIds(nextTrendingPlaceIds)
+        if (cancelled) return
+        setPopularPlaces(places)
+
+        const postCounts = new Map<string, number>()
+        const weights: Record<string, number> = {
+          post_view: 1,
+          post_like: 2,
+          post_save: 5,
+          post_dwell: 1.5,
         }
+        for (const row of postRows) {
+          if (row.entity_id) {
+            postCounts.set(row.entity_id, (postCounts.get(row.entity_id) ?? 0) + (weights[row.event_type] ?? 1))
+          }
+        }
+        setTrendingPostIds(
+          [...postCounts.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20)
+            .map(e => e[0])
+        )
+      } catch {
+        if (cancelled) return
+        setTrendingSearches([])
+        setTrendingPlaceIds([])
+        setTrendingPostIds([])
+        setPopularPlaces([])
       }
-      setTrendingPostIds(
-        [...postCounts.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 20)
-          .map(e => e[0])
-      )
-    }).catch(() => {
-      setTrendingSearches([])
-      setTrendingPlaceIds([])
-      setTrendingPostIds([])
-    })
-  }, [])
+    }
 
-  return { trendingSearches, trendingPlaceIds, trendingPostIds }
+    void loadTrendingData()
+    return () => {
+      cancelled = true
+    }
+  }, [nearCity])
+
+  return { trendingSearches, trendingPlaceIds, trendingPostIds, popularPlaces }
 }

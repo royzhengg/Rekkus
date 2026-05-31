@@ -63,6 +63,12 @@ const { parseFlags } = require('../lib/args') // ops scripts
 
 ---
 
+## Manual release evidence should be generated, then validated
+
+Use a small CLI when a release step needs human device evidence. Generate a Markdown checklist into ignored `.temp/` output, let the tester fill it, and provide a `--check <path>` mode that fails when required items are not checked. This keeps release evidence reviewable without turning manual smoke testing into hidden process.
+
+---
+
 ## Parse unknown input at the boundary
 
 Storage, route params, provider JSON, and message metadata are not trusted app types. Parse JSON as `unknown`, then use a focused guard before returning typed data.

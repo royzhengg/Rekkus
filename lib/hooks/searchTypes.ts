@@ -7,6 +7,7 @@ export type PersonResult = {
   avatarBg: string
   avatarColor: string
   followers: string
+  followerCount?: number
 }
 
 export type PlaceResult = {
@@ -24,6 +25,7 @@ export type PlaceResult = {
   open_now?: boolean | null
   hint?: string | null
   badges?: string[]
+  top_dishes?: string[]
   fromGoogle?: boolean
 }
 
@@ -51,6 +53,15 @@ export type SearchSuggestion = {
   secondary_text: string
   entity_id: string | null
   score: number
+}
+
+export type DishResult = {
+  id: string
+  name: string
+  cuisine_type: string | null
+  top_photo_url: string | null
+  save_count: number
+  post_count: number
 }
 
 export type UserLocation = { lat: number; lng: number } | null

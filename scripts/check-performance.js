@@ -1,7 +1,9 @@
 #!/usr/bin/env node
+const { spawnSync } = require('child_process')
 const { readText, walkFiles } = require('./lib/scan-files')
 
 const hardFeatureLimit = 600
+const searchPerfTestPath = 'tests/unit/lib/utils/searchScoring.perf.test.ts'
 const failures = []
 const warnings = []
 
@@ -47,6 +49,29 @@ function warnMemoization(file, source) {
   })
 }
 
+function runSearchLatencyBudget() {
+  const result = spawnSync(
+    process.execPath,
+    [
+      require.resolve('jest/bin/jest'),
+      '--runInBand',
+      '--runTestsByPath',
+      searchPerfTestPath,
+    ],
+    {
+      stdio: 'inherit',
+      env: { ...process.env, CI: 'true' },
+    }
+  )
+
+  if (result.status === 0) return
+
+  const reason = result.signal
+    ? `terminated by ${result.signal}`
+    : `exited with status ${result.status ?? 'unknown'}`
+  failures.push(`FAIL [SEARCH_LATENCY] ${searchPerfTestPath}: ${reason}`)
+}
+
 for (const file of walkFiles(['features'], { extensions: ['.ts', '.tsx'] })) {
   const source = readText(file)
   const lines = lineCount(source)
@@ -60,6 +85,8 @@ for (const file of walkFiles(['features'], { extensions: ['.ts', '.tsx'] })) {
   }
   warnMemoization(file, source)
 }
+
+runSearchLatencyBudget()
 
 for (const warning of warnings) console.warn(warning)
 

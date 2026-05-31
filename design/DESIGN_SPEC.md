@@ -158,6 +158,10 @@ Before public beta and for every new interactive flow:
 - Color contrast must be checked for primary text, secondary text, errors, ratings, and disabled states.
 - Errors must be visible in text, not color alone.
 - Report/block and privacy actions must be reachable without gesture-only navigation.
+- All interactive `TextInput` fields must have `accessibilityLabel` (placeholder text is not announced by VoiceOver).
+- All result rows (`PlaceRow`, `PostCompactRow`) must have `accessibilityRole="button"` and a descriptive `accessibilityLabel` that conveys the item name without requiring the user to explore child elements.
+- Search result tab buttons require `minHeight: 44` — `minHeight: 32` is insufficient per Apple HIG.
+- B-541 audit (2026-05-31): search screens (`SearchScreen`, `SearchResultsTab`, `DiscoveryPage`, `SearchFiltersSheet`, `searchShared`) passed `check:a11y`.
 | `spacing[2]` | 8     | Small gaps                |
 | `spacing[3]` | 12    | Medium gaps               |
 | `spacing[4]` | 16    | Screen horizontal padding |
@@ -514,7 +518,7 @@ Post detail action states:
 
 Default: search bar + category chips + trending list.
 Active: result count label + 2-col grid (same as feed).
-Zero-results: `NoResultsCard` (`features/search/NoResultsCard.tsx`) — heading "No results for X" + 3 alternative `Chip` actions drawn from `CHIPS` in `searchConstants.ts`. Never show a blank screen.
+Zero-results: `NoResultsCard` (`features/search/NoResultsCard.tsx`) — heading "No results for X" + 3 alternative `Chip` actions from local taste signals with `CHIPS` as static fallback. Never show a blank screen.
 
 ### Create Review
 

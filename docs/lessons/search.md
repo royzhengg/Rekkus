@@ -35,3 +35,11 @@ DB-first search is not just an ordering preference; the fallback decision must w
 **Rule:** paid fallback eligibility is decided only after alias cache + DB resolution finish.
 
 **Guardrail:** `npm run check:risk-guardrails` blocks floating suburb-resolution promises in search.
+
+---
+
+## Local trend partitioning should use DB-derived city, not reverse geocoding
+
+Location-aware discovery can usually resolve a coarse city from existing restaurant rows near already-known coordinates. This avoids a new provider call, avoids storing precise coordinates in analytics, and preserves the explicit-only location-permission contract.
+
+**Apply when:** partitioning search, trend, or discovery surfaces by city/region.

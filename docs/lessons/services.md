@@ -79,3 +79,24 @@ Provider JSON, RPC/realtime payloads, JSON relations, and persisted cache reads 
 - Singular/action reads use their existing null or error path when payloads are invalid.
 - Privileged Edge Function requests reject malformed bodies before service-role reads or writes.
 - `npm run test:type-safety` exercises parsers and `npm run check:risk-guardrails` blocks assertion regressions.
+
+## PostgreSQL column renames break stored SQL/PL/pgSQL functions
+
+`ALTER TABLE ... RENAME COLUMN` updates the catalog and keeps functional index references intact (indexes reference columns by OID/attnum, not name), but stored SQL and PL/pgSQL functions store column names in their query text. After renaming a column, any stored function that references the old name will fail at call time.
+
+**Pattern for a column rename migration (B-407 reference):**
+
+```sql
+-- 1. Rename column (safe for indexes)
+ALTER TABLE public.posts RENAME COLUMN best_dish TO must_order;
+
+-- 2. Optionally rename indexes for clarity (functional, not required)
+ALTER INDEX IF EXISTS posts_best_dish_trgm_idx RENAME TO posts_must_order_trgm_idx;
+
+-- 3. Recreate every stored function that references the old column name in SQL text
+CREATE OR REPLACE FUNCTION public.search_posts_full_text(...) ... $$
+  -- replace old column name with new column name in full body
+$$;
+```
+
+To find which functions are affected: grep all migration files for the old column name and identify every `CREATE OR REPLACE FUNCTION` whose body contains it. The latest migration defining each function wins (earlier `CREATE OR REPLACE` calls are overwritten). Regenerate `types/database.ts` from remote after pushing (`supabase gen types typescript --project-id <id> > types/database.ts`) since local Supabase may not be running.

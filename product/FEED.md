@@ -170,7 +170,7 @@ Recency alone creates FOMO. A ranked feed (best content first, within a time win
 | Launch     | Following and Discover tabs — visual only, same data                                                                                                                  | Placeholder until social graph is built                |
 | 2026-05-08 | Discover tab: 4-pool weighted scoring (trendingLocal 35%, nearby 30%, quality 25%, global 10%) + cuisine diversity rule                                               | Data-backed Discover replacing visual-only placeholder |
 | 2026-05-08 | Following tab: engagement-ranked (likes + food≥4.5 boost); ready for social graph filter                                                                              | Baseline ranking before social graph                   |
-| 2026-05-08 | Search history personalisation: user's recent search_query events mapped to cuisine affinities via CUISINE_SYNONYMS, applied as +1.5 boost weight in Discover scoring | Learn and adapt to user taste patterns                 |
+| 2026-05-08 | Search history personalisation: user's recent search_query events mapped to cuisine affinities via search synonyms, applied as +1.5 boost weight in Discover scoring | Learn and adapt to user taste patterns                 |
 | 2026-05-12 | Following recency decay, Discover trending/nearby/topic boosts, empty Following suggestions, new-post indicator, and feed diagnostics shipped                         | V1 feed ranking and activation foundation              |
 
 ---

@@ -18,7 +18,7 @@ Search is local-first. Supabase and Google should enrich discovery, not become a
 | Freshness       | Ranking changes that use recency, trending, or interaction windows must document the window and fallback.                    |
 | Fairness        | Avoid ranking changes that permanently bury new or low-volume restaurants without a discovery reason.                        |
 | Observability   | Search changes should expose enough signal to debug zero results, provider fallback, and surprising top results.             |
-| Zero-results UX | Zero-results state must never be a blank screen. `NoResultsCard` renders "No results for X" + 3 alternative chips. Any change to the `totalResults === 0` branch in `SearchScreen.tsx` must preserve this invariant (enforced by `tests/unit/NoResultsCard.test.tsx`). |
+| Zero-results UX | Zero-results state must never be a blank screen. `NoResultsCard` renders "No results for X" + 3 alternative chips from local taste signals with static fallbacks. Any change to the `totalResults === 0` branch in `SearchScreen.tsx` must preserve this invariant (enforced by `tests/unit/NoResultsCard.test.tsx`). |
 | Transparency    | Public/help copy may explain main ranking factors, sources, and paid-placement status without exposing exact weights.        |
 
 Update this section whenever search adds a new indexed field, external provider dependency, ranking signal, cache, or fairness rule.
@@ -65,7 +65,7 @@ Posts and restaurants each have an `embedding extensions.vector(384)` column pop
 
 Search has two clear states:
 
-- **Discovery state** before typing: the input stays primary, the trailing filter button opens the full search filter sheet, Quick starts provides a short row of common actions, Trending now uses compact suggestion chips, Popular places is the main utility section, and creator suggestions sit lower on the page.
+- **Discovery state** before typing: the input stays primary, the trailing filter button opens the full search filter sheet, Quick starts provides a short row of time-aware common actions and can include recent-search cuisine affinity, Trending now uses compact suggestion chips, Popular places is the main utility section, and creator suggestions sit lower on the page.
 - **Results state** after typing or using Nearby: Top / Dishes / People / Places tabs organize the same ranked result sets. Top is a presentation layer that shows the best available places, dish posts, and people without changing the underlying ranking math. Results update from the controlled search text as the user types; network/provider calls remain debounced, but the UI should never require pressing return to refresh.
 
 Place result rows show useful context in a stable order: cuisine when known, then suburb/city/short address, then distance when available. Provider fallback rows that do not have Rekkus cuisine still show their short location/address so the row does not look empty.
@@ -87,7 +87,7 @@ The same sheet also owns scalable result filters: cuisine, occasion, value, medi
 Intent drives which RPCs fire in parallel:
 
 1. Always: `search_restaurants_full_text` (with optional `suburb_filter` for location queries)
-2. `dish` or `mixed` intent: also fires `search_posts_by_dish` in parallel
+2. `dish` or `mixed` intent: also fires `search_posts_by_dish` AND `search_dishes_full_text` in parallel
 3. `dietary` intent: also queries `hashtags` for dietary tag IDs
 4. `occasion` intent: auto-applies occasion filter without touching user-visible filter state
 5. Autocomplete (100ms debounce): `suggest_searches` RPC — separate from 300ms full search
@@ -99,6 +99,7 @@ Intent drives which RPCs fire in parallel:
 | `search_restaurants_full_text` | Weighted FTS + geo multiplier. Includes `suburb` in FTS vector + optional `suburb_filter`. Supports prefix matching (`tonkat:*` matches "tonkatsu") so results populate as the user types. |
 | `search_posts_full_text` | Weighted FTS (A=dish/tags, B=cuisine/hashtags, C=caption, D=occasion). `ts_rank_cd` for phrase queries. Also supports prefix matching for as-you-type results. |
 | `search_posts_by_dish` | Targets `best_dish` + `dish_tags.name` at weight A. Falls back to pg_trgm when FTS returns 0 (returns `match_source`) |
+| `search_dishes_full_text` | FTS on `dishes.search_tsv` (`to_tsvector('english', name)`) + trigram fallback. Returns canonical `Dish` rows with `save_count`, `post_count`, `top_photo_url`. `security definer` to aggregate `saved_dishes` counts without exposing individual savers. |
 | `suggest_searches` | Prefix FTS across restaurant names, dish names, hashtags. Returns in < 50ms |
 | `match_embeddings` | pgvector cosine similarity. Called when FTS returns < 5 results |
 | `resolve_suburb_query` | 3-tier: exact alias → pg_trgm on `suburb_lookups` → pg_trgm on `restaurants.suburb` |
@@ -287,9 +288,11 @@ Popularity and interaction boosts are bounded and only apply after a text, expan
 
 ---
 
-## Cuisine synonym map
+## Search synonym store
 
-Canonical cuisine options live in `lib/dataSources/cuisines.ts`. `CUISINE_SYNONYMS` in `lib/utils/cuisineSynonyms.ts` maps common, high-signal dish/ingredient queries to cuisine types. When a search word has no direct text match, we check if the word maps to a cuisine and score against `cuisine_type`.
+Canonical cuisine options live in `lib/dataSources/cuisines.ts`. Operator-managed `search_synonyms` rows map common, high-signal dish/ingredient, occasion, and dietary queries to canonical search concepts. The app loads enabled rows on boot with a 24h AsyncStorage cache and keeps `lib/utils/cuisineSynonyms.ts` constants as the offline/default fallback.
+
+When a search word has no direct text match, we check if the word maps to a cuisine and score against `cuisine_type`.
 
 Cuisine is not restaurant type. Values such as cafe, bakery, bar, food truck, and fine dining belong to a future restaurant-type filter, not the cuisine picker.
 
@@ -302,7 +305,7 @@ Examples:
 
 Synonym expansion only applies when no direct match was found for that word (i.e., it's a fallback, not an addition to a direct match score).
 
-The map is intentionally small. Long-tail dishes such as "tiramisu" should not be added one-by-one unless they become product-critical exceptions.
+The store should stay intentionally small. Long-tail dishes such as "tiramisu" should not be added one-by-one unless they become product-critical exceptions.
 
 ## Data-driven cuisine expansion
 
@@ -359,6 +362,21 @@ How Yelp, Uber Eats, Google Maps, Zomato, and DoorDash handle search ranking:
 
 ---
 
+## Observability
+
+Search quality is measured via `search_session_end` events (fired on `SearchScreen` focus loss/unmount). Full SQL queries: [`docs/analytics/ANALYTICS.md` — Search observability queries](../docs/analytics/ANALYTICS.md).
+
+| Metric | Event | Key field |
+| --- | --- | --- |
+| Zero-result rate | `search_session_end` | `had_results: false` |
+| Top failing queries | `search_session_end` | `had_results: false`, `query` |
+| Session duration (P50/P95) | `search_session_end` | `session_duration_ms` |
+| Abandonment rate | `search_session_end` | `result_clicked: false`, `had_results: true` |
+
+`search_abandon` (B-539) fires as a dedicated signal when a session ends with a non-empty query and no click — useful for simple abandonment queries without joins.
+
+---
+
 ## Tuning log
 
 | Date       | Change                                                                                                                                                                                                                                | Reason                                                                                                                                                                               |
@@ -379,6 +397,37 @@ How Yelp, Uber Eats, Google Maps, Zomato, and DoorDash handle search ranking:
 | 2026-05-12 | Search session chains and result-position click tracking shipped                                                                                                                                                                      | Supports diagnostics for ranking quality, query reformulation, and surprising result positions                                                                                       |
 | 2026-05-12 | Around-me mode, radius filtering, near-you labels, cached open-now signal, time-of-day hints, saved-place personalization, bounded popularity boosts, full-text indexes, cuisine aliases, and PostGIS-backed bounding-box RPC shipped | Completes the V1 local discovery utility pass while keeping ranking explainable                                                                                                      |
 | 2026-05-18 | Search screen redesigned around discovery/results states, compact filters, result tabs, and a Nearby filter sheet                                                                                                                     | Reduces visual clutter while preserving deterministic ranking, provider fallback, and opt-in location behavior                                                                       |
+| 2026-05-31 | Search session observability shipped: `search_session_end` + `search_abandon` events, zero-result / abandonment / P95 SQL queries documented (B-538, B-539)                                                                           | Enables data-driven search quality monitoring; zero-result rate and abandonment now measurable                                                                                           |
+| 2026-05-31 | Added `top_dishes` pill row to restaurant search cards (B-545): `search_restaurants_full_text` and `restaurants_in_bounding_box` now return the 3 most-posted dish names per restaurant                                                | Post-aggregated dish names are the highest-value missing signal when evaluating restaurants for a dish-specific query (e.g. "ramen") — surfaces without any new user input              |
+| 2026-06-01 | People results ranking: added log-scaled follower-count tie-breaker in `scorePerson()` — `Math.log1p(followerCount) * 0.1` (B-546). `follower_count` and `post_count` cached on `users` table via triggers; DB extras now scored and sorted. | Two accounts with identical text-match scores were ordered by DB insertion time; active creators now surface above zero-activity accounts without overriding any text-match tier. |
+| 2026-06-01 | Location-aware trending shipped (B-550): `trending_searches` stores `near_city`, search analytics records DB-resolved city from existing coordinates, and discovery trending/popular places read city rows before global fallback. | Melbourne and Sydney users no longer share one global trending surface; sparse city data still falls back to global after fewer than 4 local rows. |
+| 2026-05-31 | Regression test coverage for search ranking (B-547): `scorePost`, `scorePlace`, `scorePerson`, `scoreExpandedPost/Place`, dish-intent boost, distance ordering, and place expansion invariants added to `tests/unit/lib/utils/searchScoring.test.ts`. Coverage raised from 48% → 68%; ratchet locked in `jest.config.js`. | Scoring logic had zero tests — any weight or synonym change was a manual QA exercise. Invariants now fail loudly. |
+| 2026-06-01 | DB-backed search synonym store shipped (B-551): `search_synonyms` owns cuisine, occasion, and dietary query vocabulary with a 24h app cache and local fallback constants. | Operators can add vocabulary like `boba` or `bbq` without an app deploy while search remains usable offline. |
+
+---
+
+## Feature flag governance
+
+### Graduated flags (code removed, permanently on)
+
+| Flag | Graduated | Rationale |
+| ---- | --------- | --------- |
+| `searchEnrichmentV1` | 2026-05-31 | Stable in production. Covers query intent parsing, dish search RPC, suburb filter, popularity cache, and contextual boosts. All call sites inlined unconditional (B-543). |
+| `searchAutocomplete` | 2026-05-31 | Stable in production. `suggest_searches` RPC returns in <50ms; no instability observed since 2026-05-19 rollout (B-543). |
+| `searchPersonalisation` | 2026-05-31 | Activated alongside `searchEnrichmentV1` graduation — the popularity cache it depended on for verification is now permanently on. Taste-profile cuisine affinities are additive boosts only; no regressions expected (B-543). |
+
+### Active flags
+
+| Flag | Owner | Review date | Purpose |
+| ---- | ----- | ----------- | ------- |
+| `locationGeocodeFallback` | Search | 2026-08-19 | Google Places geocoding last-resort resolver. Off by default — costs money. Enable only if DB suburb tiers produce too many misses. |
+
+### Rules for new search flags
+
+- Every flag must declare `owner`, `createdAt`, and `reviewAt` in `featureFlags.ts` — `check:stale-flags` enforces this.
+- Document graduation criteria in the flag's `description` at creation time so the decision is self-contained.
+- Activate a flag by inlining its guarded paths and deleting its definition — never leave an `enabled: true` flag with dead wrapper code.
+- Add a row to this table and a tuning log entry when a flag is graduated or removed.
 
 ---
 

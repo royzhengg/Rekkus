@@ -59,17 +59,19 @@
     "check:tooling": "node scripts/check-tooling.js",
     "check:design-system": "node scripts/check-design-system.js",
     "check:design": "node scripts/run-parallel.js check:tokens check:darkmode check:a11y check:design-system",
-    "check:hygiene": "node scripts/check-hygiene.js && node scripts/run-parallel.js check:scripts check:coverage-chain test:type-safety typecheck lint check:tooling check:architecture check:performance check:unsafe-any check:supabase-types check:circular-deps check:design check:automation check:risk-guardrails check:ux-signals check:error-copy check:lessons check:docs check:ops check:search check:observability check:admin-platform check:security-foundations check:google-costs check:compliance check:data-inventory check:providers check:stale-flags check:hig-acceptance check:pipeline",
+    "check:hygiene": "node scripts/check-hygiene.js && node scripts/run-parallel.js check:backlog check:scripts check:coverage-chain test:type-safety typecheck lint check:tooling check:architecture check:performance check:unsafe-any check:supabase-types check:circular-deps check:design check:automation check:risk-guardrails check:ux-signals check:error-copy check:lessons check:docs check:ops check:search check:observability check:admin-platform check:security-foundations check:google-costs check:compliance check:data-inventory check:providers check:stale-flags check:hig-acceptance check:pipeline",
     "check:release": "npm run check:platform && npm run check:hygiene && node scripts/run-parallel.js check:dr check:privacy check:rls check:audit check:jobs check:iso check:deps",
     "validate": "npm run typecheck && npm run lint && npm run check:tokens && npm run check:darkmode",
     "validate:full": "npm run validate && npm run check:release",
     "ops:summary": "node scripts/ops/check-operations.js --summary",
     "ops:report": "node scripts/ops/check-operations.js --summary --write",
     "ops:pr": "node scripts/ops/pr-summary.js",
+    "release:smoke": "node scripts/ops/release-smoke-checklist.js",
     "run-parallel": "node scripts/run-parallel.js",
     "check:coverage-chain": "npm run test:unit && npm run check:coverage && npm run check:ci-coverage",
     "check:pipeline": "node scripts/check-pipeline.js",
-    "check:scripts": "node scripts/check-scripts.js"
+    "check:scripts": "node scripts/check-scripts.js",
+    "check:backlog": "node scripts/check-backlog.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

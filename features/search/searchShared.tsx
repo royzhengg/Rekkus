@@ -10,10 +10,50 @@ import { fontSize, fontWeight } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { usePressScale } from '@/lib/hooks/usePressScale'
-import type { PlaceResult } from '@/lib/hooks/useSearch'
+import type { PlaceResult, SearchSuggestion } from '@/lib/hooks/useSearch'
 import { routes } from '@/lib/routes'
+import { CUISINE_ALIASES, getCuisineSynonymTerms } from '@/lib/utils/cuisineSynonyms'
 import { formatKm } from '@/lib/utils/geo'
 import { shortPlaceLocation } from './searchConstants'
+
+export function buildTypeaheadSuggestions({
+  isFocused,
+  query,
+  suggestions,
+  recentSearches,
+}: {
+  isFocused: boolean
+  query: string
+  suggestions: SearchSuggestion[]
+  recentSearches: string[]
+}): Array<{ label: string; detail?: string | null }> {
+  if (!isFocused || query.length < 1) return []
+  const lq = query.toLowerCase()
+  const seen = new Set<string>()
+  const results: Array<{ label: string; detail?: string | null }> = []
+  for (const suggestion of suggestions) {
+    const label = suggestion.display_text.trim()
+    const key = label.toLowerCase()
+    if (label && !seen.has(key)) {
+      seen.add(key)
+      results.push({ label, detail: suggestion.secondary_text })
+    }
+  }
+  for (const recent of recentSearches) {
+    if (recent.toLowerCase().startsWith(lq) && !seen.has(recent.toLowerCase())) {
+      seen.add(recent.toLowerCase())
+      results.push({ label: recent, detail: 'Recent' })
+    }
+  }
+  const terms = [...getCuisineSynonymTerms(), ...Object.keys(CUISINE_ALIASES)]
+  for (const term of terms) {
+    if (term.startsWith(lq) && !seen.has(term)) {
+      seen.add(term)
+      results.push({ label: term, detail: 'Cuisine' })
+    }
+  }
+  return results.slice(0, 6)
+}
 
 // ─── PlaceRow ─────────────────────────────────────────────────────────────────
 
@@ -81,6 +121,8 @@ export const PlaceRow = React.memo(function PlaceRow({
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
         activeOpacity={1}
+        accessibilityRole="button"
+        accessibilityLabel={`${place.name}${meta ? `, ${meta}` : ''}${place.top_dishes?.length ? `, known for ${place.top_dishes.slice(0, 3).join(', ')}` : ''}`}
       >
         <View style={styles.placeIconWrap}>
           <PinIcon size={12} />
@@ -105,6 +147,15 @@ export const PlaceRow = React.memo(function PlaceRow({
                 </Text>
               ))}
               {!!place.hint && <Text style={styles.placeHint}>{place.hint}</Text>}
+            </View>
+          )}
+          {(place.top_dishes?.length ?? 0) > 0 && (
+            <View style={styles.placeDishRow}>
+              {(place.top_dishes ?? []).slice(0, 3).map(dish => (
+                <Text key={dish} style={styles.placeDish}>
+                  {dish}
+                </Text>
+              ))}
             </View>
           )}
         </View>
@@ -166,6 +217,22 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingVertical: spacing.px2,
     },
     placeHint: { fontSize: fontSize.xs, color: c.text3 },
+    placeDishRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: spacing.px6,
+      marginTop: spacing.px5,
+    },
+    placeDish: {
+      overflow: 'hidden',
+      borderRadius: radius.xs,
+      backgroundColor: c.surface2,
+      color: c.text2,
+      fontSize: fontSize.xs,
+      paddingHorizontal: spacing.px6,
+      paddingVertical: spacing.px2,
+    },
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',

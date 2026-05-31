@@ -1,11 +1,10 @@
 import { normalizeCuisine } from '@/lib/dataSources/cuisines'
 import { demoUsers } from '@/lib/dataSources/demoData'
-import { isEnabled } from '@/lib/featureFlags'
 import type { PlaceResult, PersonResult, SearchFilters, UserLocation } from '@/lib/hooks/searchTypes'
 import type { CuisineAffinities } from '@/lib/hooks/useSearchHistory'
 import type { PopularityCacheRow } from '@/lib/services/restaurants'
 import type { Post, PostMediaType } from '@/types/domain'
-import { CUISINE_SYNONYMS, CUISINE_ALIASES, cuisineMatchesAlias } from './cuisineSynonyms'
+import { CUISINE_ALIASES, cuisineMatchesAlias, getCuisineSynonyms } from './cuisineSynonyms'
 import { haversineKm, distanceBoost } from './geo'
 
 export const STOP_WORDS = new Set([
@@ -73,7 +72,7 @@ export function scorePost(post: Post, words: string[]): number {
     if (post.body.toLowerCase().includes(word)) wordScore += 1
     // Cuisine synonym expansion: "ramen" also scores against Japanese cuisine posts
     if (wordScore === 0) {
-      const expansions = CUISINE_SYNONYMS[word] ?? []
+      const expansions = getCuisineSynonyms(word)
       for (const synonym of expansions) {
         if (post.cuisine_type?.toLowerCase().includes(synonym)) {
           wordScore += 2
@@ -100,6 +99,9 @@ export function scorePerson(p: PersonResult, words: string[]): number {
     else if (username.startsWith(word)) total += 3
     else if (username.includes(word) || name.includes(word)) total += 2
   }
+  // Log-scaled tie-breaker: surfaces active creators over zero-activity accounts
+  // without overriding text match (Math.log1p(10000) * 0.1 ≈ 0.92 — less than one match tier)
+  total += Math.log1p(p.followerCount ?? 0) * 0.1
   return total
 }
 
@@ -142,7 +144,7 @@ export function scorePlace(p: PlaceResult, words: string[]): number {
     if (cuisineMatchesAlias(cuisine, word)) wordScore += 1.5
     // Cuisine synonym expansion: "ramen" also scores against Japanese cuisine places
     if (wordScore === 0) {
-      const expansions = CUISINE_SYNONYMS[word] ?? []
+      const expansions = getCuisineSynonyms(word)
       for (const synonym of expansions) {
         if (cuisine.includes(synonym)) {
           wordScore += 2
@@ -323,7 +325,6 @@ export function scoreExpandedPlace(place: PlaceResult, cuisines: string[]): numb
 }
 
 export function getContextualBoost(post: Post): number {
-  if (!isEnabled('searchEnrichmentV1')) return 0
   const hour = new Date().getHours()
   const cuisine = post.cuisine_type?.toLowerCase() ?? ''
   const occasion = post.occasionTags ?? []
@@ -467,7 +468,7 @@ export function computePeopleResults({
   isAroundMe,
 }: {
   words: string[]
-  dbUsers: Array<{ id: string; username: string; full_name: string | null }>
+  dbUsers: Array<{ id: string; username: string; full_name: string | null; follower_count?: number }>
   isAroundMe: boolean
 }): PersonResult[] {
   if (words.length === 0 || isAroundMe) return []
@@ -503,8 +504,10 @@ export function computePeopleResults({
         avatarBg: '#E8E8E4',
         avatarColor: '#6B6B66',
         followers: '—',
+        followerCount: u.follower_count ?? 0,
       }
     })
+    .sort((a, b) => scorePerson(b, words) - scorePerson(a, words))
   return [...mockMatches, ...dbExtras]
 }
 
@@ -600,8 +603,7 @@ export function computePlaceResults({
       if (savedRestaurantIds.has(p.id)) score += 1.25
       const cuisine = p.cuisine_type?.toLowerCase()
       if (cuisine && savedCuisineCounts.has(cuisine)) score += 0.4
-      // Phase 3g: taste profile boost
-      if (isEnabled('searchPersonalisation') && cuisine) {
+      if (cuisine) {
         score += (searchAffinities[cuisine] ?? 0) * 1.2
       }
 
@@ -646,7 +648,7 @@ export function computePlaceResults({
         if (savedRestaurantIds.has(p.id)) score += 1.25
         const cuisine = p.cuisine_type?.toLowerCase()
         if (cuisine && savedCuisineCounts.has(cuisine)) score += 0.4
-        if (isEnabled('searchPersonalisation') && cuisine) {
+        if (cuisine) {
           score += (searchAffinities[cuisine] ?? 0) * 1.2
         }
 

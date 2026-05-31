@@ -76,33 +76,6 @@ const flags = {
     description: 'Enables push notification registration and sends.',
   },
 
-  // Search enrichment
-  searchEnrichmentV1: {
-    enabled: true,
-    owner: 'Search',
-    state: 'active',
-    createdAt: '2026-05-19',
-    reviewAt: '2026-08-19',
-    description:
-      'Query intent parsing, dish search RPC, suburb filter, popularity cache, contextual boosts.',
-  },
-  searchAutocomplete: {
-    enabled: true,
-    owner: 'Search',
-    state: 'active',
-    createdAt: '2026-05-19',
-    reviewAt: '2026-08-19',
-    description: 'Autocomplete suggestions via suggest_searches RPC at 100ms debounce.',
-  },
-  searchPersonalisation: {
-    enabled: false,
-    owner: 'Search',
-    state: 'beta',
-    createdAt: '2026-05-19',
-    reviewAt: '2026-08-19',
-    description:
-      'Taste profile boost from liked/saved posts. Enable after popularity cache is verified.',
-  },
   locationGeocodeFallback: {
     enabled: false,
     owner: 'Search',

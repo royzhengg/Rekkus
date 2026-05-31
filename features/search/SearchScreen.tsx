@@ -14,17 +14,19 @@ import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { demoCurrentUser, demoRestaurants, demoUsers } from '@/lib/dataSources/demoData'
 import { occasionLabel, valueLabel } from '@/lib/dataSources/rekkusPicks'
 import { isEnabled } from '@/lib/featureFlags'
+import { useNoResultsSuggestions } from '@/lib/hooks/useNoResultsSuggestions'
 import { useSearch, type PlaceResult, type SearchFilters } from '@/lib/hooks/useSearch'
 import { useSearchHistory } from '@/lib/hooks/useSearchHistory'
 import { useTrendingData } from '@/lib/hooks/useTrendingData'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
 import { fetchStaffPickCollections, type Collection } from '@/lib/services/collections'
-import { CUISINE_SYNONYMS, CUISINE_ALIASES } from '@/lib/utils/cuisineSynonyms'
+import { resolveTrendingCityFromCoords } from '@/lib/services/search'
 import { DiscoveryPage } from './DiscoveryPage'
 import { NoResultsCard } from './NoResultsCard'
-import { TRENDING, SEARCH_SORTS, type ResultTab } from './searchConstants'
+import { CHIPS, TRENDING, SEARCH_SORTS, type ResultTab } from './searchConstants'
 import { SearchFiltersSheet } from './SearchFiltersSheet'
 import { SearchResultsTab } from './SearchResultsTab'
+import { buildTypeaheadSuggestions } from './searchShared'
 
 export default function SearchScreen() {
   const params = useLocalSearchParams<{ query?: string; source?: string }>()
@@ -42,8 +44,12 @@ export default function SearchScreen() {
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({ sort: 'best_match' })
   const [resultTab, setResultTab] = useState<ResultTab>('top')
   const [staffPicks, setStaffPicks] = useState<Collection[]>([])
-  const { trendingSearches } = useTrendingData()
-  const { recentSearches, dismissSearch } = useSearchHistory()
+  const [nearCity, setNearCity] = useState<string | null>(null)
+  const {
+    trendingSearches,
+    popularPlaces: livePopularPlaces,
+  } = useTrendingData(nearCity)
+  const { cuisineAffinities, recentSearches, dismissSearch } = useSearchHistory()
   const searchSessionId = useRef(`search-${Date.now().toString(36)}`)
   const queryPosition = useRef(0)
   const previousTrackedQuery = useRef('')
@@ -51,12 +57,14 @@ export default function SearchScreen() {
   const sessionHadClick = useRef(false)
   const sessionHadResults = useRef(false)
   const sessionLastResultCount = useRef(0)
+  const lastNoResultsKey = useRef('')
 
   const {
     postResults,
     peopleResults,
     placeResults,
     placeDistances,
+    dishEntityResults,
     suggestions,
     hasQuery,
     expansionLabel,
@@ -67,9 +75,15 @@ export default function SearchScreen() {
     filters: searchFilters,
   })
 
-  const totalResults = postResults.length + peopleResults.length + placeResults.length
+  const totalResults = postResults.length + peopleResults.length + placeResults.length + dishEntityResults.length
   const SEARCH_POST_LIMIT = 20
   const [visiblePostCount, setVisiblePostCount] = useState(SEARCH_POST_LIMIT)
+  const noResultsSuggestions = useNoResultsSuggestions(query, {
+    cuisineAffinities,
+    recentSearches,
+    trendingSearches,
+    staticFallbacks: CHIPS,
+  })
 
   useEffect(() => {
     setVisiblePostCount(SEARCH_POST_LIMIT)
@@ -87,6 +101,26 @@ export default function SearchScreen() {
   useEffect(() => {
     void fetchStaffPickCollections().then(setStaffPicks)
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!userLocation.coords) {
+      setNearCity(null)
+      return
+    }
+
+    void resolveTrendingCityFromCoords(userLocation.coords)
+      .then(city => {
+        if (!cancelled) setNearCity(city)
+      })
+      .catch(() => {
+        if (!cancelled) setNearCity(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [userLocation.coords])
 
   useEffect(() => {
     sessionLastResultCount.current = totalResults
@@ -140,18 +174,31 @@ export default function SearchScreen() {
           previous_query: previousTrackedQuery.current || null,
           radius_km: radiusKm,
           search_mode: searchMode,
+          near_city: nearCity,
         }
       )
       previousTrackedQuery.current = trimmed
     }, 600)
     return () => clearTimeout(timer)
-  }, [query, totalResults, user?.id, radiusKm, searchMode])
+  }, [query, totalResults, user?.id, radiusKm, searchMode, nearCity])
+
+  useEffect(() => {
+    const trimmed = query.trim()
+    if (!hasQuery || totalResults !== 0 || trimmed.length === 0) return
+    const suggestionQueries = noResultsSuggestions.map(s => s.query.trim()).filter(Boolean)
+    const key = `${trimmed.toLowerCase().replace(/\s+/g, ' ')}|${suggestionQueries
+      .map(s => s.toLowerCase().replace(/\s+/g, ' '))
+      .join('|')}`
+    if (lastNoResultsKey.current === key) return
+    lastNoResultsKey.current = key
+    analytics.noResultsShown(user?.id ?? null, trimmed, suggestionQueries)
+  }, [hasQuery, noResultsSuggestions, query, totalResults, user?.id])
 
   const suggestedPeople = Object.entries(demoUsers).filter(
     ([u]) => u !== demoCurrentUser.username
   )
 
-  const popularPlaces: PlaceResult[] = demoRestaurants.slice(0, 5).map(r => ({
+  const demoPopularPlaces: PlaceResult[] = demoRestaurants.slice(0, 5).map(r => ({
     id: r.name,
     name: r.name,
     address: r.address ?? null,
@@ -165,6 +212,8 @@ export default function SearchScreen() {
     google_review_count: null,
   }))
 
+  const popularPlaces = livePopularPlaces.length > 0 ? livePopularPlaces : demoPopularPlaces
+
   const trendingItems = useMemo(() => {
     if (trendingSearches.length > 0) {
       return trendingSearches.map(q => ({ tag: q, count: '' }))
@@ -173,32 +222,7 @@ export default function SearchScreen() {
   }, [trendingSearches])
 
   const typeaheadSuggestions = useMemo(() => {
-    if (!isFocused || query.length < 1) return []
-    const lq = query.toLowerCase()
-    const seen = new Set<string>()
-    const results: Array<{ label: string; detail?: string | null }> = []
-    for (const suggestion of suggestions) {
-      const label = suggestion.display_text.trim()
-      const key = label.toLowerCase()
-      if (label && !seen.has(key)) {
-        seen.add(key)
-        results.push({ label, detail: suggestion.secondary_text })
-      }
-    }
-    for (const recent of recentSearches) {
-      if (recent.toLowerCase().startsWith(lq) && !seen.has(recent.toLowerCase())) {
-        seen.add(recent.toLowerCase())
-        results.push({ label: recent, detail: 'Recent' })
-      }
-    }
-    const terms = [...Object.keys(CUISINE_SYNONYMS), ...Object.keys(CUISINE_ALIASES)]
-    for (const term of terms) {
-      if (term.startsWith(lq) && !seen.has(term)) {
-        seen.add(term)
-        results.push({ label: term, detail: 'Cuisine' })
-      }
-    }
-    return results.slice(0, 6)
+    return buildTypeaheadSuggestions({ isFocused, query, suggestions, recentSearches })
   }, [isFocused, query, recentSearches, suggestions])
 
   const topPeople = useMemo(() => peopleResults.slice(0, 3), [peopleResults])
@@ -236,7 +260,7 @@ export default function SearchScreen() {
   }, [nearbySummary, searchFilters, searchMode])
 
   const activeTabEmpty =
-    (resultTab === 'dishes' && postResults.length === 0) ||
+    (resultTab === 'dishes' && postResults.length === 0 && dishEntityResults.length === 0) ||
     (resultTab === 'people' && peopleResults.length === 0) ||
     (resultTab === 'places' && placeResults.length === 0)
 
@@ -282,6 +306,9 @@ export default function SearchScreen() {
   }
 
   function handleNoResultsChip(q: string) {
+    const failedQuery = query.trim()
+    const position = noResultsSuggestions.findIndex(chip => chip.query === q) + 1
+    analytics.noResultsSuggestionClick(user?.id ?? null, failedQuery, q, position > 0 ? position : 1)
     setQuery(q)
     setActiveChip('')
     setSearchMode('search')
@@ -303,6 +330,7 @@ export default function SearchScreen() {
             style={styles.searchField}
             placeholder="Search dishes, people, places…"
             placeholderTextColor={colors.text3}
+            accessibilityLabel="Search for restaurants, dishes, or people"
             value={query}
             onChangeText={t => {
               setQuery(t)
@@ -437,13 +465,14 @@ export default function SearchScreen() {
             suggestedPeople={suggestedPeople}
             popularPlaces={popularPlaces}
             staffPicks={staffPicks}
+            cuisineAffinities={cuisineAffinities}
             onChip={handleChip}
             onTrending={handleTrending}
             onOpenNearby={openNearbySearch}
             userId={user?.id}
           />
         ) : totalResults === 0 ? (
-          <NoResultsCard query={query} onChipPress={handleNoResultsChip} />
+          <NoResultsCard query={query} chips={noResultsSuggestions} onChipPress={handleNoResultsChip} />
         ) : (
           <SearchResultsTab
             resultTab={resultTab}
@@ -455,6 +484,7 @@ export default function SearchScreen() {
             peopleResults={peopleResults}
             placeResults={placeResults}
             placeDistances={placeDistances}
+            dishEntityResults={dishEntityResults}
             visiblePostCount={visiblePostCount}
             onShowMorePosts={() => setVisiblePostCount(c => c + SEARCH_POST_LIMIT)}
             expansionLabel={expansionLabel}

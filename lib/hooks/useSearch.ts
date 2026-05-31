@@ -9,17 +9,17 @@ import { usePopularityCache } from './usePopularityCache'
 import { useSavedRestaurants } from './useSavedRestaurants'
 import { useSearchResults } from './useSearchResults'
 import { fetchPostsByIds, mapRowToPost } from '../services/posts'
-import { resolveSearchExpansion, searchDishPostIds, searchPlaces, searchPostIds, searchUsers } from '../services/search'
+import { resolveSearchExpansion, searchDishes, searchDishPostIds, searchPlaces, searchPostIds, searchUsers } from '../services/search'
 import { resolveFromAliasCache, resolveSuburbQuery, cacheResolvedSuburb } from '../utils/locationResolver'
 import { parseSearchQuery, fallbackParsedQuery } from '../utils/queryParser'
 import { isRecord } from '../utils/safeJson'
 import { parseWords, scorePost, scorePlace, boundingBoxForRadius } from '../utils/searchScoring'
-import type { PlaceResult, SearchFilters, UserLocation, SearchOptions, PersonResult, SearchMode, SearchSortMode, SearchSuggestion } from './searchTypes'
+import type { DishResult, PlaceResult, SearchFilters, UserLocation, SearchOptions, PersonResult, SearchMode, SearchSortMode, SearchSuggestion } from './searchTypes'
 import type { CuisineAffinities } from './useSearchHistory'
 
 
 // Re-export shared types so existing callers keep working
-export type { PlaceResult, SearchFilters, UserLocation, SearchOptions, PersonResult, SearchMode, SearchSortMode, SearchSuggestion }
+export type { DishResult, PlaceResult, SearchFilters, UserLocation, SearchOptions, PersonResult, SearchMode, SearchSortMode, SearchSuggestion }
 
 export type AutocompletePrediction = {
   place_id: string
@@ -57,6 +57,7 @@ export function useSearch(
   const [ftsPostIds, setFtsPostIds] = useState<Array<{ id: string; rank: number }>>([])
   const [ftsDbPosts, setFtsDbPosts] = useState<Post[]>([])
   const [dishPostIds, setDishPostIds] = useState<Map<string, { rank: number; match_source: string }>>(new Map())
+  const [dishEntityResults, setDishEntityResults] = useState<DishResult[]>([])
   const requestIdRef = useRef(0)
 
   const popularityCache = usePopularityCache()
@@ -81,6 +82,7 @@ export function useSearch(
       setExpansionCuisines([])
       setGooglePredictions([])
       setInteractionCounts(new Map())
+      setDishEntityResults([])
       return
     }
     if (isAroundMe && !userLocation) {
@@ -91,19 +93,18 @@ export function useSearch(
       setExpansionCuisines([])
       setGooglePredictions([])
       setInteractionCounts(new Map())
+      setDishEntityResults([])
       return
     }
     const q = words.join(' ')
     const timer = setTimeout(async () => {
       // Phase 3c: Parse query intent
       let parsed = fallbackParsedQuery(q)
-      if (isEnabled('searchEnrichmentV1')) {
-        try { parsed = parseSearchQuery(q) } catch { /* fallback already set */ }
-      }
+      try { parsed = parseSearchQuery(q) } catch { /* fallback already set */ }
 
       // Phase 3d: Suburb resolution — tier 1 sync (alias cache), tier 2 DB before paid fallback
       let suburbFilter: string | undefined
-      if (isEnabled('searchEnrichmentV1') && parsed.locationTerms.length > 0) {
+      if (parsed.locationTerms.length > 0) {
         const locationPhrase = parsed.locationTerms.join(' ')
         suburbFilter = resolveFromAliasCache(locationPhrase) ?? undefined
         if (!suburbFilter) {
@@ -124,11 +125,17 @@ export function useSearch(
       )
 
       // Dish intent path (Phase 3d): fire search_posts_by_dish in parallel
-      const dishSearchPromise =
-        isEnabled('searchEnrichmentV1') && !isAroundMe &&
-        (parsed.intent === 'dish' || parsed.intent === 'mixed') && parsed.dishTerms.length > 0
-          ? searchDishPostIds(parsed.dishTerms.join(' '), userLocation)
-          : Promise.resolve([])
+      const dishIntentActive =
+        !isAroundMe &&
+        (parsed.intent === 'dish' || parsed.intent === 'mixed') &&
+        parsed.dishTerms.length > 0
+      const dishSearchPromise = dishIntentActive
+        ? searchDishPostIds(parsed.dishTerms.join(' '), userLocation)
+        : Promise.resolve([])
+      // B-544: canonical dish entity results in parallel with post results
+      const dishEntityPromise = dishIntentActive
+        ? searchDishes(parsed.dishTerms.join(' '), userLocation)
+        : Promise.resolve([])
 
       // Geocoding fallback — only when flag is on AND all DB tiers missed
       const geoPromise =
@@ -139,12 +146,13 @@ export function useSearch(
             }))
           : Promise.resolve({ predictions: [] })
 
-      const [users, placesRes, postFtsRes, dishRes, _geoRes] = await Promise.all([
+      const [users, placesRes, postFtsRes, dishRes, _geoRes, dishEntityRes] = await Promise.all([
         searchUsers(q),
         placeQuery,
         isAroundMe ? Promise.resolve([]) : searchPostIds(parsed.searchWords.join(' ') || q, userLocation),
         dishSearchPromise,
         geoPromise,
+        dishEntityPromise,
       ])
 
       // Feed geocoding result back into suburb_lookups (data flywheel)
@@ -184,13 +192,16 @@ export function useSearch(
       setGooglePredictions((googleRes.predictions ?? []).filter(isAutocompletePrediction))
 
       // Dish search results map (Phase 3h scoring)
-      if (isEnabled('searchEnrichmentV1') && dishRes.length > 0) {
+      if (dishRes.length > 0) {
         const dishMap = new Map<string, { rank: number; match_source: string }>()
         for (const r of dishRes) dishMap.set(r.id, { rank: r.rank, match_source: r.match_source })
         setDishPostIds(dishMap)
       } else {
         setDishPostIds(new Map())
       }
+
+      // B-544: canonical dish entity results
+      setDishEntityResults(dishEntityRes)
 
       setInteractionCounts(new Map())
 
@@ -254,6 +265,7 @@ export function useSearch(
     peopleResults,
     placeResults,
     placeDistances,
+    dishEntityResults,
     suggestions,
     hasQuery: words.length > 0 || isAroundMe,
     expansionLabel:

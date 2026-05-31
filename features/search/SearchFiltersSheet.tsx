@@ -164,6 +164,8 @@ export function SearchFiltersSheet({
                         onEnableNearby()
                       }}
                       activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel="Use current location"
                     >
                       <PinIcon size={12} />
                       <Text style={styles.locationGpsText}>Use current location</Text>
@@ -173,6 +175,7 @@ export function SearchFiltersSheet({
                     style={styles.locationInput}
                     placeholder="Or type suburb, city, postcode…"
                     placeholderTextColor={colors.text3}
+                    accessibilityLabel="Search for a suburb, city, or postcode"
                     value={locationQuery}
                     onChangeText={handleLocationQuery}
                     returnKeyType="search"
@@ -240,6 +243,7 @@ export function SearchFiltersSheet({
                 style={styles.filterSearchInput}
                 placeholder="Search cuisine alphabetically"
                 placeholderTextColor={colors.text3}
+                accessibilityLabel="Filter by cuisine type"
                 value={cuisineQuery}
                 onChangeText={setCuisineQuery}
               />
@@ -463,6 +467,8 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     locationSuggestionRow: {
       paddingHorizontal: spacing[3],
       paddingVertical: spacing.px10,
+      minHeight: 44,
+      justifyContent: 'center',
       borderBottomWidth: 0.35,
       borderBottomColor: c.border,
     },
@@ -484,7 +490,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingTop: spacing[2],
     },
     filterSearchInput: {
-      minHeight: 40,
+      minHeight: 44,
       borderRadius: radius.md3,
       paddingHorizontal: spacing[3],
       marginTop: spacing[2],

@@ -1,4 +1,4 @@
-import type { PlaceResult, SearchSuggestion } from '@/lib/hooks/searchTypes'
+import type { DishResult, PlaceResult, SearchSuggestion } from '@/lib/hooks/searchTypes'
 import { isRecord } from '../utils/safeJson'
 
 function nullableString(value: unknown): value is string | null {
@@ -59,4 +59,20 @@ export function parseDishPostIds(value: unknown): DishPostId[] {
   return value.filter((row): row is DishPostId =>
     isRecord(row) && typeof row.id === 'string' && typeof row.rank === 'number' && typeof row.match_source === 'string'
   )
+}
+
+export function isDishResult(value: unknown): value is DishResult {
+  return (
+    isRecord(value) &&
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    nullableString(value.cuisine_type) &&
+    nullableString(value.top_photo_url) &&
+    typeof value.save_count === 'number' &&
+    typeof value.post_count === 'number'
+  )
+}
+
+export function parseDishResults(value: unknown): DishResult[] {
+  return Array.isArray(value) ? value.filter(isDishResult) : []
 }

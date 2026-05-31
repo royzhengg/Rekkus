@@ -24,7 +24,7 @@ import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { usePressScale } from '@/lib/hooks/usePressScale'
-import type { PersonResult, PlaceResult } from '@/lib/hooks/useSearch'
+import type { DishResult, PersonResult, PlaceResult } from '@/lib/hooks/useSearch'
 import { routes } from '@/lib/routes'
 import { fetchUserIdByUsername } from '@/lib/services/users'
 import type { Post } from '@/types/domain'
@@ -41,6 +41,7 @@ interface SearchResultsTabProps {
   peopleResults: PersonResult[]
   placeResults: PlaceResult[]
   placeDistances: Map<string, number | undefined>
+  dishEntityResults: DishResult[]
   visiblePostCount: number
   onShowMorePosts: () => void
   expansionLabel: string | null | undefined
@@ -64,6 +65,7 @@ export function SearchResultsTab({
   peopleResults,
   placeResults,
   placeDistances,
+  dishEntityResults,
   visiblePostCount,
   onShowMorePosts,
   expansionLabel,
@@ -190,30 +192,55 @@ export function SearchResultsTab({
         </View>
       )}
 
-      {resultTab === 'dishes' && postResults.length > 0 && (
+      {resultTab === 'dishes' && (dishEntityResults.length > 0 || postResults.length > 0) && (
         <View>
-          <SectionHeader title="Dishes" count={postResults.length} />
-          <View>
-            {postResults.slice(0, visiblePostCount).map((p, index) => (
-              <PostCompactRow
-                key={p.id}
-                post={p}
-                position={index + 1}
-                query={query}
-                searchSessionId={searchSessionId}
-                user={user}
-                onResultClick={onResultClick}
+          {dishEntityResults.length > 0 && (
+            <View>
+              <SectionHeader title="Dishes" count={dishEntityResults.length} />
+              <View>
+                {dishEntityResults.map((d, index) => (
+                  <DishEntityRow
+                    key={d.id}
+                    dish={d}
+                    position={index + 1}
+                    query={query}
+                    searchSessionId={searchSessionId}
+                    user={user}
+                    onResultClick={onResultClick}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+          {postResults.length > 0 && (
+            <View>
+              <SectionHeader
+                title={dishEntityResults.length > 0 ? 'Posts' : 'Dishes'}
+                count={postResults.length}
               />
-            ))}
-            {postResults.length > visiblePostCount && (
-              <TouchableOpacity style={styles.showMore} onPress={onShowMorePosts} accessibilityRole="button">
-                <Text style={styles.showMoreText}>
-                  Show{' '}
-                  {Math.min(SEARCH_POST_LIMIT, postResults.length - visiblePostCount)} more
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+              <View>
+                {postResults.slice(0, visiblePostCount).map((p, index) => (
+                  <PostCompactRow
+                    key={p.id}
+                    post={p}
+                    position={index + 1}
+                    query={query}
+                    searchSessionId={searchSessionId}
+                    user={user}
+                    onResultClick={onResultClick}
+                  />
+                ))}
+                {postResults.length > visiblePostCount && (
+                  <TouchableOpacity style={styles.showMore} onPress={onShowMorePosts} accessibilityRole="button" accessibilityLabel="Show more posts">
+                    <Text style={styles.showMoreText}>
+                      Show{' '}
+                      {Math.min(SEARCH_POST_LIMIT, postResults.length - visiblePostCount)} more
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
         </View>
       )}
 
@@ -239,6 +266,77 @@ export function SearchResultsTab({
     </View>
   )
 }
+
+// ─── DishEntityRow ────────────────────────────────────────────────────────────
+
+const DishEntityRow = React.memo(function DishEntityRow({
+  dish,
+  position,
+  query,
+  searchSessionId,
+  user,
+  onResultClick,
+}: {
+  dish: DishResult
+  position?: number | undefined
+  query?: string | undefined
+  searchSessionId?: string | undefined
+  user?: { id: string } | null | undefined
+  onResultClick?: (() => void) | undefined
+}) {
+  const router = useRouter()
+  const colors = useThemeColors()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+  const press = usePressScale()
+
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <TouchableOpacity
+        style={styles.postRow}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        activeOpacity={1}
+        accessibilityRole="button"
+        accessibilityLabel={dish.cuisine_type ? `${dish.name}, ${dish.cuisine_type}` : dish.name}
+        onPress={() => {
+          onResultClick?.()
+          if (query && searchSessionId && position != null) {
+            analytics.searchResultClick(
+              user?.id ?? null,
+              'dish',
+              dish.id,
+              query,
+              position,
+              searchSessionId
+            )
+          }
+          router.push(routes.dishDetail(dish.id))
+        }}
+      >
+        <View style={[styles.postThumb, { backgroundColor: colors.surface }]}>
+          {dish.top_photo_url ? (
+            <CachedImage
+              source={{ uri: dish.top_photo_url }}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            />
+          ) : (
+            <ImagePlaceholder size={18} />
+          )}
+        </View>
+        <View style={styles.postRowContent}>
+          <View style={styles.postRowTop}>
+            {dish.cuisine_type != null && (
+              <Text style={styles.postRowCreator}>{dish.cuisine_type}</Text>
+            )}
+            <Text style={styles.postRowLikes}>{dish.save_count} saves</Text>
+          </View>
+          <Text style={styles.postRowTitle} numberOfLines={1}>{dish.name}</Text>
+          <Text style={styles.postRowCreator}>{dish.post_count} posts</Text>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  )
+})
 
 // ─── PersonRow ────────────────────────────────────────────────────────────────
 
@@ -336,6 +434,7 @@ const PostCompactRow = React.memo(function PostCompactRow({
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const press = usePressScale()
+  const thumbSrc = post.imageUrl ?? post.media?.[0]?.thumbnailUrl ?? undefined
 
   return (
     <Animated.View style={press.animatedStyle}>
@@ -344,6 +443,8 @@ const PostCompactRow = React.memo(function PostCompactRow({
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
         activeOpacity={1}
+        accessibilityRole="button"
+        accessibilityLabel={`${post.title} by @${post.creator}`}
         onPress={() => {
           onResultClick?.()
           if (post.dbId && query && searchSessionId && position != null) {
@@ -360,10 +461,11 @@ const PostCompactRow = React.memo(function PostCompactRow({
         }}
       >
         <View style={[styles.postThumb, { backgroundColor: imgColors[post.imgKey] }]}>
-          {post.imageUrl ? (
+          {thumbSrc ? (
             <CachedImage
-              source={{ uri: post.imageUrl }}
+              source={{ uri: thumbSrc }}
               style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+              accessibilityLabel={`Thumbnail for ${post.title}`}
             />
           ) : post.videoUrl ? (
             <View style={styles.videoFallback}>
@@ -400,7 +502,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingBottom: spacing.px2,
     },
     resultTab: {
-      minHeight: 32,
+      minHeight: 44,
       justifyContent: 'center',
       paddingHorizontal: spacing.px14,
       borderRadius: radius.lg2,

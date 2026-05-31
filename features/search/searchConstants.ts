@@ -1,14 +1,5 @@
 import type { SearchSortMode, SearchFilters, PlaceResult } from '@/lib/hooks/useSearch'
-
-export const CHIPS = [
-  { label: 'Ramen', emoji: '🍜', query: 'ramen' },
-  { label: 'Brunch', emoji: '☀️', query: 'brunch' },
-  { label: 'Dumplings', emoji: '🥟', query: 'dumplings' },
-  { label: 'Date night', emoji: '🌙', query: 'date night' },
-  { label: 'Cheap eats', emoji: '💸', query: 'cheap' },
-  { label: 'Japanese', emoji: '🍣', query: 'japanese' },
-  { label: 'Burgers', emoji: '🍔', query: 'burger' },
-]
+export { CHIPS, DEFAULT_QUICK_START_QUERIES, type SearchChip } from '@/lib/dataSources/searchQuickStarts'
 
 export const TRENDING = [
   { tag: '#ramen', count: '4.2k posts' },

@@ -18,6 +18,7 @@ import { refreshFeatureFlagOverrides } from '@/lib/featureFlags'
 import { restoreSession } from '@/lib/services/auth'
 import { initializeCrashReporting, withCrashReporting } from '@/lib/services/crashReporting'
 import { registerPushToken } from '@/lib/services/notifications'
+import { loadSearchSynonymCache } from '@/lib/services/search'
 
 export { ErrorBoundary } from 'expo-router'
 
@@ -72,6 +73,14 @@ function FeatureFlagOverrideRefresher() {
   return null
 }
 
+function SearchSynonymCacheLoader() {
+  useEffect(() => {
+    void loadSearchSynonymCache()
+  }, [])
+
+  return null
+}
+
 function RootLayout() {
   const [loaded, error] = useFonts({
     'DMSerifDisplay-Regular': require('../assets/fonts/DMSerifDisplay-Regular.ttf') as number,
@@ -90,6 +99,7 @@ function RootLayout() {
     {loaded ? <AuthProvider>
       <ConnectivityProvider>
       <FeatureFlagOverrideRefresher />
+      <SearchSynonymCacheLoader />
       <PushRegistrar />
       <DeepLinkHandler />
       <PostsProvider>

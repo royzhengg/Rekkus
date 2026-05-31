@@ -11,13 +11,15 @@ import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useContextualQuickStarts } from '@/lib/hooks/useContextualQuickStarts'
 import type { PlaceResult } from '@/lib/hooks/useSearch'
+import type { CuisineAffinities } from '@/lib/hooks/useSearchHistory'
 import { routes } from '@/lib/routes'
 import type { Collection } from '@/lib/services/collections'
 import { fetchUserIdByUsername } from '@/lib/services/users'
 import type { MockUser } from '@/types/domain'
-import { CHIPS } from './searchConstants'
 import { PlaceRow, SectionHeader } from './searchShared'
+import type { SearchChip } from './searchConstants'
 
 interface DiscoveryPageProps {
   isFocused: boolean
@@ -29,7 +31,8 @@ interface DiscoveryPageProps {
   suggestedPeople: Array<[string, MockUser]>
   popularPlaces: PlaceResult[]
   staffPicks: Collection[]
-  onChip: (chip: (typeof CHIPS)[number]) => void
+  cuisineAffinities: CuisineAffinities
+  onChip: (chip: SearchChip) => void
   onTrending: (tag: string) => void
   onOpenNearby: () => void
   userId: string | undefined
@@ -45,6 +48,7 @@ export function DiscoveryPage({
   suggestedPeople,
   popularPlaces,
   staffPicks,
+  cuisineAffinities,
   onChip,
   onTrending,
   onOpenNearby,
@@ -52,6 +56,7 @@ export function DiscoveryPage({
 }: DiscoveryPageProps) {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const quickStartChips = useContextualQuickStarts(cuisineAffinities)
 
   return (
     <View style={styles.discoveryPage}>
@@ -65,6 +70,8 @@ export function DiscoveryPage({
                 style={styles.recentSearchRow}
                 onPress={() => onSelectRecent(item)}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`Search for ${item}`}
               >
                 <ClockIcon size={14} />
                 <Text style={styles.recentSearchText} numberOfLines={1}>
@@ -91,9 +98,7 @@ export function DiscoveryPage({
         contentContainerStyle={styles.quickStartRow}
       >
         <Chip label="Nearby" leading={<PinIcon size={12} />} onPress={onOpenNearby} />
-        {CHIPS.filter(chip =>
-          ['ramen', 'brunch', 'date night', 'cheap'].includes(chip.query)
-        ).map(chip => (
+        {quickStartChips.map(chip => (
           <Chip
             key={chip.query}
             label={chip.label}

@@ -18,6 +18,8 @@ const SAFE_METADATA_KEYS = new Set([
   'query',
   'result_count',
   'rejected_count',
+  'selected_query',
+  'suggestion_queries',
   'screen',
   'source',
   'surface',
@@ -75,6 +77,7 @@ const SAFE_METADATA_KEYS = new Set([
   'feature',
   'cache_status',
   'mutation_kind',
+  'near_city',
   'tap_count',
   'session_duration_ms',
   'had_results',
@@ -130,14 +133,24 @@ async function track(userId: string | null, payload: EventPayload): Promise<void
 
 export const analytics = {
   // Post events
-  viewPost: (userId: string | null, postId: string): void =>
-    void track(userId, { event_type: 'post_view', entity_type: 'post', entity_id: postId }),
+  viewPost: (userId: string | null, postId: string, cuisineType?: string | null): void =>
+    void track(userId, {
+      event_type: 'post_view',
+      entity_type: 'post',
+      entity_id: postId,
+      metadata: { cuisine_type: cuisineType },
+    }),
 
   likePost: (userId: string, postId: string): void =>
     void track(userId, { event_type: 'post_like', entity_type: 'post', entity_id: postId }),
 
-  savePost: (userId: string, postId: string): void =>
-    void track(userId, { event_type: 'post_save', entity_type: 'post', entity_id: postId }),
+  savePost: (userId: string, postId: string, cuisineType?: string | null): void =>
+    void track(userId, {
+      event_type: 'post_save',
+      entity_type: 'post',
+      entity_id: postId,
+      metadata: { cuisine_type: cuisineType },
+    }),
 
   viewDish: (userId: string | null, dishId: string): void =>
     void track(userId, { event_type: 'dish_view', entity_type: 'dish', entity_id: dishId }),
@@ -165,12 +178,17 @@ export const analytics = {
     void track(userId, { event_type: 'post_comment', entity_type: 'post', entity_id: postId }),
 
   // Place events
-  viewPlace: (userId: string | null, restaurantId: string, query?: string): void =>
+  viewPlace: (
+    userId: string | null,
+    restaurantId: string,
+    query?: string,
+    cuisineType?: string | null
+  ): void =>
     void track(userId, {
       event_type: 'place_view',
       entity_type: 'restaurant',
       entity_id: restaurantId,
-      metadata: { query },
+      metadata: { query, cuisine_type: cuisineType },
     }),
 
   clickPlace: (userId: string | null, restaurantId: string): void =>
@@ -180,8 +198,13 @@ export const analytics = {
       entity_id: restaurantId,
     }),
 
-  savePlace: (userId: string, restaurantId: string): void =>
-    void track(userId, { event_type: 'place_save', entity_type: 'restaurant', entity_id: restaurantId }),
+  savePlace: (userId: string, restaurantId: string, cuisineType?: string | null): void =>
+    void track(userId, {
+      event_type: 'place_save',
+      entity_type: 'restaurant',
+      entity_id: restaurantId,
+      metadata: { cuisine_type: cuisineType },
+    }),
 
   revisitPlace: (userId: string | null, restaurantId: string, source: string): void =>
     void track(userId, {
@@ -230,7 +253,7 @@ export const analytics = {
 
   searchResultClick: (
     userId: string | null,
-    resultType: 'post' | 'restaurant' | 'user',
+    resultType: 'post' | 'restaurant' | 'user' | 'dish',
     entityId: string,
     query: string,
     position: number,
@@ -281,6 +304,30 @@ export const analytics = {
         result_count: resultCount,
         session_duration_ms: Math.max(0, Math.round(sessionDurationMs)),
         search_session_id: searchSessionId,
+      },
+    }),
+
+  noResultsShown: (userId: string | null, failedQuery: string, suggestions: string[]): void =>
+    void track(userId, {
+      event_type: 'no_results_shown',
+      metadata: {
+        query: failedQuery,
+        suggestion_queries: suggestions.map(s => s.trim()).filter(Boolean).slice(0, 5).join('|'),
+      },
+    }),
+
+  noResultsSuggestionClick: (
+    userId: string | null,
+    failedQuery: string,
+    selectedQuery: string,
+    position: number
+  ): void =>
+    void track(userId, {
+      event_type: 'no_results_suggestion_click',
+      metadata: {
+        query: failedQuery,
+        selected_query: selectedQuery,
+        position: Math.max(1, Math.round(position)),
       },
     }),
 
