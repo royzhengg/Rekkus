@@ -7,7 +7,7 @@ import { ArrowLeft } from '@/components/icons'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
@@ -161,7 +161,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       fontSize: fontSize.sm,
       fontWeight: fontWeight.semibold,
       color: c.text3,
-      letterSpacing: 0.6,
+      letterSpacing: letterSpacing.loose,
       textTransform: 'uppercase',
       marginTop: spacing[5],
       marginBottom: spacing.px6,

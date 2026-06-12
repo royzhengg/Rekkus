@@ -13,6 +13,7 @@ if (hasFlag('--help') || hasFlag('-h')) {
 const REQUIRED = [
   'check:docs',
   'check:hygiene',
+  'check:coordination',
   'check:platform',
   'check:release',
   'check:dead-code',

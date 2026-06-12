@@ -5,7 +5,12 @@ const path = require('path')
 const { listFiles, readText } = require('./lib/files')
 
 const flagsSource = readText('lib/featureFlags.ts')
-const allowlist = new Map()
+const allowlist = new Map([
+  // B-585: locationGeocodeFallback — flag defined for geocode fallback path not yet wired; tracked for implementation
+  ['locationGeocodeFallback', 'B-585'],
+  // B-410: createPostProgressDots — shipped as always-on; tombstone retained to prevent crashes from stale Metro bundles
+  ['createPostProgressDots', 'B-410'],
+])
 
 // Extract all flag keys from the `const flags = { ... }` object
 const flagKeyPattern = /^\s{2}(\w+):\s*\{/gm

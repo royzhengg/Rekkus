@@ -103,6 +103,14 @@ export default {
         },
       ],
       [
+        "expo-media-library",
+        {
+          photosPermission:
+            "Allow Rekkus to access your photos so you can share them in posts and messages.",
+          granularPermissions: ["photo"],
+        },
+      ],
+      [
         "expo-camera",
         {
           cameraPermission:

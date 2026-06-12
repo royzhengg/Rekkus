@@ -17,8 +17,6 @@ export default {
     'scripts/**',
     // Supabase Edge Functions are excluded from tsconfig too
     'supabase/**',
-    // Temp artifacts written by test-type-safety.js
-    '.temp/**',
     'coverage/**',
   ],
   ignoreDependencies: [
@@ -33,8 +31,6 @@ export default {
     // Used in app.config.js plugins array (not resolvable via static analysis)
     'expo-updates',
     'expo-system-ui',
-    // Transitive deps referenced directly — add to package.json as follow-up
-    '@react-navigation/bottom-tabs',
     'expo-file-system',
     // Expo status bar consumed via Expo plugin, not direct import
     'expo-status-bar',
@@ -118,7 +114,13 @@ export default {
     'lib/contexts/PostUploadContext.tsx': ['types'],
     'lib/hooks/useSearch.ts': ['types'],
     'lib/hooks/useSearchResults.ts': ['types'],
+    'lib/hooks/searchTypes.ts': ['types'],
     'lib/utils/queryParser.ts': ['types'],
+
+    // Search pipeline types and utilities built on B-560/B-580 safe-search branch.
+    // These form the public type surface for consumers not yet wired.
+    'lib/search/types.ts': ['types'],
+    'lib/utils/cuisineSynonyms.ts': ['exports'],
 
     // Domain type not yet imported by name; used as sub-type of Post.
     'types/domain.ts': ['types'],

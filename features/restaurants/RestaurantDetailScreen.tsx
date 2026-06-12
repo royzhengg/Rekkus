@@ -22,6 +22,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { Skeleton, SkeletonText } from '@/components/ui/Skeleton'
 import { spacing } from '@/constants/Spacing'
 import { analytics } from '@/lib/analytics'
+import type { SearchAttribution } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
@@ -81,6 +82,10 @@ export default function RestaurantDetailScreen() {
     address,
     lat,
     lng,
+    searchSessionId,
+    searchQuery,
+    searchResultType,
+    searchResultPosition,
   } = useLocalSearchParams<{
     restaurantId?: string
     placeId?: string
@@ -88,6 +93,10 @@ export default function RestaurantDetailScreen() {
     address: string
     lat: string
     lng: string
+    searchSessionId?: string
+    searchQuery?: string
+    searchResultType?: string
+    searchResultPosition?: string
   }>()
   const router = useRouter()
   const { user } = useAuth()
@@ -199,6 +208,21 @@ export default function RestaurantDetailScreen() {
     }
     return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
   }, [contextPosts])
+  const searchAttribution = useMemo<SearchAttribution | null>(() => {
+    const sessionId = routeParamString(searchSessionId)
+    const query = routeParamString(searchQuery)
+    const resultType = routeParamString(searchResultType)
+    const position = routeParamNumber(searchResultPosition)
+    if (
+      !sessionId ||
+      !query ||
+      position == null ||
+      (resultType !== 'post' && resultType !== 'restaurant' && resultType !== 'user' && resultType !== 'dish')
+    ) {
+      return null
+    }
+    return { searchSessionId: sessionId, query, resultType, resultPosition: position }
+  }, [searchQuery, searchResultPosition, searchResultType, searchSessionId])
 
   useEffect(() => {
     let cancelled = false
@@ -269,7 +293,7 @@ export default function RestaurantDetailScreen() {
         })
       }
       if (resId && user) {
-        analytics.viewPlace(user.id, resId, undefined, restaurantCuisineType)
+        analytics.viewPlace(user.id, resId, undefined, restaurantCuisineType, searchAttribution)
       }
 
       if (resId) {
@@ -325,7 +349,7 @@ export default function RestaurantDetailScreen() {
     return () => {
       cancelled = true
     }
-  }, [routePlaceId, routeRestaurantId, user, displayName, refreshTrigger, contextPhotoUrls, restaurantCuisineType])
+  }, [routePlaceId, routeRestaurantId, user, displayName, refreshTrigger, contextPhotoUrls, restaurantCuisineType, searchAttribution])
 
   const findOrCreateRestaurant = useCallback(async (): Promise<string | null> => {
     if (restaurantId) return restaurantId
@@ -384,13 +408,13 @@ export default function RestaurantDetailScreen() {
         setSaved(true)
         await runDeferredMutation({ kind: 'place_save', restaurantId: resId, targetState: true })
         void haptic.confirmSave()
-        analytics.savePlace(user.id, resId, restaurantCuisineType)
+        analytics.savePlace(user.id, resId, restaurantCuisineType, searchAttribution)
         setSaveSheet(true)
       } catch {
         setSaved(wasSaved)
       }
     }
-  }, [user, saved, findOrCreateRestaurant, runDeferredMutation, restaurantCuisineType])
+  }, [user, saved, findOrCreateRestaurant, runDeferredMutation, restaurantCuisineType, searchAttribution])
 
   const openCollectionPicker = useCallback(async () => {
     const resId = await findOrCreateRestaurant()

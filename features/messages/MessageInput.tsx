@@ -40,7 +40,7 @@ import type { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { isEnabled } from '@/lib/featureFlags'
 import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
-import { fetchGifs, hasGifProvider, type GifResult } from '@/lib/services/gifs'
+import { hasGifProvider, type GifResult } from '@/lib/services/gifs'
 import { validatePickedMessageAttachment } from '@/lib/services/media'
 import { uploadAttachment, computeFileHash } from '@/lib/services/messageAttachments'
 import { sendRichMessage, type DirectMessage, type MessageType } from '@/lib/services/messaging'
@@ -48,6 +48,7 @@ import { moderateMessageMedia } from '@/lib/services/moderation'
 import { fetchSavedLocationsForUser, type SavedLocationWithRestaurant } from '@/lib/services/restaurants'
 import { richTypePreview } from './MessageBubble'
 import { makeMessageInputStyles } from './MessageInput.styles'
+import { useMessageGifPicker } from './useMessageGifPicker'
 
 export type MessageInputHandle = {
   focus: () => void
@@ -74,11 +75,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
   const [sending, setSending] = useState(false)
   const [attachmentTrayOpen, setAttachmentTrayOpen] = useState(false)
   const [locationSheet, setLocationSheet] = useState(false)
-  const [gifPickerVisible, setGifPickerVisible] = useState(false)
-  const [gifQuery, setGifQuery] = useState('')
-  const [gifResults, setGifResults] = useState<GifResult[]>([])
-  const [gifLoading, setGifLoading] = useState(false)
-  const [gifError, setGifError] = useState<string | null>(null)
+  const gif = useMessageGifPicker()
   const [savedPlacePickerVisible, setSavedPlacePickerVisible] = useState(false)
   const [savedPlaces, setSavedPlaces] = useState<SavedLocationWithRestaurant[]>([])
   const [loadingSavedPlaces, setLoadingSavedPlaces] = useState(false)
@@ -172,42 +169,23 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
     await sendMedia(asset.uri, asset.mimeType ?? 'application/octet-stream', 'file')
   }
 
-  async function openGifPicker() {
-    setAttachmentTrayOpen(false)
-    setGifPickerVisible(true)
-    setGifQuery('')
-    await loadGifs('')
-  }
+  async function openGifPicker() { setAttachmentTrayOpen(false); await gif.open() }
 
-  async function loadGifs(query: string) {
-    setGifLoading(true)
-    setGifError(null)
-    const { gifs, error } = await fetchGifs(query)
-    setGifResults(gifs)
-    setGifError(error)
-    setGifLoading(false)
-  }
-
-  async function handleGifSearch(query: string) {
-    setGifQuery(query)
-    await loadGifs(query)
-  }
-
-  async function handleSelectGif(gif: GifResult) {
+  async function handleSelectGif(gifItem: GifResult) {
     if (!conversationId || !currentUserId) return
     if (!requireOnline()) {
       onShowError({ title: 'You are offline', message: 'Reconnect to send this GIF.' })
       return
     }
-    setGifPickerVisible(false)
+    gif.setVisible(false)
     setSending(true)
     const { message, error } = await sendRichMessage(
       conversationId,
       currentUserId,
       'gif',
       null,
-      gif.url,
-      { title: gif.title, preview_url: gif.previewUrl, provider: 'giphy' },
+      gifItem.url,
+      { title: gifItem.title, preview_url: gifItem.previewUrl, provider: 'giphy' },
       replyingTo?.id ?? null
     )
     if (error || !message) {
@@ -451,15 +429,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
 
       {/* GIF picker modal */}
       <Modal
-        visible={gifPickerVisible}
+        visible={gif.visible}
         transparent
         animationType={reduceMotion ? 'none' : 'slide'}
-        onRequestClose={() => setGifPickerVisible(false)}
+        onRequestClose={() => gif.setVisible(false)}
       >
         <View style={styles.pickerOverlay}>
           <TouchableOpacity
             style={styles.pickerDismiss}
-            onPress={() => setGifPickerVisible(false)}
+            onPress={() => gif.setVisible(false)}
             accessibilityRole="button"
             accessibilityLabel="Close GIF picker"
           />
@@ -468,7 +446,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
             <View style={styles.pickerHeader}>
               <Text style={styles.pickerTitle}>GIFs</Text>
               <TouchableOpacity
-                onPress={() => setGifPickerVisible(false)}
+                onPress={() => gif.setVisible(false)}
                 accessibilityRole="button"
                 accessibilityLabel="Close GIF picker"
               >
@@ -479,8 +457,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
               <SearchIcon size={14} color={colors.text3} />
               <TextInput
                 style={styles.gifSearchInput}
-                value={gifQuery}
-                onChangeText={handleGifSearch}
+                value={gif.query}
+                onChangeText={gif.search}
                 placeholder="Search GIFs"
                 placeholderTextColor={colors.text3}
                 autoCorrect={false}
@@ -495,15 +473,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
                 <Text style={styles.gifStateTitle}>GIFs need setup</Text>
                 <Text style={styles.gifStateBody}>Add the platform GIPHY key to enable GIF search.</Text>
               </View>
-            ) : gifLoading ? (
+            ) : gif.loading ? (
               <ActivityIndicator color={colors.text3} style={{ marginVertical: spacing.px28 }} />
-            ) : gifError ? (
+            ) : gif.error ? (
               <View style={styles.gifState}>
-                <ErrorMessage title="Could not load GIFs" message={gifError} />
+                <ErrorMessage title="Could not load GIFs" message={gif.error} />
               </View>
             ) : (
               <FlatList
-                data={gifResults}
+                data={gif.results}
                 keyExtractor={item => item.id}
                 numColumns={2}
                 columnWrapperStyle={styles.gifGridRow}

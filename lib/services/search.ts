@@ -13,6 +13,7 @@ import {
   type DishPostId,
   type RankedPostId,
 } from './searchGuards'
+// CUISINE_SYNONYMS is the offline fallback constant; runtime synonym vocab is managed via cuisineSynonyms.ts (B-551)
 import {
   fallbackSearchSynonymRows,
   applySearchSynonymRows,
@@ -22,14 +23,7 @@ import {
 } from '../utils/cuisineSynonyms'
 import { isRecord, parseJsonWithGuard } from '../utils/safeJson'
 import type { DishResult, PlaceResult, SearchSuggestion, UserLocation } from '../hooks/searchTypes'
-
-export type TrendingSearchRow = {
-  query: string
-  near_city?: string
-  score?: number
-  updated_at?: string
-}
-export type TrendingPostEventType = 'post_view' | 'post_like' | 'post_save' | 'post_dwell'
+import type { SearchContext, SearchGraphEvidence } from '../search/types'
 
 export type SearchHistoryRow = {
   query: string
@@ -37,13 +31,59 @@ export type SearchHistoryRow = {
   search_count: number
 }
 
-export type PlaceClickRow = {
-  entity_id: string | null
+export type SearchQualityMetricRow = {
+  day: string
+  result_type: string | null
+  result_position: number | null
+  search_sessions: number
+  query_count: number
+  click_count: number
+  attributed_view_count: number
+  attributed_save_count: number
+  attributed_review_count: number
+  zero_result_count: number
+  reformulation_count: number
+  success_count: number
+  success_rate: number
+  ctr: number
+  zero_result_rate: number
+  reformulation_rate: number
 }
 
-export type PostTrendEventRow = {
-  event_type: TrendingPostEventType
-  entity_id: string | null
+export function normalizeSavedSearchQuery(query: string): string {
+  return query.trim().replace(/\s+/g, ' ')
+}
+
+function normalizeSavedSearchKey(query: string): string {
+  return normalizeSavedSearchQuery(query).toLowerCase()
+}
+
+function isSearchQualityMetricRow(value: unknown): value is SearchQualityMetricRow {
+  return isRecord(value) &&
+    typeof value.day === 'string' &&
+    (value.result_type === null || typeof value.result_type === 'string') &&
+    (value.result_position === null || typeof value.result_position === 'number') &&
+    typeof value.search_sessions === 'number' &&
+    typeof value.query_count === 'number' &&
+    typeof value.click_count === 'number' &&
+    typeof value.attributed_view_count === 'number' &&
+    typeof value.attributed_save_count === 'number' &&
+    typeof value.attributed_review_count === 'number' &&
+    typeof value.zero_result_count === 'number' &&
+    typeof value.reformulation_count === 'number' &&
+    typeof value.success_count === 'number' &&
+    typeof value.success_rate === 'number' &&
+    typeof value.ctr === 'number' &&
+    typeof value.zero_result_rate === 'number' &&
+    typeof value.reformulation_rate === 'number'
+}
+
+function requireSavedSearchQuery(query: string): { query: string; normalizedQuery: string } {
+  const cleaned = normalizeSavedSearchQuery(query)
+  if (cleaned.length <= 1) {
+    throw new Error('saved_search_query_too_short')
+  }
+  return { query: cleaned, normalizedQuery: cleaned.toLowerCase() }
 }
 
 export type SearchUserResult = {
@@ -61,8 +101,6 @@ type CachedSearchSynonyms = {
 
 const SEARCH_SYNONYMS_CACHE_KEY = 'rekkus:search-synonyms:v1'
 const SEARCH_SYNONYMS_CACHE_TTL_MS = 24 * 60 * 60 * 1000
-const GLOBAL_TRENDING_CITY = 'global'
-const MIN_CITY_TRENDING_RESULTS = 4
 
 function isSearchSynonymType(value: unknown): value is SearchSynonymType {
   return value === 'cuisine' || value === 'occasion' || value === 'dietary'
@@ -157,40 +195,6 @@ function reportFilteredRows(value: unknown, validLength: number, boundary: strin
   }
 }
 
-function normalizeTrendingCity(city: string | null | undefined): string | null {
-  const trimmed = city?.trim()
-  if (!trimmed || trimmed.toLowerCase() === GLOBAL_TRENDING_CITY) return null
-  return trimmed
-}
-
-function mergeTrendingSearchRows(
-  primary: TrendingSearchRow[],
-  fallback: TrendingSearchRow[],
-  limit: number
-): TrendingSearchRow[] {
-  const rows: TrendingSearchRow[] = []
-  const seen = new Set<string>()
-  for (const row of [...primary, ...fallback]) {
-    const key = row.query.trim().toLowerCase()
-    if (!key || seen.has(key)) continue
-    seen.add(key)
-    rows.push(row)
-    if (rows.length >= limit) break
-  }
-  return rows
-}
-
-function mergePlaceClickRows(
-  cityRows: PlaceClickRow[],
-  globalRows: PlaceClickRow[],
-  cityRestaurantIds: Set<string>
-): PlaceClickRow[] {
-  return [
-    ...cityRows,
-    ...globalRows.filter(row => row.entity_id == null || !cityRestaurantIds.has(row.entity_id)),
-  ]
-}
-
 export async function searchPlaces(
   query: string,
   userLocation: UserLocation,
@@ -238,18 +242,61 @@ export async function searchDishPostIds(
   return posts
 }
 
-export async function fetchSearchSuggestions(
-  query: string,
-  userLocation: UserLocation
-): Promise<SearchSuggestion[]> {
+
+export async function fetchSearchAutocomplete(context: SearchContext): Promise<SearchSuggestion[]> {
+  if (!context.hasQuery || context.query.length < 2) return []
   const { data } = await supabase.rpc('suggest_searches', {
-    prefix_query: query,
-    ...(userLocation ? { near_lat: userLocation.lat, near_lng: userLocation.lng } : {}),
+    prefix_query: context.query,
+    ...(context.userLocation
+      ? { near_lat: context.userLocation.lat, near_lng: context.userLocation.lng }
+      : {}),
     limit_per_type: 3,
   })
-  const suggestions = parseSearchSuggestions(data)
-  reportFilteredRows(data, suggestions.length, 'search_suggestion_row_invalid')
-  return suggestions
+  const rpcSuggestions = parseSearchSuggestions(data).map(normalizeAutocompleteSuggestion)
+  reportFilteredRows(data, rpcSuggestions.length, 'search_autocomplete_row_invalid')
+  return dedupeSearchSuggestions([
+    ...areaAutocompleteSuggestions(context),
+    ...rpcSuggestions,
+  ]).slice(0, 15)
+}
+
+function normalizeAutocompleteSuggestion(suggestion: SearchSuggestion): SearchSuggestion {
+  if (suggestion.suggestion_type !== 'hashtag') return suggestion
+  return { ...suggestion, suggestion_type: 'tag' }
+}
+
+function areaAutocompleteSuggestions(context: SearchContext): SearchSuggestion[] {
+  const resolved = context.parsed.resolvedSuburb
+  if (resolved) {
+    return [{
+      suggestion_type: 'area',
+      display_text: resolved,
+      secondary_text: 'Area',
+      entity_id: resolved,
+      score: 100,
+    }]
+  }
+  const text = context.parsed.locationTerms.join(' ').trim()
+  if (text.length < 2) return []
+  return [{
+    suggestion_type: 'area',
+    display_text: text,
+    secondary_text: 'Area',
+    entity_id: text,
+    score: 50,
+  }]
+}
+
+function dedupeSearchSuggestions(suggestions: SearchSuggestion[]): SearchSuggestion[] {
+  const seen = new Set<string>()
+  const rows: SearchSuggestion[] = []
+  for (const suggestion of suggestions) {
+    const key = `${suggestion.suggestion_type}:${suggestion.display_text.trim().toLowerCase()}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    rows.push(suggestion)
+  }
+  return rows
 }
 
 export async function searchUsers(query: string): Promise<SearchUserResult[]> {
@@ -262,39 +309,53 @@ export async function searchUsers(query: string): Promise<SearchUserResult[]> {
   return data ?? []
 }
 
+export async function fetchSavedSearches(userId: string | undefined, limit: number): Promise<string[]> {
+  if (!userId) return []
+  const cappedLimit = Math.max(1, Math.min(Math.floor(limit), 100))
+  const { data, error } = await supabase
+    .from('saved_searches')
+    .select('query')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(cappedLimit)
+  if (error) throw error
+  return (data ?? [])
+    .map(row => row.query)
+    .filter((query): query is string => typeof query === 'string' && query.trim().length > 1)
+}
+
+export async function saveSearch(query: string): Promise<string> {
+  const saved = requireSavedSearchQuery(query)
+  const { data, error } = await supabase
+    .from('saved_searches')
+    .upsert(
+      {
+        query: saved.query,
+        normalized_query: saved.normalizedQuery,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,normalized_query' }
+    )
+    .select('query')
+    .single()
+  if (error) throw error
+  return typeof data?.query === 'string' ? data.query : saved.query
+}
+
+export async function unsaveSearch(query: string): Promise<void> {
+  const normalizedQuery = normalizeSavedSearchKey(query)
+  if (normalizedQuery.length <= 1) return
+  const { error } = await supabase
+    .from('saved_searches')
+    .delete()
+    .eq('normalized_query', normalizedQuery)
+  if (error) throw error
+}
+
 function getJsonString(value: Json | undefined, key: string): string | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const field = value[key]
   return typeof field === 'string' ? field : null
-}
-
-async function fetchTrendingSearchRows(
-  limit: number,
-  nearCity: string
-): Promise<TrendingSearchRow[]> {
-  const { data, error } = await supabase
-    .from('trending_searches')
-    .select('query, near_city, score, updated_at')
-    .eq('near_city', nearCity)
-    .order('score', { ascending: false })
-    .order('updated_at', { ascending: false })
-    .limit(limit)
-  if (error) throw error
-  return data ?? []
-}
-
-export async function fetchTrendingSearches(
-  limit: number,
-  nearCity?: string | null
-): Promise<TrendingSearchRow[]> {
-  const normalizedCity = normalizeTrendingCity(nearCity)
-  const globalRows = () => fetchTrendingSearchRows(limit, GLOBAL_TRENDING_CITY)
-  if (!normalizedCity) return globalRows()
-
-  const cityRows = await fetchTrendingSearchRows(limit, normalizedCity)
-  if (cityRows.length >= Math.min(MIN_CITY_TRENDING_RESULTS, limit)) return cityRows
-
-  return mergeTrendingSearchRows(cityRows, await globalRows(), limit)
 }
 
 export async function fetchRecentSearchHistoryFallback(
@@ -313,109 +374,6 @@ export async function fetchRecentSearchHistoryFallback(
   return (data ?? [])
     .map(row => getJsonString(row.metadata ?? undefined, 'query'))
     .filter((query): query is string => typeof query === 'string' && query.trim().length > 1)
-}
-
-async function fetchPlaceClickRows(
-  sinceIso: string,
-  restaurantIds?: string[]
-): Promise<PlaceClickRow[]> {
-  let query = supabase.from('analytics_events')
-    .select('entity_id')
-    .eq('event_type', 'place_click')
-    .gte('created_at', sinceIso)
-
-  if (restaurantIds && restaurantIds.length > 0) {
-    query = query.in('entity_id', restaurantIds)
-  }
-
-  const { data, error } = await query
-    .limit(200)
-  if (error) throw error
-  return data ?? []
-}
-
-async function fetchRestaurantIdsByCity(city: string): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('restaurants')
-    .select('id')
-    .ilike('city', city)
-    .limit(500)
-  if (error) throw error
-  return (data ?? []).map(row => row.id)
-}
-
-export async function fetchTrendingPlaceClicks(
-  sinceIso: string,
-  nearCity?: string | null
-): Promise<PlaceClickRow[]> {
-  const normalizedCity = normalizeTrendingCity(nearCity)
-  const globalRows = () => fetchPlaceClickRows(sinceIso)
-  if (!normalizedCity) return globalRows()
-
-  const cityRestaurantIds = await fetchRestaurantIdsByCity(normalizedCity)
-  if (cityRestaurantIds.length === 0) return globalRows()
-
-  const cityRows = await fetchPlaceClickRows(sinceIso, cityRestaurantIds)
-  if (cityRows.length >= MIN_CITY_TRENDING_RESULTS) return cityRows
-
-  return mergePlaceClickRows(cityRows, await globalRows(), new Set(cityRestaurantIds))
-}
-
-export async function fetchPopularPlacesByIds(placeIds: string[]): Promise<PlaceResult[]> {
-  const uniqueIds = [...new Set(placeIds)].slice(0, 10)
-  if (uniqueIds.length === 0) return []
-
-  const { data, error } = await supabase
-    .from('restaurants')
-    .select(
-      'id, name, address, city, suburb, cuisine_type, google_place_id, latitude, longitude, google_rating, google_review_count, open_now'
-    )
-    .in('id', uniqueIds)
-    .limit(uniqueIds.length)
-  if (error) throw error
-
-  const byId = new Map(parsePlaceResults(data).map(place => [place.id, place]))
-  return uniqueIds.map(id => byId.get(id)).filter((place): place is PlaceResult => place !== undefined)
-}
-
-export async function resolveTrendingCityFromCoords(
-  location: { lat: number; lng: number } | null
-): Promise<string | null> {
-  if (!location) return null
-  const radiusKm = 25
-  const latDelta = radiusKm / 111
-  const lngDelta = radiusKm / (111 * Math.max(Math.cos((location.lat * Math.PI) / 180), 0.01))
-  const { data, error } = await supabase.rpc('restaurants_in_bounding_box', {
-    min_lat: location.lat - latDelta,
-    max_lat: location.lat + latDelta,
-    min_lng: location.lng - lngDelta,
-    max_lng: location.lng + lngDelta,
-    max_results: 50,
-  })
-  if (error) throw error
-
-  const counts = new Map<string, number>()
-  for (const row of data ?? []) {
-    const city = row.city?.trim()
-    if (city) counts.set(city, (counts.get(city) ?? 0) + 1)
-  }
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
-}
-
-export async function fetchTrendingPostEvents(sinceIso: string): Promise<PostTrendEventRow[]> {
-  const { data, error } = await supabase.from('analytics_events')
-    .select('event_type, entity_id')
-    .eq('entity_type', 'post')
-    .in('event_type', ['post_view', 'post_like', 'post_save', 'post_dwell'])
-    .gte('created_at', sinceIso)
-    .limit(500)
-  if (error) throw error
-  return (data ?? []).filter((row): row is PostTrendEventRow =>
-    row.event_type === 'post_view' ||
-    row.event_type === 'post_like' ||
-    row.event_type === 'post_save' ||
-    row.event_type === 'post_dwell'
-  )
 }
 
 type CuisineMatch = { cuisine_type: string; match_count: number }
@@ -494,6 +452,49 @@ export async function searchDishes(
   return results
 }
 
+export async function fetchDishGraphEvidence(
+  dishIds: string[]
+): Promise<Map<string, SearchGraphEvidence>> {
+  const uniqueDishIds = [...new Set(dishIds)].filter(id => id.length > 0).slice(0, 20)
+  if (uniqueDishIds.length === 0) return new Map()
+
+  const { data, error } = await supabase
+    .from('posts')
+    .select('id, dish_id, restaurant_id')
+    .in('dish_id', uniqueDishIds)
+    .is('deleted_at', null)
+    .limit(200)
+  if (error) return new Map()
+
+  const byDish = new Map<string, { restaurants: Set<string>; posts: string[] }>()
+  for (const row of data ?? []) {
+    if (typeof row.dish_id !== 'string' || typeof row.id !== 'string') continue
+    const current = byDish.get(row.dish_id) ?? { restaurants: new Set<string>(), posts: [] }
+    if (typeof row.restaurant_id === 'string') current.restaurants.add(row.restaurant_id)
+    if (current.posts.length < 5) current.posts.push(row.id)
+    byDish.set(row.dish_id, current)
+  }
+
+  const evidence = new Map<string, SearchGraphEvidence>()
+  for (const [dishId, value] of byDish) {
+    const servingRestaurantIds = [...value.restaurants].slice(0, 5)
+    evidence.set(dishId, {
+      servingRestaurantIds,
+      servingRestaurantCount: value.restaurants.size,
+      supportingPostIds: value.posts,
+    })
+  }
+  return evidence
+}
+
+export async function fetchTrendingDishes(limit = 10): Promise<DishResult[]> {
+  const { data, error } = await supabase.rpc('fetch_trending_dishes', { limit_count: limit })
+  if (error) return []
+  const results = parseDishResults(data)
+  reportFilteredRows(data, results.length, 'fetch_trending_dishes')
+  return results
+}
+
 export async function fetchRecentSearchHistory(
   maxResults: number,
   lookbackDays: number
@@ -504,4 +505,17 @@ export async function fetchRecentSearchHistory(
   })
   if (error) throw error
   return data ?? []
+}
+
+export async function fetchSearchQualityMetrics(
+  lookbackDays = 30
+): Promise<SearchQualityMetricRow[]> {
+  const boundedLookbackDays = Math.max(1, Math.min(Math.floor(lookbackDays), 90))
+  const { data, error } = await supabase.rpc('get_search_quality_metrics', {
+    lookback_days: boundedLookbackDays,
+  })
+  if (error) throw error
+  const rows = Array.isArray(data) ? data.filter(isSearchQualityMetricRow) : []
+  reportFilteredRows(data, rows.length, 'search_quality_metrics_row_invalid')
+  return rows
 }

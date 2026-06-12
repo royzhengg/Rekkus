@@ -40,7 +40,8 @@ export type PostMediaValidationResult = {
 }
 
 function isAllowedExtension(extension: string | undefined): boolean {
-  return !!extension && (MEDIA_LIMITS.allowedExtensions as readonly string[]).includes(extension)
+  // No extension (e.g. ph:// URIs from iOS media library) — rely on MIME type check alone.
+  return !extension || (MEDIA_LIMITS.allowedExtensions as readonly string[]).includes(extension)
 }
 
 function isAllowedMimeType(mimeType: string | null | undefined): boolean {

@@ -44,8 +44,22 @@ if (
 }
 
 const useSearch = read('lib/hooks/useSearch.ts')
-if (/resolveSuburbQuery\([^)]*\)\.then/.test(useSearch)) {
+const searchPipeline = read('lib/search/pipeline.ts')
+const searchContext = read('lib/search/context.ts')
+if (/resolveSuburbQuery\([^)]*\)\.then/.test(useSearch) || /resolveSuburbQuery\([^)]*\)\.then/.test(searchContext)) {
   failures.push('search suburb DB resolution must be awaited before paid provider fallback.')
+}
+if (
+  !/runSearchPipeline/.test(useSearch) ||
+  !/decideSearchProviderFallback/.test(searchPipeline) ||
+  /fetchPlaceAutocompleteJson\(\s*(?:q|context\.query)\s*,\s*null\s*\)/.test(searchPipeline)
+) {
+  failures.push('main Search provider fallback must use the shared intent/locality gate and must not call Google fallback with null coordinates for ambiguous food queries.')
+}
+
+const useRestaurantSearch = read('lib/hooks/useRestaurantSearch.ts')
+if (!/decideSearchProviderFallback/.test(useRestaurantSearch) || !/fetchPredictions\(\s*query,\s*effectiveCoords\s*\)/.test(useRestaurantSearch)) {
+  failures.push('create-post restaurant tagging must keep the shared fallback gate and pass effective coords (userLocation.coords or explicit override) into provider predictions.')
 }
 
 walk('lib/hooks', (file, source) => {
@@ -90,12 +104,15 @@ if (/name=["']create["'][\s\S]{0,180}tabBarButton/.test(tabsLayout)) {
     'Create must not be rendered as a visible tab action; use the floating Create action (B-525).'
   )
 }
-if (
-  !/FloatingActionButton/.test(tabsLayout) ||
-  !/name=["']create["']\s+options=\{\{\s*href:\s*null/.test(tabsLayout)
-) {
+if (!/FloatingActionButton/.test(tabsLayout) || /<Tabs\.Screen\s+name=["']create["']/.test(tabsLayout)) {
   failures.push(
-    'root tabs must keep Create hidden from destination navigation and expose the floating action (B-525).'
+    'root tabs must expose the floating Create action without registering Create as a tab screen (B-408/B-525).'
+  )
+}
+
+if (!/<Stack\.Screen[\s\S]*name=["']create["'][\s\S]*presentation: Platform\.OS === ['"]ios['"] \? ['"]pageSheet['"] : ['"]modal['"]/.test(rootLayout)) {
+  failures.push(
+    'Create must be registered as a root modal stack route with iOS pageSheet presentation (B-408).'
   )
 }
 

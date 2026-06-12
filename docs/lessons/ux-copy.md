@@ -40,6 +40,15 @@ Always consult `design/UX_Copywriting_Guide.md` when designing new features or f
 - **"Must order" is stronger recommendation framing than "Best dish."** Use action-oriented language for fields that drive food discovery decisions.
 - **Posting confidence copy reduces pre-submission abandonment.** A single line ("Your review helps others discover great food.") addresses loss aversion at the point of highest drop-off risk. Place it directly above the primary action button.
 
+## Create-post Step 1 UX pass (2026-06-01)
+
+- **Dish tagging teaser fills the pre-media empty state and earns its place.** The space below the upload card is dead without it. An inline teaser card (icon + title + sub) surfaces the key differentiator (dish tagging) before the user has added any media — giving them intent before they arrive at the feature.
+- **Nearby count sub-label gives passive confidence before the user types.** Showing `"3 restaurants near you"` below an unfocused, empty location field tells the user the platform has context — reducing the barrier to tapping the field. Disappears on focus; does not conflict with the dropdown.
+- **Per-section ✓ validation converts a binary gate into visible progress.** Showing a small `✓` next to "Title" and "Media" section labels as each requirement is met makes the Next button feel earned rather than blocked. Users see momentum rather than a gate.
+- **Dead-click hints should be specific to the missing field, not generic.** "Add a photo and a title to continue" is less helpful than context-specific messages: "Add a photo to continue" (when title is done) or "Your title needs at least 3 characters" (when media is done). Always derive the hint from the actual state.
+- **Single primary CTA → action sheet reduces cognitive load at the moment of first commitment.** Two parallel buttons (Camera, Library) require a decision before the user has mentally committed to adding media. A single "Add photos" button defers the camera-vs-library choice to the action sheet, which is the correct moment.
+- **Must Order belongs on Step 1, not Step 2.** The field is short (60 chars) and directly tied to what the user is photographing. Capturing it on Step 1 (below the media strip, after photos are added) is contextually natural and lightens Step 2's cognitive load. The value flows unchanged to Step 3's Share preview via shared state in the parent.
+
 ## Zero-results states (2026-05-31)
 
 - **A blank screen is never an acceptable zero-results state.** Users who hit zero results have nowhere to go and bounce. Always offer ≥2 forward actions (chips, suggestions, or a clear next step). A message alone ("No results for X") is insufficient.

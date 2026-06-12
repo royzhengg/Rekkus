@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { ChevronRight, ArrowLeft } from '@/components/icons'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing } from '@/constants/Typography'
 import { PRIVACY_POLICY_URL, TERMS_URL } from '@/features/settings/PrivacyDataScreen'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useSettings } from '@/lib/contexts/SettingsContext'
@@ -324,7 +324,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       fontSize: fontSize.sm,
       fontWeight: fontWeight.semibold,
       color: c.text3,
-      letterSpacing: 0.6,
+      letterSpacing: letterSpacing.loose,
       textTransform: 'uppercase',
       marginTop: spacing[5],
       marginBottom: spacing.px6,

@@ -1,17 +1,22 @@
 import { act, renderHook } from '@testing-library/react-native'
 import type { SearchSuggestion } from '@/lib/hooks/searchTypes'
-import { useAutocomplete } from '@/lib/hooks/useAutocomplete'
-import { fetchSearchSuggestions } from '@/lib/services/search'
+import { __clearAutocompleteCacheForTest, useAutocomplete } from '@/lib/hooks/useAutocomplete'
+import { fetchSearchAutocomplete } from '@/lib/services/search'
 
 jest.mock('@/lib/featureFlags', () => ({
   isEnabled: jest.fn().mockReturnValue(true),
 }))
 
 jest.mock('@/lib/services/search', () => ({
-  fetchSearchSuggestions: jest.fn(),
+  fetchSearchAutocomplete: jest.fn(),
 }))
 
-const mockFetchSearchSuggestions = jest.mocked(fetchSearchSuggestions)
+jest.mock('@/lib/utils/locationResolver', () => ({
+  resolveFromAliasCache: jest.fn(),
+  resolveSuburbQuery: jest.fn().mockResolvedValue(null),
+}))
+
+const mockFetchSearchAutocomplete = jest.mocked(fetchSearchAutocomplete)
 
 function deferred<T>() {
   let complete: ((value: T) => void) | undefined
@@ -40,6 +45,7 @@ describe('useAutocomplete', () => {
   beforeEach(() => {
     jest.useFakeTimers()
     jest.clearAllMocks()
+    __clearAutocompleteCacheForTest()
   })
 
   afterEach(() => {
@@ -49,7 +55,7 @@ describe('useAutocomplete', () => {
   it('does not publish an older result after a newer query resolves first', async () => {
     const first = deferred<SearchSuggestion[]>()
     const second = deferred<SearchSuggestion[]>()
-    mockFetchSearchSuggestions.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
+    mockFetchSearchAutocomplete.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
 
     const { result, rerender } = renderHook<SearchSuggestion[], { query: string }>(
       ({ query }) => useAutocomplete(query, null),
@@ -76,7 +82,7 @@ describe('useAutocomplete', () => {
 
   it('invalidates an in-flight result immediately when the query is cleared', async () => {
     const pending = deferred<SearchSuggestion[]>()
-    mockFetchSearchSuggestions.mockReturnValueOnce(pending.promise)
+    mockFetchSearchAutocomplete.mockReturnValueOnce(pending.promise)
 
     const { result, rerender } = renderHook<SearchSuggestion[], { query: string }>(
       ({ query }) => useAutocomplete(query, null),
@@ -93,5 +99,41 @@ describe('useAutocomplete', () => {
     })
 
     expect(result.current).toEqual([])
+  })
+
+  it('clears suggestions when the autocomplete fetch rejects', async () => {
+    mockFetchSearchAutocomplete.mockRejectedValueOnce(new Error('network error'))
+
+    const { result } = renderHook(() => useAutocomplete('ramen', null))
+    await act(async () => {
+      jest.advanceTimersByTime(100)
+      await Promise.resolve()
+    })
+
+    expect(result.current).toEqual([])
+  })
+
+  it('dedupes identical prefix requests through the in-memory cache', async () => {
+    mockFetchSearchAutocomplete.mockResolvedValueOnce([suggestion('Ramen')])
+
+    const { result, rerender } = renderHook<SearchSuggestion[], { query: string }>(
+      ({ query }) => useAutocomplete(query, null),
+      { initialProps: { query: 'ramen' } }
+    )
+
+    await act(async () => {
+      jest.advanceTimersByTime(100)
+      await Promise.resolve()
+    })
+    expect(result.current).toEqual([suggestion('Ramen')])
+
+    rerender({ query: ' ramen ' })
+    await act(async () => {
+      jest.advanceTimersByTime(100)
+      await Promise.resolve()
+    })
+
+    expect(result.current).toEqual([suggestion('Ramen')])
+    expect(mockFetchSearchAutocomplete).toHaveBeenCalledTimes(1)
   })
 })

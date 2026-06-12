@@ -13,7 +13,7 @@ import { Svg, Polyline } from 'react-native-svg'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
@@ -158,7 +158,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     backText: { fontSize: fontSize.md, color: c.text2 },
     stepIndicator: { fontSize: fontSize.sm, color: c.text3 },
     scroll: { padding: spacing[4], paddingTop: spacing.px28, paddingBottom: spacing[8] },
-    title: { fontSize: fontSize['5xl'], fontWeight: fontWeight.medium, color: c.text, marginBottom: spacing[1], letterSpacing: -0.3 },
+    title: { fontSize: fontSize['5xl'], fontWeight: fontWeight.medium, color: c.text, marginBottom: spacing[1], letterSpacing: letterSpacing.tightHeading },
     subtitle: { fontSize: fontSize.md, color: c.text2, marginBottom: spacing.px28 },
     topicGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[4] },
     topicChip: {

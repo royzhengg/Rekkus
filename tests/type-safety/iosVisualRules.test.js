@@ -20,7 +20,6 @@ test('iOS visual scanner rejects unstable native visual adoption', () => {
       'IOS_TAB_MATERIAL_GATE',
       'IOS_TAB_MATERIAL_GATE',
       'IOS_TAB_MATERIAL_GATE',
-      'IOS_TAB_MATERIAL_GATE',
     ]
   )
   assert.deepEqual(

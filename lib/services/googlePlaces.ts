@@ -117,7 +117,11 @@ export async function fetchPlaceAutocompleteJson(
     return { predictions: [] }
   }
 
-  const locationParam = location ? `&location=${location.lat},${location.lng}&radius=10000` : ''
+  // 50 km radius with strictbounds restricts Google to the metro area, preventing global
+  // text-match results (e.g. "Beefbar Paris") from outranking nearby Sydney venues.
+  const locationParam = location
+    ? `&location=${location.lat},${location.lng}&radius=50000&strictbounds=true`
+    : ''
   const sessionTokenParam = sessionToken ? `&sessiontoken=${encodeURIComponent(sessionToken)}` : ''
   const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(q)}${locationParam}${sessionTokenParam}&types=establishment&key=${GOOGLE_PLACES_KEY}`
   return (

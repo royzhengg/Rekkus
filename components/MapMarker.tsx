@@ -4,7 +4,7 @@ import { Svg, Path, Circle } from 'react-native-svg'
 import { elevation } from '@/constants/Elevation'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export const MapMarker = React.memo(function MapMarker({ name }: { name?: string }) {
@@ -24,7 +24,7 @@ export const MapMarker = React.memo(function MapMarker({ name }: { name?: string
           }}
         >
           <Text
-            style={{ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: c.text, letterSpacing: 0.1 }}
+            style={{ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: c.text, letterSpacing: letterSpacing.fine }}
             numberOfLines={1}
           >
             {name}

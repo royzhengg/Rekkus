@@ -15,6 +15,7 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
+import type { SearchAttribution } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
@@ -22,9 +23,22 @@ import { haptic } from '@/lib/haptics'
 import { useCollectionPicker } from '@/lib/hooks/useCollectionPicker'
 import { useDishDetail } from '@/lib/hooks/useDishDetail'
 import { routes } from '@/lib/routes'
+import { routeParamNumber, routeParamString } from '@/lib/utils/routeParams'
 
 export default function DishDetailScreen() {
-  const { dishId = '' } = useLocalSearchParams<{ dishId?: string }>()
+  const {
+    dishId = '',
+    searchSessionId,
+    searchQuery,
+    searchResultType,
+    searchResultPosition,
+  } = useLocalSearchParams<{
+    dishId?: string
+    searchSessionId?: string
+    searchQuery?: string
+    searchResultType?: string
+    searchResultPosition?: string
+  }>()
   const router = useRouter()
   const { user } = useAuth()
   const { requireAuth } = useAuthGate()
@@ -35,10 +49,25 @@ export default function DishDetailScreen() {
   const [pickerVisible, setPickerVisible] = useState(false)
   const [confirmUnsave, setConfirmUnsave] = useState(false)
   const [operationError, setOperationError] = useState<string | null>(null)
+  const searchAttribution = useMemo<SearchAttribution | null>(() => {
+    const sessionId = routeParamString(searchSessionId)
+    const query = routeParamString(searchQuery)
+    const resultType = routeParamString(searchResultType)
+    const position = routeParamNumber(searchResultPosition)
+    if (
+      !sessionId ||
+      !query ||
+      position == null ||
+      (resultType !== 'post' && resultType !== 'restaurant' && resultType !== 'user' && resultType !== 'dish')
+    ) {
+      return null
+    }
+    return { searchSessionId: sessionId, query, resultType, resultPosition: position }
+  }, [searchQuery, searchResultPosition, searchResultType, searchSessionId])
 
   useEffect(() => {
-    if (detail.dish) analytics.viewDish(user?.id ?? null, detail.dish.id)
-  }, [detail.dish, user?.id])
+    if (detail.dish) analytics.viewDish(user?.id ?? null, detail.dish.id, searchAttribution)
+  }, [detail.dish, searchAttribution, user?.id])
 
   async function handleBookmark() {
     setOperationError(null)
@@ -49,7 +78,7 @@ export default function DishDetailScreen() {
     try {
       await detail.toggleSaved()
       if (!detail.saved && user) {
-        analytics.saveDish(user.id, dishId)
+        analytics.saveDish(user.id, dishId, searchAttribution)
         void haptic.confirmSave()
       }
     } catch {

@@ -1,0 +1,32 @@
+{
+  "graph:open": [
+    { "modifiers": ["Mod"], "key": "G" }
+  ],
+  "switcher:open": [
+    { "modifiers": ["Mod"], "key": "O" }
+  ],
+  "backlink:open": [
+    { "modifiers": ["Mod", "Shift"], "key": "B" }
+  ],
+  "templater-obsidian:insert-templater": [
+    { "modifiers": ["Mod", "Shift"], "key": "T" }
+  ],
+  "global-search:open": [
+    { "modifiers": ["Mod", "Shift"], "key": "F" }
+  ],
+  "app:go-back": [
+    { "modifiers": ["Mod"], "key": "[" }
+  ],
+  "app:go-forward": [
+    { "modifiers": ["Mod"], "key": "]" }
+  ],
+  "editor:toggle-preview": [
+    { "modifiers": ["Mod", "Shift"], "key": "P" }
+  ],
+  "bookmarks:open": [
+    { "modifiers": ["Mod", "Shift"], "key": "K" }
+  ],
+  "outline:open": [
+    { "modifiers": ["Mod", "Shift"], "key": "O" }
+  ]
+}

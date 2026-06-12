@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -25,6 +25,8 @@ import {
   fetchUserIdByUsername,
   fetchIsFollowing,
   fetchFollowCounts,
+  removeFollowChannel,
+  subscribeToFollowChanges,
 } from '@/lib/services/users'
 import { contributorBadgeLabel } from '@/lib/utils/contributorStatus'
 import { parseLikes } from '@/lib/utils/format'
@@ -34,7 +36,7 @@ export default function UserProfileScreen() {
   const router = useRouter()
   const { user } = useAuth()
   const { requireAuth } = useAuthGate()
-  const { runDeferredMutation, requireOnline } = useConnectivity()
+  const { runDeferredMutation, requireOnline, syncEpoch } = useConnectivity()
   const { posts } = usePosts()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
@@ -49,21 +51,41 @@ export default function UserProfileScreen() {
 
   const loadUserData = useCallback(async () => {
     if (!username) return
-    const uid = await fetchUserIdByUsername(username)
-    setTargetUserId(uid)
-    if (uid) {
-      const counts = await fetchFollowCounts(uid)
-      setFollowCounts(counts)
-      if (user) {
-        const isFollowing = await fetchIsFollowing(user.id, uid)
-        setFollowing(isFollowing)
+    try {
+      const uid = await fetchUserIdByUsername(username)
+      setTargetUserId(uid)
+      if (uid) {
+        const counts = await fetchFollowCounts(uid)
+        setFollowCounts(counts)
+        if (user) {
+          const isFollowing = await fetchIsFollowing(user.id, uid)
+          setFollowing(isFollowing)
+        }
       }
+    } catch {
+      setFollowCounts(null)
     }
   }, [username, user])
 
   useEffect(() => {
     void loadUserData()
   }, [loadUserData])
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadUserData()
+    }, [loadUserData])
+  )
+
+  useEffect(() => {
+    if (syncEpoch > 0) void loadUserData()
+  }, [loadUserData, syncEpoch])
+
+  useEffect(() => {
+    if (!targetUserId) return
+    const channel = subscribeToFollowChanges(targetUserId, () => { void loadUserData() })
+    return () => { removeFollowChannel(channel) }
+  }, [loadUserData, targetUserId])
 
   const mockUser = demoUsers[username ?? '']
   const userPosts = useMemo(() => posts.filter(p => p.creator === username), [posts, username])
@@ -110,6 +132,10 @@ export default function UserProfileScreen() {
       if (!result.queued) {
         const counts = await fetchFollowCounts(targetUserId)
         setFollowCounts(counts)
+      } else {
+        setFollowCounts(prev => prev
+          ? { ...prev, followers: Math.max(0, prev.followers + (next ? 1 : -1)) }
+          : prev)
       }
     } catch {
       setFollowing(previous)
@@ -219,6 +245,8 @@ export default function UserProfileScreen() {
           locationLabel={locationLabel}
           avgFoodRating={avgFoodRating}
           totalLikesLabel={totalLikesLabel}
+          onPressFollowers={username ? () => router.push(routes.userFollows(username, 'followers')) : undefined}
+          onPressFollowing={username ? () => router.push(routes.userFollows(username, 'following')) : undefined}
         />
 
         {operationError ? (

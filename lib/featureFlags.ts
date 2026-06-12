@@ -48,7 +48,14 @@ const flags = {
     reviewAt: '2026-08-18',
     description: 'Enables multiple recoverable create-post drafts.',
   },
-
+  createPostProgressDots: {
+    enabled: false,
+    owner: 'Create',
+    state: 'shipped',
+    createdAt: '2026-06-01',
+    reviewAt: '2026-07-01',
+    description: 'B-410 progress dots — shipped as always-on; flag retained as tombstone to prevent crashes from stale bundles.',
+  },
   // Social
   directMessages: {
     enabled: true,

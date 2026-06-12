@@ -160,7 +160,7 @@ const DEFAULT_EVIDENCE_RULES = new Map([
 
 function isDocsPolicyOrRestructureItem(row) {
   return /\.md|docs?|documentation|restructure|governance|policy|strategy|plan|template|index|readme|adr|cadence|current-state|observability|foundation|maturity|requirements|review|taxonomy|debt|audit|extract|split|refactor/i.test(
-    `${row.item} ${row.why}`,
+    `${row.item} ${row.problem}`,
   )
 }
 
@@ -206,8 +206,11 @@ function checkBacklog(rows, result) {
 
   const statusPattern = /^(\[[ x~]\]|Deprioritized)$/
   for (const row of rows) {
-    if (row.cellCount !== 11) {
-      result.failures.push(`${row.id} must have 11 table cells; found ${row.cellCount}.`)
+    if (row.cellCount !== 7) {
+      result.failures.push(
+        `${row.id} must have 7 table cells; found ${row.cellCount}. ` +
+        `Check for unescaped | in the Problem or Implementations column — use 'or' instead of |.`
+      )
     }
     if (!statusPattern.test(row.status)) {
       result.failures.push(`${row.id} has invalid status "${row.status}".`)
@@ -223,9 +226,6 @@ function checkBacklog(rows, result) {
     }
     if (row.status === '[x]' && row.implementationType === 'none') {
       result.failures.push(`${row.id} is marked [x] but has Implementation Type none.`)
-    }
-    if (row.status === '[ ]' && !row.command.startsWith('Do: ')) {
-      result.failures.push(`${row.id} is open but Suggested AI Command does not start with "Do: ".`)
     }
     if (row.implementation.startsWith('Shipped:') && row.status !== '[x]') {
       result.failures.push(`${row.id} has a shipped implementation but is not marked [x].`)
@@ -249,40 +249,30 @@ function checkBacklog(rows, result) {
 }
 
 function checkBacklogSpecificity(rows, result) {
+  // AI Command column was removed (absorbed into Problem). Check Problem has a Do: instruction.
   const vagueItemPattern = /\b(setup|governance|plan|strategy|requirements|docs?|system)\b$/i
   const bareDocPattern = /^`?(?:docs|product|design|business|operations)\//
-  const missingCommands = []
   const vagueItems = []
-  const weakCommands = []
+  const missingDo = []
 
   for (const row of rows) {
-    if (!row.command) {
-      missingCommands.push(row.id)
-    }
     if (vagueItemPattern.test(row.item) || bareDocPattern.test(row.item)) {
       vagueItems.push(row.id)
     }
-    if (
-      row.command &&
-      !/\b(implement|add|update|verify|remind Roy|document|reopen|ship|create|wire)\b/i.test(row.command)
-    ) {
-      weakCommands.push(row.id)
+    // Problem column should contain a Do: instruction for open items
+    if (row.status === '[ ]' && row.problem && !/\bDo:\s/i.test(row.problem)) {
+      missingDo.push(row.id)
     }
   }
 
-  if (missingCommands.length) {
-    result.warnings.push(
-      `Backlog specificity: ${missingCommands.length} rows should add Suggested AI Commands when next touched (${missingCommands.slice(0, 8).join(', ')}${missingCommands.length > 8 ? ', ...' : ''}).`,
-    )
-  }
   if (vagueItems.length) {
     result.warnings.push(
       `Backlog specificity: ${vagueItems.length} rows have vague item names to tighten when next touched (${vagueItems.slice(0, 8).join(', ')}${vagueItems.length > 8 ? ', ...' : ''}).`,
     )
   }
-  if (weakCommands.length) {
+  if (missingDo.length) {
     result.warnings.push(
-      `Backlog specificity: ${weakCommands.length} commands should name the delivery action (${weakCommands.slice(0, 8).join(', ')}${weakCommands.length > 8 ? ', ...' : ''}).`,
+      `Backlog specificity: ${missingDo.length} open rows are missing a "Do: ..." instruction in Problem (${missingDo.slice(0, 8).join(', ')}${missingDo.length > 8 ? ', ...' : ''}).`,
     )
   }
 }

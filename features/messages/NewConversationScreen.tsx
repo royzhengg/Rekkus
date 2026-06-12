@@ -17,7 +17,7 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
@@ -442,7 +442,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingTop: spacing[1],
       paddingBottom: spacing.px6,
       textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      letterSpacing: letterSpacing.wide,
     },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing[6] },

@@ -27,6 +27,7 @@ import { Skeleton, SkeletonText } from '@/components/ui/Skeleton'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
+import type { SearchAttribution } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
@@ -42,6 +43,7 @@ import { addPostReaction, deletePost, fetchPostSocialState, removePostReaction, 
 import { upsertResolvedRestaurant } from '@/lib/services/restaurants'
 import { fetchIsFollowing, fetchUserIdByUsername } from '@/lib/services/users'
 import { navigateToRestaurantFromPost } from '@/lib/utils/restaurantNavigation'
+import { routeParamNumber, routeParamString } from '@/lib/utils/routeParams'
 import { PostActionsBar } from './PostActionsBar'
 import { PostComments } from './PostComments'
 import { PostDetailSheets } from './PostDetailSheets'
@@ -51,7 +53,21 @@ import { PostRestaurantCard } from './PostRestaurantCard'
 import type { TextInput } from 'react-native'
 
 export default function PostDetailScreen() {
-  const { postId, id } = useLocalSearchParams<{ postId?: string; id?: string }>()
+  const {
+    postId,
+    id,
+    searchSessionId,
+    searchQuery,
+    searchResultType,
+    searchResultPosition,
+  } = useLocalSearchParams<{
+    postId?: string
+    id?: string
+    searchSessionId?: string
+    searchQuery?: string
+    searchResultType?: string
+    searchResultPosition?: string
+  }>()
   const resolvedPostId = postId ?? id ?? ''
   const router = useRouter()
   const { posts } = usePosts()
@@ -91,6 +107,21 @@ export default function PostDetailScreen() {
   const [creatorUserId, setCreatorUserId] = useState<string | null>(null)
   const isOwner = !!user?.id && !!resolvedPost?.userId && user.id === resolvedPost.userId
   const collectionPicker = useCollectionPicker(user?.id, 'post', resolvedPost?.dbId)
+  const searchAttribution = useMemo<SearchAttribution | null>(() => {
+    const sessionId = routeParamString(searchSessionId)
+    const query = routeParamString(searchQuery)
+    const resultType = routeParamString(searchResultType)
+    const position = routeParamNumber(searchResultPosition)
+    if (
+      !sessionId ||
+      !query ||
+      position == null ||
+      (resultType !== 'post' && resultType !== 'restaurant' && resultType !== 'user' && resultType !== 'dish')
+    ) {
+      return null
+    }
+    return { searchSessionId: sessionId, query, resultType, resultPosition: position }
+  }, [searchQuery, searchResultPosition, searchResultType, searchSessionId])
 
   const { handleSafetyAction, reportComment } = usePostSafetyActions({
     user,
@@ -147,13 +178,13 @@ export default function PostDetailScreen() {
     if (trackedPostView.current !== resolvedPost.dbId) {
       trackedPostView.current = resolvedPost.dbId
       dwellStartedAt.current = Date.now()
-      analytics.viewPost(user?.id ?? null, resolvedPost.dbId, resolvedPost.cuisine_type)
+      analytics.viewPost(user?.id ?? null, resolvedPost.dbId, resolvedPost.cuisine_type, searchAttribution)
     }
     return () => {
       const duration = Date.now() - dwellStartedAt.current
       if (duration >= 3000) analytics.dwellPost(user?.id ?? null, resolvedPost.dbId, duration)
     }
-  }, [resolvedPost?.cuisine_type, resolvedPost?.dbId, user?.id])
+  }, [resolvedPost?.cuisine_type, resolvedPost?.dbId, searchAttribution, user?.id])
 
   async function toggleLike() {
     if (!resolvedPost?.dbId || !user) return
@@ -195,6 +226,7 @@ export default function PostDetailScreen() {
           postId: resolvedPost.dbId,
           targetState: true,
           cuisineType: resolvedPost.cuisine_type ?? null,
+          searchAttribution,
         })
         void haptic.confirmSave()
         showToast('Post saved')
@@ -255,7 +287,7 @@ export default function PostDetailScreen() {
         })
         return
       }
-      analytics.savePlace(user.id, restaurantId, resolvedPost?.cuisine_type)
+      analytics.savePlace(user.id, restaurantId, resolvedPost?.cuisine_type, searchAttribution)
     }
   }
 

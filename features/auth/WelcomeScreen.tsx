@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Svg, Path } from 'react-native-svg'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontFamily, fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 function GoogleIcon() {
@@ -79,15 +79,15 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     container: { flex: 1, backgroundColor: c.bg, paddingHorizontal: spacing[4] },
     brand: { flex: 1, justifyContent: 'center', paddingBottom: spacing[5] },
     wordmark: {
-      fontFamily: 'DMSerifDisplay-Regular',
+      fontFamily: fontFamily.serif,
       fontSize: fontSize.display,
       color: c.text,
-      letterSpacing: -1,
+      letterSpacing: letterSpacing.display,
       marginBottom: spacing[4],
     },
     dot: { color: c.accent },
-    tagline: { fontSize: fontSize['2.5xl'], color: c.text, lineHeight: lineHeight.hero, letterSpacing: -0.5, marginBottom: spacing[2] },
-    subTagline: { fontSize: fontSize.lg, color: c.text2, letterSpacing: -0.1 },
+    tagline: { fontSize: fontSize['2.5xl'], color: c.text, lineHeight: lineHeight.hero, letterSpacing: letterSpacing.tighterHeading, marginBottom: spacing[2] },
+    subTagline: { fontSize: fontSize.lg, color: c.text2, letterSpacing: letterSpacing.snug },
     actions: { paddingBottom: spacing[2], gap: spacing.px10 },
     primaryBtn: {
       backgroundColor: c.text,

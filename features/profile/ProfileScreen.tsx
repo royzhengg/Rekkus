@@ -1,4 +1,4 @@
-import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -9,9 +9,10 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { IconButton } from '@/components/ui/IconButton'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
+import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { usePosts } from '@/lib/contexts/PostsContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { demoCurrentUser } from '@/lib/dataSources/demoData'
@@ -19,7 +20,12 @@ import { useLikedPosts } from '@/lib/hooks/useLikedPosts'
 import { usePagedList } from '@/lib/hooks/usePagedList'
 import { useSavedLocations } from '@/lib/hooks/useSavedLocations'
 import { routes } from '@/lib/routes'
-import { fetchProfile } from '@/lib/services/users'
+import {
+  fetchFollowCounts,
+  fetchProfile,
+  removeFollowChannel,
+  subscribeToFollowChanges,
+} from '@/lib/services/users'
 import { contributorBadgeLabel } from '@/lib/utils/contributorStatus'
 import { parseLikes } from '@/lib/utils/format'
 
@@ -29,6 +35,7 @@ type ProfileActionKey = TabKey | 'saved'
 const COST_RANGE_LABELS: Record<number, string> = { 1: 'Budget', 2: 'Mid-range', 3: 'Pricey', 4: 'Fine dining' }
 
 type ProfileInfo = {
+  username: string
   full_name: string | null
   bio: string | null
   suburb: string | null
@@ -41,11 +48,13 @@ export default function ProfileScreen() {
   const { posts } = usePosts()
   const { user } = useAuth()
   const { requireAuth } = useAuthGate()
+  const { syncEpoch } = useConnectivity()
   const router = useRouter()
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null)
+  const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const { savedLocations, refresh: refreshLocations } = useSavedLocations(user?.id)
   const {
@@ -77,13 +86,44 @@ export default function ProfileScreen() {
     if (data) setProfileInfo(data)
   }, [user])
 
+  const loadFollowCounts = useCallback(async () => {
+    if (!user) {
+      setFollowCounts(null)
+      return
+    }
+    try {
+      const counts = await fetchFollowCounts(user.id)
+      setFollowCounts(counts)
+    } catch {
+      setFollowCounts(null)
+    }
+  }, [user])
+
   useEffect(() => {
     void loadProfileData()
-  }, [loadProfileData])
+    void loadFollowCounts()
+  }, [loadFollowCounts, loadProfileData])
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadProfileData()
+      void loadFollowCounts()
+    }, [loadFollowCounts, loadProfileData])
+  )
+
+  useEffect(() => {
+    if (syncEpoch > 0) void loadFollowCounts()
+  }, [loadFollowCounts, syncEpoch])
+
+  useEffect(() => {
+    if (!user) return
+    const channel = subscribeToFollowChanges(user.id, () => { void loadFollowCounts() })
+    return () => { removeFollowChannel(channel) }
+  }, [loadFollowCounts, user])
 
   async function handleRefresh() {
     setRefreshing(true)
-    await Promise.all([loadProfileData(), refreshLocations(), refreshLikedPosts()])
+    await Promise.all([loadProfileData(), loadFollowCounts(), refreshLocations(), refreshLikedPosts()])
     setRefreshing(false)
   }
 
@@ -143,6 +183,7 @@ export default function ProfileScreen() {
   }, [profileInfo])
 
   const displayName = profileInfo?.full_name ?? 'Sarah Lee'
+  const profileUsername = profileInfo?.username ?? demoCurrentUser.username
   const bio =
     profileInfo?.bio ??
     'Sydney-based food lover hunting hidden gems and honest eats. No sponsored content, ever.'
@@ -185,7 +226,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
         <View style={styles.iconSpacer} />
-        <Text style={styles.username}>@{demoCurrentUser.username}</Text>
+        <Text style={styles.username}>@{profileUsername}</Text>
         <IconButton accessibilityLabel="Open settings" onPress={() => router.push('/settings')}>
           <SettingsIcon />
         </IconButton>
@@ -208,13 +249,15 @@ export default function ProfileScreen() {
           displayName={displayName}
           badgeLabel={badgeLabel}
           postCount={myPosts.length}
-          followersLabel="1.4k"
-          followingLabel={312}
+          followersLabel={followCounts?.followers ?? '—'}
+          followingLabel={followCounts?.following ?? '—'}
           bio={bio}
           locationLabel={locationLabel}
           avgFoodRating={avgFoodRating}
           totalLikesLabel={totalLikesLabel}
           savedSpotsCount={savedLocations.length}
+          onPressFollowers={() => router.push(routes.userFollows(profileUsername, 'followers'))}
+          onPressFollowing={() => router.push(routes.userFollows(profileUsername, 'following'))}
         />
 
         {/* Taste profile */}
@@ -359,7 +402,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingVertical: spacing.px14,
       gap: spacing.px10,
     },
-    tasteHeading: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: c.text3, letterSpacing: 0.8 },
+    tasteHeading: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: c.text3, letterSpacing: letterSpacing.wider },
     tasteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], flexWrap: 'wrap' },
     tasteLabel: { fontSize: fontSize.sm, color: c.text3, width: 80 },
     tasteValue: { flex: 1, fontSize: fontSize.bodySm, color: c.text2 },

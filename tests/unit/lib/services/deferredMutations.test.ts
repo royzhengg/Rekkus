@@ -52,14 +52,22 @@ const mockGetItem = jest.mocked(AsyncStorage.getItem)
 const mockSetItem = jest.mocked(AsyncStorage.setItem)
 const mockRemoveItem = jest.mocked(AsyncStorage.removeItem)
 const mockActionError = jest.mocked(analytics.actionError)
-const now = '2026-05-27T00:00:00.000Z'
+// Fixed epoch used for both mutation timestamps and the mocked Date.now().
+// Keeping these in sync prevents TTL pruning from expiring test mutations as time passes.
+const TEST_EPOCH = '2026-05-27T00:00:00.000Z'
+const now = TEST_EPOCH
 
 describe('deferred mutations', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    jest.spyOn(Date, 'now').mockReturnValue(new Date(TEST_EPOCH).getTime())
     mockGetItem.mockResolvedValue(null)
     mockSetItem.mockResolvedValue(undefined)
     mockRemoveItem.mockResolvedValue(undefined)
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
   })
 
   it('rejects content-bearing or invalid stored records at the boundary', () => {

@@ -13,10 +13,6 @@ let failed = false
 let warned = false
 
 const locAllowlist = new Set([
-  // B-282: dish resolution (+15 LOC) pushed CreatePostScreen over 600; extract handlePost helpers to reduce — B-282
-  'features/create-post/CreatePostScreen.tsx',
-  // B-239: explicit offline recovery covers rich message submissions in the existing composer workflow.
-  'features/messages/MessageInput.tsx',
   // B-239: reversible inbox preference sync remains coordinated in the existing conversation list workflow.
   'features/messages/MessagesListScreen.tsx',
   // B-239: place save and governance recovery remain coordinated in the existing detail workflow.
@@ -25,10 +21,16 @@ const locAllowlist = new Set([
   'features/restaurants/RestaurantsTabScreen.tsx',
   // B-282: dish detail additions pushed PostDetailScreen over 600; extract detail panels to reduce — B-282
   'features/posts/PostDetailScreen.tsx',
+  // B-568: search enrichment (trending user_count, dish intent, engagement signals) pushed SearchScreen over 600; extract discovery hooks to reduce — B-568
+  'features/search/SearchScreen.tsx',
+  // B-570: unified SearchCandidate ranking and diversity pass added to SearchResultsTab; extract ranking hooks to reduce — B-570
+  'features/search/SearchResultsTab.tsx',
 ])
 const sharedLocAllowlist = new Map([
   // B-405: dish tag onboarding tooltip added first-time disclosure; extract tag modal to reduce — B-405
   ['components/post-create/StepMedia.tsx', 'B-405: dish tag onboarding tooltip added first-time disclosure; extract tag modal to reduce — B-405'],
+  // B-587: place stub cache + upsertPlaceStubs added; extract provider helpers to reduce — B-587
+  ['lib/services/restaurants.ts', 'B-587: place stub cache + upsertPlaceStubs added; extract provider helpers to reduce — B-587'],
 ])
 const supabaseAllowlist = new Map()
 

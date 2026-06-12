@@ -31,7 +31,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight, maxFontSizeMultiplier } from '@/constants/Typography'
+import { fontFamily, fontSize, fontWeight, letterSpacing, lineHeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { SPRING_SNAPPY } from '@/lib/animations'
 import { useAuth } from '@/lib/contexts/AuthContext'
@@ -425,10 +425,10 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       borderBottomColor: c.border,
     },
     wordmark: {
-      fontFamily: 'DMSerifDisplay-Regular',
+      fontFamily: fontFamily.serif,
       fontSize: fontSize['3xl'],
       color: c.text,
-      letterSpacing: -0.5,
+      letterSpacing: letterSpacing.tighterHeading,
     },
     wordmarkDot: { color: c.accent },
     topActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },

@@ -22,3 +22,4 @@ This file is navigation only. Before work, identify the relevant topic below and
 | [Search](lessons/search.md) | Search data, caching, provider fallback, and location resolution |
 | [Phase 0 Audit](lessons/phase0-audit.md) | Historical stabilisation findings and their prevention rules |
 | [Permissions](lessons/permissions.md) | Permission request timing, canAskAgain recovery, and form autofill metadata |
+| [Media](lessons/media.md) | Native picker timing, modal-over-modal iOS constraint, and camera/library launch patterns |

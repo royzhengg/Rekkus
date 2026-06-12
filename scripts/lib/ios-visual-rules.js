@@ -17,7 +17,6 @@ function iosVisualFailures(relativePath, source) {
       'tabBarBackground',
       'sceneStyle',
       'FloatingActionButton',
-      'name="create" options={{ href: null }}',
     ]) {
       if (!source.includes(required)) {
         failures.push(

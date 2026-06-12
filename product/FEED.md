@@ -13,6 +13,8 @@ The split is:
 - **Following**: filters to followed usernames from Supabase and ranks by recency-decayed likes, quality, and post completeness.
 - **Discover**: scores the shared post pool with local/trending/nearby/quality/search-affinity/topic signals and cuisine diversity.
 
+Search and Discovery may reuse entities, taste signals, and aggregate trends, but they do not share a ranking objective. Search is intent-led retrieval for a stated query; Discover is taste-led exploration for useful food inspiration before the user knows exactly what to ask for.
+
 Feed pagination uses a first Supabase page plus client-visible paging in a single-column content-first list; additional Supabase pages are requested through `PostsContext.loadMore()` when available. Feed views and refreshes emit privacy-safe diagnostic events, and refresh can surface a lightweight new-post indicator when the top ranked post changes.
 
 The feed now renders shared post surfaces through `components/post/PostCard.tsx`, `PostMediaCarousel`, and `PostPicksSummary` so mixed media, Rekkus Picks, and legacy posts share one display path. The hierarchy is media, creator, dish/title/body, Rekkus Picks, place, tags, then actions. `PostUploadProgress` appears above the feed while a create-post job is preparing/uploading/publishing, then shows posted success or failed dismiss state.

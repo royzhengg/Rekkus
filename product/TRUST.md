@@ -23,6 +23,16 @@ Trust is the condition for discovery to feel useful. Users should believe recomm
 - Report, block, dispute, and takedown paths for UGC and restaurant review issues.
 - Ranking explanations that name the main factors without pretending to reveal exact weights.
 
+## Search Trust And Abuse
+
+Search ranking must remain deterministic, inspectable, and hard to manipulate at small scale.
+
+- Exact-match, nearby, popular-nearby, and trending labels are explanation metadata, not paid placement.
+- Provider fallback rows do not receive first-party trust badges such as `Exact match`, `Near you`, or `Popular nearby`.
+- Keyword stuffing receives a bounded ranking penalty when candidate display text repeats query tokens more than 3 times.
+- Duplicate place candidates sharing a provider identity collapse deterministically, preferring local Rekkus evidence over provider fallback.
+- Public copy may explain ranking factors at a high level, but exact weights stay internal to reduce abuse.
+
 ## Current Safety Foundation
 
 - Posts, comments, and profiles have a first report path backed by `content_reports`.

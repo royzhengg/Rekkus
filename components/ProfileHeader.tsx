@@ -1,8 +1,8 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet, Pressable } from 'react-native'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { Avatar } from './Avatar'
 import { PinIcon } from './icons'
@@ -21,6 +21,8 @@ type Props = {
   avgFoodRating?: string | null
   totalLikesLabel?: string | null
   savedSpotsCount?: number
+  onPressFollowers?: (() => void) | undefined
+  onPressFollowing?: (() => void) | undefined
 }
 
 // Shared profile header used on own profile and user profile screens.
@@ -40,9 +42,23 @@ export function ProfileHeader({
   avgFoodRating,
   totalLikesLabel,
   savedSpotsCount,
+  onPressFollowers,
+  onPressFollowing,
 }: Props) {
   const c = useThemeColors()
   const styles = React.useMemo(() => makeStyles(c), [c])
+  const followersContent = (
+    <>
+      <Text style={styles.statNum}>{followersLabel}</Text>
+      <Text style={styles.statLabel}>Followers</Text>
+    </>
+  )
+  const followingContent = (
+    <>
+      <Text style={styles.statNum}>{followingLabel}</Text>
+      <Text style={styles.statLabel}>Following</Text>
+    </>
+  )
 
   return (
     <>
@@ -65,15 +81,31 @@ export function ProfileHeader({
           <Text style={styles.statLabel}>Posts</Text>
         </View>
         <View style={styles.statDivider} />
-        <View style={styles.statCol}>
-          <Text style={styles.statNum}>{followersLabel}</Text>
-          <Text style={styles.statLabel}>Followers</Text>
-        </View>
+        {onPressFollowers ? (
+          <Pressable
+            style={styles.statCol}
+            onPress={onPressFollowers}
+            accessibilityRole="button"
+            accessibilityLabel="Open followers"
+          >
+            {followersContent}
+          </Pressable>
+        ) : (
+          <View style={styles.statCol}>{followersContent}</View>
+        )}
         <View style={styles.statDivider} />
-        <View style={styles.statCol}>
-          <Text style={styles.statNum}>{followingLabel}</Text>
-          <Text style={styles.statLabel}>Following</Text>
-        </View>
+        {onPressFollowing ? (
+          <Pressable
+            style={styles.statCol}
+            onPress={onPressFollowing}
+            accessibilityRole="button"
+            accessibilityLabel="Open following"
+          >
+            {followingContent}
+          </Pressable>
+        ) : (
+          <View style={styles.statCol}>{followingContent}</View>
+        )}
       </View>
 
       {/* Bio + location */}
@@ -124,7 +156,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     },
     statCol: { flex: 1, alignItems: 'center', paddingVertical: spacing.px14 },
     statDivider: { width: 0.5, backgroundColor: c.border, marginVertical: spacing.px10 },
-    statNum: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: c.text, letterSpacing: -0.3 },
+    statNum: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: c.text, letterSpacing: letterSpacing.tightHeading },
     statLabel: { fontSize: fontSize.xs, color: c.text3, marginTop: spacing.px2 },
     bioBlock: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[2] },
     bio: { fontSize: fontSize.bodySm, color: c.text2, lineHeight: lineHeight.small },

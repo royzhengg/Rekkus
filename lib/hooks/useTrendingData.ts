@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react'
+import { fetchTrendingDishes } from '../services/search'
 import {
   fetchPopularPlacesByIds,
   fetchTrendingPlaceClicks,
   fetchTrendingPostEvents,
   fetchTrendingSearches,
-} from '../services/search'
-import type { PlaceResult } from './searchTypes'
+} from '../services/trending'
+import type { DishResult, PlaceResult } from './searchTypes'
 
 export type TrendingData = {
   trendingSearches: string[]
   trendingPlaceIds: string[]
   trendingPostIds: string[]
   popularPlaces: PlaceResult[]
+  trendingDishes: DishResult[]
 }
 
 export function useTrendingData(nearCity?: string | null): TrendingData {
@@ -19,6 +21,7 @@ export function useTrendingData(nearCity?: string | null): TrendingData {
   const [trendingPlaceIds, setTrendingPlaceIds] = useState<string[]>([])
   const [trendingPostIds, setTrendingPostIds] = useState<string[]>([])
   const [popularPlaces, setPopularPlaces] = useState<PlaceResult[]>([])
+  const [trendingDishes, setTrendingDishes] = useState<DishResult[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -26,10 +29,11 @@ export function useTrendingData(nearCity?: string | null): TrendingData {
 
     async function loadTrendingData() {
       try {
-        const [trendingSearchRows, placeRows, postRows] = await Promise.all([
+        const [trendingSearchRows, placeRows, postRows, dishRows] = await Promise.all([
           fetchTrendingSearches(6, nearCity),
           fetchTrendingPlaceClicks(since, nearCity),
           fetchTrendingPostEvents(since),
+          fetchTrendingDishes(10),
         ])
         if (cancelled) return
 
@@ -60,6 +64,7 @@ export function useTrendingData(nearCity?: string | null): TrendingData {
         const places = await fetchPopularPlacesByIds(nextTrendingPlaceIds)
         if (cancelled) return
         setPopularPlaces(places)
+        setTrendingDishes(dishRows)
 
         const postCounts = new Map<string, number>()
         const weights: Record<string, number> = {
@@ -85,6 +90,7 @@ export function useTrendingData(nearCity?: string | null): TrendingData {
         setTrendingPlaceIds([])
         setTrendingPostIds([])
         setPopularPlaces([])
+        setTrendingDishes([])
       }
     }
 
@@ -94,5 +100,5 @@ export function useTrendingData(nearCity?: string | null): TrendingData {
     }
   }, [nearCity])
 
-  return { trendingSearches, trendingPlaceIds, trendingPostIds, popularPlaces }
+  return { trendingSearches, trendingPlaceIds, trendingPostIds, popularPlaces, trendingDishes }
 }

@@ -23,6 +23,7 @@ Source-of-truth ownership and engineering constraints live in [ENGINEERING_GOVER
 | Feature flags | Code defaults in `lib/featureFlags.ts` plus Supabase emergency overrides |
 | Animations | `react-native-reanimated`                  |
 | Images     | `expo-image-picker`                        |
+| Media library | `expo-media-library` (recent photo strip for create-post Step 1) |
 | Media prep | `react-native-compressor` + Supabase Edge Function orchestration |
 | Local DB   | `expo-sqlite` (session persistence)        |
 | Connectivity | `expo-network` + device-local pending-intent replay |
@@ -35,6 +36,7 @@ Source-of-truth ownership and engineering constraints live in [ENGINEERING_GOVER
 app/                  Expo Router screens — orchestration only
   (auth)/             Auth flow screens
   (tabs)/             Tab bar screens
+  create/             Create-post modal route group (root modal; index + drafts)
   restaurants/        Restaurant detail + map routes
   posts/              Post detail routes
   settings/           Settings screens
@@ -58,6 +60,7 @@ components/           Feature-level shared UI
 lib/                  App logic layer
   contexts/           React providers
   hooks/              Custom React hooks
+  search/             Neutral search context, candidates, and retrieval pipeline
   services/           Supabase API wrappers (posts.ts, users.ts, comments.ts, restaurants.ts)
   mocks/              Local/demo data only
   utils/              Pure helpers (format.ts, geo.ts)
@@ -120,7 +123,7 @@ Keep iOS and Android supported together. Before release or native config changes
 
 Canonical routes use plural domain names:
 
-- Create composer route (hidden from destination tabs): `/(tabs)/create`
+- Create composer route (root modal, not a destination tab): `/create`
 - Saved tab implementation: `/(tabs)/saved`, with `section=places` hosting the existing places list/map surface
 - Post detail: `/posts/[postId]`
 - Dish detail: `/dishes/[dishId]`
@@ -202,6 +205,7 @@ Security controls live in [../security/SECURITY.md](../security/SECURITY.md). En
 | Feature-level shared component  | `components/`      |
 | Custom hook                     | `lib/hooks/`       |
 | Pure function                   | `lib/utils/`       |
+| Search context/candidate pipeline | `lib/search/`      |
 | Supabase API call               | `lib/services/`    |
 | Env variable                    | `lib/config.ts`    |
 | Analytics call                  | `lib/analytics.ts` |
@@ -325,7 +329,19 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 | `20260531000000_rename_best_dish_to_must_order.sql`  | Rename `best_dish` → `must_order` on posts and post_drafts; recreate all dependent stored functions              |
 | `20260531000001_top_dishes_on_search_results.sql`    | Adds `top_dishes` column to restaurant search results for richer place cards                                     |
 | `20260601000000_search_dishes_full_text.sql`         | `search_dishes_full_text` RPC: FTS on `dishes.search_tsv` + trigram fallback; returns canonical Dish rows with `save_count`, `post_count`, `top_photo_url` (B-544) |
+| `20260601000001_user_follower_post_counts.sql`       | Cached `follower_count` and `post_count` on users for O(1) people-search ranking (B-546) |
+| `20260601000002_location_aware_trending.sql`         | `near_city` column on `trending_searches` for city-partitioned trending with global fallback (B-550) |
 | `20260601000003_search_synonyms.sql`                 | Public-read `search_synonyms` reference table for operator-managed cuisine, occasion, and dietary query vocabulary (B-551) |
+| `20260601000004_embedding_hash.sql`                  | `embedding_hash` on posts and restaurants to skip re-embedding on unchanged content |
+| `20260601000005_trending_user_count.sql`             | `user_count` on `trending_searches` to prevent single-user queries surfacing as trending (B-550 follow-up) |
+| `20260601000006_search_location_ranking.sql`         | Strengthen distance scoring in `search_restaurants_full_text` — penalise results >50 km instead of boost-only |
+| `20260601000007_personalized_suggestions.sql`        | `get_personalized_suggestions` RPC combines own search, engagement cuisine, save, topic, and trending signals for no-results recovery (B-557) |
+| `20260601000008_dish_fts_restaurant_search.sql`      | Dish-name FTS in `search_restaurants_full_text` via correlated `posts.dish_id → dishes.name` EXISTS clause (B-563) |
+| `20260601000009_fetch_trending_dishes.sql`           | `fetch_trending_dishes` RPC: ranks dishes by 7-day `saved_dishes` + `posts.dish_id` activity (saves ×3 weight); powers "Trending dishes" row on DiscoveryPage (B-549) |
+| `20260602000000_saved_searches.sql`                  | Owner-RLS `saved_searches` plus fail-closed `saved_search_audit_events`; powers persistent Discovery saved searches (B-553) |
+| `20260602000001_search_typo_tolerance.sql`           | Trigram fallback CTEs in `search_restaurants_full_text` and `search_posts_full_text`; word_similarity > 0.35 on restaurant names, similarity > 0.30 on must_order (B-577) |
+| `20260602000002_search_freshness_v1.sql`             | `search_freshness_scores` materialized view and `get_search_freshness` RPC; powers freshness signal in candidate ranking (B-574) |
+| `20260602000003_search_quality_metrics.sql`          | `search_quality_events` table and `log_search_quality_event` RPC; audit trail for quality governance and automated ratchets (B-585) |
 
 ---
 

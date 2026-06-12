@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontFamily, fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 
@@ -65,11 +65,11 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       marginBottom: spacing[6],
     },
     headline: {
-      fontFamily: 'DMSerifDisplay-Regular',
+      fontFamily: fontFamily.serif,
       fontSize: fontSize['5xl'],
       color: c.text,
       marginBottom: spacing.px6,
-      letterSpacing: -0.3,
+      letterSpacing: letterSpacing.tightHeading,
     },
     dot: { color: c.accent },
     sub: { fontSize: fontSize.md, color: c.text2, marginBottom: spacing.px28, lineHeight: lineHeight.normal },

@@ -16,7 +16,7 @@ import { Svg, Polyline } from 'react-native-svg'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
@@ -242,7 +242,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     backBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], padding: spacing.px6, marginLeft: -spacing.px6 },
     backText: { fontSize: fontSize.md, color: c.text2 },
     scroll: { padding: spacing[4], paddingTop: spacing.px28 },
-    title: { fontSize: fontSize['5xl'], fontWeight: fontWeight.medium, color: c.text, marginBottom: spacing[1], letterSpacing: -0.3 },
+    title: { fontSize: fontSize['5xl'], fontWeight: fontWeight.medium, color: c.text, marginBottom: spacing[1], letterSpacing: letterSpacing.tightHeading },
     subtitle: { fontSize: fontSize.md, color: c.text2, marginBottom: spacing.px28 },
     label: { fontSize: fontSize.bodySm, fontWeight: fontWeight.medium, color: c.text2, marginBottom: spacing.px6 },
     usernameWrap: {

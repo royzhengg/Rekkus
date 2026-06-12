@@ -36,6 +36,8 @@ export {
 } from './savedLocations'
 export type { SavedLocation, SavedLocationWithRestaurant } from './savedLocations'
 
+export type PredictionDistanceGroup = 'nearby' | 'city' | 'state' | 'country' | 'worldwide'
+
 export type Prediction = {
   place_id: string
   description: string
@@ -43,6 +45,8 @@ export type Prediction = {
   types?: string[]
   source?: 'rekkus' | 'google'
   score?: number
+  distanceKm?: number
+  distanceGroup?: PredictionDistanceGroup
   // Present when prediction came from our local DB — enables fast-path selection
   dbDetails?: {
     restaurantId: string
@@ -55,6 +59,25 @@ export type Prediction = {
     postCount?: number
     avgFoodRating?: number | null
   }
+}
+
+export function distanceGroupForPrediction(distanceKm: number | undefined, source?: Prediction['source']): PredictionDistanceGroup {
+  if (distanceKm === undefined) return source === 'rekkus' ? 'nearby' : 'worldwide'
+  if (distanceKm <= 2) return 'nearby'
+  if (distanceKm <= 50) return 'city'
+  if (distanceKm <= 250) return 'state'
+  if (distanceKm <= 4000) return 'country'
+  return 'worldwide'
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
 export type PlaceDetail = GooglePlaceMetadata
@@ -101,37 +124,48 @@ export async function fetchPredictions(
     ...prediction,
     source: 'google',
     score: 0,
+    distanceGroup: distanceGroupForPrediction(undefined, 'google'),
   }))
 }
 
 export async function searchRestaurantsByText(
   query: string,
-  maxResults = 8
+  maxResults = 8,
+  userLocation?: { lat: number; lng: number } | null
 ): Promise<Prediction[]> {
   const { data } = await supabase.rpc('search_restaurants_full_text', {
     query_text: query,
     max_results: maxResults,
+    ...(userLocation ? { near_lat: userLocation.lat, near_lng: userLocation.lng } : {}),
   })
-  return (data ?? []).map((r) => ({
-    place_id: r.google_place_id ?? r.id,
-    description: r.name,
-    structured_formatting: {
-      main_text: r.name,
-      secondary_text: [r.cuisine_type, r.suburb ?? r.city, r.address].filter(Boolean).slice(0, 3).join(' · '),
-    },
-    types: ['restaurant'],
-    source: 'rekkus',
-    score: Number(r.rank ?? 0) + 10,
-    dbDetails: {
-      restaurantId: r.id,
-      lat: r.latitude ?? 0,
-      lng: r.longitude ?? 0,
-      address: r.address ?? '',
-      suburb: r.suburb ?? null,
-      city: r.city ?? null,
-      cuisineType: r.cuisine_type ?? null,
-    },
-  }))
+  return (data ?? []).map((r) => {
+    const lat = r.latitude ?? 0
+    const lng = r.longitude ?? 0
+    const distanceKm = userLocation && lat && lng
+      ? haversineKm(userLocation.lat, userLocation.lng, lat, lng)
+      : undefined
+    const secondaryParts = [r.cuisine_type, r.suburb ?? r.city, r.address].filter(Boolean).slice(0, 3)
+    if (distanceKm !== undefined) secondaryParts.push(`${distanceKm < 1 ? Math.round(distanceKm * 1000) + 'm' : distanceKm.toFixed(1) + 'km'}`)
+    return {
+      place_id: r.google_place_id ?? r.id,
+      description: r.name,
+      structured_formatting: { main_text: r.name, secondary_text: secondaryParts.join(' · ') },
+      types: ['restaurant'],
+      source: 'rekkus',
+      score: Number(r.rank ?? 0) + 10,
+      ...(distanceKm !== undefined ? { distanceKm } : {}),
+      distanceGroup: distanceGroupForPrediction(distanceKm, 'rekkus'),
+      dbDetails: {
+        restaurantId: r.id,
+        lat,
+        lng,
+        address: r.address ?? '',
+        suburb: r.suburb ?? null,
+        city: r.city ?? null,
+        cuisineType: r.cuisine_type ?? null,
+      },
+    }
+  })
 }
 
 export async function fetchNearbyRestaurants(
@@ -147,26 +181,32 @@ export async function fetchNearbyRestaurants(
     max_lng: location.lng + lngDelta,
     max_results: 8,
   })
-  return (data ?? []).map((r) => ({
-    place_id: r.google_place_id ?? r.id,
-    description: r.name,
-    structured_formatting: {
-      main_text: r.name,
-      secondary_text: [r.cuisine_type, r.city, r.address].filter(Boolean).slice(0, 3).join(' · '),
-    },
-    types: ['restaurant'],
-    source: 'rekkus',
-    score: 10,
-    dbDetails: {
-      restaurantId: r.id,
-      lat: r.latitude ?? 0,
-      lng: r.longitude ?? 0,
-      address: r.address ?? '',
-      suburb: null,
-      city: r.city ?? null,
-      cuisineType: r.cuisine_type ?? null,
-    },
-  }))
+  return (data ?? []).map((r) => {
+    const lat = r.latitude ?? 0
+    const lng = r.longitude ?? 0
+    const distanceKm = lat && lng ? haversineKm(location.lat, location.lng, lat, lng) : undefined
+    const secondaryParts = [r.cuisine_type, r.city, r.address].filter(Boolean).slice(0, 3)
+    if (distanceKm !== undefined) secondaryParts.push(`${distanceKm < 1 ? Math.round(distanceKm * 1000) + 'm' : distanceKm.toFixed(1) + 'km'}`)
+    return {
+      place_id: r.google_place_id ?? r.id,
+      description: r.name,
+      structured_formatting: { main_text: r.name, secondary_text: secondaryParts.join(' · ') },
+      types: ['restaurant'],
+      source: 'rekkus',
+      score: 10,
+      ...(distanceKm !== undefined ? { distanceKm } : {}),
+      distanceGroup: distanceGroupForPrediction(distanceKm, 'rekkus'),
+      dbDetails: {
+        restaurantId: r.id,
+        lat,
+        lng,
+        address: r.address ?? '',
+        suburb: null,
+        city: r.city ?? null,
+        cuisineType: r.cuisine_type ?? null,
+      },
+    }
+  })
 }
 
 export async function fetchPlaceDetails(placeId: string): Promise<FullPlaceDetail | null> {
@@ -275,6 +315,11 @@ export async function upsertRestaurant(
   await recordRestaurantProviderCache(restaurantId, 'google_places', placeId, detail).catch(() => null)
 
   return restaurantId
+}
+
+// B-587: restore full upsert body once restaurant_place_stubs migration is deployed
+export async function upsertPlaceStubs(_predictions: Prediction[]): Promise<void> {
+  // stub — table pending migration (B-587)
 }
 
 export async function upsertResolvedRestaurant(place: ResolvedRestaurantPlace): Promise<string | null> {

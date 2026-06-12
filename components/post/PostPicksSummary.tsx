@@ -13,9 +13,10 @@ type Props = {
   valueVerdict?: RekkusValueVerdict | undefined
   occasionTags?: RekkusOccasionTag[] | undefined
   compact?: boolean | undefined
+  variant?: 'accent' | undefined
 }
 
-export function PostPicksSummary({ post, tasteVerdict, valueVerdict, occasionTags, compact }: Props) {
+export function PostPicksSummary({ post, tasteVerdict, valueVerdict, occasionTags, compact, variant }: Props) {
   const c = useThemeColors()
   const styles = useMemo(() => makeStyles(c), [c])
   const taste = tasteVerdict ?? post?.tasteVerdict ?? legacyFoodToTaste(post?.food)
@@ -32,7 +33,11 @@ export function PostPicksSummary({ post, tasteVerdict, valueVerdict, occasionTag
   return (
     <View style={styles.row}>
       {chips.map(chip => (
-        <Text key={chip} style={[styles.chip, compact && styles.chipCompact]} numberOfLines={1}>
+        <Text
+          key={chip}
+          style={[styles.chip, compact && styles.chipCompact, variant === 'accent' && styles.chipAccent]}
+          numberOfLines={1}
+        >
           {chip}
         </Text>
       ))}
@@ -54,5 +59,11 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingVertical: spacing.px5,
     },
     chipCompact: { fontSize: fontSize.xs, paddingHorizontal: spacing.px7, paddingVertical: spacing[1] },
+    chipAccent: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: c.accent,
+      color: c.accent,
+    },
   })
 }

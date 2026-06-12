@@ -1,40 +1,85 @@
 import { StyleSheet } from 'react-native'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing } from '@/constants/Typography'
 import type { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
     scroll: { flex: 1 },
-    locationSection: { paddingHorizontal: spacing[4], paddingTop: spacing[1], zIndex: 10 },
+
+    // ── Title ──────────────────────────────────────────────
+    titleSection: {
+      paddingHorizontal: spacing[6],
+      paddingTop: spacing[6],
+      paddingBottom: spacing[6],
+      borderBottomWidth: 0.5,
+      borderBottomColor: c.border,
+    },
+    titleInput: {
+      fontSize: fontSize['8xl'],
+      fontWeight: fontWeight.semibold,
+      color: c.text,
+      padding: spacing[0],
+      letterSpacing: letterSpacing.display,
+    },
+    titleMeta: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: spacing[3],
+    },
+    titleMetaLabel: { fontSize: fontSize.bodySm, color: c.text3 },
+    charCount: { fontSize: fontSize.bodySm, color: c.text3 },
+
+    // ── Section label (RESTAURANT / MEDIA / RECENTS) ───────
+    sectionLabel: {
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+      color: c.text3,
+      textTransform: 'uppercase',
+      letterSpacing: letterSpacing.widest,
+      marginBottom: spacing[3],
+    },
+
+    // ── Restaurant / location ──────────────────────────────
+    locationSection: {
+      paddingHorizontal: spacing[6],
+      paddingTop: spacing.px22,
+      paddingBottom: spacing[5],
+      borderBottomWidth: 0.5,
+      borderBottomColor: c.border,
+      zIndex: 10,
+    },
+
+    // Plain borderless row (no box)
     searchWrap: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing[2],
-      backgroundColor: c.bg,
-      borderRadius: radius.md3,
-      paddingHorizontal: spacing.px13,
-      minHeight: 46,
-      borderWidth: 0.5,
-      borderColor: c.border,
+      gap: spacing[3],
+      minHeight: 44,
     },
-    fieldFocused: { borderColor: c.accent, backgroundColor: c.bg },
-    searchInput: { flex: 1, fontSize: fontSize.lg, color: c.text, padding: spacing[0] },
+    fieldFocused: {},
+    searchInput: { flex: 1, fontSize: fontSize.title, color: c.text, padding: spacing[0] },
+
     locationConfirmed: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.px10,
-      backgroundColor: c.bg,
-      borderRadius: radius.md3,
-      paddingHorizontal: spacing.px13,
-      minHeight: 46,
-      borderWidth: 0.5,
-      borderColor: c.border,
+      gap: spacing[3],
+      minHeight: 44,
     },
     locationConfirmedText: { flex: 1 },
-    locationName: { fontSize: fontSize.md, fontWeight: fontWeight.medium, color: c.text },
+    locationName: { fontSize: fontSize.title, fontWeight: fontWeight.medium, color: c.text },
     locationAddress: { fontSize: fontSize.sm, color: c.text3, marginTop: spacing.px1 },
+
+    // Nearby quick-pick chips (plain wrapping row)
+    nearbyChips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing[2],
+      marginTop: spacing.px14,
+    },
+
+    // Dropdown (search results)
     dropdown: {
       backgroundColor: c.bg,
       borderRadius: radius.md3,
@@ -55,43 +100,80 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
     dropdownItemText: { flex: 1 },
     dropdownName: { fontSize: fontSize.base, color: c.text, fontWeight: fontWeight.medium },
     dropdownSub: { fontSize: fontSize.sm, color: c.text3, marginTop: spacing.px1 },
+    dropdownSectionHeader: {
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.bold,
+      color: c.text3,
+      paddingHorizontal: spacing.px13,
+      paddingTop: spacing.px10,
+      paddingBottom: spacing[1],
+      backgroundColor: c.surface2,
+    },
     dropdownEmpty: { paddingVertical: spacing[4], alignItems: 'center' },
-    dropdownEmptyText: { fontSize: fontSize.bodySm, color: c.text3 },
+    dropdownEmptyText: { fontSize: fontSize.bodySm, color: c.text3, textAlign: 'center' },
+    dropdownEmptyHint: { fontSize: fontSize.xs, color: c.text3, textAlign: 'center', marginTop: spacing[1] },
+    dropdownLocationButton: {
+      minHeight: 44,
+      paddingHorizontal: spacing[4],
+      marginTop: spacing[3],
+      borderRadius: radius.pill,
+      backgroundColor: `${c.accent}12`,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dropdownLocationButtonText: {
+      fontSize: fontSize.bodySm,
+      fontWeight: fontWeight.medium,
+      color: c.accent,
+    },
     nearbyLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.text3, paddingHorizontal: spacing[3], paddingTop: spacing.px10, paddingBottom: spacing[1] },
+
+    // ── Media section (flex: 1 container) ─────────────────
+    mediaSection: {
+      paddingHorizontal: spacing[6],
+      paddingTop: spacing.px22,
+      paddingBottom: spacing[0],
+      flex: 1,
+      flexDirection: 'column',
+    },
+
+    // Empty state (fills remaining space)
     photoEmpty: {
-      marginHorizontal: spacing[4],
-      marginTop: spacing[2],
-      borderWidth: 1.5,
-      borderStyle: 'dashed',
-      borderColor: `${c.accent}55`,
-      borderRadius: radius.lg2,
-      aspectRatio: 2.2,
+      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.px10,
-      backgroundColor: `${c.accent}08`,
     },
-    photoEmptyLabel: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text2 },
-    photoEmptySub: { fontSize: fontSize.bodySm, color: c.text3, textAlign: 'center', paddingHorizontal: spacing.px28 },
-    mediaActionRow: { flexDirection: 'row', gap: spacing.px10, marginTop: spacing[1] },
-    mediaActionBtn: {
-      minHeight: 38,
+    photoEmptySub: {
+      fontSize: fontSize.base,
+      color: c.text3,
+      textAlign: 'center',
+    },
+
+    // Solid accent CTA button (centered, wraps content)
+    mediaAddBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.px7,
-      paddingHorizontal: spacing.px14,
-      borderRadius: radius.xl2,
-      backgroundColor: `${c.accent}14`,
-      borderWidth: 0.5,
-      borderColor: `${c.accent}24`,
+      justifyContent: 'center',
+      gap: spacing[1],
+      minHeight: 44,
+      paddingHorizontal: spacing[6],
+      paddingVertical: spacing.px11,
+      borderRadius: radius.md3,
+      backgroundColor: c.accent,
+      alignSelf: 'center',
+      marginTop: spacing[5],
+      marginBottom: spacing[3],
     },
-    mediaActionText: { fontSize: fontSize.base, fontWeight: fontWeight.extrabold, color: c.accent },
+    mediaAddBtnText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: '#fff' }, // check:tokens-ignore
+
+    // ── Media populated (DraggableMediaStrip) ─────────────
     photosSection: { marginTop: spacing.px14 },
-    photoActions: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[4], marginTop: spacing.px10 },
-    photoActionBtn: { paddingVertical: spacing[1], paddingHorizontal: spacing.px2 },
+    photoActions: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing[6], marginTop: spacing.px10 },
+    photoActionBtn: { paddingVertical: spacing[1], paddingHorizontal: spacing.px2, minHeight: 44, justifyContent: 'center' },
     photoActionText: { fontSize: fontSize.bodySm, color: c.text3 },
-    photoOnlyHint: { fontSize: fontSize.sm, color: c.text3, paddingHorizontal: spacing[4], paddingTop: spacing[2] },
-    dishTagChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.px6, paddingHorizontal: spacing[4], paddingTop: spacing.px10 },
+    photoOnlyHint: { fontSize: fontSize.sm, color: c.text3, paddingHorizontal: spacing[6], paddingTop: spacing[2] },
+    dishTagChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.px6, paddingHorizontal: spacing[6], paddingTop: spacing.px10 },
     dishTagChip: {
       overflow: 'hidden',
       borderRadius: radius.lg,
@@ -102,21 +184,58 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingHorizontal: spacing.px10,
       paddingVertical: spacing.px5,
     },
-    titleSection: { paddingHorizontal: spacing[4], paddingTop: spacing.px10 },
-    titleInput: {
-      minHeight: 54,
-      borderRadius: radius.lg,
+
+    // ── Dish tag tooltip ───────────────────────────────────
+    dishTagTooltip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.px10,
+      marginHorizontal: spacing[6],
+      marginTop: spacing.px10,
+      backgroundColor: `${c.accent}12`,
+      borderRadius: radius.md3,
+      paddingHorizontal: spacing.px13,
+      paddingVertical: spacing.px10,
       borderWidth: 0.5,
-      borderColor: c.border,
-      backgroundColor: c.bg,
-      paddingHorizontal: spacing.px14,
-      paddingVertical: spacing[3],
-      fontSize: fontSize.title,
-      fontWeight: fontWeight.bold,
-      color: c.text,
-      lineHeight: lineHeight.titleRelaxed,
+      borderColor: `${c.accent}24`,
     },
-    charCount: { fontSize: fontSize.xs, color: c.text3, textAlign: 'right', marginTop: spacing.px5 },
+    dishTagTooltipText: { flex: 1, fontSize: fontSize.bodySm, color: c.text2 },
+    dishTagTooltipDismiss: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+
+    // ── Recents strip ──────────────────────────────────────
+    recentPhotosWrap: {
+      borderTopWidth: 0.5,
+      borderTopColor: c.border,
+      paddingTop: spacing.px14,
+    },
+    recentPhotosTitle: {
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+      color: c.text3,
+      textTransform: 'uppercase',
+      letterSpacing: letterSpacing.widest,
+      marginBottom: spacing[2],
+    },
+    recentPhotosGrid: {
+      flexDirection: 'row',
+      gap: spacing.px7,
+    },
+    recentPhotoButton: {
+      flex: 1,
+      aspectRatio: 1,
+      borderRadius: radius.md3,
+      overflow: 'hidden',
+      backgroundColor: c.surface2,
+    },
+    recentPhotoImage: { width: '100%', height: '100%' },
+    recentPhotoSkeleton: {
+      flex: 1,
+      aspectRatio: 1,
+      borderRadius: radius.md3,
+      backgroundColor: c.surface2,
+    },
+
+    // ── Dish tag modal ─────────────────────────────────────
     tagModalContainer: { flex: 1, backgroundColor: c.bg, alignItems: 'center' },
     tagModalHeader: {
       width: '100%',
@@ -164,29 +283,5 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
     tagListItem: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
     tagListDot: { width: 6, height: 6, borderRadius: radius.tiny, backgroundColor: c.accent },
     tagListName: { flex: 1, fontSize: fontSize.base, color: c.text },
-    dishTagTooltip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.px10,
-      marginHorizontal: spacing[4],
-      marginTop: spacing.px10,
-      backgroundColor: `${c.accent}12`,
-      borderRadius: radius.md3,
-      paddingHorizontal: spacing.px13,
-      paddingVertical: spacing.px10,
-      borderWidth: 0.5,
-      borderColor: `${c.accent}24`,
-    },
-    dishTagTooltipText: {
-      flex: 1,
-      fontSize: fontSize.bodySm,
-      color: c.text2,
-    },
-    dishTagTooltipDismiss: {
-      minWidth: 44,
-      minHeight: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
   })
 }

@@ -1,19 +1,25 @@
 import { renderHook, waitFor } from '@testing-library/react-native'
 import { useTrendingData } from '@/lib/hooks/useTrendingData'
+import { fetchTrendingDishes } from '@/lib/services/search'
 import {
   fetchPopularPlacesByIds,
   fetchTrendingPlaceClicks,
   fetchTrendingPostEvents,
   fetchTrendingSearches,
-} from '@/lib/services/search'
+} from '@/lib/services/trending'
 
 jest.mock('@/lib/services/search', () => ({
+  fetchTrendingDishes: jest.fn(),
+}))
+
+jest.mock('@/lib/services/trending', () => ({
   fetchPopularPlacesByIds: jest.fn(),
   fetchTrendingPlaceClicks: jest.fn(),
   fetchTrendingPostEvents: jest.fn(),
   fetchTrendingSearches: jest.fn(),
 }))
 
+const mockFetchTrendingDishes = jest.mocked(fetchTrendingDishes)
 const mockFetchPopularPlacesByIds = jest.mocked(fetchPopularPlacesByIds)
 const mockFetchTrendingPlaceClicks = jest.mocked(fetchTrendingPlaceClicks)
 const mockFetchTrendingPostEvents = jest.mocked(fetchTrendingPostEvents)
@@ -39,6 +45,7 @@ describe('useTrendingData', () => {
     mockFetchTrendingPlaceClicks.mockResolvedValue([{ entity_id: 'rest-1' }])
     mockFetchTrendingPostEvents.mockResolvedValue([{ event_type: 'post_save', entity_id: 'post-1' }])
     mockFetchPopularPlacesByIds.mockResolvedValue([place])
+    mockFetchTrendingDishes.mockResolvedValue([])
   })
 
   it('refetches trending data when nearCity changes', async () => {
@@ -86,5 +93,6 @@ describe('useTrendingData', () => {
     expect(result.current.trendingPlaceIds).toEqual([])
     expect(result.current.trendingPostIds).toEqual([])
     expect(result.current.popularPlaces).toEqual([])
+    expect(result.current.trendingDishes).toEqual([])
   })
 })

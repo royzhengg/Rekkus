@@ -119,17 +119,6 @@ export const StarIcon = React.memo(function StarIcon({
   )
 })
 
-export const DishIcon = React.memo(function DishIcon({ size = 18, color }: { size?: number; color?: string }) {
-  const { text3 } = useThemeColors()
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color ?? text3} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M4 13h16" />
-      <Path d="M6 13a6 6 0 0 1 12 0" />
-      <Path d="M3 17h18" />
-      <Path d="M12 7V5" />
-    </Svg>
-  )
-})
 
 export const TagIcon = React.memo(function TagIcon({ size = 18, color }: { size?: number; color?: string }) {
   const { text3 } = useThemeColors()

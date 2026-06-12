@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, ChevronRight } from '@/components/icons'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export const PRIVACY_POLICY_URL = 'https://rekkus.com/privacy'
@@ -137,7 +137,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       fontSize: fontSize.sm,
       fontWeight: fontWeight.semibold,
       color: c.text3,
-      letterSpacing: 0.6,
+      letterSpacing: letterSpacing.loose,
       textTransform: 'uppercase',
       marginTop: spacing[5],
       marginBottom: spacing.px6,

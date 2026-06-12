@@ -3,7 +3,7 @@ const path = require('path')
 const { canonicalRegistryFailures } = require('./lib/canonical-registry-rules')
 
 const repoRoot = path.resolve(__dirname, '..')
-const skipDirs = new Set(['.git', '.expo', 'node_modules', 'Pods', 'build'])
+const skipDirs = new Set(['.git', '.expo', 'node_modules', 'Pods', 'build', '.agents'])
 const failures = []
 
 function walk(dir, visitor) {

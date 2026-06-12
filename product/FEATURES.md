@@ -81,6 +81,7 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 - Live results and compact suggestions update as users type; suggestions use the `suggest_searches` RPC plus recent/cuisine fallbacks without taking over the results page.
 - Compact search header with a trailing filter button for Nearby, cuisine, occasion, value, media, open-now, and sort filters
 - Discovery page (no query): time-aware Quick starts row with recent-search cuisine affinity, compact Trending now suggestions, Popular places, staff-pick collections when available, and lower-priority Creators you may like
+- Signed-in users can promote repeated recent queries to persistent saved searches; saved searches render above recent searches and rerun the query when tapped.
 - Results page: Top / Dishes / People / Places tabs; Top shows the best available places, dish posts, and people from the existing ranked result sets
 - Active filters render as quiet tokens; permanent filter rails stay hidden until the user searches or opens the sheet
 - Search filters are applied in `useSearch`: cuisine, Rekkus Picks occasion/value, media type, open-now, and sort modes for Best match, Nearby, Newest, Most saved, and Highest Picks
@@ -164,7 +165,7 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 - Username top bar + settings gear (navigates to /settings)
 - Centered 80px avatar circle with initials
 - Reviewer badge pill (✦ Explorer / Quality hunter / Prolific reviewer / Local expert) — computed from post count + avg food rating
-- Stats card (surface card): Posts / Followers / Following
+- Stats card (surface card): Posts / Followers / Following; Followers and Following open live user lists
 - Bio and location tag (suburb, city, country — fetched from Supabase)
 - Food stats strip: avg food rating · saved spots count · total likes received
 - **Taste Profile card**: top 3 cuisines by avg food rating, preferred spend range, avg vibe score — shown when ≥3 posts with cuisine data exist
@@ -180,6 +181,7 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 - Accessible by tapping any creator name in feed, post detail, or search
 - Same centred layout with reviewer badge + stats card + bio
 - Follow + Message buttons (Follow auth-gated; Message is auth-gated and opens/reuses a direct thread behind `directMessages`)
+- Followers / Following stats open `app/user/[username]/follows.tsx`; counts and lists refresh on focus, follow/unfollow, offline sync, and realtime follow changes
 - Posts-only tab (Saved/Liked are private)
 - Posts grid paginated (30/page, client-side) via `usePagedList`
 

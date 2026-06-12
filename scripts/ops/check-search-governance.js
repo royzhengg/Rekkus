@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const { printResult, readSchemaSource } = require('./lib/policy-checks')
 const { exists, readText } = require('./lib/files')
+const { searchIndexContractFailures } = require('../lib/search-index-contract-rules')
 
 const { parseFlags } = require('../lib/args')
 const args = parseFlags()
@@ -42,11 +43,17 @@ requireTerms(
 )
 
 const searchHook = exists('lib/hooks/useSearch.ts') ? readText('lib/hooks/useSearch.ts') : ''
+for (const token of ['analytics_events']) {
+  if (!searchHook.includes(token)) failures.push(`lib/hooks/useSearch.ts must retain ${token} search evidence.`)
+}
+
+const searchPipeline = exists('lib/search/pipeline.ts') ? readText('lib/search/pipeline.ts') : ''
 for (const token of [
-  'analytics_events',
+  'runSearchPipeline',
+  'SearchCandidate',
   'fetchPlaceAutocompleteJson',
 ]) {
-  if (!searchHook.includes(token)) failures.push(`lib/hooks/useSearch.ts must retain ${token} search evidence.`)
+  if (!searchPipeline.includes(token)) failures.push(`lib/search/pipeline.ts must retain ${token} search evidence.`)
 }
 
 // Cuisine expansion logic moved to lib/services/search.ts in B-509
@@ -67,6 +74,33 @@ const schema = readSchemaSource()
 if (!/create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?expand_search_cuisines\b/i.test(schema)) {
   failures.push('Supabase migrations must define public.expand_search_cuisines for deterministic search expansion.')
 }
+
+// B-585: require quality and generated test files
+if (!exists('tests/unit/lib/search/quality.test.ts')) {
+  failures.push(
+    'tests/unit/lib/search/quality.test.ts is required for search quality governance. ' +
+    'Add golden ranking principle tests for text relevance, distance, popularity, and entity intent.'
+  )
+}
+if (!exists('tests/unit/lib/search/generated.test.ts')) {
+  failures.push(
+    'tests/unit/lib/search/generated.test.ts is required for search quality governance. ' +
+    'Add deterministic generated query scenarios for food/cuisine/vibe/typo coverage.'
+  )
+}
+
+// B-577: typo tolerance documentation
+requireTerms('product/SEARCH.md', ['Typo tolerance', 'trgm'], 'warning')
+
+failures.push(
+  ...searchIndexContractFailures({
+    searchDoc: exists('product/SEARCH.md') ? readText('product/SEARCH.md') : '',
+    schemaSource: schema,
+    searchServiceSource: searchService,
+    searchPipelineSource: searchPipeline,
+    restaurantServiceSource: exists('lib/services/restaurants.ts') ? readText('lib/services/restaurants.ts') : '',
+  }),
+)
 
 printResult(
   {
