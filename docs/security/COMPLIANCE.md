@@ -140,6 +140,15 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 - Privacy impact: no raw provider payloads, precise coordinates, full addresses, or unrestricted result lists are added to analytics. The new fallback reason is bounded metadata: `thin_local_results`.
 - Retention/legal posture: Place IDs are durable provider identifiers; broader Google content remains provider-cache governed and stale/refresh controlled. Google stays fallback/enrichment, not primary Rekkus-owned truth.
 - Rollback: restore the previous local-result threshold and visible cap in `useRestaurantSearch`; already-selected restaurants remain source-attributed local graph records.
+
+### 2026-06-12 Profile Food Identity Compliance Impact Review
+
+- Data added: no new table or new provider integration. Profile interactions add bounded analytics metadata for tab selection, top-spot taps, share taps, and empty-profile review CTAs.
+- Provider impact: Top Spots photo cards reuse existing restaurant photo helpers, preferring Rekkus post photos and then cached/provider photo refs already stored under the restaurant provider-cache governance path.
+- Privacy impact: analytics records action labels and optional profile tab only; restaurant names, collection names, profile text, cuisine labels, addresses, precise coordinates, and follower names are not recorded.
+- Security/RLS: profile lists use existing collection RLS through the service layer; public profiles request only `unlisted`/`public` collections, while private topic follows remain out of the public profile identity surface.
+- Rollback: remove `profile_interaction` calls and keep the food-first profile UI; already-written events expire under the existing analytics raw-retention policy.
+
 | saved_locations | Product | User-private saved restaurant intent | User | Account lifetime | Included | Owner RLS |
 | saved_dishes | Product | User-private canonical dish intent | User | Account lifetime | Included | Owner RLS |
 | collections | Product | User-private/shareable collection metadata | User | Account lifetime unless deleted | Included | Owner RLS; unlisted/public select |

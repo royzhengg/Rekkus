@@ -1,8 +1,7 @@
 import React from 'react'
 import { View, Text, StyleSheet, Pressable } from 'react-native'
-import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
+import { fontFamily, fontSize, fontWeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { Avatar } from './Avatar'
 import { PinIcon } from './icons'
@@ -12,36 +11,30 @@ type Props = {
   avatarBg: string
   avatarColor: string
   displayName: string
-  badgeLabel?: string | null
-  postCount: number
+  username: string
+  reviewCount: number
   followersLabel: string | number
   followingLabel: string | number
-  bio?: string | null
   locationLabel?: string | null
-  avgFoodRating?: string | null
-  totalLikesLabel?: string | null
-  savedSpotsCount?: number
+  rightActions?: React.ReactNode
   onPressFollowers?: (() => void) | undefined
   onPressFollowing?: (() => void) | undefined
 }
 
 // Shared profile header used on own profile and user profile screens.
-// Covers: avatar, display name, reviewer badge, stats card, bio, location, food stats strip.
+// Covers: compact food identity, primary trust stats, and secondary following access.
 // Each screen composes its own action buttons and content tabs below this component.
 export function ProfileHeader({
   initials,
   avatarBg,
   avatarColor,
   displayName,
-  badgeLabel,
-  postCount,
+  username,
+  reviewCount,
   followersLabel,
   followingLabel,
-  bio,
   locationLabel,
-  avgFoodRating,
-  totalLikesLabel,
-  savedSpotsCount,
+  rightActions,
   onPressFollowers,
   onPressFollowing,
 }: Props) {
@@ -49,36 +42,52 @@ export function ProfileHeader({
   const styles = React.useMemo(() => makeStyles(c), [c])
   const followersContent = (
     <>
-      <Text style={styles.statNum}>{followersLabel}</Text>
-      <Text style={styles.statLabel}>Followers</Text>
+      <Text style={styles.statNum} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>{followersLabel}</Text>
+      <Text style={styles.statLabel} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>Followers</Text>
     </>
   )
   const followingContent = (
     <>
-      <Text style={styles.statNum}>{followingLabel}</Text>
-      <Text style={styles.statLabel}>Following</Text>
+      <Text style={styles.statNum} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>{followingLabel}</Text>
+      <Text style={styles.statLabel} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>Following</Text>
     </>
   )
 
   return (
-    <>
-      {/* Avatar + name + badge */}
-      <View style={styles.avatarBlock}>
-        <Avatar initials={initials} bg={avatarBg} color={avatarColor} size={80} />
-        <Text style={styles.displayName}>{displayName}</Text>
-        {!!badgeLabel && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeDot}>✦ </Text>
-            <Text style={styles.badgeText}>{badgeLabel}</Text>
-          </View>
-        )}
+    <View style={styles.wrap}>
+      <View style={styles.actionsRow}>
+        <View />
+        {rightActions ? <View style={styles.rightActions}>{rightActions}</View> : null}
       </View>
 
-      {/* Stats card */}
-      <View style={styles.statsCard}>
+      <View style={styles.identityBlock}>
+        <Avatar initials={initials} bg={avatarBg} color={avatarColor} size={104} />
+        <View style={styles.identityText}>
+          <Text style={styles.displayName} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+            {displayName}
+          </Text>
+          <Text style={styles.handle} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+            @{username}
+          </Text>
+          {!!locationLabel && (
+            <View style={styles.locationRow}>
+              <PinIcon size={13} />
+              <Text style={styles.locationText} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+                {locationLabel}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.statsRow}>
         <View style={styles.statCol}>
-          <Text style={styles.statNum}>{postCount}</Text>
-          <Text style={styles.statLabel}>Posts</Text>
+          <Text style={styles.statNum} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+            {reviewCount}
+          </Text>
+          <Text style={styles.statLabel} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+            Reviews
+          </Text>
         </View>
         <View style={styles.statDivider} />
         {onPressFollowers ? (
@@ -107,61 +116,41 @@ export function ProfileHeader({
           <View style={styles.statCol}>{followingContent}</View>
         )}
       </View>
-
-      {/* Bio + location */}
-      {(bio || locationLabel) && (
-        <View style={styles.bioBlock}>
-          {!!bio && <Text style={styles.bio}>{bio}</Text>}
-          {!!locationLabel && (
-            <View style={styles.locationRow}>
-              <PinIcon size={11} />
-              <Text style={styles.locationText}>{locationLabel}</Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Food stats strip */}
-      {avgFoodRating != null && (
-        <Text style={styles.foodStats}>
-          🍴 {avgFoodRating} avg
-          {savedSpotsCount != null ? ` · 📍 ${savedSpotsCount} spots` : ''}
-          {totalLikesLabel ? ` · ♡ ${totalLikesLabel}` : ''}
-        </Text>
-      )}
-    </>
+    </View>
   )
 }
 
 function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
-    avatarBlock: { alignItems: 'center', paddingTop: spacing.px28, paddingBottom: spacing[1], paddingHorizontal: spacing[5] },
-    displayName: { fontSize: fontSize.title, fontWeight: fontWeight.semibold, color: c.text, marginBottom: spacing[2], marginTop: spacing[3] },
-    badge: {
+    wrap: { paddingHorizontal: spacing[5], paddingTop: spacing[3] },
+    actionsRow: { minHeight: 44, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    rightActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+    identityBlock: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: c.surface,
-      borderRadius: radius.md3,
-      paddingHorizontal: spacing.px10,
-      paddingVertical: spacing[1],
+      gap: spacing[4],
+      paddingTop: spacing[2],
     },
-    badgeDot: { fontSize: fontSize.sm, color: c.accent },
-    badgeText: { fontSize: fontSize.sm, color: c.text2 },
-    statsCard: {
+    identityText: { flex: 1 },
+    displayName: { fontFamily: fontFamily.serif, fontSize: fontSize['8xl'], color: c.text },
+    handle: { fontSize: fontSize.lg, color: c.text3, marginTop: spacing.px2 },
+    locationRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], paddingTop: spacing[3] },
+    locationText: { fontSize: fontSize.base, color: c.text3 },
+    statsRow: {
       flexDirection: 'row',
-      backgroundColor: c.surface,
-      borderRadius: radius.lg,
-      marginHorizontal: spacing[5],
-      marginTop: spacing[5],
+      alignItems: 'center',
+      paddingTop: spacing.px18,
     },
-    statCol: { flex: 1, alignItems: 'center', paddingVertical: spacing.px14 },
-    statDivider: { width: 0.5, backgroundColor: c.border, marginVertical: spacing.px10 },
-    statNum: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: c.text, letterSpacing: letterSpacing.tightHeading },
-    statLabel: { fontSize: fontSize.xs, color: c.text3, marginTop: spacing.px2 },
-    bioBlock: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[2] },
-    bio: { fontSize: fontSize.bodySm, color: c.text2, lineHeight: lineHeight.small },
-    locationRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
-    locationText: { fontSize: fontSize.sm, color: c.text3 },
-    foodStats: { fontSize: fontSize.base, color: c.text3, paddingHorizontal: spacing[5], paddingTop: spacing[3] },
+    statCol: {
+      flex: 1,
+      minHeight: 64,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing[2],
+      paddingVertical: spacing[2],
+    },
+    statDivider: { width: 0.5, height: 34, backgroundColor: c.border2 },
+    statNum: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: c.text },
+    statLabel: { fontSize: fontSize.base, color: c.text3, marginTop: spacing.px2 },
   })
 }

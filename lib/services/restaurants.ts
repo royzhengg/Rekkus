@@ -10,6 +10,7 @@ import {
   isGooglePlaceIdResult,
   isGooglePlaceMetadata,
   isGooglePrediction,
+  isGoogleTextSearchPlace,
   type GooglePlaceDetail,
   type GooglePlaceMetadata,
 } from '@/lib/services/googlePlacesGuards'
@@ -126,6 +127,27 @@ export async function fetchPredictions(
     score: 0,
     distanceGroup: distanceGroupForPrediction(undefined, 'google'),
   }))
+}
+
+export async function fetchFoodCategoryPredictions(
+  query: string,
+  location: { lat: number; lng: number }
+): Promise<Prediction[]> {
+  const json = await fetchPlaceTextSearchJson(query, isGoogleTextSearchPlace, location)
+  const results = json?.results ?? []
+  return results.slice(0, 8).map(r => {
+    const distanceKm = haversineKm(location.lat, location.lng, r.geometry.location.lat, r.geometry.location.lng)
+    return {
+      place_id: r.place_id,
+      description: r.name,
+      structured_formatting: { main_text: r.name, secondary_text: r.formatted_address },
+      types: r.types ?? ['restaurant'],
+      source: 'google' as const,
+      score: 0,
+      distanceKm,
+      distanceGroup: distanceGroupForPrediction(distanceKm, 'google'),
+    }
+  })
 }
 
 export async function searchRestaurantsByText(

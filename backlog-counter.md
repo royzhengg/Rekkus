@@ -1,6 +1,6 @@
 # Backlog Counter
 
-Next backlog ID: B-588
+Next backlog ID: B-589
 
 ## Rules
 

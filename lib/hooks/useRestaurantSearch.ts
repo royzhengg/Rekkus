@@ -3,6 +3,7 @@ import { analytics } from '@/lib/analytics'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
 import {
   distanceGroupForPrediction,
+  fetchFoodCategoryPredictions,
   fetchPredictions,
   fetchPlaceDetails,
   upsertPlaceStubs,
@@ -184,8 +185,14 @@ export function useRestaurantSearch({
             const fallbackReason = topUpThinLocalResults && fallbackDecision.shouldUseGoogleFallback
               ? 'thin_local_results'
               : fallbackDecision.reason
+            // Food-category queries (e.g. "Noodles") need Text Search, which understands
+            // cuisine/dish categories. Autocomplete only matches establishment names and
+            // returns ZERO_RESULTS for food terms. effectiveCoords is non-null here because
+            // food_dish without location is suppressed before shouldUseGoogleFallback=true.
             const googleResults = fallbackDecision.shouldUseGoogleFallback
-              ? await fetchPredictions(query, effectiveCoords)
+              ? await (tagIntent.providerIntent === 'food_dish' && effectiveCoords != null
+                  ? fetchFoodCategoryPredictions(query, effectiveCoords)
+                  : fetchPredictions(query, effectiveCoords))
               : []
             if (fallbackDecision.shouldUseGoogleFallback) {
               analytics.restaurantTaggingGoogleFallbackUsed(

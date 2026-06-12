@@ -80,6 +80,7 @@ const SAFE_METADATA_KEYS = new Set([
   'target_state',
   'comment_depth',
   'list_type',
+  'profile_tab',
   'map_action',
   'request_state',
   'field_count',
@@ -626,6 +627,18 @@ export const analytics = {
       entity_type: 'user',
       entity_id: targetUserId,
       metadata: { list_type: listType },
+    }),
+
+  profileInteraction: (
+    userId: string | null,
+    targetUserId: string | null,
+    action: string,
+    metadata?: Record<string, unknown>
+  ): void =>
+    void track(userId, {
+      event_type: 'profile_interaction',
+      ...(targetUserId ? { entity_type: 'user' as const, entity_id: targetUserId } : {}),
+      metadata: { action, ...metadata },
     }),
 
   screen: (userId: string | null, screenName: string): void =>

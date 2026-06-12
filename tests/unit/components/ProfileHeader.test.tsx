@@ -21,7 +21,8 @@ const baseProps = {
   avatarBg: '#fff',
   avatarColor: '#111',
   displayName: 'Sarah Lee',
-  postCount: 3,
+  username: 'sarah',
+  reviewCount: 3,
   followersLabel: 12,
   followingLabel: 8,
 }

@@ -209,4 +209,8 @@ export const routes = {
     pathname: '/messages' as const,
     params: { ...params },
   }),
+
+  manageTopSpots: () => ({
+    pathname: '/manage-top-spots' as const,
+  }),
 }
