@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
 import type { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export function makeStyles(c: ReturnType<typeof useThemeColors>) {
@@ -77,7 +77,7 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
     ratingValue: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
     ratingCount: { fontSize: fontSize.sm, color: c.text3, marginLeft: spacing.px2 },
     ratingChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.px2 },
-    ratingChipLabel: { fontSize: fontSize['2xs'], color: c.text3, letterSpacing: 0.5, marginRight: spacing.px2 },
+    ratingChipLabel: { fontSize: fontSize['2xs'], color: c.text3, letterSpacing: letterSpacing.wide, marginRight: spacing.px2 },
     recentReviewsNote: {
       fontSize: fontSize.xs,
       color: c.text3,

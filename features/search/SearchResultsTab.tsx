@@ -25,15 +25,17 @@ import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { usePressScale } from '@/lib/hooks/usePressScale'
 import type { DishResult, PersonResult, PlaceResult } from '@/lib/hooks/useSearch'
-import { routes } from '@/lib/routes'
+import { routes, searchAttributionRouteParams } from '@/lib/routes'
 import { fetchUserIdByUsername } from '@/lib/services/users'
 import type { Post } from '@/types/domain'
 import { RESULT_TABS, type ResultTab } from './searchConstants'
 import { PlaceRow, SectionHeader } from './searchShared'
+import { getTopResultSectionOrder, type TopResultSection } from './topResultOrder'
 
 interface SearchResultsTabProps {
   resultTab: ResultTab
   onTabChange: (tab: ResultTab) => void
+  dishFirstTopResults?: boolean
   topPlaces: PlaceResult[]
   topPosts: Post[]
   topPeople: PersonResult[]
@@ -58,6 +60,7 @@ interface SearchResultsTabProps {
 export function SearchResultsTab({
   resultTab,
   onTabChange,
+  dishFirstTopResults = false,
   topPlaces,
   topPosts,
   topPeople,
@@ -81,6 +84,60 @@ export function SearchResultsTab({
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const SEARCH_POST_LIMIT = 20
+  const topSectionOrder = useMemo(
+    () => getTopResultSectionOrder(dishFirstTopResults),
+    [dishFirstTopResults]
+  )
+
+  const topSections: Record<TopResultSection, React.ReactNode> = {
+    places: topPlaces.length > 0 ? (
+      <View>
+        <SectionHeader title="Places" count={placeResults.length} />
+        <View>
+          {topPlaces.map((p, index) => (
+            <PlaceRow
+              key={p.id}
+              place={p}
+              distanceKm={placeDistances.get(p.id)}
+              user={user}
+              query={query}
+              position={index + 1}
+              searchSessionId={searchSessionId}
+              onResultClick={onResultClick}
+            />
+          ))}
+        </View>
+      </View>
+    ) : null,
+    posts: topPosts.length > 0 ? (
+      <View>
+        <SectionHeader title="Dishes" count={postResults.length} />
+        <View>
+          {topPosts.map((p, index) => (
+            <PostCompactRow
+              key={p.id}
+              post={p}
+              position={index + 1}
+              query={query}
+              searchSessionId={searchSessionId}
+              user={user}
+              onResultClick={onResultClick}
+            />
+          ))}
+        </View>
+      </View>
+    ) : null,
+    people: topPeople.length > 0 ? (
+      <View>
+        <SectionHeader title="People" count={peopleResults.length} />
+        <View>
+          {topPeople.map(p => (
+            <PersonRow key={p.username} person={p} onResultClick={onResultClick} />
+          ))}
+        </View>
+      </View>
+    ) : null,
+  }
 
   return (
     <View style={styles.resultsPage}>
@@ -131,53 +188,9 @@ export function SearchResultsTab({
 
       {resultTab === 'top' && (
         <>
-          {topPlaces.length > 0 && (
-            <View>
-              <SectionHeader title="Places" count={placeResults.length} />
-              <View>
-                {topPlaces.map((p, index) => (
-                  <PlaceRow
-                    key={p.id}
-                    place={p}
-                    distanceKm={placeDistances.get(p.id)}
-                    user={user}
-                    query={query}
-                    position={index + 1}
-                    searchSessionId={searchSessionId}
-                    onResultClick={onResultClick}
-                  />
-                ))}
-              </View>
-            </View>
-          )}
-          {topPosts.length > 0 && (
-            <View>
-              <SectionHeader title="Dishes" count={postResults.length} />
-              <View>
-                {topPosts.map((p, index) => (
-                  <PostCompactRow
-                    key={p.id}
-                    post={p}
-                    position={index + 1}
-                    query={query}
-                    searchSessionId={searchSessionId}
-                    user={user}
-                    onResultClick={onResultClick}
-                  />
-                ))}
-              </View>
-            </View>
-          )}
-          {topPeople.length > 0 && (
-            <View>
-              <SectionHeader title="People" count={peopleResults.length} />
-              <View>
-                {topPeople.map(p => (
-                  <PersonRow key={p.username} person={p} onResultClick={onResultClick} />
-                ))}
-              </View>
-            </View>
-          )}
+          {topSectionOrder.map(section => (
+            <React.Fragment key={section}>{topSections[section]}</React.Fragment>
+          ))}
         </>
       )}
 
@@ -310,7 +323,7 @@ const DishEntityRow = React.memo(function DishEntityRow({
               searchSessionId
             )
           }
-          router.push(routes.dishDetail(dish.id))
+          router.push(routes.dishDetail({ dishId: dish.id, ...searchAttributionRouteParams(query, searchSessionId, 'dish', position) }))
         }}
       >
         <View style={[styles.postThumb, { backgroundColor: colors.surface }]}>
@@ -457,7 +470,7 @@ const PostCompactRow = React.memo(function PostCompactRow({
               searchSessionId
             )
           }
-          router.push(routes.postDetail(String(post.dbId || post.id)))
+          router.push(routes.postDetail({ postId: String(post.dbId || post.id), ...searchAttributionRouteParams(query, searchSessionId, 'post', position) }))
         }}
       >
         <View style={[styles.postThumb, { backgroundColor: imgColors[post.imgKey] }]}>

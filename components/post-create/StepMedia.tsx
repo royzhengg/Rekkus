@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as ImagePicker from 'expo-image-picker'
-import { useEffect, useMemo, useState } from 'react'
+import * as MediaLibrary from 'expo-media-library'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -16,13 +17,15 @@ import {
 import Animated, { FadeIn } from 'react-native-reanimated'
 import DishTagOverlay from '@/components/DishTagOverlay'
 import {
+  CameraIcon,
+  ChevronRight,
   CloseIcon,
   PinIcon,
-  SearchIcon,
   ImagePlaceholder,
-  CameraIcon,
+  PlusIcon,
 } from '@/components/icons'
 import DraggableMediaStrip from '@/components/post-create/DraggableMediaStrip'
+import { Chip } from '@/components/ui/Chip'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { spacing } from '@/constants/Spacing'
@@ -30,15 +33,18 @@ import { analytics } from '@/lib/analytics'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { isEnabled } from '@/lib/featureFlags'
 import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
+import type { RecentPhoto } from '@/lib/hooks/useRecentPhotos'
+import { useRecentPhotos } from '@/lib/hooks/useRecentPhotos'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { useRestaurantSearch } from '@/lib/hooks/useRestaurantSearch'
 import { MEDIA_LIMITS, validatePickedPostMedia } from '@/lib/services/media'
 import { preparePostMedia } from '@/lib/services/postMediaProcessing'
-import type { SelectedPlace } from '@/lib/services/restaurants'
+import type { Prediction, PredictionDistanceGroup, SelectedPlace } from '@/lib/services/restaurants'
 import type { DishTag, PostMedia } from '@/types/domain'
 import { makeStyles } from './StepMedia.styles'
 
 type Props = {
+  userId?: string | null
   media: PostMedia[]
   setMedia: (media: PostMedia[]) => void
   title: string
@@ -50,7 +56,86 @@ type Props = {
   setDishTags: (tags: DishTag[]) => void
 }
 
+type RecentPhotoPickedAsset = {
+  uri: string
+  type: 'image'
+  width: number
+  height: number
+  mimeType: string | null
+}
+
+function inferImageMimeTypeFromSources(...sources: Array<string | null | undefined>): string | null {
+  for (const source of sources) {
+    const extension = source?.split('?')[0]?.split('.').pop()?.toLowerCase()
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg'
+      case 'png':
+        return 'image/png'
+      case 'webp':
+        return 'image/webp'
+      case 'heic':
+        return 'image/heic'
+      case 'heif':
+        return 'image/heif'
+      default:
+        break
+    }
+  }
+  return null
+}
+
+async function resolveRecentPhotoAsset(photo: RecentPhoto): Promise<RecentPhotoPickedAsset | null> {
+  try {
+    const info = await MediaLibrary.getAssetInfoAsync(photo.id)
+    const uri = info.localUri ?? info.uri ?? photo.uri
+    const mimeType = inferImageMimeTypeFromSources(info.filename, info.localUri, info.uri, photo.filename, photo.uri)
+    if (!uri || !mimeType) return null
+    return {
+      uri,
+      type: 'image',
+      width: info.width || photo.width,
+      height: info.height || photo.height,
+      mimeType,
+    }
+  } catch {
+    return null
+  }
+}
+
+const DISTANCE_GROUP_LABELS: Record<PredictionDistanceGroup, string> = {
+  nearby: 'Nearby',
+  city: 'Sydney',
+  state: 'NSW',
+  country: 'Australia',
+  worldwide: 'Worldwide',
+}
+
+const NATIVE_PICKER_PRESENTATION_DELAY_MS = 350
+const PHOTO_LIBRARY_DENIED_MESSAGE =
+  'Photo library access is needed to add photos. Enable it in Settings.'
+const CAMERA_DENIED_MESSAGE =
+  'Camera access is needed to take a food photo. Enable it in Settings.'
+const PHOTO_LIBRARY_OPEN_ERROR =
+  'Could not open your photo library. Please try again.'
+const CAMERA_OPEN_ERROR =
+  'Could not open your camera. Please try again.'
+const RECENT_PHOTO_READ_ERROR =
+  'Could not read this photo. Try Add media instead.'
+
+function distanceGroupLabel(group: PredictionDistanceGroup | undefined): string {
+  return DISTANCE_GROUP_LABELS[group ?? 'worldwide']
+}
+
+function waitForNativePickerPresentationWindow(): Promise<void> {
+  return new Promise(resolve => {
+    setTimeout(resolve, NATIVE_PICKER_PRESENTATION_DELAY_MS)
+  })
+}
+
 export default function StepMedia({
+  userId,
   media,
   setMedia,
   title,
@@ -66,7 +151,8 @@ export default function StepMedia({
   const styles = useMemo(() => makeStyles(c), [c])
   const { width: screenWidth } = useWindowDimensions()
 
-  const [titleFocused, setTitleFocused] = useState(false)
+  const [_titleFocused, setTitleFocused] = useState(false)
+  const [mediaPickerVisible, setMediaPickerVisible] = useState(false)
   const [dishTagModal, setDishTagModal] = useState(false)
   const [showDishTagTooltip, setShowDishTagTooltip] = useState(false)
   const [tooltipSeen, setTooltipSeen] = useState(true)
@@ -84,15 +170,72 @@ export default function StepMedia({
     searchFocused,
     showNearby,
     showDropdown,
+    locationStatus,
+    locationConstrained,
+    requestLocationAndSearch,
     handleSearchChange,
     selectPrediction,
     onSearchFocus,
     onSearchBlur,
     clearSearch,
-  } = useRestaurantSearch({ cuisineType, onPlaceSelected: setSelectedPlace })
+  } = useRestaurantSearch({ cuisineType, userId: userId ?? null, onPlaceSelected: setSelectedPlace })
+  const showRestaurantLocationNudge =
+    !selectedPlace &&
+    !locationConstrained &&
+    locationSearch.trim().length >= 2 &&
+    locationStatus !== 'granted'
+  const restaurantEmptyText = locationConstrained
+    ? `No venues found near you for "${locationSearch}"`
+    : `No results for "${locationSearch}"`
+  const restaurantEmptyHint = locationConstrained
+    ? 'Try a different name or check your location.'
+    : 'Adding your location can improve nearby results.'
+
+  const renderPredictionRows = (
+    items: Prediction[],
+    source: 'nearby' | 'prediction'
+  ) => {
+    let previousGroup: string | null = null
+    return items.map((item, index) => {
+      const groupLabel = distanceGroupLabel(item.distanceGroup)
+      const showHeader = groupLabel !== previousGroup
+      previousGroup = groupLabel
+      return (
+        <View key={item.place_id}>
+          {showHeader && (
+            <Text style={styles.dropdownSectionHeader}>{groupLabel}</Text>
+          )}
+          <TouchableOpacity
+            style={[styles.dropdownItem, index === items.length - 1 && { borderBottomWidth: 0 }]}
+            onPress={() => selectPrediction(item, source)}
+          >
+            <PinIcon color={c.text3} size={13} />
+            <View style={styles.dropdownItemText}>
+              <Text style={styles.dropdownName}>{item.structured_formatting.main_text}</Text>
+              <Text style={styles.dropdownSub} numberOfLines={1}>
+                {item.structured_formatting.secondary_text}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )
+    })
+  }
 
   const photos = useMemo(() => media.filter(item => item.type === 'image').map(item => item.uri), [media])
   const videoCount = media.filter(item => item.type === 'video').length
+  const recentPhotoStripShownRef = useRef(false)
+  const recentPhotos = useRecentPhotos({
+    enabled: media.length === 0,
+  })
+
+  useEffect(() => {
+    if (media.length > 0 || recentPhotos.photos.length === 0 || recentPhotoStripShownRef.current) return
+    recentPhotoStripShownRef.current = true
+    analytics.mediaEvent(null, 'recent_photo_strip_shown', 'post_create', {
+      photo_count: recentPhotos.photos.length,
+    })
+  }, [media.length, recentPhotos.photos.length])
 
   function showMediaError(message: string) {
     setMediaError(message)
@@ -102,70 +245,163 @@ export default function StepMedia({
     setMediaError(null)
     const remaining = MEDIA_LIMITS.maxPostMedia - media.length
     if (remaining <= 0) return
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: isEnabled('mixedMediaPosts') ? ['images', 'videos'] : ['images'],
-      allowsMultipleSelection: true,
-      quality: 0.8,
-      selectionLimit: remaining,
-      videoMaxDuration: MEDIA_LIMITS.maxPostVideoSeconds,
-    })
-    if (!result.canceled) {
-      analytics.mediaEvent(null, 'media_selected', 'post_create', {
-        media_count: result.assets.length,
+    try {
+      const currentPermission = await ImagePicker.getMediaLibraryPermissionsAsync()
+      let requestedPermission = false
+      if (!currentPermission.granted && !currentPermission.canAskAgain) {
+        await requestPermission(() => Promise.resolve(currentPermission), PHOTO_LIBRARY_DENIED_MESSAGE)
+        return
+      }
+      if (!currentPermission.granted) {
+        requestedPermission = true
+        const requestedResult = await requestPermission(
+          () => ImagePicker.requestMediaLibraryPermissionsAsync(),
+          PHOTO_LIBRARY_DENIED_MESSAGE
+        )
+        if (!requestedResult.granted) return
+      }
+      if (requestedPermission) await waitForNativePickerPresentationWindow()
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: isEnabled('mixedMediaPosts') ? ['images', 'videos'] : ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        selectionLimit: remaining,
+        videoMaxDuration: MEDIA_LIMITS.maxPostVideoSeconds,
+        presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
       })
-      analytics.mediaEvent(null, 'media_prepare_started', 'post_create', {
-        media_count: result.assets.length,
-      })
-      const { media: nextMedia, rejectedCount, error } = await preparePostMedia(result.assets, media)
-      if (error) showMediaError(error)
-      if (rejectedCount > 0) {
-        analytics.uploadFailure(null, 'post_media_picker', 'validation_rejected', rejectedCount)
-        analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
-          reason: error ?? 'validation_rejected',
+      if (!result.canceled) {
+        analytics.mediaEvent(null, 'media_selected', 'post_create', {
+          media_count: result.assets.length,
+        })
+        analytics.mediaEvent(null, 'media_prepare_started', 'post_create', {
+          media_count: result.assets.length,
+        })
+        const { media: nextMedia, rejectedCount, error } = await preparePostMedia(result.assets, media)
+        if (error) showMediaError(error)
+        else if (rejectedCount > 0 && nextMedia.length === media.length) {
+          showMediaError('Could not add the selected media. Check the file type and size.')
+        }
+        if (rejectedCount > 0) {
+          analytics.uploadFailure(null, 'post_media_picker', 'validation_rejected', rejectedCount)
+          analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
+            reason: error ?? 'validation_rejected',
+          })
+        }
+        setMedia(nextMedia)
+        analytics.mediaEvent(null, 'media_prepare_completed', 'post_create', {
+          media_count: nextMedia.length,
         })
       }
-      setMedia(nextMedia)
-      analytics.mediaEvent(null, 'media_prepare_completed', 'post_create', {
-        media_count: nextMedia.length,
+    } catch (e) {
+      showMediaError(PHOTO_LIBRARY_OPEN_ERROR)
+      analytics.uploadFailure(null, 'post_media_picker', 'picker_unavailable')
+      analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
+        reason: e instanceof Error ? e.message : 'picker_unavailable',
       })
     }
   }
 
   async function takePhoto() {
     setMediaError(null)
-    const permResult = await requestPermission(
-      () => ImagePicker.requestCameraPermissionsAsync(),
-      'Camera access is needed to take a food photo. Enable it in Settings.'
-    )
-    if (!permResult.granted) return
-    const cameraResult = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.85,
-      allowsEditing: false,
-    })
-    if (!cameraResult.canceled) {
-      analytics.mediaEvent(null, 'media_selected', 'post_create', {
-        media_count: cameraResult.assets.length,
-        media_type: 'image',
+    try {
+      const currentPermission = await ImagePicker.getCameraPermissionsAsync()
+      let requestedPermission = false
+      if (!currentPermission.granted && !currentPermission.canAskAgain) {
+        await requestPermission(() => Promise.resolve(currentPermission), CAMERA_DENIED_MESSAGE)
+        return
+      }
+      if (!currentPermission.granted) {
+        requestedPermission = true
+        const requestedResult = await requestPermission(
+          () => ImagePicker.requestCameraPermissionsAsync(),
+          CAMERA_DENIED_MESSAGE
+        )
+        if (!requestedResult.granted) return
+      }
+      if (requestedPermission) await waitForNativePickerPresentationWindow()
+      const cameraResult = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.85,
+        allowsEditing: false,
+        presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
       })
-      analytics.mediaEvent(null, 'media_prepare_started', 'post_create', {
-        media_count: cameraResult.assets.length,
-        media_type: 'image',
-      })
-      const { media: nextMedia, rejectedCount, error } = await preparePostMedia(cameraResult.assets, media)
-      if (error) showMediaError(error)
-      if (rejectedCount > 0) {
-        analytics.uploadFailure(null, 'post_camera', 'validation_rejected', rejectedCount)
-        analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
-          reason: error ?? 'validation_rejected',
+      if (!cameraResult.canceled) {
+        analytics.mediaEvent(null, 'media_selected', 'post_create', {
+          media_count: cameraResult.assets.length,
+          media_type: 'image',
+        })
+        analytics.mediaEvent(null, 'media_prepare_started', 'post_create', {
+          media_count: cameraResult.assets.length,
+          media_type: 'image',
+        })
+        const { media: nextMedia, rejectedCount, error } = await preparePostMedia(cameraResult.assets, media)
+        if (error) showMediaError(error)
+        if (rejectedCount > 0) {
+          analytics.uploadFailure(null, 'post_camera', 'validation_rejected', rejectedCount)
+          analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
+            reason: error ?? 'validation_rejected',
+          })
+        }
+        setMedia(nextMedia)
+        analytics.mediaEvent(null, 'media_prepare_completed', 'post_create', {
+          media_count: nextMedia.length,
+          media_type: 'image',
         })
       }
-      setMedia(nextMedia)
-      analytics.mediaEvent(null, 'media_prepare_completed', 'post_create', {
-        media_count: nextMedia.length,
+    } catch (e) {
+      showMediaError(CAMERA_OPEN_ERROR)
+      analytics.uploadFailure(null, 'post_camera', 'picker_unavailable')
+      analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
+        reason: e instanceof Error ? e.message : 'picker_unavailable',
         media_type: 'image',
       })
     }
+  }
+
+  async function addRecentPhoto(photo: RecentPhoto) {
+    setMediaError(null)
+    analytics.mediaEvent(null, 'recent_photo_selected', 'post_create')
+    analytics.mediaEvent(null, 'media_selected', 'post_create', {
+      media_count: 1,
+      media_type: 'image',
+      source: 'recent_photo_strip',
+    })
+    analytics.mediaEvent(null, 'media_prepare_started', 'post_create', {
+      media_count: 1,
+      media_type: 'image',
+      source: 'recent_photo_strip',
+    })
+    const asset = await resolveRecentPhotoAsset(photo)
+    if (!asset) {
+      showMediaError(RECENT_PHOTO_READ_ERROR)
+      analytics.uploadFailure(null, 'post_recent_photo_strip', 'metadata_unavailable')
+      analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
+        reason: 'metadata_unavailable',
+        media_type: 'image',
+        source: 'recent_photo_strip',
+      })
+      return
+    }
+
+    const { media: nextMedia, rejectedCount, error } = await preparePostMedia([asset], media)
+    if (error) showMediaError(error)
+    else if (rejectedCount > 0 && nextMedia.length === media.length) {
+      showMediaError(RECENT_PHOTO_READ_ERROR)
+    }
+    if (rejectedCount > 0) {
+      analytics.uploadFailure(null, 'post_recent_photo_strip', 'validation_rejected', rejectedCount)
+      analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
+        reason: error ?? 'validation_rejected',
+        media_type: 'image',
+        source: 'recent_photo_strip',
+      })
+    }
+    setMedia(nextMedia)
+    analytics.mediaEvent(null, 'media_prepare_completed', 'post_create', {
+      media_count: nextMedia.length,
+      media_type: 'image',
+      source: 'recent_photo_strip',
+    })
   }
 
   async function replaceCoverWithCrop() {
@@ -292,24 +528,35 @@ export default function StepMedia({
       {/* Title */}
       <View style={styles.titleSection}>
         <TextInput
-          style={[styles.titleInput, titleFocused && styles.fieldFocused]}
-          placeholder="What did you try?"
+          style={styles.titleInput}
+          placeholder="What's your take?"
           placeholderTextColor={c.text3}
           value={title}
           onChangeText={setTitle}
           onFocus={() => setTitleFocused(true)}
           onBlur={() => setTitleFocused(false)}
-          maxLength={100}
-          multiline
+          maxLength={80}
+          accessibilityLabel="Post title"
+          accessibilityHint="One-line review — shown at the top of your post"
         />
-        <Text style={styles.charCount}>{title.length}/100</Text>
+        <View style={styles.titleMeta}>
+          <Text style={styles.titleMetaLabel}>One-line review</Text>
+          <Text
+            style={styles.charCount}
+            accessibilityLiveRegion="polite"
+            accessibilityRole="text"
+          >
+            {title.length} / 80
+          </Text>
+        </View>
       </View>
 
-      {/* Location search */}
+      {/* Restaurant */}
       <View style={styles.locationSection}>
+        <Text style={styles.sectionLabel}>RESTAURANT</Text>
         {selectedPlace ? (
           <View style={styles.locationConfirmed}>
-            <PinIcon color={c.accent} size={15} />
+            <PinIcon color={c.accent} size={20} />
             <View style={styles.locationConfirmedText}>
               <Text style={styles.locationName} numberOfLines={1}>{selectedPlace.name}</Text>
               <Text style={styles.locationAddress} numberOfLines={1}>
@@ -330,20 +577,22 @@ export default function StepMedia({
             )}
           </View>
         ) : (
-          <View style={[styles.searchWrap, searchFocused && styles.fieldFocused]}>
-            <SearchIcon color={searchFocused ? c.text2 : c.text3} />
+          <View style={styles.searchWrap}>
+            <PinIcon color={c.accent} size={20} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search for a restaurant…"
+              placeholder="Search or pick nearby..."
               placeholderTextColor={c.text3}
               value={locationSearch}
               onChangeText={handleSearchChange}
               onFocus={onSearchFocus}
               onBlur={onSearchBlur}
               returnKeyType="search"
+              accessibilityLabel="Restaurant name"
+              accessibilityHint="Search by name, or choose from restaurants near you"
             />
             {predictionsLoading && <ActivityIndicator size="small" color={c.text3} />}
-            {locationSearch.length > 0 && !predictionsLoading && (
+            {locationSearch.length > 0 && !predictionsLoading ? (
               <TouchableOpacity
                 onPress={clearSearch}
                 hitSlop={8}
@@ -352,7 +601,21 @@ export default function StepMedia({
               >
                 <CloseIcon size={10} color={c.text3} />
               </TouchableOpacity>
+            ) : (
+              <ChevronRight size={16} />
             )}
+          </View>
+        )}
+
+        {!selectedPlace && nearbyPlaces.length > 0 && !searchFocused && locationSearch.length === 0 && (
+          <View style={styles.nearbyChips}>
+            {nearbyPlaces.slice(0, 3).map(item => (
+              <Chip
+                key={item.place_id}
+                label={item.structured_formatting.main_text}
+                onPress={() => selectPrediction(item, 'nearby')}
+              />
+            ))}
           </View>
         )}
 
@@ -363,21 +626,7 @@ export default function StepMedia({
             ) : (
               <>
                 <Text style={styles.nearbyLabel}>Nearby on Rekkus</Text>
-                {nearbyPlaces.map((item, index) => (
-                  <TouchableOpacity
-                    key={item.place_id}
-                    style={[styles.dropdownItem, index === nearbyPlaces.length - 1 && { borderBottomWidth: 0 }]}
-                    onPress={() => selectPrediction(item)}
-                  >
-                    <PinIcon color={c.text3} size={13} />
-                    <View style={styles.dropdownItemText}>
-                      <Text style={styles.dropdownName}>{item.structured_formatting.main_text}</Text>
-                      <Text style={styles.dropdownSub} numberOfLines={1}>
-                        {item.structured_formatting.secondary_text}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                {renderPredictionRows(nearbyPlaces, 'nearby')}
               </>
             )}
           </View>
@@ -385,57 +634,78 @@ export default function StepMedia({
 
         {showDropdown && (
           <View style={styles.dropdown}>
-            {predictions.map((item, index) => (
-              <TouchableOpacity
-                key={item.place_id}
-                style={[styles.dropdownItem, index === predictions.length - 1 && { borderBottomWidth: 0 }]}
-                onPress={() => selectPrediction(item)}
-              >
-                <PinIcon color={c.text3} size={13} />
-                <View style={styles.dropdownItemText}>
-                  <Text style={styles.dropdownName}>{item.structured_formatting.main_text}</Text>
-                  <Text style={styles.dropdownSub} numberOfLines={1}>
-                    {item.structured_formatting.secondary_text}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {renderPredictionRows(predictions, 'prediction')}
             {predictions.length === 0 && locationSearch.length >= 2 && !predictionsLoading && (
               <View style={styles.dropdownEmpty}>
-                <Text style={styles.dropdownEmptyText}>No results</Text>
+                <Text style={styles.dropdownEmptyText}>{restaurantEmptyText}</Text>
+                {restaurantEmptyHint ? (
+                  <Text style={styles.dropdownEmptyHint}>{restaurantEmptyHint}</Text>
+                ) : null}
+                {showRestaurantLocationNudge ? (
+                  <TouchableOpacity
+                    style={styles.dropdownLocationButton}
+                    onPress={() => { void requestLocationAndSearch() }}
+                    disabled={locationStatus === 'requesting'}
+                    accessibilityRole="button"
+                    accessibilityLabel="Use current location for restaurant search"
+                  >
+                    <Text style={styles.dropdownLocationButtonText}>
+                      {locationStatus === 'requesting' ? 'Getting location…' : 'Use current location'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             )}
           </View>
         )}
       </View>
 
-      {/* Photo area */}
+      {/* Media */}
       {mediaError ? <ErrorMessage title="Could not add media" message={mediaError} /> : null}
       {media.length === 0 ? (
-        <View style={styles.photoEmpty}>
-          <ImagePlaceholder size={32} color={c.text3} />
-          <Text style={styles.photoEmptyLabel}>Add food media</Text>
-          <Text style={styles.photoEmptySub}>Add a photo or video — then tag the dishes people should order</Text>
-          <View style={styles.mediaActionRow}>
-            <TouchableOpacity
-              style={styles.mediaActionBtn}
-              onPress={takePhoto}
-              accessibilityRole="button"
-              accessibilityLabel="Take photo"
-            >
-              <CameraIcon size={17} color={c.accent} />
-              <Text style={styles.mediaActionText}>Camera</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.mediaActionBtn}
-              onPress={addMedia}
-              accessibilityRole="button"
-              accessibilityLabel="Choose media from library"
-            >
-              <ImagePlaceholder size={17} color={c.accent} />
-              <Text style={styles.mediaActionText}>Library</Text>
-            </TouchableOpacity>
+        <View style={styles.mediaSection}>
+          <Text style={styles.sectionLabel}>MEDIA</Text>
+          <View style={styles.photoEmpty}>
+            <ImagePlaceholder size={36} color={c.text3} />
+            <Text style={styles.photoEmptySub}>Tap your media to tag dishes</Text>
           </View>
+          <TouchableOpacity
+            style={styles.mediaAddBtn}
+            onPress={() => setMediaPickerVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Add photos or video"
+            accessibilityHint="Opens a menu to take a photo or choose from your library"
+          >
+            <PlusIcon size={16} color="#fff" /* check:tokens-ignore */ />
+            <Text style={styles.mediaAddBtnText}>Add media</Text>
+          </TouchableOpacity>
+          {(recentPhotos.loading || recentPhotos.photos.length > 0) && !recentPhotos.denied && !recentPhotos.error && (
+            <View style={styles.recentPhotosWrap}>
+              <Text style={styles.recentPhotosTitle}>RECENTS</Text>
+              <View style={styles.recentPhotosGrid}>
+                {recentPhotos.loading
+                  ? Array.from({ length: 5 }).map((_, index) => (
+                    <View
+                      key={`recent-photo-loading-${index}`}
+                      style={styles.recentPhotoSkeleton}
+                      accessibilityElementsHidden
+                      importantForAccessibility="no"
+                    />
+                  ))
+                  : recentPhotos.photos.slice(0, 5).map((photo, index) => (
+                    <TouchableOpacity
+                      key={photo.id}
+                      style={styles.recentPhotoButton}
+                      onPress={() => { void addRecentPhoto(photo) }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add recent photo ${index + 1}`}
+                    >
+                      <Image source={{ uri: photo.uri }} style={styles.recentPhotoImage} resizeMode="cover" />
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            </View>
+          )}
         </View>
       ) : (
         <View style={styles.photosSection}>
@@ -469,7 +739,7 @@ export default function StepMedia({
           {/* Photo action row */}
           {photos.length > 0 && (
             <View style={styles.photoActions}>
-              <TouchableOpacity style={styles.photoActionBtn} onPress={replaceCoverWithCrop} accessibilityRole="button">
+              <TouchableOpacity style={styles.photoActionBtn} onPress={replaceCoverWithCrop} accessibilityRole="button" accessibilityLabel="Replace cover photo" accessibilityHint="Opens photo library to pick a 3 by 4 cropped cover image">
                 <ImagePlaceholder size={13} color={c.accent} />
                 <Text style={styles.photoActionText}>3:4 cover</Text>
               </TouchableOpacity>
@@ -478,6 +748,7 @@ export default function StepMedia({
                 onPress={openDishTagModal}
                 accessibilityRole="button"
                 accessibilityLabel="Tag dishes in photo"
+                accessibilityHint={dishTags.length > 0 ? `${dishTags.length} dish${dishTags.length !== 1 ? 'es' : ''} tagged. Tap to add more.` : 'Opens a photo view where you can pin dish names'}
               >
                 <PinIcon size={13} color={c.accent} />
                 <Text style={styles.photoActionText}>
@@ -597,6 +868,25 @@ export default function StepMedia({
         </View>
       </Modal>
 
+      <RekkusActionSheet
+        visible={mediaPickerVisible}
+        title="Add media"
+        options={[
+          { label: 'Camera', value: 'camera', icon: <CameraIcon size={16} color={c.accent} /> },
+          { label: 'Photo library', value: 'library', icon: <ImagePlaceholder size={16} color={c.accent} /> },
+        ]}
+        onSelect={v => {
+          setMediaPickerVisible(false)
+          // Defer past the sheet's ~300ms slide-out animation. iOS silently
+          // drops a native picker presentation while a modal VC is still
+          // dismissing; Android can also fail on some versions for the same reason.
+          setTimeout(() => {
+            if (v === 'camera') void takePhoto()
+            else void addMedia()
+          }, NATIVE_PICKER_PRESENTATION_DELAY_MS)
+        }}
+        onDismiss={() => setMediaPickerVisible(false)}
+      />
       <RekkusActionSheet
         visible={recoveryVisible}
         title="Permission required"

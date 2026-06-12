@@ -21,6 +21,7 @@ type Props = {
   isEditingPost: boolean
   onSaveDraft: (mode: SaveDraftMode, options?: { showConfirmation?: boolean }) => Promise<void>
   onDraftDone: () => void
+  onCancelLeave: () => void
   onRetryPost?: () => void
   onDiscard: () => Promise<void>
   onReviewLatest: () => void
@@ -41,12 +42,15 @@ export function CreatePostSheets({
   isEditingPost,
   onSaveDraft,
   onDraftDone,
+  onCancelLeave,
   onRetryPost,
   onDiscard,
   onReviewLatest,
   onSaveConflictDraft,
   onDiscardConflict,
 }: Props) {
+  const leaveActionSelected = React.useRef(false)
+
   return (
     <>
       <RekkusActionSheet
@@ -85,7 +89,11 @@ export function CreatePostSheets({
           { label: 'Discard', value: 'discard', destructive: true },
         ]}
         onSelect={async value => {
-          if (value === 'keep') return
+          leaveActionSelected.current = true
+          if (value === 'keep') {
+            onCancelLeave()
+            return
+          }
           if (value === 'save') {
             await onSaveDraft('update', { showConfirmation: false })
             onDraftDone()
@@ -93,7 +101,14 @@ export function CreatePostSheets({
           }
           if (value === 'discard') await onDiscard()
         }}
-        onDismiss={() => setLeaveConfirmVisible(false)}
+        onDismiss={() => {
+          setLeaveConfirmVisible(false)
+          if (leaveActionSelected.current) {
+            leaveActionSelected.current = false
+            return
+          }
+          onCancelLeave()
+        }}
       />
       <RekkusActionSheet
         visible={editConflictVisible}

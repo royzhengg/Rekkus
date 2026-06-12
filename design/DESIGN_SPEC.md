@@ -304,6 +304,8 @@ import { ProfileHeader } from '@/components/ProfileHeader'
   postCount={24}
   followersLabel="1.4k"
   followingLabel={312}
+  onPressFollowers={() => openFollowers()}
+  onPressFollowing={() => openFollowing()}
   bio="Sydney food lover."
   locationLabel="Surry Hills, Sydney"
   avgFoodRating="4.3" // null → hidden

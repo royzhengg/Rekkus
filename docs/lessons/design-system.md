@@ -164,6 +164,14 @@ Prevention: `check:risk-guardrails` runs `navigationSafetyFailures` across app, 
 
 ---
 
+## Native modal dismissal needs the same data-loss guard as visible back controls
+
+Routes presented as native modals can be removed by swipe/back gestures without pressing the screen's visible Cancel button. Protect draft-bearing flows with `usePreventRemove`, store the pending navigation action, and resume that exact action only after the user confirms Save or Discard through the canonical sheet.
+
+**Apply when:** moving a draft, composer, or edit flow from a tab/card route into a native modal route.
+
+---
+
 ## Success/info feedback belongs in Toast, not Alert.alert (B-402)
 
 `Alert.alert` is a modal interrupt — it blocks the UI and demands user acknowledgement. Using it for success or info messages (e.g., "Password updated", "Conversation muted") breaks the user's flow for no reason.

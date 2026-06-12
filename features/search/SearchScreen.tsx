@@ -2,12 +2,12 @@ import { useLocalSearchParams, useFocusEffect } from 'expo-router'
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { SearchIcon, CloseIcon, FilterIcon } from '@/components/icons'
+import { SearchIcon, CloseIcon, FilterIcon, PinIcon } from '@/components/icons'
 import { Chip } from '@/components/ui/Chip'
 import { IconButton } from '@/components/ui/IconButton'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, maxFontSizeMultiplier } from '@/constants/Typography'
+import { fontFamily, fontSize, fontWeight, letterSpacing, maxFontSizeMultiplier } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
@@ -16,11 +16,14 @@ import { occasionLabel, valueLabel } from '@/lib/dataSources/rekkusPicks'
 import { isEnabled } from '@/lib/featureFlags'
 import { useNoResultsSuggestions } from '@/lib/hooks/useNoResultsSuggestions'
 import { useSearch, type PlaceResult, type SearchFilters } from '@/lib/hooks/useSearch'
-import { useSearchHistory } from '@/lib/hooks/useSearchHistory'
+import { useSearchHistory, loadPersistedSearchState, persistSearchState } from '@/lib/hooks/useSearchHistory'
 import { useTrendingData } from '@/lib/hooks/useTrendingData'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
 import { fetchStaffPickCollections, type Collection } from '@/lib/services/collections'
-import { resolveTrendingCityFromCoords } from '@/lib/services/search'
+import { fetchUserEngagementCuisines } from '@/lib/services/searchPersonalization'
+import { resolveTrendingCityFromCoords } from '@/lib/services/trending'
+import { parseSearchQuery } from '@/lib/utils/queryParser'
+import { resolveLocationSource } from '@/lib/utils/searchIntent'
 import { DiscoveryPage } from './DiscoveryPage'
 import { NoResultsCard } from './NoResultsCard'
 import { CHIPS, TRENDING, SEARCH_SORTS, type ResultTab } from './searchConstants'
@@ -45,11 +48,21 @@ export default function SearchScreen() {
   const [resultTab, setResultTab] = useState<ResultTab>('top')
   const [staffPicks, setStaffPicks] = useState<Collection[]>([])
   const [nearCity, setNearCity] = useState<string | null>(null)
+  const [viewedCuisines, setViewedCuisines] = useState<string[]>([])
+  const [locationNudgeDismissed, setLocationNudgeDismissed] = useState(false)
   const {
     trendingSearches,
     popularPlaces: livePopularPlaces,
+    trendingDishes,
   } = useTrendingData(nearCity)
-  const { cuisineAffinities, recentSearches, dismissSearch } = useSearchHistory()
+  const {
+    cuisineAffinities,
+    recentSearches,
+    savedSearches,
+    dismissSearch,
+    saveSearch,
+    unsaveSearch,
+  } = useSearchHistory()
   const searchSessionId = useRef(`search-${Date.now().toString(36)}`)
   const queryPosition = useRef(0)
   const previousTrackedQuery = useRef('')
@@ -58,6 +71,8 @@ export default function SearchScreen() {
   const sessionHadResults = useRef(false)
   const sessionLastResultCount = useRef(0)
   const lastNoResultsKey = useRef('')
+  const lastLocationNudgeKey = useRef('')
+  const locationSource = resolveLocationSource(userLocation.status, userLocation.coords != null)
 
   const {
     postResults,
@@ -66,6 +81,8 @@ export default function SearchScreen() {
     placeDistances,
     dishEntityResults,
     suggestions,
+    providerFallbackSuppressed,
+    queryIntent,
     hasQuery,
     expansionLabel,
   } = useSearch(query, userLocation.coords, {
@@ -73,17 +90,31 @@ export default function SearchScreen() {
     radiusKm,
     userId: user?.id,
     filters: searchFilters,
+    locationSource,
   })
 
   const totalResults = postResults.length + peopleResults.length + placeResults.length + dishEntityResults.length
   const SEARCH_POST_LIMIT = 20
   const [visiblePostCount, setVisiblePostCount] = useState(SEARCH_POST_LIMIT)
   const noResultsSuggestions = useNoResultsSuggestions(query, {
+    userId: user?.id ?? null,
     cuisineAffinities,
+    viewedCuisines,
     recentSearches,
     trendingSearches,
     staticFallbacks: CHIPS,
   })
+
+  const dishFirstTopResults = useMemo(() => {
+    const trimmed = query.trim()
+    if (!trimmed) return false
+    try {
+      const intent = parseSearchQuery(trimmed).intent
+      return intent === 'dish' || intent === 'mixed'
+    } catch {
+      return false
+    }
+  }, [query])
 
   useEffect(() => {
     setVisiblePostCount(SEARCH_POST_LIMIT)
@@ -99,8 +130,35 @@ export default function SearchScreen() {
   }, [routeQuery])
 
   useEffect(() => {
+    void loadPersistedSearchState(user?.id).then(state => {
+      setSearchFilters(state?.filters ?? { sort: 'best_match' })
+      setRadiusKm(state?.radiusKm ?? 10)
+    })
+  }, [user?.id])
+
+  useEffect(() => {
     void fetchStaffPickCollections().then(setStaffPicks)
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!user?.id) {
+      setViewedCuisines([])
+      return
+    }
+
+    void fetchUserEngagementCuisines(user.id)
+      .then(cuisines => {
+        if (!cancelled) setViewedCuisines(cuisines)
+      })
+      .catch(() => {
+        if (!cancelled) setViewedCuisines([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
 
   useEffect(() => {
     let cancelled = false
@@ -214,24 +272,21 @@ export default function SearchScreen() {
 
   const popularPlaces = livePopularPlaces.length > 0 ? livePopularPlaces : demoPopularPlaces
 
-  const trendingItems = useMemo(() => {
-    if (trendingSearches.length > 0) {
-      return trendingSearches.map(q => ({ tag: q, count: '' }))
-    }
-    return TRENDING
-  }, [trendingSearches])
+  const trendingItems = useMemo(
+    () => trendingSearches.length > 0 ? trendingSearches.map(q => ({ tag: q, count: '' })) : TRENDING,
+    [trendingSearches]
+  )
 
-  const typeaheadSuggestions = useMemo(() => {
-    return buildTypeaheadSuggestions({ isFocused, query, suggestions, recentSearches })
-  }, [isFocused, query, recentSearches, suggestions])
+  const typeaheadSuggestions = useMemo(
+    () => buildTypeaheadSuggestions({ isFocused, query, suggestions, recentSearches }),
+    [isFocused, query, recentSearches, suggestions]
+  )
 
   const topPeople = useMemo(() => peopleResults.slice(0, 3), [peopleResults])
   const topPosts = useMemo(() => postResults.slice(0, 5), [postResults])
   const topPlaces = useMemo(() => placeResults.slice(0, 4), [placeResults])
 
-  const nearbySummary = userLocation.label
-    ? `${userLocation.label} · ${radiusKm} km`
-    : `Nearby · ${radiusKm} km`
+  const nearbySummary = userLocation.label ? `${userLocation.label} · ${radiusKm} km` : `Nearby · ${radiusKm} km`
 
   const activeFilterTokens = useMemo(() => {
     const tokens: string[] = []
@@ -245,13 +300,7 @@ export default function SearchScreen() {
       tokens.push(...searchFilters.values.slice(0, 1).map(valueLabel))
     }
     if (searchFilters.mediaTypes?.length) {
-      tokens.push(
-        searchFilters.mediaTypes
-          .map(type =>
-            type === 'mixed' ? 'Mixed media' : type === 'video' ? 'Videos' : 'Photos'
-          )
-          .join(', ')
-      )
+      tokens.push(searchFilters.mediaTypes.map(t => t === 'mixed' ? 'Mixed media' : t === 'video' ? 'Videos' : 'Photos').join(', '))
     }
     if (searchFilters.sort && searchFilters.sort !== 'best_match') {
       tokens.push(SEARCH_SORTS.find(s => s.key === searchFilters.sort)?.label ?? 'Sorted')
@@ -267,6 +316,20 @@ export default function SearchScreen() {
   const showTypeaheadSuggestions =
     typeaheadSuggestions.length > 0 &&
     (!hasQuery || totalResults === 0 || query.trim().length < 2)
+  const showLocationNudge =
+    !locationNudgeDismissed &&
+    searchMode === 'search' &&
+    !userLocation.coords &&
+    query.trim().length >= 2 &&
+    (providerFallbackSuppressed || queryIntent === 'food_dish')
+
+  useEffect(() => {
+    if (!showLocationNudge) return
+    const key = `${query.trim().toLowerCase()}|${queryIntent}|${searchMode}`
+    if (lastLocationNudgeKey.current === key) return
+    lastLocationNudgeKey.current = key
+    analytics.searchLocationNudgeShown(user?.id ?? null, queryIntent, locationSource, searchMode)
+  }, [locationSource, query, queryIntent, searchMode, showLocationNudge, user?.id])
 
   const handleResultClick = useCallback(() => {
     sessionHadClick.current = true
@@ -295,7 +358,13 @@ export default function SearchScreen() {
 
   function updateSearchFilters(next: SearchFilters) {
     setSearchFilters(next)
+    persistSearchState({ filters: next, radiusKm }, user?.id)
     analytics.searchFilter(user?.id ?? null, 'applied', 'search_filters')
+  }
+
+  function updateRadiusKm(next: number) {
+    setRadiusKm(next)
+    persistSearchState({ filters: searchFilters, radiusKm: next }, user?.id)
   }
 
   function handleSelectRecent(item: string) {
@@ -303,6 +372,11 @@ export default function SearchScreen() {
     setIsFocused(false)
     setSearchMode('search')
     setResultTab('top')
+  }
+
+  function handleSelectSavedSearch(item: string) {
+    analytics.savedSearchSelected(user?.id ?? null, item)
+    handleSelectRecent(item)
   }
 
   function handleNoResultsChip(q: string) {
@@ -313,6 +387,24 @@ export default function SearchScreen() {
     setActiveChip('')
     setSearchMode('search')
     setResultTab('top')
+  }
+
+  async function handleLocationNudgePress() {
+    analytics.searchLocationNudgeClicked(user?.id ?? null, queryIntent, locationSource, searchMode)
+    if (userLocation.status === 'denied') {
+      await Linking.openSettings()
+      analytics.searchLocationPermissionResult(user?.id ?? null, 'settings_opened', queryIntent, searchMode)
+      setLocationNudgeDismissed(true)
+      return
+    }
+    const next = await userLocation.requestLocation()
+    analytics.searchLocationPermissionResult(
+      user?.id ?? null,
+      next ? 'granted' : userLocation.status,
+      queryIntent,
+      searchMode
+    )
+    if (next) setLocationNudgeDismissed(true)
   }
 
   return (
@@ -425,6 +517,37 @@ export default function SearchScreen() {
             )}
           </View>
         )}
+        {showLocationNudge && (
+          <View style={styles.locationNudge}>
+            <TouchableOpacity
+              style={styles.locationNudgeAction}
+              onPress={() => { void handleLocationNudgePress() }}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={
+                userLocation.status === 'denied'
+                  ? 'Open Settings to enable location for better search results'
+                  : 'Enable location for better search results'
+              }
+            >
+              <PinIcon size={14} color={colors.accent} />
+              <Text style={styles.locationNudgeText} maxFontSizeMultiplier={maxFontSizeMultiplier.body}>
+                {userLocation.status === 'denied'
+                  ? 'Open Settings for better local results'
+                  : 'Enable location for better results'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.locationNudgeDismiss}
+              onPress={() => setLocationNudgeDismissed(true)}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss location suggestion"
+            >
+              <CloseIcon size={10} color={colors.accent} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {showTypeaheadSuggestions && (
@@ -458,16 +581,22 @@ export default function SearchScreen() {
           <DiscoveryPage
             isFocused={isFocused}
             recentSearches={recentSearches}
+            savedSearches={savedSearches}
             onDismissSearch={dismissSearch}
             onSelectRecent={handleSelectRecent}
+            onSelectSavedSearch={handleSelectSavedSearch}
+            onSaveSearch={saveSearch}
+            onUnsaveSearch={unsaveSearch}
             activeChip={activeChip}
             trendingItems={trendingItems}
+            trendingDishes={trendingDishes}
             suggestedPeople={suggestedPeople}
             popularPlaces={popularPlaces}
             staffPicks={staffPicks}
             cuisineAffinities={cuisineAffinities}
             onChip={handleChip}
             onTrending={handleTrending}
+            onTrendingDish={handleTrending}
             onOpenNearby={openNearbySearch}
             userId={user?.id}
           />
@@ -477,6 +606,7 @@ export default function SearchScreen() {
           <SearchResultsTab
             resultTab={resultTab}
             onTabChange={setResultTab}
+            dishFirstTopResults={dishFirstTopResults}
             topPlaces={topPlaces}
             topPosts={topPosts}
             topPeople={topPeople}
@@ -505,7 +635,7 @@ export default function SearchScreen() {
           visible={nearbySheetVisible}
           onClose={() => setNearbySheetVisible(false)}
           radiusKm={radiusKm}
-          setRadiusKm={setRadiusKm}
+          setRadiusKm={updateRadiusKm}
           userLocation={userLocation}
           filters={searchFilters}
           setFilters={updateSearchFilters}
@@ -529,10 +659,10 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       borderBottomColor: c.border,
     },
     wordmark: {
-      fontFamily: 'DMSerifDisplay-Regular',
+      fontFamily: fontFamily.serif,
       fontSize: fontSize['3xl'],
       color: c.text,
-      letterSpacing: 0,
+      letterSpacing: letterSpacing.none,
     },
     wordmarkDot: { color: c.accent },
     searchTop: {
@@ -581,6 +711,37 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     locationErrorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingBottom: spacing.px10 },
     locationError: { fontSize: fontSize.sm, color: c.text3, flex: 1 },
     locationRecoveryLink: { fontSize: fontSize.sm, color: c.accent, fontWeight: fontWeight.medium },
+    locationNudge: {
+      minHeight: 44,
+      marginBottom: spacing.px10,
+      borderRadius: radius.md,
+      backgroundColor: `${c.accent}12`,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      overflow: 'hidden',
+    },
+    locationNudgeAction: {
+      minHeight: 44,
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.px7,
+      paddingLeft: spacing.px14,
+      paddingRight: spacing[2],
+    },
+    locationNudgeText: {
+      color: c.accent,
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.semibold,
+      flexShrink: 1,
+    },
+    locationNudgeDismiss: {
+      minWidth: 44,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     scroll: { flex: 1 },
     suggestionScroll: { maxHeight: 52, flexGrow: 0 },
     suggestionRow: {

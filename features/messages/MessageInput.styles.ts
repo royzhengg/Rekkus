@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
 import type { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export function makeMessageInputStyles(c: ReturnType<typeof useThemeColors>) {
@@ -19,7 +19,7 @@ export function makeMessageInputStyles(c: ReturnType<typeof useThemeColors>) {
     trayAction: { alignItems: 'center', gap: spacing.px5, minWidth: 64 },
     trayIconWrap: { width: 44, height: 44, borderRadius: radius.pill2, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
     trayActionLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: c.text3 },
-    gifTrayIcon: { fontSize: fontSize.bodySm, fontWeight: fontWeight.extrabold, color: c.accent, letterSpacing: 0 },
+    gifTrayIcon: { fontSize: fontSize.bodySm, fontWeight: fontWeight.extrabold, color: c.accent, letterSpacing: letterSpacing.none },
     input: { flex: 1, minHeight: 40, maxHeight: 120, borderRadius: radius.pill, paddingHorizontal: spacing.px14, paddingTop: spacing.px10, paddingBottom: spacing.px10, backgroundColor: c.surface, color: c.text, fontSize: fontSize.md, lineHeight: lineHeight.body },
     sendBtn: { width: 40, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
     sendBtnActive: { backgroundColor: c.accent },

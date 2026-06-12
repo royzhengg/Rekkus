@@ -16,7 +16,7 @@ import { Svg, Polyline, Path, Circle } from 'react-native-svg'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
@@ -239,7 +239,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       fontWeight: fontWeight.medium,
       color: c.text,
       marginBottom: spacing[6],
-      letterSpacing: -0.3,
+      letterSpacing: letterSpacing.tightHeading,
     },
     validationText: { fontSize: fontSize.bodySm, color: c.liked, marginBottom: spacing[1] },
     label: { fontSize: fontSize.bodySm, fontWeight: fontWeight.medium, color: c.text2, marginBottom: spacing.px6 },

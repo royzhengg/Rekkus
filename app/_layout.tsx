@@ -3,6 +3,7 @@ import * as Linking from 'expo-linking'
 import { Stack, useRouter } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
+import { Platform } from 'react-native'
 import 'react-native-reanimated'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { ConnectivityNotice } from '@/components/ui/ConnectivityNotice'
@@ -112,6 +113,13 @@ function RootLayout() {
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="(tabs)" />
                   <Stack.Screen name="(auth)" />
+                  <Stack.Screen
+                    name="create"
+                    options={{
+                      presentation: Platform.OS === 'ios' ? 'pageSheet' : 'modal',
+                      headerShown: false,
+                    }}
+                  />
                   <Stack.Screen name="posts/[postId]" />
                   <Stack.Screen name="dishes/[dishId]" />
                   <Stack.Screen name="collections/[collectionId]" />
@@ -119,7 +127,6 @@ function RootLayout() {
                   <Stack.Screen name="location/[placeId]" />
                   <Stack.Screen name="settings" />
                   <Stack.Screen name="messages" />
-                  <Stack.Screen name="create/drafts" />
                 </Stack>
               </CreateLauncherProvider>
             </AuthGateProvider>

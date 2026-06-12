@@ -19,6 +19,7 @@ export function useUserLocation() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync()
       if (permission.status !== 'granted') {
+        if (__DEV__) console.warn('[useUserLocation] permission denied:', permission.status)
         setStatus('denied')
         setError('Location permission was not granted.')
         return null
@@ -32,7 +33,8 @@ export function useUserLocation() {
       setLabel(cachedLabel)
       setStatus('granted')
       return next
-    } catch {
+    } catch (e) {
+      if (__DEV__) console.warn('[useUserLocation] error getting location:', e)
       setStatus('error')
       setError('Could not get your location right now.')
       return null

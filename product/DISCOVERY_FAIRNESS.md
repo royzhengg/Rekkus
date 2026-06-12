@@ -41,6 +41,18 @@ Update [docs/analytics/ANALYTICS.md](../docs/analytics/ANALYTICS.md), [SEARCH.md
 | Open/closed labels             | Cached `restaurants.open_now` from Google Place Details           | Stop selecting/displaying the field; ranking does not depend on it.    |
 | Time-of-day hints              | Client clock and deterministic cuisine/name heuristics            | Remove row hint display.                                               |
 | Explore vs popular balance     | Bounded boost weights in `useSearch`                              | Restore prior weights from tuning log if diagnostics show regressions. |
+| Cross-entity search diversity  | `SearchCandidate` source rank, intent/entity weights, and source trust | Bypass `rankSearchCandidates()` and return raw pipeline candidates. |
+
+## B-573 Signal Evidence
+
+| Requirement | Evidence |
+| --- | --- |
+| Source of truth | First-party retrieval rank from SearchCandidate sources plus deterministic intent/entity config in `lib/search/ranking.ts`. |
+| Privacy impact | No new data collection, persistence, provider calls, or analytics fields. |
+| Expected user benefit | Broad food queries can expose at least one dish, post, and place instead of collapsing into a restaurant-heavy list. |
+| Abuse risk | Provider places receive a bounded negative source-trust adjustment and cannot beat comparable local Rekkus places by source rank alone. |
+| Rollback path | Remove the `rankSearchCandidates()` call in `runSearchPipeline()` and return raw candidates. |
+| Validation | Focused ranking and pipeline tests assert diversity, provider ordering, and stable tie-breaks; existing search click/session metrics validate future tuning. |
 
 ## Fairness Roadmap
 

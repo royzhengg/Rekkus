@@ -13,6 +13,8 @@ It helps people answer:
 - What places are worth saving?
 - What dishes are people with similar taste recommending nearby?
 
+Search and Discovery serve different jobs. Search is intent-led retrieval: the user names a dish, place, cuisine, person, or area and Rekkus should return the most relevant trustworthy evidence. Discovery is taste-led exploration: Rekkus suggests what may be worth saving or trying next from local, social, dish, and taste signals. They can share entities and signals, but their ranking goals must stay distinct.
+
 ## What Rekkus Is Not
 
 - Not a generic restaurant directory
@@ -76,4 +78,3 @@ Avoid prioritizing complex algorithms, heavy AI, enterprise tooling, or advanced
 - Collections → improve retention, identity, and shareability.
 - Share post/place via DM → friend saves it → increases intent and social discovery density.
 - Group food plan via DM → coordinated visit → post/review → increases content density.
-

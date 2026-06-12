@@ -13,18 +13,22 @@ Operational checklist for the Media → Review → Share post creation flow. Eva
 
 ## Step 1 — Media
 
+- [ ] Create opens as a root modal route; tab bar is not part of the active create route
 - [ ] Title placeholder frames the task as recommendation, not opinion
 - [ ] Empty state shows: fact ("no media yet") + next-action prompt (what to do)
 - [ ] Empty state copy surfaces dish tagging as a differentiator before photos are added
+- [ ] Empty state has a single primary CTA ("Add photos") that opens a `RekkusActionSheet` — not two parallel buttons
+- [ ] Dish tagging teaser card visible below upload card when no media is present
 - [ ] "Tag dishes" button visible when photos are present
 - [ ] Dish tag chips visible and scannable when tags exist
+- [ ] "Must Order" field renders on Step 1 (below media strip) when media is present — not Step 2
+- [ ] Real-time ✓ validation indicators per section (Title, Media) visible above the scroll area
+- [ ] Character counter visible only while the title or Must Order field is focused
 
 ## Step 2 — Review
 
 - [ ] Rekkus Picks section: Taste and Value each have ≤ 5 chip options (no decision fatigue)
 - [ ] Contextual feedback (`helper` text) appears after each Taste or Value selection
-- [ ] "Must order" field is labelled clearly — not "Best dish"
-- [ ] Hint below Must Order field is action-framed ("Helps people know exactly what to get.")
 - [ ] Body placeholder prompts for recommendations, not recollection
 - [ ] Optional details (Cuisine, Tags) are collapsed by default; expand only if pre-filled
 - [ ] Occasion section has ≤ 6 chip options

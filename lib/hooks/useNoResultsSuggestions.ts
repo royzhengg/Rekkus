@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { fetchPersonalizedSuggestions } from '@/lib/services/searchPersonalization'
 import type { CuisineAffinities } from './useSearchHistory'
 
 export type NoResultsSuggestionChip = {
@@ -8,13 +9,17 @@ export type NoResultsSuggestionChip = {
 }
 
 export type UserTasteContext = {
+  userId?: string | null
   cuisineAffinities: CuisineAffinities
+  viewedCuisines?: string[]
   recentSearches: string[]
   trendingSearches: string[]
   staticFallbacks: NoResultsSuggestionChip[]
 }
 
 const SUGGESTION_LIMIT = 3
+const SERVER_SUGGESTION_DEBOUNCE_MS = 200
+const EMPTY_VIEWED_CUISINES: string[] = []
 
 function normalizeQuery(query: string): string {
   return query.trim().replace(/\s+/g, ' ').toLowerCase()
@@ -46,13 +51,15 @@ function chipForQuery(
 export function useNoResultsSuggestions(
   failedQuery: string,
   {
+    userId,
     cuisineAffinities,
+    viewedCuisines = EMPTY_VIEWED_CUISINES,
     recentSearches,
     trendingSearches,
     staticFallbacks,
   }: UserTasteContext
 ): NoResultsSuggestionChip[] {
-  return useMemo(() => {
+  const localSuggestions = useMemo(() => {
     const fallbackByQuery = new Map<string, NoResultsSuggestionChip>()
     for (const fallback of staticFallbacks) {
       const key = normalizeQuery(fallback.query)
@@ -83,10 +90,58 @@ export function useNoResultsSuggestions(
       })
       .forEach(([cuisine]) => addQuery(cuisine))
 
+    viewedCuisines.forEach(addQuery)
     recentSearches.forEach(addQuery)
     trendingSearches.forEach(addQuery)
     staticFallbacks.forEach(chip => addQuery(chip.query))
 
     return suggestions
-  }, [cuisineAffinities, failedQuery, recentSearches, staticFallbacks, trendingSearches])
+  }, [cuisineAffinities, failedQuery, recentSearches, staticFallbacks, trendingSearches, viewedCuisines])
+
+  const localSuggestionsKey = useMemo(
+    () => localSuggestions.map(chip => normalizeQuery(chip.query)).join('\0'),
+    [localSuggestions]
+  )
+  const [serverSuggestions, setServerSuggestions] = useState<NoResultsSuggestionChip[] | null>(null)
+  const requestIdRef = useRef(0)
+
+  useEffect(() => {
+    const requestId = ++requestIdRef.current
+    setServerSuggestions(prev => (prev === null ? prev : null))
+
+    const normalizedFailedQuery = normalizeQuery(failedQuery)
+    if (!userId || !normalizedFailedQuery) return
+
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const serverSuggestions = await fetchPersonalizedSuggestions(
+            userId,
+            failedQuery,
+            SUGGESTION_LIMIT
+          )
+          if (requestId !== requestIdRef.current) return
+          if (serverSuggestions.length === 0) return
+          const fallbackByQuery = new Map<string, NoResultsSuggestionChip>()
+          for (const fallback of staticFallbacks) {
+            fallbackByQuery.set(normalizeQuery(fallback.query), fallback)
+          }
+          const serverChips = serverSuggestions
+            .map(suggestion => chipForQuery(suggestion.query, fallbackByQuery))
+            .filter((chip): chip is NoResultsSuggestionChip => chip !== null)
+            .slice(0, SUGGESTION_LIMIT)
+          if (serverChips.length > 0) setServerSuggestions(serverChips)
+        } catch {
+          // Local suggestions remain the fallback when server personalization is unavailable.
+        }
+      })()
+    }, SERVER_SUGGESTION_DEBOUNCE_MS)
+
+    return () => {
+      clearTimeout(timer)
+      if (requestIdRef.current === requestId) requestIdRef.current += 1
+    }
+  }, [failedQuery, localSuggestionsKey, staticFallbacks, userId])
+
+  return serverSuggestions ?? localSuggestions
 }

@@ -23,6 +23,10 @@ const locAllowlist = new Map([
   ['features/restaurants/RestaurantDetailScreen.tsx', 'B-239'],
   // B-239: saved-place intent sync remains coordinated in the existing places tab workflow — B-239
   ['features/restaurants/RestaurantsTabScreen.tsx', 'B-239'],
+  // B-568: search enrichment (trending user_count, dish intent, engagement signals) pushed SearchScreen over 600; extract discovery hooks to reduce — B-568
+  ['features/search/SearchScreen.tsx', 'B-568'],
+  // B-570: unified SearchCandidate ranking and diversity pass added to SearchResultsTab; extract ranking hooks to reduce — B-570
+  ['features/search/SearchResultsTab.tsx', 'B-570'],
 ])
 
 function lineCount(source) {

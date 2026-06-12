@@ -13,6 +13,13 @@ type EventPayload = {
 }
 
 type ProviderCacheState = 'hit' | 'miss' | 'deduped' | 'blocked' | 'error'
+type RestaurantSelectionSource = 'nearby' | 'prediction'
+export type SearchAttribution = {
+  searchSessionId: string
+  query: string
+  resultType: 'post' | 'restaurant' | 'user' | 'dish'
+  resultPosition: number
+}
 
 const SAFE_METADATA_KEYS = new Set([
   'query',
@@ -46,6 +53,9 @@ const SAFE_METADATA_KEYS = new Set([
   'result_type',
   'search_mode',
   'search_session_id',
+  'query_intent',
+  'has_location_context',
+  'location_source',
   'status',
   'topic',
   'collection_id',
@@ -70,6 +80,7 @@ const SAFE_METADATA_KEYS = new Set([
   'target_state',
   'comment_depth',
   'list_type',
+  'profile_tab',
   'map_action',
   'request_state',
   'field_count',
@@ -78,6 +89,7 @@ const SAFE_METADATA_KEYS = new Set([
   'cache_status',
   'mutation_kind',
   'near_city',
+  'list_type',
   'tap_count',
   'session_duration_ms',
   'had_results',
@@ -131,32 +143,68 @@ async function track(userId: string | null, payload: EventPayload): Promise<void
   }
 }
 
+function searchAttributionMetadata(
+  attribution?: SearchAttribution | null
+): Record<string, unknown> | undefined {
+  if (!attribution) return undefined
+  return {
+    search_session_id: attribution.searchSessionId,
+    query: attribution.query,
+    result_type: attribution.resultType,
+    result_position: Math.max(1, Math.round(attribution.resultPosition)),
+  }
+}
+
 export const analytics = {
   // Post events
-  viewPost: (userId: string | null, postId: string, cuisineType?: string | null): void =>
+  viewPost: (
+    userId: string | null,
+    postId: string,
+    cuisineType?: string | null,
+    attribution?: SearchAttribution | null
+  ): void =>
     void track(userId, {
       event_type: 'post_view',
       entity_type: 'post',
       entity_id: postId,
-      metadata: { cuisine_type: cuisineType },
+      metadata: { cuisine_type: cuisineType, ...searchAttributionMetadata(attribution) },
     }),
 
   likePost: (userId: string, postId: string): void =>
     void track(userId, { event_type: 'post_like', entity_type: 'post', entity_id: postId }),
 
-  savePost: (userId: string, postId: string, cuisineType?: string | null): void =>
+  savePost: (
+    userId: string,
+    postId: string,
+    cuisineType?: string | null,
+    attribution?: SearchAttribution | null
+  ): void =>
     void track(userId, {
       event_type: 'post_save',
       entity_type: 'post',
       entity_id: postId,
-      metadata: { cuisine_type: cuisineType },
+      metadata: { cuisine_type: cuisineType, ...searchAttributionMetadata(attribution) },
     }),
 
-  viewDish: (userId: string | null, dishId: string): void =>
-    void track(userId, { event_type: 'dish_view', entity_type: 'dish', entity_id: dishId }),
+  viewDish: (
+    userId: string | null,
+    dishId: string,
+    attribution?: SearchAttribution | null
+  ): void =>
+    void track(userId, {
+      event_type: 'dish_view',
+      entity_type: 'dish',
+      entity_id: dishId,
+      metadata: searchAttributionMetadata(attribution),
+    }),
 
-  saveDish: (userId: string, dishId: string): void =>
-    void track(userId, { event_type: 'dish_save', entity_type: 'dish', entity_id: dishId }),
+  saveDish: (userId: string, dishId: string, attribution?: SearchAttribution | null): void =>
+    void track(userId, {
+      event_type: 'dish_save',
+      entity_type: 'dish',
+      entity_id: dishId,
+      metadata: searchAttributionMetadata(attribution),
+    }),
 
   // Privacy: only userId, mutationKind (enum), and outcome are permitted.
   // Banned: message body, post captions, profile values, media URLs, collection names, report/moderation content.
@@ -182,13 +230,14 @@ export const analytics = {
     userId: string | null,
     restaurantId: string,
     query?: string,
-    cuisineType?: string | null
+    cuisineType?: string | null,
+    attribution?: SearchAttribution | null
   ): void =>
     void track(userId, {
       event_type: 'place_view',
       entity_type: 'restaurant',
       entity_id: restaurantId,
-      metadata: { query, cuisine_type: cuisineType },
+      metadata: { query, cuisine_type: cuisineType, ...searchAttributionMetadata(attribution) },
     }),
 
   clickPlace: (userId: string | null, restaurantId: string): void =>
@@ -198,12 +247,17 @@ export const analytics = {
       entity_id: restaurantId,
     }),
 
-  savePlace: (userId: string, restaurantId: string, cuisineType?: string | null): void =>
+  savePlace: (
+    userId: string,
+    restaurantId: string,
+    cuisineType?: string | null,
+    attribution?: SearchAttribution | null
+  ): void =>
     void track(userId, {
       event_type: 'place_save',
       entity_type: 'restaurant',
       entity_id: restaurantId,
-      metadata: { cuisine_type: cuisineType },
+      metadata: { cuisine_type: cuisineType, ...searchAttributionMetadata(attribution) },
     }),
 
   revisitPlace: (userId: string | null, restaurantId: string, source: string): void =>
@@ -212,6 +266,42 @@ export const analytics = {
       entity_type: 'restaurant',
       entity_id: restaurantId,
       metadata: { source },
+    }),
+
+  restaurantSearchTermEntered: (userId: string | null, query: string): void =>
+    void track(userId, {
+      event_type: 'search_term_entered',
+      metadata: { query },
+    }),
+
+  restaurantSearchZeroResults: (userId: string | null, query: string): void =>
+    void track(userId, {
+      event_type: 'restaurant_search_zero_results',
+      metadata: { query },
+    }),
+
+  restaurantSelected: (
+    userId: string | null,
+    placeId: string,
+    source: RestaurantSelectionSource,
+    restaurantId?: string | null,
+    cuisineType?: string | null
+  ): void =>
+    void track(userId, {
+      event_type: 'restaurant_selected',
+      entity_type: 'restaurant',
+      ...(restaurantId ? { entity_id: restaurantId } : {}),
+      metadata: {
+        place_id: placeId,
+        source,
+        restaurant_id: restaurantId,
+        cuisine_type: cuisineType,
+      },
+    }),
+
+  restaurantFieldSkipped: (userId: string | null): void =>
+    void track(userId, {
+      event_type: 'restaurant_field_skipped',
     }),
 
   // Search events
@@ -331,6 +421,168 @@ export const analytics = {
       },
     }),
 
+  saveSearch: (userId: string | null, query: string): void =>
+    void track(userId, {
+      event_type: 'search_saved',
+      metadata: { query },
+    }),
+
+  unsaveSearch: (userId: string | null, query: string): void =>
+    void track(userId, {
+      event_type: 'search_unsaved',
+      metadata: { query },
+    }),
+
+  savedSearchSelected: (userId: string | null, query: string): void =>
+    void track(userId, {
+      event_type: 'saved_search_selected',
+      metadata: { query },
+    }),
+
+  searchLocationNudgeShown: (
+    userId: string | null,
+    queryIntent: string,
+    locationSource: string,
+    searchMode: string
+  ): void =>
+    void track(userId, {
+      event_type: 'search_location_nudge_shown',
+      metadata: {
+        query_intent: queryIntent,
+        has_location_context: false,
+        location_source: locationSource,
+        search_mode: searchMode,
+      },
+    }),
+
+  searchLocationNudgeClicked: (
+    userId: string | null,
+    queryIntent: string,
+    locationSource: string,
+    searchMode: string
+  ): void =>
+    void track(userId, {
+      event_type: 'search_location_nudge_clicked',
+      metadata: {
+        query_intent: queryIntent,
+        has_location_context: false,
+        location_source: locationSource,
+        search_mode: searchMode,
+      },
+    }),
+
+  searchLocationPermissionResult: (
+    userId: string | null,
+    status: string,
+    queryIntent: string,
+    searchMode: string
+  ): void =>
+    void track(userId, {
+      event_type: 'search_location_permission_result',
+      metadata: {
+        status,
+        query_intent: queryIntent,
+        search_mode: searchMode,
+      },
+    }),
+
+  searchGoogleFallbackUsed: (
+    userId: string | null,
+    query: string,
+    queryIntent: string,
+    fallbackReason: string,
+    hasLocationContext: boolean,
+    locationSource: string,
+    searchMode: string
+  ): void =>
+    void track(userId, {
+      event_type: 'search_google_fallback_used',
+      metadata: {
+        query,
+        query_intent: queryIntent,
+        fallback_reason: fallbackReason,
+        has_location_context: hasLocationContext,
+        location_source: locationSource,
+        search_mode: searchMode,
+      },
+    }),
+
+  searchGoogleFallbackSuppressed: (
+    userId: string | null,
+    query: string,
+    queryIntent: string,
+    fallbackReason: string,
+    locationSource: string,
+    searchMode: string
+  ): void =>
+    void track(userId, {
+      event_type: 'search_google_fallback_suppressed',
+      metadata: {
+        query,
+        query_intent: queryIntent,
+        fallback_reason: fallbackReason,
+        has_location_context: false,
+        location_source: locationSource,
+        search_mode: searchMode,
+      },
+    }),
+
+  searchNoResultsAfterSuppression: (
+    userId: string | null,
+    query: string,
+    queryIntent: string,
+    fallbackReason: string,
+    searchMode: string
+  ): void =>
+    void track(userId, {
+      event_type: 'search_no_results_after_suppression',
+      metadata: {
+        query,
+        query_intent: queryIntent,
+        fallback_reason: fallbackReason,
+        has_location_context: false,
+        location_source: 'none',
+        search_mode: searchMode,
+      },
+    }),
+
+  restaurantTaggingGoogleFallbackUsed: (
+    userId: string | null,
+    query: string,
+    queryIntent: string,
+    fallbackReason: string,
+    hasLocationContext: boolean,
+    locationSource: string
+  ): void =>
+    void track(userId, {
+      event_type: 'restaurant_tagging_google_fallback_used',
+      metadata: {
+        query,
+        query_intent: queryIntent,
+        fallback_reason: fallbackReason,
+        has_location_context: hasLocationContext,
+        location_source: locationSource,
+      },
+    }),
+
+  restaurantTaggingGoogleFallbackSuppressed: (
+    userId: string | null,
+    query: string,
+    queryIntent: string,
+    fallbackReason: string,
+    locationSource: string
+  ): void =>
+    void track(userId, {
+      event_type: 'restaurant_tagging_google_fallback_suppressed',
+      metadata: {
+        query,
+        query_intent: queryIntent,
+        fallback_reason: fallbackReason,
+        has_location_context: false,
+        location_source: locationSource,
+      },
+    }),
+
   feedDiagnostic: (
     userId: string | null,
     action: string,
@@ -364,6 +616,30 @@ export const analytics = {
   // User events
   follow: (userId: string, targetUserId: string): void =>
     void track(userId, { event_type: 'user_follow', entity_type: 'user', entity_id: targetUserId }),
+
+  profileFollowListOpened: (
+    userId: string | null,
+    targetUserId: string,
+    listType: 'followers' | 'following'
+  ): void =>
+    void track(userId, {
+      event_type: 'profile_follow_list_opened',
+      entity_type: 'user',
+      entity_id: targetUserId,
+      metadata: { list_type: listType },
+    }),
+
+  profileInteraction: (
+    userId: string | null,
+    targetUserId: string | null,
+    action: string,
+    metadata?: Record<string, unknown>
+  ): void =>
+    void track(userId, {
+      event_type: 'profile_interaction',
+      ...(targetUserId ? { entity_type: 'user' as const, entity_id: targetUserId } : {}),
+      metadata: { action, ...metadata },
+    }),
 
   screen: (userId: string | null, screenName: string): void =>
     void track(userId, { event_type: 'screen_view', metadata: { screen: screenName } }),

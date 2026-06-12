@@ -20,7 +20,7 @@ import { elevation } from '@/constants/Elevation'
 import { DARK_MAP_STYLE } from '@/constants/mapStyles'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
 import { SPRING_CARD } from '@/lib/animations'
 import { useThemeColors, useIsDarkMode } from '@/lib/contexts/ThemeContext'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
@@ -304,7 +304,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     cardMetaText: { fontSize: fontSize.base, color: c.text2 },
     rekkusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], flexWrap: 'wrap' },
     ratingChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.px2 },
-    ratingChipLabel: { fontSize: fontSize['2xs'], color: c.text3, letterSpacing: 0.5, marginRight: spacing.px2 },
+    ratingChipLabel: { fontSize: fontSize['2xs'], color: c.text3, letterSpacing: letterSpacing.wide, marginRight: spacing.px2 },
     rekkusLabel: { fontSize: fontSize.sm, color: c.text3, marginLeft: spacing.px2 },
     cardHours: { fontSize: fontSize.bodySm, color: c.text3 },
     phoneRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },

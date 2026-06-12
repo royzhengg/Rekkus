@@ -1,4 +1,5 @@
 import { analytics } from '@/lib/analytics'
+import type { SearchAttribution } from '@/lib/analytics'
 import { notify } from '@/lib/services/notifications'
 import { supabase } from '@/lib/supabase'
 import type { PostReactionType, PostSocialState } from './types'
@@ -53,12 +54,13 @@ export async function togglePostSave(
   postId: string,
   userId: string,
   nextSaved?: boolean,
-  cuisineType?: string | null
+  cuisineType?: string | null,
+  searchAttribution?: SearchAttribution | null
 ): Promise<boolean> {
   const targetState = nextSaved ?? !(await fetchUserSaves(userId)).includes(postId)
   if (targetState) {
     await savePost(postId, userId)
-    analytics.savePost(userId, postId, cuisineType)
+    analytics.savePost(userId, postId, cuisineType, searchAttribution)
   } else {
     await unsavePost(postId, userId)
   }

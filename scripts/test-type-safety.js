@@ -32,6 +32,7 @@ execFileSync(
     path.join(root, 'tests/type-safety/navigationSafetyRules.test.js'),
     path.join(root, 'tests/type-safety/higAcceptanceRules.test.js'),
     path.join(root, 'tests/type-safety/fontSizeRules.test.js'),
+    path.join(root, 'tests/type-safety/searchIndexContractRules.test.js'),
   ],
   {
     cwd: root,

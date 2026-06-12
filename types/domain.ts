@@ -136,6 +136,11 @@ export interface Restaurant {
   address?: string | undefined
 }
 
+export type TopSpot = {
+  position: number // 1 | 2 | 3
+  restaurantId: string
+}
+
 export interface MockUser {
   displayName: string
   initials: string

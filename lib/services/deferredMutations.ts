@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { analytics } from '@/lib/analytics'
+import type { SearchAttribution } from '@/lib/analytics'
 import { unsaveTarget } from '@/lib/services/collections'
 import { saveDish } from '@/lib/services/dishes'
 import {
@@ -39,7 +40,7 @@ type BaseMutation = {
 }
 
 export type DeferredMutation =
-  | (BaseMutation & { kind: 'post_save'; postId: string; targetState: boolean; removeCollectionMemberships?: boolean; cuisineType?: string | null })
+  | (BaseMutation & { kind: 'post_save'; postId: string; targetState: boolean; removeCollectionMemberships?: boolean; cuisineType?: string | null; searchAttribution?: SearchAttribution | null })
   | (BaseMutation & { kind: 'dish_save'; dishId: string; targetState: boolean; removeCollectionMemberships?: boolean })
   | (BaseMutation & { kind: 'place_save'; restaurantId: string; targetState: boolean; removeCollectionMemberships?: boolean })
   | (BaseMutation & { kind: 'follow'; targetUserId: string; targetState: boolean })
@@ -78,6 +79,17 @@ function isSettingValue(key: string, value: unknown): value is Settings[keyof Se
   return isBoolean(value)
 }
 
+function isSearchAttribution(value: unknown): value is SearchAttribution {
+  return isRecord(value) &&
+    typeof value.searchSessionId === 'string' &&
+    typeof value.query === 'string' &&
+    typeof value.resultPosition === 'number' &&
+    (value.resultType === 'post' ||
+      value.resultType === 'restaurant' ||
+      value.resultType === 'user' ||
+      value.resultType === 'dish')
+}
+
 const BASE_KEYS = ['kind', 'userId', 'updatedAt', 'retryCount']
 
 export function isDeferredMutation(value: unknown): value is DeferredMutation {
@@ -87,10 +99,13 @@ export function isDeferredMutation(value: unknown): value is DeferredMutation {
   }
   switch (value.kind) {
     case 'post_save':
-      return hasOnlyKeys(value, [...BASE_KEYS, 'postId', 'targetState', 'removeCollectionMemberships', 'cuisineType']) &&
+      return hasOnlyKeys(value, [...BASE_KEYS, 'postId', 'targetState', 'removeCollectionMemberships', 'cuisineType', 'searchAttribution']) &&
         typeof value.postId === 'string' && isBoolean(value.targetState) &&
         (value.removeCollectionMemberships === undefined || isBoolean(value.removeCollectionMemberships)) &&
-        (value.cuisineType === undefined || value.cuisineType === null || typeof value.cuisineType === 'string')
+        (value.cuisineType === undefined || value.cuisineType === null || typeof value.cuisineType === 'string') &&
+        (value.searchAttribution === undefined ||
+          value.searchAttribution === null ||
+          isSearchAttribution(value.searchAttribution))
     case 'dish_save':
       return hasOnlyKeys(value, [...BASE_KEYS, 'dishId', 'targetState', 'removeCollectionMemberships']) &&
         typeof value.dishId === 'string' && isBoolean(value.targetState) &&
@@ -135,7 +150,7 @@ function isEnvelope(value: unknown): value is MutationEnvelope {
     value.mutations.every(isDeferredMutation)
 }
 
-export function deferredMutationKey(mutation: DeferredMutation): string {
+function deferredMutationKey(mutation: DeferredMutation): string {
   switch (mutation.kind) {
     case 'post_save': return `${mutation.userId}:post_save:${mutation.postId}`
     case 'dish_save': return `${mutation.userId}:dish_save:${mutation.dishId}`
@@ -243,7 +258,13 @@ export function isRetryableDeferredMutationError(reason: unknown): boolean {
 export async function executeDeferredMutation(mutation: DeferredMutation): Promise<void> {
   switch (mutation.kind) {
     case 'post_save':
-      if (mutation.targetState) await togglePostSave(mutation.postId, mutation.userId, true, mutation.cuisineType)
+      if (mutation.targetState) await togglePostSave(
+        mutation.postId,
+        mutation.userId,
+        true,
+        mutation.cuisineType,
+        mutation.searchAttribution
+      )
       else await unsaveTarget('post', mutation.postId, mutation.removeCollectionMemberships ?? false)
       return
     case 'dish_save':

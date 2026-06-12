@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing } from '@/constants/Typography'
 import type { useThemeColors } from '@/lib/contexts/ThemeContext'
 
 export function makeStyles(c: ReturnType<typeof useThemeColors>) {
@@ -109,7 +109,7 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
       fontWeight: fontWeight.semibold,
       color: c.text3,
       textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      letterSpacing: letterSpacing.wide,
       marginBottom: spacing[2],
       paddingHorizontal: spacing[4],
       paddingTop: spacing[1],

@@ -22,6 +22,7 @@ Canonical entity IDs are immutable UUIDs. A real-world entity can gain aliases, 
 | User-created restaurants | `restaurants.created_by`, `create_user_restaurant`, `restaurant_sources` | First-party restaurant creation with provenance and audit evidence. |
 | Provider IDs | `restaurant_sources` | Google/OSM/provider mappings and provenance. |
 | Provider snapshots | `restaurant_provider_cache` | TTL, attribution, retention, and cacheability metadata. |
+| Google-selected restaurants | `restaurants`, `restaurant_sources`, `restaurant_provider_cache`, `restaurant_audit_events` | Selection promotes the place into the local graph with provider provenance; autocomplete suggestions that are merely displayed are not durable canonical data. |
 | User/system observations | `restaurant_observations` | Candidate facts awaiting trust or promotion. |
 | Duplicate aliases | `restaurant_aliases` | Alternate names, old IDs, and duplicate hints. |
 | Restaurant audit | `restaurant_audit_events` | Append-only restaurant graph change evidence. |
@@ -37,6 +38,7 @@ Canonical entity IDs are immutable UUIDs. A real-world entity can gain aliases, 
 
 - Critical admin, security, moderation, provider refresh, merge, alias, and ownership actions should be append-only.
 - User-created restaurants must record source and audit evidence before they are treated as durable first-party supply.
+- Selected provider restaurants must record source, provider cache, and audit evidence before future searches rely on them as local supply.
 - Community metadata corrections and verification are observations until reviewed or promoted; they must not silently overwrite canonical restaurant fields.
 - Restaurant claims and transfers need ownership history before restaurant owner workflows scale.
 - Duplicate cleanup must preserve alias and merge history so old links and references remain explainable.

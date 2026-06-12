@@ -1,15 +1,15 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ChevronLeft, ImagePlaceholder } from '@/components/icons'
 import { ProfileHeader } from '@/components/ProfileHeader'
-import { ThumbGrid } from '@/components/ThumbGrid'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, lineHeight, maxFontSizeMultiplier } from '@/constants/Typography'
+import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
@@ -19,29 +19,54 @@ import { demoUsers } from '@/lib/dataSources/demoData'
 import { isEnabled } from '@/lib/featureFlags'
 import { usePagedList } from '@/lib/hooks/usePagedList'
 import { routes } from '@/lib/routes'
+import { fetchProfileCollections, type Collection } from '@/lib/services/collections'
 import { getOrCreateDirectConversation } from '@/lib/services/messaging'
 import { blockUser, submitContentReport } from '@/lib/services/moderation'
+import { fetchTopSpotsWithDetails } from '@/lib/services/topSpots'
 import {
   fetchUserIdByUsername,
   fetchIsFollowing,
   fetchFollowCounts,
+  removeFollowChannel,
+  subscribeToFollowChanges,
 } from '@/lib/services/users'
-import { contributorBadgeLabel } from '@/lib/utils/contributorStatus'
-import { parseLikes } from '@/lib/utils/format'
+import { CollectionList, FavouriteCuisines } from './ProfileFoodSections'
+import {
+  deriveProfileInterests,
+  deriveReviewedRestaurants,
+  deriveTopRestaurants,
+  formatProfileCount,
+  type ProfileRestaurant,
+} from './profileIdentity'
+import { hydrateProfileRestaurantPhotos } from './profilePhotos'
+import { ProfileReviewCards } from './ProfileReviewCards'
+import { TopSpotCards } from './TopSpotCards'
+
+type TabKey = 'reviews' | 'collections'
+
+const TAB_LABELS: Record<TabKey, string> = {
+  reviews: 'Reviews',
+  collections: 'Collections',
+}
 
 export default function UserProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>()
   const router = useRouter()
   const { user } = useAuth()
+  const currentUserId = user?.id
   const { requireAuth } = useAuthGate()
-  const { runDeferredMutation, requireOnline } = useConnectivity()
+  const { runDeferredMutation, requireOnline, syncEpoch } = useConnectivity()
   const { posts } = usePosts()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const [activeTab, setActiveTab] = useState<TabKey>('reviews')
   const [following, setFollowing] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [targetUserId, setTargetUserId] = useState<string | null>(null)
   const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null)
+  const [profileCollections, setProfileCollections] = useState<Collection[]>([])
+  const [hydratedTopRestaurants, setHydratedTopRestaurants] = useState<ProfileRestaurant[]>([])
+  const [manualTopSpots, setManualTopSpots] = useState<ProfileRestaurant[] | null>(null)
   const [safetySheet, setSafetySheet] = useState(false)
   const [startingMessage, setStartingMessage] = useState(false)
   const [notice, setNotice] = useState<{ title: string; subtitle?: string } | null>(null)
@@ -49,48 +74,99 @@ export default function UserProfileScreen() {
 
   const loadUserData = useCallback(async () => {
     if (!username) return
-    const uid = await fetchUserIdByUsername(username)
-    setTargetUserId(uid)
-    if (uid) {
-      const counts = await fetchFollowCounts(uid)
-      setFollowCounts(counts)
-      if (user) {
-        const isFollowing = await fetchIsFollowing(user.id, uid)
-        setFollowing(isFollowing)
+    try {
+      const uid = await fetchUserIdByUsername(username)
+      setTargetUserId(uid)
+      if (uid) {
+        const [counts, collections, manualSpots] = await Promise.all([
+          fetchFollowCounts(uid),
+          fetchProfileCollections(uid, currentUserId === uid),
+          fetchTopSpotsWithDetails(uid),
+        ])
+        setFollowCounts(counts)
+        setProfileCollections(collections)
+        setManualTopSpots(manualSpots)
+        if (currentUserId) {
+          const isFollowing = await fetchIsFollowing(currentUserId, uid)
+          setFollowing(isFollowing)
+        }
+      } else {
+        setProfileCollections([])
+        setManualTopSpots([])
       }
+    } catch {
+      setFollowCounts(null)
+      setProfileCollections([])
     }
-  }, [username, user])
+  }, [currentUserId, username])
 
   useEffect(() => {
     void loadUserData()
   }, [loadUserData])
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadUserData()
+    }, [loadUserData])
+  )
+
+  useEffect(() => {
+    if (syncEpoch > 0) void loadUserData()
+  }, [loadUserData, syncEpoch])
+
+  useEffect(() => {
+    if (!targetUserId) return
+    const channel = subscribeToFollowChanges(targetUserId, () => { void loadUserData() })
+    return () => { removeFollowChannel(channel) }
+  }, [loadUserData, targetUserId])
 
   const mockUser = demoUsers[username ?? '']
   const userPosts = useMemo(() => posts.filter(p => p.creator === username), [posts, username])
   const { visible: visibleUserPosts, hasMore: userPostsHasMore, loadMore: loadMoreUserPosts } =
     usePagedList(userPosts)
 
-  const badgeLabel = useMemo(() => contributorBadgeLabel(userPosts), [userPosts])
+  const profileInterests = useMemo(() => deriveProfileInterests(userPosts), [userPosts])
+  const reviewedRestaurants = useMemo(() => deriveReviewedRestaurants(userPosts), [userPosts])
+  const topRestaurantsSource = useMemo(() => {
+    if (manualTopSpots && manualTopSpots.length > 0) return manualTopSpots
+    return deriveTopRestaurants(reviewedRestaurants, [])
+  }, [manualTopSpots, reviewedRestaurants])
 
-  const avgFoodRating = useMemo(() => {
-    if (userPosts.length === 0) return null
-    return (userPosts.reduce((s, p) => s + p.food, 0) / userPosts.length).toFixed(1)
-  }, [userPosts])
-
-  const totalLikesLabel = useMemo(() => {
-    const sum = userPosts.reduce((s, p) => s + parseLikes(p.likes), 0)
-    return sum >= 1000 ? `${(sum / 1000).toFixed(1)}k` : `${sum}`
-  }, [userPosts])
+  useEffect(() => {
+    let cancelled = false
+    void hydrateProfileRestaurantPhotos(topRestaurantsSource).then(restaurants => {
+      if (!cancelled) setHydratedTopRestaurants(restaurants)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [topRestaurantsSource])
 
   const openPost = useCallback((post: { dbId?: string; id: string | number }) => {
     router.push(routes.postDetail(String(post.dbId || post.id)))
   }, [router])
 
+  const openRestaurant = useCallback((restaurant: ProfileRestaurant) => {
+    analytics.profileInteraction(user?.id ?? null, targetUserId, 'top_restaurant_tapped')
+    router.push(routes.restaurantDetail({
+      restaurantId: restaurant.id,
+      ...(restaurant.placeId ? { placeId: restaurant.placeId } : {}),
+      name: restaurant.name,
+      address: restaurant.address ?? '',
+      lat: restaurant.lat ?? '',
+      lng: restaurant.lng ?? '',
+    }))
+  }, [router, targetUserId, user?.id])
+
+  const selectTab = useCallback((key: TabKey) => {
+    setActiveTab(key)
+    analytics.profileInteraction(user?.id ?? null, targetUserId, 'tab_selected', { profile_tab: key })
+  }, [targetUserId, user?.id])
+
   const displayName = mockUser?.displayName ?? username ?? ''
   const initials = mockUser?.initials ?? (username ?? '?').slice(0, 2).toUpperCase()
   const avatarBg = mockUser?.avatarBg ?? colors.surface2
   const avatarColor = mockUser?.avatarColor ?? colors.text2
-  const bio = mockUser?.bio ?? null
   const locationLabel = mockUser
     ? [mockUser.suburb, mockUser.city].filter(Boolean).join(', ') || null
     : null
@@ -110,6 +186,10 @@ export default function UserProfileScreen() {
       if (!result.queued) {
         const counts = await fetchFollowCounts(targetUserId)
         setFollowCounts(counts)
+      } else {
+        setFollowCounts(prev => prev
+          ? { ...prev, followers: Math.max(0, prev.followers + (next ? 1 : -1)) }
+          : prev)
       }
     } catch {
       setFollowing(previous)
@@ -211,14 +291,13 @@ export default function UserProfileScreen() {
           avatarBg={avatarBg}
           avatarColor={avatarColor}
           displayName={displayName}
-          badgeLabel={badgeLabel}
-          postCount={userPosts.length}
-          followersLabel={followCounts?.followers ?? mockUser?.followers ?? '—'}
-          followingLabel={followCounts?.following ?? mockUser?.following ?? '—'}
-          bio={bio}
+          username={username ?? ''}
+          reviewCount={userPosts.length}
+          followersLabel={followCounts ? formatProfileCount(followCounts.followers) : mockUser?.followers ?? '—'}
+          followingLabel={followCounts ? formatProfileCount(followCounts.following) : mockUser?.following ?? '—'}
           locationLabel={locationLabel}
-          avgFoodRating={avgFoodRating}
-          totalLikesLabel={totalLikesLabel}
+          onPressFollowers={username ? () => router.push(routes.userFollows(username, 'followers')) : undefined}
+          onPressFollowing={username ? () => router.push(routes.userFollows(username, 'following')) : undefined}
         />
 
         {operationError ? (
@@ -250,25 +329,52 @@ export default function UserProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.tabHeader}>
-          <Text style={styles.tabHeaderText}>Posts</Text>
+        <TopSpotCards
+          restaurants={hydratedTopRestaurants.length > 0 ? hydratedTopRestaurants : topRestaurantsSource}
+          onPressRestaurant={openRestaurant}
+        />
+
+        {profileInterests.length > 0 && (
+          <View style={styles.profileSection}>
+            <Text style={styles.sectionHeading} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+              Favourite Cuisines
+            </Text>
+            <FavouriteCuisines interests={profileInterests} />
+          </View>
+        )}
+
+        <View style={styles.tabs} accessibilityRole="tablist">
+          {(['reviews', 'collections'] as TabKey[]).map(key => (
+            <TouchableOpacity
+              key={key}
+              style={[styles.tab, activeTab === key && styles.tabActive]}
+              onPress={() => selectTab(key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === key }}
+            >
+              <Text style={[styles.tabText, activeTab === key && styles.tabTextActive]} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+                {TAB_LABELS[key]}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {userPosts.length === 0 ? (
-          <View style={styles.emptyTab}>
-            <View style={styles.emptyIcon}>
-              <ImagePlaceholder size={24} color={colors.text3} />
-            </View>
-            <Text style={styles.emptyText}>No posts yet.</Text>
-          </View>
+        {activeTab === 'reviews' && (userPosts.length === 0 ? (
+          <EmptyProfileTab title="No reviews yet." styles={styles} colors={colors} />
         ) : (
-          <ThumbGrid
+          <ProfileReviewCards
             posts={visibleUserPosts}
             hasMore={userPostsHasMore}
             onLoadMore={loadMoreUserPosts}
             onPressPost={openPost}
           />
-        )}
+        ))}
+
+        {activeTab === 'collections' && (profileCollections.length === 0 ? (
+          <EmptyProfileTab title="No public collections yet." styles={styles} colors={colors} />
+        ) : (
+          <CollectionList collections={profileCollections} onPressCollection={collection => router.push(routes.collectionDetail(collection.id))} />
+        ))}
       </ScrollView>
       <RekkusActionSheet
         visible={safetySheet}
@@ -290,6 +396,25 @@ export default function UserProfileScreen() {
         onDismiss={() => setNotice(null)}
       />
     </SafeAreaView>
+  )
+}
+
+function EmptyProfileTab({
+  title,
+  styles,
+  colors,
+}: {
+  title: string
+  styles: ReturnType<typeof makeStyles>
+  colors: ReturnType<typeof useThemeColors>
+}) {
+  return (
+    <View style={styles.emptyTab}>
+      <View style={styles.emptyIcon}>
+        <ImagePlaceholder size={24} color={colors.text3} />
+      </View>
+      <Text style={styles.emptyText} maxFontSizeMultiplier={maxFontSizeMultiplier.body}>{title}</Text>
+    </View>
   )
 }
 
@@ -319,8 +444,9 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       flex: 1,
       backgroundColor: c.text,
       borderRadius: radius.md,
-      paddingVertical: spacing.px9,
       alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
     },
     followBtnActive: { backgroundColor: c.surface, borderWidth: 0.5, borderColor: c.border2 },
     followBtnText: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: c.bg },
@@ -331,18 +457,36 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       borderWidth: 0.5,
       borderColor: c.border2,
       borderRadius: radius.md,
-      paddingVertical: spacing.px9,
       alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
     },
     messageBtnText: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: c.text },
-    tabHeader: {
+    profileSection: {
+      marginHorizontal: spacing[5],
+      marginTop: spacing.px18,
+      gap: spacing[2],
+    },
+    sectionHeading: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: c.text },
+    tabs: {
+      flexDirection: 'row',
       borderBottomWidth: 0.5,
       borderBottomColor: c.border,
-      paddingHorizontal: spacing[5],
-      paddingVertical: spacing[3],
       marginTop: spacing.px18,
     },
-    tabHeaderText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.medium, color: c.text },
+    tab: {
+      flex: 1,
+      alignItems: 'center',
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingVertical: spacing[3],
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+      marginBottom: -spacing.hairline,
+    },
+    tabActive: { borderBottomColor: c.text },
+    tabText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.medium, color: c.text3 },
+    tabTextActive: { color: c.text },
     emptyTab: { alignItems: 'center', justifyContent: 'center', padding: spacing.px50, gap: spacing.px10 },
     emptyIcon: {
       width: 48,

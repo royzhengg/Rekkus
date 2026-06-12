@@ -41,7 +41,23 @@ function openingTag(source, start) {
 function navigationSafetyFailures(relativePath, source) {
   const failures = []
   const protectedFile = /^(?:app|features|components)\//.test(relativePath)
-  if (!protectedFile || !/\.[jt]sx?$/.test(relativePath)) return failures
+  const routeFile = relativePath === 'lib/routes/index.ts'
+  if ((!protectedFile && !routeFile) || !/\.[jt]sx?$/.test(relativePath)) return failures
+
+  if (relativePath === 'lib/routes/index.ts' && /pathname:\s*['"]\/\(tabs\)\/create['"]/.test(source)) {
+    failures.push(`${relativePath}: [CREATE_POST_TAB_ROUTE] create-post must use the root /create modal route, not /(tabs)/create (B-408).`)
+  }
+
+  if (relativePath === 'app/(tabs)/_layout.tsx' && /<Tabs\.Screen\s+name=["']create["']/.test(source)) {
+    failures.push(`${relativePath}: [CREATE_POST_TAB_SCREEN] create-post must not be registered as a tab screen after B-408.`)
+  }
+
+  if (
+    relativePath === 'features/create-post/CreatePostScreen.tsx' &&
+    (!/\busePreventRemove\s*\(/.test(source) || !/\bpendingRemoveAction\b/.test(source))
+  ) {
+    failures.push(`${relativePath}: [CREATE_POST_DISMISS_GUARD] create-post modal dismissal must route through the leave-confirm guard (B-408).`)
+  }
 
   let modalStart = source.indexOf('<Modal')
   while (modalStart !== -1) {

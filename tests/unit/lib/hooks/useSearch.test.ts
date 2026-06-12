@@ -2,12 +2,18 @@ import { act, renderHook } from '@testing-library/react-native'
 import { analytics } from '@/lib/analytics'
 import type { PlaceResult } from '@/lib/hooks/searchTypes'
 import { useSearch } from '@/lib/hooks/useSearch'
+import { fetchPlaceAutocompleteJson } from '@/lib/services/googlePlaces'
 import { searchPlaces } from '@/lib/services/search'
 
 const mockPosts: [] = []
 
 jest.mock('@/lib/analytics', () => ({
-  analytics: { search: jest.fn() },
+  analytics: {
+    search: jest.fn(),
+    searchGoogleFallbackUsed: jest.fn(),
+    searchGoogleFallbackSuppressed: jest.fn(),
+    searchNoResultsAfterSuppression: jest.fn(),
+  },
 }))
 jest.mock('@/lib/contexts/PostsContext', () => ({
   usePosts: () => ({ posts: mockPosts }),
@@ -36,11 +42,34 @@ jest.mock('@/lib/hooks/useSearchResults', () => ({
 jest.mock('@/lib/services/googlePlaces', () => ({
   fetchPlaceAutocompleteJson: jest.fn().mockResolvedValue({ predictions: [] }),
 }))
+// Disable the module-level SEARCH_PIPELINE_CACHE so results don't leak across tests.
+jest.mock('@/lib/search/cache', () => ({
+  ...jest.requireActual('@/lib/search/cache'),
+  createSearchMemoryCache: () => ({ get: () => undefined, set: () => undefined }),
+}))
+jest.mock('@/lib/services/searchPersonalization', () => ({
+  fetchSearchPersonalizationSignals: jest.fn().mockResolvedValue({
+    recentQueries: [],
+    recentCuisines: [],
+    recentAreas: [],
+    savedRestaurantIds: [],
+    savedDishIds: [],
+    savedPostIds: [],
+  }),
+}))
+jest.mock('@/lib/services/trending', () => ({
+  fetchTrendingEntitySignals: jest.fn().mockResolvedValue({
+    placeScores: new Map(),
+    postScores: new Map(),
+    dishScores: new Map(),
+  }),
+}))
 jest.mock('@/lib/services/posts', () => ({
   fetchPostsByIds: jest.fn().mockResolvedValue([]),
   mapRowToPost: jest.fn(),
 }))
 jest.mock('@/lib/services/search', () => ({
+  fetchDishGraphEvidence: jest.fn().mockResolvedValue(new Map()),
   searchPlaces: jest.fn(),
   searchUsers: jest.fn().mockResolvedValue([]),
   searchPostIds: jest.fn().mockResolvedValue([]),
@@ -70,6 +99,7 @@ jest.mock('@/lib/utils/locationResolver', () => ({
 }))
 
 const mockSearchPlaces = jest.mocked(searchPlaces)
+const mockFetchPlaceAutocompleteJson = jest.mocked(fetchPlaceAutocompleteJson)
 const mockAnalyticsSearch = jest.mocked(analytics.search)
 
 function deferred<T>() {
@@ -147,5 +177,96 @@ describe('useSearch', () => {
     })
 
     expect(mockAnalyticsSearch).not.toHaveBeenCalled()
+  })
+
+  it('suppresses unbounded Google fallback for ambiguous food queries without location', async () => {
+    mockSearchPlaces.mockResolvedValueOnce([])
+
+    const { result } = renderHook(() => useSearch('pork'))
+    await act(async () => {
+      jest.advanceTimersByTime(300)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockFetchPlaceAutocompleteJson).not.toHaveBeenCalled()
+    expect(result.current.providerFallbackSuppressed).toBe(true)
+    expect(result.current.queryIntent).toBe('food_dish')
+    expect(analytics.searchGoogleFallbackSuppressed).toHaveBeenCalledWith(
+      null,
+      'pork',
+      'food_dish',
+      'ambiguous_food_without_location',
+      'none',
+      'search'
+    )
+  })
+
+  it('uses bounded Google fallback for ambiguous food queries with Sydney location', async () => {
+    mockSearchPlaces.mockResolvedValueOnce([])
+
+    renderHook(() => useSearch('pork', { lat: -33.87, lng: 151.21 }))
+    await act(async () => {
+      jest.advanceTimersByTime(300)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockFetchPlaceAutocompleteJson).toHaveBeenCalledWith('pork', { lat: -33.87, lng: 151.21 })
+    expect(analytics.searchGoogleFallbackUsed).toHaveBeenCalledWith(
+      null,
+      'pork',
+      'food_dish',
+      'bounded_locality',
+      true,
+      'gps',
+      'search'
+    )
+  })
+
+  it('allows unbounded provider fallback for strong restaurant-name queries', async () => {
+    mockSearchPlaces.mockResolvedValueOnce([])
+
+    renderHook(() => useSearch('Din Tai Fung'))
+    await act(async () => {
+      jest.advanceTimersByTime(300)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockFetchPlaceAutocompleteJson).toHaveBeenCalledWith('din tai fung', null)
+    expect(analytics.searchGoogleFallbackUsed).toHaveBeenCalledWith(
+      null,
+      'din tai fung',
+      'restaurant_name',
+      'unbounded_restaurant_name',
+      false,
+      'none',
+      'search'
+    )
+  })
+
+  it('records manual locality when provided by the screen', async () => {
+    mockSearchPlaces.mockResolvedValueOnce([])
+
+    renderHook(() =>
+      useSearch('pork', { lat: -33.8, lng: 151.18 }, { locationSource: 'manual' })
+    )
+    await act(async () => {
+      jest.advanceTimersByTime(300)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockFetchPlaceAutocompleteJson).toHaveBeenCalledWith('pork', { lat: -33.8, lng: 151.18 })
+    expect(analytics.searchGoogleFallbackUsed).toHaveBeenCalledWith(
+      null,
+      'pork',
+      'food_dish',
+      'bounded_locality',
+      true,
+      'manual',
+      'search'
+    )
   })
 })

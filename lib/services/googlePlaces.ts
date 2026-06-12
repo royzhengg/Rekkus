@@ -117,7 +117,11 @@ export async function fetchPlaceAutocompleteJson(
     return { predictions: [] }
   }
 
-  const locationParam = location ? `&location=${location.lat},${location.lng}&radius=10000` : ''
+  // 50 km radius with strictbounds restricts Google to the metro area, preventing global
+  // text-match results (e.g. "Beefbar Paris") from outranking nearby Sydney venues.
+  const locationParam = location
+    ? `&location=${location.lat},${location.lng}&radius=50000&strictbounds=true`
+    : ''
   const sessionTokenParam = sessionToken ? `&sessiontoken=${encodeURIComponent(sessionToken)}` : ''
   const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(q)}${locationParam}${sessionTokenParam}&types=establishment&key=${GOOGLE_PLACES_KEY}`
   return (
@@ -156,19 +160,21 @@ export async function fetchPlaceDetailsJson<T>(
 
 export async function fetchPlaceTextSearchJson<T>(
   query: string,
-  guard: (value: unknown) => value is T
+  guard: (value: unknown) => value is T,
+  location?: { lat: number; lng: number } | null
 ): Promise<{ results?: T[] } | null> {
   const q = query.trim()
   if (!GOOGLE_PLACES_KEY || q.length < MIN_AUTOCOMPLETE_LENGTH) return null
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${GOOGLE_PLACES_KEY}`
+  const locationParam = location ? `&location=${location.lat},${location.lng}&radius=20000` : ''
+  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}${locationParam}&key=${GOOGLE_PLACES_KEY}`
   return cachedJson<{ results?: T[] }>(
-    `textsearch:${q}`,
+    `textsearch:${q}:${location ? `${location.lat},${location.lng}` : ''}`,
     url,
     {
       provider: 'google_places',
       requestType: 'textsearch',
-      feature: 'geocode_fallback',
-      fallbackReason: 'missing_coordinates',
+      feature: location ? 'restaurant_search' : 'geocode_fallback',
+      fallbackReason: location ? 'local_miss_or_location_picker' : 'missing_coordinates',
       estimatedCostClass: 'paid_provider',
     },
     value => googleResultsEnvelope(value, guard)

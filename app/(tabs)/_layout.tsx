@@ -1,4 +1,4 @@
-import { Tabs, useSegments } from 'expo-router'
+import { Tabs } from 'expo-router'
 import React from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { Svg, Circle, Path, Polyline, Line } from 'react-native-svg'
@@ -90,8 +90,6 @@ export default function TabLayout() {
   const colors = useThemeColors()
   const materialFlagEnabled = useFeatureFlag('iosTabBarMaterial')
   const { openCreateLauncher } = useCreateLauncher()
-  const segments = useSegments()
-  const isCreateRoute = segments[segments.length - 1] === 'create'
   const materialEligible = canUseIosTabBarMaterial(Platform.OS, APP_ENV, materialFlagEnabled)
 
   return (
@@ -130,7 +128,6 @@ export default function TabLayout() {
           name="search"
           options={{ title: 'Search', tabBarIcon: ({ color }) => <SearchIcon color={color} /> }}
         />
-        <Tabs.Screen name="create" options={{ href: null }} />
         <Tabs.Screen
           name="saved"
           options={{ title: 'Saved', tabBarIcon: ({ color }) => <SavedIcon color={color} /> }}
@@ -144,13 +141,11 @@ export default function TabLayout() {
         <Tabs.Screen name="places" options={{ href: null }} />
         <Tabs.Screen name="restaurants" options={{ href: null }} />
       </Tabs>
-      {!isCreateRoute && (
-        <View pointerEvents="box-none" style={styles.floatingCreate}>
-          <FloatingActionButton accessibilityLabel="Create post" onPress={openCreateLauncher}>
-            <PlusIcon color={colors.bg} size={22} />
-          </FloatingActionButton>
-        </View>
-      )}
+      <View pointerEvents="box-none" style={styles.floatingCreate}>
+        <FloatingActionButton accessibilityLabel="Create post" onPress={openCreateLauncher}>
+          <PlusIcon color={colors.bg} size={22} />
+        </FloatingActionButton>
+      </View>
     </View>
   )
 }

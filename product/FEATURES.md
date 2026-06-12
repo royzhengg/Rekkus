@@ -81,6 +81,7 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 - Live results and compact suggestions update as users type; suggestions use the `suggest_searches` RPC plus recent/cuisine fallbacks without taking over the results page.
 - Compact search header with a trailing filter button for Nearby, cuisine, occasion, value, media, open-now, and sort filters
 - Discovery page (no query): time-aware Quick starts row with recent-search cuisine affinity, compact Trending now suggestions, Popular places, staff-pick collections when available, and lower-priority Creators you may like
+- Signed-in users can promote repeated recent queries to persistent saved searches; saved searches render above recent searches and rerun the query when tapped.
 - Results page: Top / Dishes / People / Places tabs; Top shows the best available places, dish posts, and people from the existing ranked result sets
 - Active filters render as quiet tokens; permanent filter rails stay hidden until the user searches or opens the sheet
 - Search filters are applied in `useSearch`: cuisine, Rekkus Picks occasion/value, media type, open-now, and sort modes for Best match, Nearby, Newest, Most saved, and Highest Picks
@@ -161,27 +162,23 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 
 ### Profile
 
-- Username top bar + settings gear (navigates to /settings)
-- Centered 80px avatar circle with initials
-- Reviewer badge pill (✦ Explorer / Quality hunter / Prolific reviewer / Local expert) — computed from post count + avg food rating
-- Stats card (surface card): Posts / Followers / Following
-- Bio and location tag (suburb, city, country — fetched from Supabase)
-- Food stats strip: avg food rating · saved spots count · total likes received
-- **Taste Profile card**: top 3 cuisines by avg food rating, preferred spend range, avg vibe score — shown when ≥3 posts with cuisine data exist
-- Favourite spots horizontal scroll (from `useSavedLocations`) — conditional, hidden if empty
-- Edit profile / Share action buttons
-- Text-label tabs: Posts / Saved / Liked
-- 3-column thumbnail grid with mock images (picsum.photos)
-- All three grids paginated: Saved/Liked via cursor-based Supabase pages (20/page); Posts via client-side slice (30/page); "Load more" button in ThumbGrid footer
+- Large food identity header: avatar, display name, handle, location, and primary Reviews / Followers / Following stats
+- Share and settings actions sit in the header; Edit profile remains the signed-in profile owner action
+- **Top Spots**: horizontal ranked photo cards; manual picks from `user_top_spots` table take precedence — if none are set, falls back to algorithmic derivation (reviewed restaurants ranked by count/rating/recency, enriched by saved restaurants). Cards prefer Rekkus review photos before cached/provider photo refs
+- **Manage Top Spots** (`app/manage-top-spots.tsx`): full screen for picking and ordering up to 3 restaurants (any restaurant via search — Rekkus DB + Google Places fallback). Picks saved to `user_top_spots` table in Supabase and reflected on both own and other user profiles
+- **Favourite Cuisines**: auto-generated from reviewed post cuisine data through the profile identity view-model
+- Text-label tabs: Reviews / Collections
+- Reviews render profile review cards using existing post media and ratings; Collections loads profile collections through the service layer
+- Empty own profile review state guides users to create their first review
 - Auth gate on mount — guests are prompted before accessing
 
 ### Other user profiles (`app/user/[username].tsx`)
 
 - Accessible by tapping any creator name in feed, post detail, or search
-- Same centred layout with reviewer badge + stats card + bio
+- Same food-first identity header, Top Spots, Favourite Cuisines, and Reviews / Collections tabs
 - Follow + Message buttons (Follow auth-gated; Message is auth-gated and opens/reuses a direct thread behind `directMessages`)
-- Posts-only tab (Saved/Liked are private)
-- Posts grid paginated (30/page, client-side) via `usePagedList`
+- Followers / Following stats open `app/user/[username]/follows.tsx`; counts and lists refresh on focus, follow/unfollow, offline sync, and realtime follow changes
+- Reviews are paginated (30/page, client-side) via `usePagedList`; public Top Spots load manual picks via `fetchTopSpotsWithDetails` first, falling back to post-derived spots; Collections shows only shareable collections
 
 ### Restaurant feature
 

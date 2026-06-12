@@ -38,8 +38,9 @@ Use this file to navigate Rekkus quickly.
 
 ### Post Create
 
+- **Routes**: `app/create/index.tsx` (modal), `app/create/drafts.tsx`
 - **Components**: `components/post-create/StepMedia.tsx`, `components/post-create/StepDetails.tsx`, `components/post-create/StepReview.tsx`
-- **Hooks**: `lib/hooks/useRestaurantSearch.ts` (debounced DB+Google autocomplete, nearby fetch, place details + upsert orchestration)
+- **Hooks**: `lib/hooks/useRestaurantSearch.ts` (debounced DB+Google autocomplete, nearby fetch, place details + upsert orchestration), `lib/hooks/useRecentPhotos.ts` (device media library, permission recovery)
 - **Services**: `lib/services/restaurants.ts`, `lib/services/media.ts`, `lib/services/postMediaProcessing.ts`
 
 ### Saved Library And Dish Details

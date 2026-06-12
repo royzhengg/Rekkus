@@ -2,7 +2,7 @@
 // These guard against regressions when the modules are modified.
 
 jest.mock('../../../../scripts/ops/lib/backlog', () => ({
-  BACKLOG_HEADER: '| Status | Priority | ID | Item | Why | Dependencies | Burden | Problem | Suggested AI Command | Implementation | Implementation Type |',
+  BACKLOG_HEADER: '| Status | Priority | ID | Item | Problem | Implementations | Implementation Type |',
   duplicateBacklogIds: jest.fn((rows: unknown[]) => {
     const seen = new Set<string>()
     const dupes: string[] = []
@@ -48,13 +48,11 @@ function makeRow(overrides: Record<string, unknown> = {}) {
   return {
     id: 'B-001',
     line: 'id="b-001"',
-    cellCount: 11,
+    cellCount: 7,
     status: '[ ]',
     priority: 'P2',
     item: 'Add some feature',
-    why: 'Improves UX',
-    problem: 'Users cannot do X',
-    command: 'Do: implement X',
+    problem: 'Users cannot do X. Do: implement X.',
     implementation: 'Not implemented yet.',
     implementationType: 'runtime-feature',
     ...overrides,
@@ -89,7 +87,7 @@ describe('checkBacklog', () => {
   it('fails when a row has wrong cell count', () => {
     const result = makeResult()
     checkBacklog([makeRow({ cellCount: 8 })], result)
-    expect(result.failures.some((f) => f.includes('11 table cells'))).toBe(true)
+    expect(result.failures.some((f) => f.includes('7 table cells'))).toBe(true)
   })
 
   it('fails when status is invalid', () => {
@@ -116,12 +114,6 @@ describe('checkBacklog', () => {
     expect(result.failures.some((f) => f.includes('Implementation Type none'))).toBe(true)
   })
 
-  it('fails when open command does not start with "Do: "', () => {
-    const result = makeResult()
-    checkBacklog([makeRow({ command: 'Implement X' })], result)
-    expect(result.failures.some((f) => f.includes('does not start with "Do: "'))).toBe(true)
-  })
-
   it('fails when anchor does not match row ID', () => {
     const result = makeResult()
     // B-001 expects id="b-001" but line has wrong anchor
@@ -139,9 +131,8 @@ describe('checkBacklog', () => {
     for (const status of ['[ ]', '[x]', '[~]', 'Deprioritized']) {
       const result = makeResult()
       const implementation = status === '[x]' ? 'Shipped: done.' : 'Not implemented yet.'
-      const command = status === '[ ]' || status === '[~]' || status === 'Deprioritized' ? 'Do: implement it' : ''
       checkBacklog(
-        [makeRow({ status, implementation, command, implementationType: 'guardrail' })],
+        [makeRow({ status, implementation, implementationType: 'guardrail' })],
         result,
       )
       const statusFailures = result.failures.filter((f) => f.includes('invalid status'))
@@ -155,26 +146,20 @@ describe('checkBacklog', () => {
 describe('checkBacklogSpecificity', () => {
   it('produces no warnings for a specific row', () => {
     const result = makeResult()
-    checkBacklogSpecificity([makeRow({ command: 'Do: implement the feature' })], result)
+    checkBacklogSpecificity([makeRow()], result)
     expect(result.warnings).toHaveLength(0)
-  })
-
-  it('warns for missing command', () => {
-    const result = makeResult()
-    checkBacklogSpecificity([makeRow({ command: '' })], result)
-    expect(result.warnings.some((w) => w.includes('Suggested AI Commands'))).toBe(true)
   })
 
   it('warns for vague item names ending in reserved keywords', () => {
     const result = makeResult()
-    checkBacklogSpecificity([makeRow({ item: 'Auth governance', command: 'Do: implement it' })], result)
+    checkBacklogSpecificity([makeRow({ item: 'Auth governance' })], result)
     expect(result.warnings.some((w) => w.includes('vague item names'))).toBe(true)
   })
 
-  it('warns for command lacking an action verb', () => {
+  it('warns for open rows missing a Do: instruction in Problem', () => {
     const result = makeResult()
-    checkBacklogSpecificity([makeRow({ command: 'Do: fix things' })], result)
-    expect(result.warnings.some((w) => w.includes('delivery action'))).toBe(true)
+    checkBacklogSpecificity([makeRow({ problem: 'Users cannot do X.' })], result)
+    expect(result.warnings.some((w) => w.includes('Do:'))).toBe(true)
   })
 })
 

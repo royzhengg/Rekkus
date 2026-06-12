@@ -103,16 +103,37 @@ export async function updatePost(postId: string, payload: UpdatePostPayload): Pr
   if (payload.media) {
     changedFields.push('media')
     const deletedAt = new Date().toISOString()
-    const { error: softDeleteError } = await supabase.from('post_photos')
+    const validDbStatuses = new Set([
+      'local_ready', 'queued', 'uploading', 'uploaded', 'processing', 'ready', 'failed',
+    ])
+
+    // Items with an existing DB id — preserve them, just update order_index
+    const existing = payload.media.filter((item): item is typeof item & { id: string } => Boolean(item.id))
+    const existingIds = existing.map(item => item.id)
+
+    // Soft-delete only photos not in the kept set
+    const deleteBase = supabase.from('post_photos')
       .update({ deleted_at: deletedAt })
       .eq('post_id', postId)
+    const { error: softDeleteError } = existingIds.length > 0
+      ? await deleteBase.not('id', 'in', `(${existingIds.join(',')})`)
+      : await deleteBase
     if (softDeleteError) throw softDeleteError
 
-    if (payload.media.length > 0) {
-      const validDbStatuses = new Set([
-        'local_ready', 'queued', 'uploading', 'uploaded', 'processing', 'ready', 'failed',
-      ])
-      const rows = payload.media.map((item, orderIndex) => ({
+    // Update order_index for preserved photos
+    for (const item of existing) {
+      const newIndex = payload.media.indexOf(item)
+      const { error: orderError } = await supabase.from('post_photos')
+        .update({ order_index: newIndex })
+        .eq('id', item.id)
+      if (orderError) throw orderError
+    }
+
+    // Insert genuinely new photos (no DB id yet)
+    const newItems = payload.media.filter(item => !item.id)
+    if (newItems.length > 0) {
+      const startIndex = existing.length
+      const rows = newItems.map((item, i) => ({
         post_id: postId,
         url: item.processedUrl ?? item.originalUrl ?? item.uri,
         original_url: item.originalUrl ?? item.uri,
@@ -126,7 +147,7 @@ export async function updatePost(postId: string, payload: UpdatePostPayload): Pr
         height: item.height ?? null,
         processing_status: item.processingStatus && validDbStatuses.has(item.processingStatus) ? item.processingStatus : 'ready',
         processing_error: item.processingError ?? null,
-        order_index: orderIndex,
+        order_index: startIndex + i,
       }))
       const { error: insertError } = await supabase.from('post_photos').insert(rows)
       if (insertError) throw insertError

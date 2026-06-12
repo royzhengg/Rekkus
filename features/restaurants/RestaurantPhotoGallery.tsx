@@ -31,11 +31,11 @@ const CTRL_BTN_SIZE = spacing.px36
 const THUMB_GAP = 2
 const NUM_COLUMNS = 3
 
-function makeStyles(overlay: string, thumbSize: number) {
+function makeStyles(overlay: string, white: string, black: string, thumbSize: number) {
   return StyleSheet.create({
     backdrop: {
       flex: 1,
-      backgroundColor: 'black',
+      backgroundColor: black,
     },
     // grid mode
     gridHeader: {
@@ -46,7 +46,7 @@ function makeStyles(overlay: string, thumbSize: number) {
       paddingBottom: spacing[3],
     },
     gridTitle: {
-      color: 'white',
+      color: white,
       fontSize: fontSize.md,
       fontWeight: fontWeight.semibold,
     },
@@ -77,7 +77,7 @@ function makeStyles(overlay: string, thumbSize: number) {
       alignItems: 'center',
     },
     counter: {
-      color: 'white',
+      color: white,
       fontSize: fontSize.md,
       fontWeight: fontWeight.semibold,
     },
@@ -86,10 +86,10 @@ function makeStyles(overlay: string, thumbSize: number) {
 
 export function RestaurantPhotoGallery({ visible, photos, initialIndex, onClose }: Props) {
   const { width, height } = useWindowDimensions()
-  const { overlay } = useThemeColors()
+  const { overlay, white, black } = useThemeColors()
   const reduceMotion = useReducedMotion()
   const thumbSize = (width - THUMB_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS
-  const styles = useMemo(() => makeStyles(overlay, thumbSize), [overlay, thumbSize])
+  const styles = useMemo(() => makeStyles(overlay, white, black, thumbSize), [overlay, white, black, thumbSize])
   const safeInsets = useSafeAreaInsets()
   // initialWindowMetrics is synchronous — prevents first-render overlap when Modal insets haven't propagated yet
   const safeTop = safeInsets.top || initialWindowMetrics?.insets.top || 0
@@ -123,7 +123,7 @@ export function RestaurantPhotoGallery({ visible, photos, initialIndex, onClose 
       statusBarTranslucent
       onRequestClose={mode === 'fullscreen' ? () => setMode('grid') : onClose}
     >
-      <StatusBar barStyle="light-content" backgroundColor="black" />
+      <StatusBar barStyle="light-content" backgroundColor={black} />
       <View style={styles.backdrop}>
         {mode === 'grid' ? (
           <View style={{ flex: 1 }}>
@@ -136,7 +136,7 @@ export function RestaurantPhotoGallery({ visible, photos, initialIndex, onClose 
                 accessibilityLabel="Close photo gallery"
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <CloseIcon size={20} color="white" />
+                <CloseIcon size={20} color={white} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -191,7 +191,7 @@ export function RestaurantPhotoGallery({ visible, photos, initialIndex, onClose 
                   accessibilityLabel="Back to photo grid"
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <ArrowLeft size={20} color="white" />
+                  <ArrowLeft size={20} color={white} />
                 </TouchableOpacity>
               </View>
 

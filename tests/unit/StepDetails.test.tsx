@@ -36,17 +36,18 @@ jest.mock('@/components/ui/RekkusActionSheet', () => ({
 type HarnessProps = {
   initialCuisine?: string
   initialHashtags?: string[]
+  initialMustOrder?: string
 }
 
-function Harness({ initialCuisine = '', initialHashtags = [] }: HarnessProps) {
+function Harness({ initialCuisine = '', initialHashtags = [], initialMustOrder = '' }: HarnessProps) {
   const [tasteVerdict, setTasteVerdict] = useState<RekkusTasteVerdict | undefined>()
   const [valueVerdict, setValueVerdict] = useState<RekkusValueVerdict | undefined>()
   const [occasionTags, setOccasionTags] = useState<RekkusOccasionTag[]>([])
   const [body, setBody] = useState('')
-  const [mustOrder, setMustOrder] = useState('')
   const [cuisineType, setCuisineType] = useState(initialCuisine)
   const [hashtags, setHashtags] = useState(initialHashtags)
   const [hashtagInput, setHashtagInput] = useState('')
+  const [mustOrder, setMustOrder] = useState(initialMustOrder)
 
   return (
     <StepDetails
@@ -64,14 +65,15 @@ function Harness({ initialCuisine = '', initialHashtags = [] }: HarnessProps) {
       setOccasionTags={setOccasionTags}
       body={body}
       setBody={setBody}
-      mustOrder={mustOrder}
-      setMustOrder={setMustOrder}
       cuisineType={cuisineType}
       setCuisineType={setCuisineType}
       hashtags={hashtags}
       setHashtags={setHashtags}
       hashtagInput={hashtagInput}
       setHashtagInput={setHashtagInput}
+      mustOrder={mustOrder}
+      setMustOrder={setMustOrder}
+      dishTags={[]}
     />
   )
 }
@@ -92,69 +94,66 @@ function props(overrides: Partial<ComponentProps<typeof StepDetails>> = {}) {
     setOccasionTags: jest.fn(),
     body: '',
     setBody: jest.fn(),
-    mustOrder: '',
-    setMustOrder: jest.fn(),
     cuisineType: '',
     setCuisineType: jest.fn(),
     hashtags: [],
     setHashtags: jest.fn(),
     hashtagInput: '',
     setHashtagInput: jest.fn(),
+    mustOrder: '',
+    setMustOrder: jest.fn(),
+    dishTags: [],
     ...overrides,
   }
 }
 
 describe('StepDetails', () => {
-  test('shows core review inputs while optional details start collapsed when blank', () => {
+  test('shows all sections including optional which is always visible', () => {
     const screen = render(<Harness />)
 
     expect(screen.getByText('Rekkus Picks')).toBeTruthy()
-    expect(screen.getByText('Your review')).toBeTruthy()
-    expect(screen.getByText('Helps people know exactly what to get.')).toBeTruthy()
-    expect(screen.getByLabelText('Add optional details')).toBeTruthy()
-    expect(screen.queryByText('Cuisine')).toBeNull()
+    expect(screen.getByText('Your Take')).toBeTruthy()
+    expect(screen.getByText('Best Dish')).toBeTruthy()
+    expect(screen.getByText('Optional')).toBeTruthy()
+    // Optional section is always expanded — Cuisine visible without any tap
+    expect(screen.getByText('Cuisine')).toBeTruthy()
   })
 
-  test('keeps pick mappings and the occasion selection cap', () => {
+  test('keeps pick mappings — taste and value require switching tabs first', () => {
     const callbacks = props({ occasionTags: ['quick_bite', 'solo', 'casual'] })
     const screen = render(<StepDetails {...callbacks} />)
 
+    // Taste tab is default — Craveable is visible
     fireEvent.press(screen.getByText('Craveable'))
-    fireEvent.press(screen.getByText('Great value'))
-    fireEvent.press(screen.getByText('Special'))
-
     expect(callbacks.setTasteVerdict).toHaveBeenCalledWith('craveable')
     expect(callbacks.setFoodRating).toHaveBeenCalledWith(3)
+
+    // Switch to Value tab
+    fireEvent.press(screen.getByText('Value'))
+    fireEvent.press(screen.getByText('Great value'))
     expect(callbacks.setValueVerdict).toHaveBeenCalledWith('great_value')
     expect(callbacks.setCostRating).toHaveBeenCalledWith(1)
+
+    // Switch to Occasion tab — 3 already selected, adding Special drops oldest
+    fireEvent.press(screen.getByText('Occasion'))
+    fireEvent.press(screen.getByText('Special'))
     expect(callbacks.setOccasionTags).toHaveBeenCalledWith(['quick_bite', 'solo', 'casual'])
   })
 
-  test('opens existing optional metadata, summarises it when collapsed, and restores editing', () => {
+  test('shows cuisine and tags when pre-populated, tags render without # prefix', () => {
     const screen = render(<Harness initialCuisine="Japanese" initialHashtags={['ramen']} />)
 
     expect(screen.getByText('Cuisine')).toBeTruthy()
-    expect(screen.getByText('#ramen')).toBeTruthy()
+    // Tags render without # prefix
+    expect(screen.getByText('ramen')).toBeTruthy()
 
-    fireEvent.press(screen.getByLabelText('Hide optional details'))
-    expect(screen.getByText('Japanese · 1 tag')).toBeTruthy()
-    expect(screen.queryByText('#ramen')).toBeNull()
-
-    fireEvent.press(screen.getByLabelText('Add optional details'))
-    expect(screen.getByText('#ramen')).toBeTruthy()
     fireEvent.press(screen.getByLabelText('Remove tag ramen'))
-    expect(screen.queryByText('#ramen')).toBeNull()
+    expect(screen.queryByText('ramen')).toBeNull()
   })
 
-  test('supports optional cuisine and tags while preserving best-dish length limiting', () => {
-    const mustOrderSetter = jest.fn()
-    const coreScreen = render(<StepDetails {...props({ setMustOrder: mustOrderSetter })} />)
-
-    fireEvent.changeText(coreScreen.getByPlaceholderText('e.g. tonkotsu ramen'), 'x'.repeat(65))
-    expect(mustOrderSetter).toHaveBeenCalledWith('x'.repeat(60))
-
+  test('supports optional cuisine selection', () => {
     const screen = render(<Harness />)
-    fireEvent.press(screen.getByLabelText('Add optional details'))
+    // Optional section always visible — no need to expand
     fireEvent.press(screen.getByLabelText('Select cuisine'))
     fireEvent.press(screen.getByLabelText('Select Japanese cuisine'))
     expect(screen.getByText('Japanese')).toBeTruthy()
@@ -162,14 +161,14 @@ describe('StepDetails', () => {
 
   test('adds and removes a tag from the optional details panel', () => {
     const screen = render(<Harness />)
-    fireEvent.press(screen.getByLabelText('Add optional details'))
 
+    fireEvent.press(screen.getByLabelText('Add tag'))
     const tagInput = screen.getByPlaceholderText('e.g. surryhills, ramen')
     fireEvent.changeText(tagInput, 'ramen')
     fireEvent(tagInput, 'onSubmitEditing')
 
-    expect(screen.getByText('#ramen')).toBeTruthy()
+    expect(screen.getByText('ramen')).toBeTruthy()
     fireEvent.press(screen.getByLabelText('Remove tag ramen'))
-    expect(screen.queryByText('#ramen')).toBeNull()
+    expect(screen.queryByText('ramen')).toBeNull()
   })
 })

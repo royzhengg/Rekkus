@@ -2,6 +2,8 @@ import { analytics } from '@/lib/analytics'
 import { notify } from '@/lib/services/notifications'
 import { supabase } from '@/lib/supabase'
 
+type SupabaseChannel = ReturnType<typeof supabase.channel>
+
 export type ProfileInfo = {
   username: string
   full_name: string | null
@@ -126,6 +128,8 @@ export async function fetchFollowCounts(userId: string): Promise<{ followers: nu
       .select('*', { count: 'exact', head: true })
       .eq('follower_id', userId),
   ])
+  if (followersRes.error) throw followersRes.error
+  if (followingRes.error) throw followingRes.error
   return {
     followers: followersRes.count ?? 0,
     following: followingRes.count ?? 0,
@@ -139,22 +143,101 @@ export type FollowListUser = {
   avatar_url: string | null
 }
 
+export type FollowChange = {
+  eventType: 'INSERT' | 'DELETE'
+  followerId: string
+  followingId: string
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function parseFollowListUser(value: unknown): FollowListUser | null {
+  if (!isRecord(value)) return null
+  const id = value.id
+  const username = value.username
+  if (typeof id !== 'string' || typeof username !== 'string') return null
+  return {
+    id,
+    username,
+    full_name: typeof value.full_name === 'string' ? value.full_name : null,
+    avatar_url: typeof value.avatar_url === 'string' ? value.avatar_url : null,
+  }
+}
+
+function parseFollowChange(eventType: FollowChange['eventType'], value: unknown): FollowChange | null {
+  if (!isRecord(value)) return null
+  const followerId = value.follower_id
+  const followingId = value.following_id
+  if (typeof followerId !== 'string' || typeof followingId !== 'string') return null
+  return { eventType, followerId, followingId }
+}
+
 export async function fetchFollowers(userId: string, limit = 50): Promise<FollowListUser[]> {
-  const { data } = await supabase.from('follows')
+  const { data, error } = await supabase.from('follows')
     .select('users!follows_follower_id_fkey ( id, username, full_name, avatar_url )')
     .eq('following_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit)
-  return data?.map((row) => row.users).filter(Boolean) ?? []
+  if (error) throw error
+  return (data ?? [])
+    .map(row => parseFollowListUser(row.users))
+    .filter((row): row is FollowListUser => row !== null)
 }
 
 export async function fetchFollowing(userId: string, limit = 50): Promise<FollowListUser[]> {
-  const { data } = await supabase.from('follows')
+  const { data, error } = await supabase.from('follows')
     .select('users!follows_following_id_fkey ( id, username, full_name, avatar_url )')
     .eq('follower_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit)
-  return data?.map((row) => row.users).filter(Boolean) ?? []
+  if (error) throw error
+  return (data ?? [])
+    .map(row => parseFollowListUser(row.users))
+    .filter((row): row is FollowListUser => row !== null)
+}
+
+export function subscribeToFollowChanges(
+  userId: string,
+  onChange: (change: FollowChange) => void
+): SupabaseChannel {
+  const handleInsert = (value: unknown) => {
+    const change = parseFollowChange('INSERT', value)
+    if (change) onChange(change)
+  }
+  const handleDelete = (value: unknown) => {
+    const change = parseFollowChange('DELETE', value)
+    if (change) onChange(change)
+  }
+
+  return supabase
+    .channel(`follows:${userId}:${Date.now()}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'follows', filter: `follower_id=eq.${userId}` },
+      payload => handleInsert(payload.new)
+    )
+    .on(
+      'postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'follows', filter: `follower_id=eq.${userId}` },
+      payload => handleDelete(payload.old)
+    )
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'follows', filter: `following_id=eq.${userId}` },
+      payload => handleInsert(payload.new)
+    )
+    .on(
+      'postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'follows', filter: `following_id=eq.${userId}` },
+      payload => handleDelete(payload.old)
+    )
+    .subscribe()
+}
+
+export function removeFollowChannel(channel: SupabaseChannel): void {
+  void supabase.removeChannel(channel)
 }
 
 export function updateLastSeen(userId: string): void {

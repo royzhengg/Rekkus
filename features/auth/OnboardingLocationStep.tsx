@@ -12,13 +12,13 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Svg, Path } from 'react-native-svg'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
 
-export const FIRST_FEED_VISIT_KEY = 'rekkus:first-feed-visit:v1'
+const FIRST_FEED_VISIT_KEY = 'rekkus:first-feed-visit:v1'
 
 function MapPinIcon({ color }: { color: string }) {
   return (
@@ -105,7 +105,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       fontWeight: fontWeight.medium,
       color: c.text,
       textAlign: 'center',
-      letterSpacing: -0.3,
+      letterSpacing: letterSpacing.tightHeading,
       marginBottom: spacing[3],
     },
     body: {

@@ -1,74 +1,23 @@
-import type { RekkusOccasionTag, RekkusValueVerdict, PostMediaType } from '@/types/domain'
-
-export type PersonResult = {
-  username: string
-  displayName: string
-  initials: string
-  avatarBg: string
-  avatarColor: string
-  followers: string
-  followerCount?: number
-}
-
-export type PlaceResult = {
-  id: string
-  name: string
-  address: string | null
-  city: string | null
-  suburb?: string | null
-  cuisine_type: string | null
-  google_place_id: string | null
-  latitude: number | null
-  longitude: number | null
-  google_rating: number | null
-  google_review_count: number | null
-  open_now?: boolean | null
-  hint?: string | null
-  badges?: string[]
-  top_dishes?: string[]
-  fromGoogle?: boolean
-}
-
-export type SearchMode = 'search' | 'aroundMe'
-
-export type SearchSortMode =
-  | 'best_match'
-  | 'nearby'
-  | 'newest'
-  | 'most_saved'
-  | 'highest_rekkus_picks'
-
-export type SearchFilters = {
-  cuisine?: string | null
-  occasions?: RekkusOccasionTag[]
-  values?: RekkusValueVerdict[]
-  mediaTypes?: Array<PostMediaType | 'mixed'>
-  openNow?: boolean
-  sort?: SearchSortMode
-}
-
-export type SearchSuggestion = {
-  suggestion_type: 'restaurant' | 'dish' | 'hashtag'
-  display_text: string
-  secondary_text: string
-  entity_id: string | null
-  score: number
-}
-
-export type DishResult = {
-  id: string
-  name: string
-  cuisine_type: string | null
-  top_photo_url: string | null
-  save_count: number
-  post_count: number
-}
-
-export type UserLocation = { lat: number; lng: number } | null
-
-export type SearchOptions = {
-  mode?: SearchMode | undefined
-  radiusKm?: number | undefined
-  userId?: string | null | undefined
-  filters?: SearchFilters | undefined
-}
+export type {
+  DishResult,
+  DishPostCandidate,
+  PersonResult,
+  PlaceResult,
+  RankedPostCandidate,
+  SearchCandidate,
+  SearchCandidatePayload,
+  SearchCandidateKind,
+  SearchDiversitySlot,
+  SearchRankingReason,
+  SearchContext,
+  SearchExpansionCandidate,
+  SearchFilters,
+  SearchMode,
+  SearchOptions,
+  SearchPipelineResult,
+  SearchProviderPrediction,
+  SearchSortMode,
+  SearchSuggestion,
+  SearchUserResult,
+  UserLocation,
+} from '@/lib/search/types'

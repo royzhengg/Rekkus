@@ -10,3 +10,5 @@ android/build
 *.log
 *.tmp
 .env
+package-lock.json
+.turbo/

@@ -61,18 +61,36 @@ Industry reference: Yelp, Google Maps, Xiaohongshu, and Zomato all use a two-tie
 | `search_result_click`              | `post` / `restaurant` / `user` / `dish` | entity id     | `{ query, result_type, result_position, search_session_id }`                                         | User taps a ranked search result (dish = canonical Dish entity card) |
 | `search_session_end`               | null                           | null          | `{ search_session_id, session_duration_ms, had_results, result_clicked, query? }`                    | SearchScreen loses focus or unmounts after a session     |
 | `search_abandon`                   | null                           | null          | `{ query, result_count, session_duration_ms, search_session_id }`                                    | Session ends with non-empty query and no result click    |
+| `search_location_nudge_shown`      | null                           | null          | `{ query_intent, has_location_context, location_source, search_mode }`                               | Search shows the optional location nudge for local relevance |
+| `search_location_nudge_clicked`    | null                           | null          | `{ query_intent, has_location_context, location_source, search_mode }`                               | User taps the Search location nudge                      |
+| `search_location_permission_result` | null                          | null          | `{ status, query_intent, search_mode }`                                                             | Location nudge request resolves or opens Settings        |
+| `search_google_fallback_used`      | null                           | null          | `{ query, query_intent, fallback_reason, has_location_context, location_source, search_mode }`       | Main Search uses Google fallback after the intent/locality gate |
+| `search_google_fallback_suppressed` | null                          | null          | `{ query, query_intent, fallback_reason, has_location_context, location_source, search_mode }`       | Main Search suppresses unbounded provider fallback       |
+| `search_no_results_after_suppression` | null                        | null          | `{ query, query_intent, fallback_reason, has_location_context, location_source, search_mode }`       | Search has no results after suppressing unbounded provider fallback |
+| `search_term_entered`              | null                           | null          | `{ query }`                                                                                         | Create-post restaurant field debounce fires for a 2+ char query |
+| `restaurant_search_zero_results`   | null                           | null          | `{ query }`                                                                                         | Create-post restaurant search returns no merged DB/provider results |
+| `restaurant_tagging_google_fallback_used` | null                    | null          | `{ query, query_intent, fallback_reason, has_location_context, location_source }`                    | Create-post restaurant tagging uses Google fallback after the intent/locality gate |
+| `restaurant_tagging_google_fallback_suppressed` | null              | null          | `{ query, query_intent, fallback_reason, has_location_context, location_source }`                    | Create-post restaurant tagging suppresses unbounded provider fallback |
+| `restaurant_selected`              | `restaurant`                   | restaurant.id | `{ place_id, source ('nearby'\|'prediction'), restaurant_id?, cuisine_type? }`                       | User selects a restaurant in create-post Step 1          |
+| `restaurant_field_skipped`         | null                           | null          | null                                                                                                 | User advances from create-post Step 1 without selecting a restaurant |
 | `no_results_shown`                 | null                           | null          | `{ query, suggestion_queries }`                                                                      | Search shows the no-results recovery surface             |
 | `no_results_suggestion_click`      | null                           | null          | `{ query, selected_query, position }`                                                                | User taps a no-results suggestion chip                   |
+| `search_saved`                     | null                           | null          | `{ query }`                                                                                         | User saves a recent search query                         |
+| `search_unsaved`                   | null                           | null          | `{ query }`                                                                                         | User removes a saved search query                        |
+| `saved_search_selected`            | null                           | null          | `{ query }`                                                                                         | User taps a saved search to rerun it                     |
 | `place_click`                      | `restaurant`                   | restaurant.id | `{ query: string }`                                                                                  | User taps a place in search results                      |
-| `place_view`                       | `restaurant`                   | restaurant.id | `{ cuisine_type? }`                                                                                  | User opens a location detail page                        |
-| `place_save`                       | `restaurant`                   | restaurant.id | `{ cuisine_type? }`                                                                                  | User saves a location                                    |
-| `post_view`                        | `post`                         | post.id       | `{ cuisine_type? }`                                                                                  | User opens a post detail page                            |
+| `place_view`                       | `restaurant`                   | restaurant.id | `{ cuisine_type?, query?, search_session_id?, result_type?, result_position? }`                      | User opens a location detail page                        |
+| `place_save`                       | `restaurant`                   | restaurant.id | `{ cuisine_type?, query?, search_session_id?, result_type?, result_position? }`                      | User saves a location                                    |
+| `post_view`                        | `post`                         | post.id       | `{ cuisine_type?, query?, search_session_id?, result_type?, result_position? }`                      | User opens a post detail page                            |
 | `post_like`                        | `post`                         | post.id       | null                                                                                                 | User likes a post                                        |
-| `post_save`                        | `post`                         | post.id       | `{ cuisine_type? }`                                                                                  | User saves a post                                        |
-| `dish_view`                        | `dish`                         | dish.id       | null                                                                                                 | User opens a canonical dish detail page                  |
-| `dish_save`                        | `dish`                         | dish.id       | null                                                                                                 | User bookmarks a canonical dish                          |
+| `post_save`                        | `post`                         | post.id       | `{ cuisine_type?, query?, search_session_id?, result_type?, result_position? }`                      | User saves a post                                        |
+| `dish_view`                        | `dish`                         | dish.id       | `{ query?, search_session_id?, result_type?, result_position? }`                                     | User opens a canonical dish detail page                  |
+| `dish_save`                        | `dish`                         | dish.id       | `{ query?, search_session_id?, result_type?, result_position? }`                                     | User bookmarks a canonical dish                          |
 | `post_dwell`                       | `post`                         | post.id       | `{ duration_ms }`                                                                                    | User stays on a post detail page for 3s+                 |
 | `post_comment`                     | `post`                         | post.id       | null                                                                                                 | User comments or replies on a post                       |
+| `user_follow`                      | `user`                         | user.id       | null                                                                                                 | User follows another profile                             |
+| `profile_follow_list_opened`       | `user`                         | user.id       | `{ list_type }`                                                                                      | User opens a profile's Followers or Following list       |
+| `profile_interaction`              | `user`                         | user.id       | `{ action, profile_tab?, position?, source?, visible_count? }` — action values: `top_restaurant_tapped`, `manage_top_spots_tapped`, `top_spot_added`, `top_spot_removed`, `top_spot_reordered`, `top_spots_saved`, `tab_selected`, `share_profile_tapped`, `empty_review_cta_tapped` | User uses profile tabs, Top Spots, manage-top-spots screen, profile share, or empty-profile CTAs |
 | `restaurant_revisit`               | `restaurant`                   | restaurant.id | `{ source }`                                                                                         | User opens a restaurant from saved/post context          |
 | `collection_interaction`           | `collection`                   | collection.id | `{ action, target_type, filter_type, filter_id }`                                                    | User creates/changes collections or selects saved filters |
 | `feed_diagnostic`                  | null                           | null          | `{ action, feed_tab, visible_count, result_count }`                                                  | Feed view/refresh diagnostic signal                      |
@@ -107,6 +125,8 @@ Industry reference: Yelp, Google Maps, Xiaohongshu, and Zomato all use a two-tie
 | `post_shared_via_dm`               | `post`                         | post.id       | `{ conversation_id }`                                                                                | User shares a post via DM                                |
 | `place_shared_via_dm`              | `restaurant`                   | restaurant.id | `{ conversation_id }`                                                                                | User shares a place via DM                               |
 | `media_selected`                   | null                           | null          | `{ surface, media_type, media_count }`                                                               | User selects post media                                  |
+| `recent_photo_strip_shown`         | null                           | null          | `{ surface, photo_count }`                                                                           | Create-post recent-photo shortcuts are displayed         |
+| `recent_photo_selected`            | null                           | null          | `{ surface }`                                                                                        | User selects media from recent-photo shortcuts           |
 | `media_prepare_started`            | null                           | null          | `{ surface, media_type, media_count }`                                                               | Client begins post media preparation                     |
 | `media_prepare_completed`          | null                           | null          | `{ surface, media_type, media_count }`                                                               | Client finishes post media preparation                   |
 | `media_prepare_failed`             | null                           | null          | `{ surface, media_type }`                                                                            | Client media preparation fails                           |
@@ -143,7 +163,7 @@ Events are **fire-and-forget** — tracked with `.then(() => {})` and never bloc
 
 | File                                            | Event                                                                                     | When                                                            |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `features/search/SearchScreen.tsx`              | `search_query`, `search_result_click`, `place_click`, `collection_interaction`, `no_results_shown`, `no_results_suggestion_click` | Query debounces, user taps search results/staff picks, or uses no-results recovery |
+| `features/search/SearchScreen.tsx`              | `search_query`, `search_result_click`, `place_click`, `collection_interaction`, `no_results_shown`, `no_results_suggestion_click`, `search_saved`, `search_unsaved`, `saved_search_selected` | Query debounces, user taps search results/staff picks, saves/reruns saved searches, or uses no-results recovery |
 | `features/search/SearchScreen.tsx`              | `search_session_end`, `search_abandon`                                                    | Session ends on focus loss or unmount (B-538, B-539)            |
 | `features/feed/FeedScreen.tsx`                  | `feed_diagnostic`                                                                         | Feed tab view and refresh diagnostics                           |
 | `features/posts/PostDetailScreen.tsx`           | `post_view`, `post_like`, `post_save`, `post_dwell`, `post_comment`, `restaurant_revisit` | Post detail engagement and restaurant revisit signals           |
@@ -153,8 +173,10 @@ Events are **fire-and-forget** — tracked with `.then(() => {})` and never bloc
 | `features/restaurants/RestaurantDetailScreen.tsx` | `place_view`, `place_save`                                                              | Location detail loads or user saves a location                  |
 | `features/auth/SignupProfileScreen.tsx`         | `onboarding_step`                                                                         | Interest onboarding completes                                   |
 | `lib/contexts/AuthContext.tsx`                  | `onboarding_step`, `onboarding_anomaly`                                                   | Auth actions succeed, fail, or cool down                        |
-| `components/post-create/StepMedia.tsx`          | `upload_failure`                                                                          | Post media picker rejects invalid assets                        |
+| `components/post-create/StepMedia.tsx`          | `upload_failure`, `recent_photo_strip_shown`, `recent_photo_selected`                     | Post media picker rejects invalid assets and recent-photo shortcut usage |
 | `features/create-post/CreatePostScreen.tsx`     | `create_post_funnel`, `interaction_rage_tap`, `interaction_dead_click`                    | Step transitions, rage-tap on Next, dead-click on disabled Next |
+| `features/create-post/CreatePostScreen.tsx`     | `restaurant_field_skipped`                                                               | Step 1 advances without a selected restaurant                   |
+| `lib/hooks/useRestaurantSearch.ts`              | `search_term_entered`, `restaurant_search_zero_results`, `restaurant_selected`           | Create-post restaurant search query, empty result, and selection signals |
 | `lib/services/postMediaProcessing.ts`           | `media_prepare_started`, `media_prepare_completed`, `media_prepare_failed`                | Post media preparation and compression lifecycle                |
 | `lib/contexts/PostUploadContext.tsx`            | `post_upload_started`, `post_upload_progress`, `post_upload_failed`, `post_published`     | Background post publish queue                                   |
 | `features/settings/EditProfileScreen.tsx`       | `upload_failure`                                                                          | Avatar validation or storage upload fails                       |
@@ -189,6 +211,12 @@ These restrictions are enforced by the `sanitizeAnalyticsMetadata` allowlist in 
 
 A place that people actively click on ranks higher than an equally-named place nobody clicks on — mirrors Google Maps' "prominence" signal.
 
+B-573 cross-entity SearchCandidate ranking adds deterministic intent/entity weights and source-trust adjustments only. It does not add analytics events, event metadata fields, raw result payload storage, precise-location storage, or new retention behavior. Existing search click/session events remain the validation path for future tuning.
+
+B-575 adds search-attributed detail view/save metadata to downstream post, place, and dish events. The attribution is limited to `search_session_id`, capped `query`, `result_type`, and `result_position`; it never stores raw result payloads, result names, provider responses, addresses, or precise coordinates.
+
+B-572/B-576/B-578/B-579/B-580 add no new analytics event types or raw metadata fields. Search now reads existing owner-scoped saves/recent search events and existing de-identified trending aggregates as bounded ranking metadata; autocomplete/full-search caches are in memory only and are not written to analytics or device storage.
+
 ---
 
 ## How analytics feeds trending
@@ -198,10 +226,15 @@ A place that people actively click on ranks higher than an equally-named place n
 - Reads `trending_searches` by `near_city`, falling back to `global` below 4 local rows → `trendingSearches: string[]` (top 6 aggregate queries)
 - Tallies 7-day `place_click` events by restaurant city, falling back to global below 4 local rows → `trendingPlaceIds: string[]` (top 10 restaurants)
 - Tallies 7-day `post_view`, `post_like`, `post_save`, and `post_dwell` events → `trendingPostIds: string[]`
+- Calls `fetch_trending_dishes` RPC (7-day `saved_dishes` + `posts.dish_id` activity, saves weighted ×3) → `trendingDishes: DishResult[]` (top 10)
 
-`SearchScreen.tsx` uses aggregate `trendingSearches` to power the "Trending now" chip row and live popular place rows for "Food spots people save." It falls back to hardcoded/demo discovery content when no real data exists (new app, no users yet).
+`SearchScreen.tsx` uses aggregate `trendingSearches` to power the "Trending now" chip row, live popular place rows for "Food spots people save", and `trendingDishes` for the "Trending dishes" horizontal row. It falls back to hardcoded/demo discovery content when no real data exists (new app, no users yet).
+
+Tapping a trending dish fires `dish_view` (entity_type: dish, entity_id: dish.id) and prefills the search query with the dish name.
 
 Discover uses `trendingPostIds` as an additive deterministic boost.
+
+Unified search also reads the same privacy-safe trend families through `fetchTrendingEntitySignals()` so `SearchCandidate.trendingScore` can add a bounded ranking reason for posts, places, and dishes. Scores are derived from 7-day aggregate counts and never include user IDs, exact coordinates, raw result payloads, or provider responses.
 
 ---
 
@@ -243,9 +276,12 @@ final_score = text_score           ← tiered token matching
             + google_review_volume ← provider-derived legacy boost
             + trending_30d_boost   ← place_click + place_view events last 30 days
             + food_type_boost      ← +2.0 if Google Autocomplete types = food/restaurant
+            + freshness_boost      ← bounded recency / cold-start exposure, not raw analytics
 ```
 
 Higher score = appears earlier in results. Nothing is hard-excluded.
+
+Freshness V1 does not add a raw analytics event. It uses post, dish, and restaurant timestamps returned by search RPCs, plus aggregate post counts, to give new low-volume content measured exposure while decaying stale static popularity. Existing `search_result_click`, `place_view`, `post_view`, `dish_view`, and search quality metrics remain the monitoring path for whether that exposure is useful.
 
 ---
 
@@ -281,7 +317,23 @@ Query the view via service-role for cross-domain incident investigation. See [AD
 
 ## Search observability queries
 
-Run these in the Supabase SQL editor (service-role) to answer the four key search quality questions. All queries require `search_session_end` events (B-538).
+`get_search_quality_metrics(lookback_days)` is the B-575 aggregate read surface for quality debates and lightweight dashboards. It returns daily aggregate rows, plus result-type/position rows for CTR and downstream lifecycle counts. The RPC caps lookback to 90 days and exposes no user IDs, per-session rows, precise location, raw provider payloads, or raw result payloads.
+
+Metric formulas:
+
+- Success rate: `success_count / search_sessions`; a successful session has `search_session_end.result_clicked=true` or a downstream attributed view/save/review event with the same `search_session_id`.
+- CTR: `search_result_click / search_query`, grouped by `result_type` and `result_position`.
+- Zero-result rate: `search_session_end.had_results=false / search_sessions`.
+- Reformulation rate: `search_query` events with a changed `previous_query / query` chain divided by `search_query`.
+- Lifecycle counts: query, click, attributed view, attributed save, and attributed review/post-created counts. Review attribution is available only when a future create/review flow carries `search_session_id`.
+
+```sql
+select *
+from public.get_search_quality_metrics(30)
+order by day desc, result_type nulls first, result_position nulls first;
+```
+
+B-581 search health is implemented in `lib/search/health.ts` over the aggregate `fetchSearchQualityMetrics()` service wrapper. The report summarizes success rate, zero-result rate, CTR, reformulation rate, and downstream actions with watch/incident thresholds documented in [../../operations/OPERATIONAL_CADENCE.md](../../operations/OPERATIONAL_CADENCE.md). Run the raw SQL below in the Supabase SQL editor (service-role) only for investigation. All queries require `search_session_end` events (B-538).
 
 ```sql
 -- 1. Daily zero-result rate (last 30 days)
@@ -336,12 +388,37 @@ GROUP BY 1
 ORDER BY 1 DESC;
 ```
 
+## Create-post funnel evaluation
+
+Use this query before enabling visual create-post experiments such as B-410 by default.
+
+```sql
+-- Step completion and abandonment rate by day (last 30 days)
+SELECT
+  date_trunc('day', created_at) AS day,
+  (metadata->>'step')::int AS step,
+  COUNT(*) FILTER (WHERE metadata->>'outcome' = 'viewed') AS viewed,
+  COUNT(*) FILTER (WHERE metadata->>'outcome' = 'completed') AS completed,
+  COUNT(*) FILTER (WHERE metadata->>'outcome' = 'abandoned') AS abandoned,
+  ROUND(
+    COUNT(*) FILTER (WHERE metadata->>'outcome' = 'abandoned') * 100.0 /
+    NULLIF(COUNT(*) FILTER (WHERE metadata->>'outcome' IN ('completed', 'abandoned')), 0),
+    1
+  ) AS abandonment_pct
+FROM analytics_events
+WHERE event_type = 'create_post_funnel'
+  AND created_at > now() - interval '30 days'
+GROUP BY 1, 2
+ORDER BY 1 DESC, 2 ASC;
+```
+
 ---
 
 ## Tuning log
 
 | Date       | Change                                                                                                                                                                   | Reason                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| 2026-06-02 | Search freshness ranking added bounded `freshness_boost`, `cold_start_exposure`, and `popularity_decay` reasons to unified search candidates without adding a raw analytics event. | New quality posts, dishes, and places need measured exposure, while stale static popularity should not dominate forever. |
 | 2026-05-08 | Analytics infrastructure created (`analytics_events` table, `google_rating`/`google_review_count` on restaurants)                                                        | Foundation for data-driven ranking                           |
 | 2026-05-08 | `search_query` tracking added                                                                                                                                            | Powers trending chips                                        |
 | 2026-05-08 | `place_click` + `place_view` tracking added                                                                                                                              | Powers 30-day interaction boost in search                    |
@@ -354,6 +431,11 @@ ORDER BY 1 DESC;
 | 2026-05-31 | `search_session_end` and `search_abandon` events added (B-538, B-539)                                                                                                    | Unblocks zero-result rate, abandonment, and session duration observability |
 | 2026-06-01 | `search_query.near_city` and city-partitioned trending reads added (B-550)                                                                                               | Keeps discovery trends local while preserving global fallback for sparse city data |
 | 2026-06-01 | `no_results_shown` / `no_results_suggestion_click` added; post/place view/save events can include `cuisine_type` (B-555)                                                | Measures dead-end search recovery and seeds engagement-derived cuisine affinities |
+| 2026-06-01 | Must Order field moved to Step 1 of create-post flow. Step 1 completion rate change is expected (field is now optional there, not gating). | Must Order signal captured earlier; Step 1 funnel data will reflect the new screen layout from this date. |
+| 2026-06-01 | B-410 create-post progress dots prototyped behind disabled-by-default `createPostProgressDots` flag. Evaluate with `create_post_funnel` step-2 completion and abandonment before rollout. | Keeps progress UI reversible until funnel data supports it. |
+| 2026-06-01 | Create-post restaurant search analytics added for term entry, selection source, zero-results, and skipped field (B-411). | Measures whether Step 1 users find/select restaurants or intentionally continue without one. |
+| 2026-06-01 | Trending dishes row added to DiscoveryPage (B-549): `fetch_trending_dishes` RPC ranks dishes by 7-day `saved_dishes` + `posts.dish_id` activity; taps fire `dish_view`. | First dish-first signal on every pre-search surface. |
+| 2026-06-02 | Saved search interactions added: `search_saved`, `search_unsaved`, and `saved_search_selected` (B-553). | Measures repeated discovery intent without relying only on FIFO recent history. |
 
 ---
 

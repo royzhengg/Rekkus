@@ -6,12 +6,12 @@ import { PinIcon } from '@/components/icons'
 import { OpenBadge } from '@/components/OpenBadge'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
+import { fontSize, fontWeight, letterSpacing } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { usePressScale } from '@/lib/hooks/usePressScale'
 import type { PlaceResult, SearchSuggestion } from '@/lib/hooks/useSearch'
-import { routes } from '@/lib/routes'
+import { routes, searchAttributionRouteParams } from '@/lib/routes'
 import { CUISINE_ALIASES, getCuisineSynonymTerms } from '@/lib/utils/cuisineSynonyms'
 import { formatKm } from '@/lib/utils/geo'
 import { shortPlaceLocation } from './searchConstants'
@@ -110,6 +110,7 @@ export const PlaceRow = React.memo(function PlaceRow({
       address: place.address ?? '',
       lat: place.latitude ?? '',
       lng: place.longitude ?? '',
+      ...searchAttributionRouteParams(query, searchSessionId, 'restaurant', position),
     }))
   }
 
@@ -241,7 +242,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingTop: spacing.px18,
       paddingBottom: spacing.px9,
     },
-    sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text, letterSpacing: 0 },
+    sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text, letterSpacing: letterSpacing.none },
     sectionCount: { fontSize: fontSize.sm, color: c.text3 },
   })
 }

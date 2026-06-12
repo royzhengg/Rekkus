@@ -48,6 +48,21 @@ export async function fetchCollections(userId: string): Promise<Collection[]> {
   )
 }
 
+export async function fetchProfileCollections(userId: string, viewerIsOwner: boolean): Promise<Collection[]> {
+  let query = supabase.from('collections')
+    .select('id, user_id, name, description, visibility, share_slug, is_staff_pick, curator_note')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+
+  if (!viewerIsOwner) query = query.in('visibility', ['public'])
+
+  const { data, error } = await query.limit(20)
+  if (error) throw error
+  return (data ?? []).flatMap(row =>
+    isCollectionVisibility(row.visibility) ? [{ ...row, visibility: row.visibility }] : []
+  )
+}
+
 export async function fetchCollectionById(collectionId: string): Promise<Collection | null> {
   const { data, error } = await supabase.from('collections')
     .select('id, user_id, name, description, visibility, share_slug, is_staff_pick, curator_note')
@@ -267,6 +282,40 @@ export async function unsaveTarget(
     p_remove_collection_memberships: removeCollectionMemberships,
   })
   if (error) throw error
+}
+
+export async function updateCollectionVisibility(
+  collectionId: string,
+  visibility: CollectionVisibility
+): Promise<void> {
+  const timestamp = new Date().toISOString()
+  let error: { message: string } | null = null
+  if (visibility !== 'private') {
+    const { data: existing } = await supabase.from('collections')
+      .select('share_slug')
+      .eq('id', collectionId)
+      .maybeSingle()
+    if (!existing?.share_slug) {
+      const shareSlug = `${collectionId.slice(0, 8)}-${Date.now().toString(36)}`
+      ;({ error } = await supabase.from('collections')
+        .update({ visibility, share_slug: shareSlug, updated_at: timestamp })
+        .eq('id', collectionId))
+    } else {
+      ;({ error } = await supabase.from('collections')
+        .update({ visibility, updated_at: timestamp })
+        .eq('id', collectionId))
+    }
+  } else {
+    ;({ error } = await supabase.from('collections')
+      .update({ visibility, updated_at: timestamp })
+      .eq('id', collectionId))
+  }
+  if (error) throw error
+  void supabase.rpc('record_collection_audit_event', {
+    p_collection_id: collectionId,
+    p_event_type: 'visibility_changed',
+    p_context: { visibility },
+  })
 }
 
 export async function makeCollectionShareable(collectionId: string): Promise<string | null> {

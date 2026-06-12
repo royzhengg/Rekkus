@@ -1,0 +1,52 @@
+{
+  "items": [
+    {
+      "type": "group",
+      "title": "Authority",
+      "items": [
+        { "type": "file", "path": "HOME.md" },
+        { "type": "file", "path": "AGENTS.md" },
+        { "type": "file", "path": "BACKLOG.md" },
+        { "type": "file", "path": "PRODUCT.md" },
+        { "type": "file", "path": "REPO_MAP.md" }
+      ]
+    },
+    {
+      "type": "group",
+      "title": "Product",
+      "items": [
+        { "type": "file", "path": "product/FEATURES.md" },
+        { "type": "file", "path": "product/SEARCH.md" },
+        { "type": "file", "path": "product/FEED.md" },
+        { "type": "file", "path": "product/DISCOVERY.md" }
+      ]
+    },
+    {
+      "type": "group",
+      "title": "Architecture",
+      "items": [
+        { "type": "file", "path": "docs/architecture/ARCHITECTURE.md" },
+        { "type": "file", "path": "docs/LESSONS.md" },
+        { "type": "file", "path": "docs/adr/README.md" }
+      ]
+    },
+    {
+      "type": "group",
+      "title": "Operations",
+      "items": [
+        { "type": "file", "path": "operations/RELEASE.md" },
+        { "type": "file", "path": "operations/INCIDENTS.md" },
+        { "type": "file", "path": "operations/FEATURE_FLAGS.md" }
+      ]
+    },
+    {
+      "type": "group",
+      "title": "Design",
+      "items": [
+        { "type": "file", "path": "design/DESIGN_SPEC.md" },
+        { "type": "file", "path": "design/UX_Copywriting_Guide.md" },
+        { "type": "file", "path": "design/TOKENS.md" }
+      ]
+    }
+  ]
+}

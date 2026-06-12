@@ -8,6 +8,25 @@ export interface RestaurantDetailParams {
   address?: string
   lat?: string | number
   lng?: string | number
+  searchSessionId?: string
+  searchQuery?: string
+  searchResultType?: string
+  searchResultPosition?: string | number
+}
+
+export interface SearchAttributionRouteParams {
+  searchSessionId?: string
+  searchQuery?: string
+  searchResultType?: string
+  searchResultPosition?: string | number
+}
+
+export interface PostDetailParams extends SearchAttributionRouteParams {
+  postId: string
+}
+
+export interface DishDetailParams extends SearchAttributionRouteParams {
+  dishId: string
 }
 
 export interface RestaurantMapParams {
@@ -56,17 +75,51 @@ export interface MessagePlaceShareParams {
 }
 
 export type SavedSection = 'overview' | 'dishes' | 'places' | 'posts' | 'collections'
+export type FollowListType = 'followers' | 'following'
+const MAX_ATTRIBUTION_QUERY_LENGTH = 120
+
+function attributionParams(opts: SearchAttributionRouteParams) {
+  return {
+    ...(opts.searchSessionId !== undefined ? { searchSessionId: opts.searchSessionId } : {}),
+    ...(opts.searchQuery !== undefined ? { searchQuery: opts.searchQuery } : {}),
+    ...(opts.searchResultType !== undefined ? { searchResultType: opts.searchResultType } : {}),
+    ...(opts.searchResultPosition !== undefined
+      ? { searchResultPosition: String(opts.searchResultPosition) }
+      : {}),
+  }
+}
+
+export function searchAttributionRouteParams(
+  query: string | undefined,
+  searchSessionId: string | undefined,
+  resultType: string,
+  position: number | undefined
+): SearchAttributionRouteParams {
+  if (!query || !searchSessionId || position == null) return {}
+  return {
+    searchSessionId,
+    searchQuery: query.trim().slice(0, MAX_ATTRIBUTION_QUERY_LENGTH),
+    searchResultType: resultType,
+    searchResultPosition: position,
+  }
+}
 
 export const routes = {
-  postDetail: (postId: string) => ({
-    pathname: '/posts/[postId]' as const,
-    params: { postId },
-  }),
+  postDetail: (input: string | PostDetailParams) => {
+    const opts = typeof input === 'string' ? { postId: input } : input
+    return {
+      pathname: '/posts/[postId]' as const,
+      params: { postId: opts.postId, ...attributionParams(opts) },
+    }
+  },
 
-  dishDetail: (dishId: string) => ({
-    pathname: '/dishes/[dishId]' as const,
-    params: { dishId },
-  }),
+  dishDetail: (input: string | DishDetailParams) => {
+    const opts = typeof input === 'string' ? { dishId: input } : input
+    return {
+      pathname: '/dishes/[dishId]' as const,
+      params: { dishId: opts.dishId, ...attributionParams(opts) },
+    }
+  },
 
   saved: (section: SavedSection = 'overview') => ({
     pathname: '/(tabs)/saved' as const,
@@ -87,6 +140,7 @@ export const routes = {
       address: opts.address ?? '',
       lat: String(opts.lat ?? ''),
       lng: String(opts.lng ?? ''),
+      ...attributionParams(opts),
     },
   }),
 
@@ -114,6 +168,11 @@ export const routes = {
     params: { username },
   }),
 
+  userFollows: (username: string, listType: FollowListType) => ({
+    pathname: '/user/[username]/follows' as const,
+    params: { username, listType },
+  }),
+
   conversation: (conversationId: string, shareParams?: MessageShareParams) => ({
     pathname: '/messages/[conversationId]' as const,
     params: { conversationId, ...shareParams },
@@ -130,14 +189,14 @@ export const routes = {
   }),
 
   createPost: (params?: CreatePostParams) => ({
-    pathname: '/(tabs)/create' as const,
+    pathname: '/create' as const,
     params: { ...params },
   }),
 
   createDrafts: () => '/create/drafts' as const,
 
   draftEdit: (draftId: string) => ({
-    pathname: '/(tabs)/create' as const,
+    pathname: '/create' as const,
     params: { draftId },
   }),
 
@@ -149,5 +208,9 @@ export const routes = {
   messagePlaceShare: (params: MessagePlaceShareParams) => ({
     pathname: '/messages' as const,
     params: { ...params },
+  }),
+
+  manageTopSpots: () => ({
+    pathname: '/manage-top-spots' as const,
   }),
 }

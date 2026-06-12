@@ -1,0 +1,30 @@
+{
+  "attachmentFolderPath": "assets",
+  "newFileLocation": "folder",
+  "newFileFolderPath": "docs",
+  "useMarkdownLinks": true,
+  "showUnsupportedFiles": false,
+  "userIgnoreFilters": [
+    "node_modules",
+    "android",
+    "ios",
+    "coverage",
+    "assets",
+    ".expo",
+    ".temp",
+    "supabase/.temp",
+    ".git",
+    ".github",
+    ".husky",
+    ".githooks",
+    ".kotlin",
+    "dist",
+    "web-build"
+  ],
+  "readableLineLength": true,
+  "strictLineBreaks": false,
+  "defaultViewMode": "preview",
+  "promptDelete": false,
+  "trashOption": "system",
+  "vimMode": false
+}

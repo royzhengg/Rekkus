@@ -6,6 +6,7 @@ import { BookmarkIcon, ChevronRight, ImagePlaceholder, PlusIcon } from '@/compon
 import { ThumbGrid } from '@/components/ThumbGrid'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
@@ -19,8 +20,20 @@ import { useSavedDishes } from '@/lib/hooks/useSavedDishes'
 import { useSavedLocations } from '@/lib/hooks/useSavedLocations'
 import { useSavedPosts } from '@/lib/hooks/useSavedPosts'
 import { routes } from '@/lib/routes'
-import { createPrivateCollection } from '@/lib/services/collections'
+import { createPrivateCollection, updateCollectionVisibility, type Collection, type CollectionVisibility } from '@/lib/services/collections'
 import type { SavedLibrarySection } from '@/types/domain'
+
+const VISIBILITY_LABELS: Record<CollectionVisibility, string> = {
+  private: 'Private',
+  unlisted: 'Link only',
+  public: 'Public',
+}
+
+const VISIBILITY_DESCRIPTIONS: Record<CollectionVisibility, string> = {
+  private: 'Only you can see this',
+  unlisted: 'Anyone with the link can see this',
+  public: 'Shown on your profile',
+}
 
 function parseSection(value: string | undefined): SavedLibrarySection {
   return value === 'dishes' || value === 'places' || value === 'posts' || value === 'collections'
@@ -43,6 +56,8 @@ export default function SavedScreen() {
   const [newCollectionName, setNewCollectionName] = useState('')
   const [creating, setCreating] = useState(false)
   const [operationError, setOperationError] = useState<string | null>(null)
+  const [visibilitySheetCollection, setVisibilitySheetCollection] = useState<Collection | null>(null)
+  const [updatingVisibility, setUpdatingVisibility] = useState<Set<string>>(new Set())
 
   if (section === 'places') {
     return <RestaurantsTabScreen onBackToSaved={() => router.replace(routes.saved())} />
@@ -65,6 +80,20 @@ export default function SavedScreen() {
       setOperationError('Could not create that collection.')
     }
     setCreating(false)
+  }
+
+  async function changeVisibility(collection: Collection, visibility: CollectionVisibility) {
+    if (!user?.id || visibility === collection.visibility) return
+    setUpdatingVisibility(prev => new Set(prev).add(collection.id))
+    setOperationError(null)
+    try {
+      await updateCollectionVisibility(collection.id, visibility)
+      analytics.collectionInteraction(user.id, 'visibility_change', collection.id, { visibility })
+      await collections.refresh()
+    } catch {
+      setOperationError('Could not update visibility.')
+    }
+    setUpdatingVisibility(prev => { const next = new Set(prev); next.delete(collection.id); return next })
   }
 
   const title = section === 'overview' ? 'Saved' : section.charAt(0).toUpperCase() + section.slice(1)
@@ -169,13 +198,41 @@ export default function SavedScreen() {
             >
               <View style={styles.rowBody}>
                 <Text style={styles.rowTitle}>{collection.name}</Text>
-                <Text style={styles.rowSubtitle}>Private collection</Text>
+                <Text style={styles.rowSubtitle}>{VISIBILITY_LABELS[collection.visibility]}</Text>
               </View>
+              {updatingVisibility.has(collection.id) ? (
+                <ActivityIndicator size="small" style={styles.visibilityLoader} />
+              ) : (
+                <TouchableOpacity
+                  style={styles.visibilityBadge}
+                  onPress={() => setVisibilitySheetCollection(collection)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Visibility: ${VISIBILITY_LABELS[collection.visibility]}. Tap to change.`}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.visibilityBadgeText}>{VISIBILITY_LABELS[collection.visibility]}</Text>
+                </TouchableOpacity>
+              )}
               <ChevronRight />
             </TouchableOpacity>
           ))}
         </ScrollView>
       )}
+      <RekkusActionSheet
+        visible={visibilitySheetCollection !== null}
+        title="Collection visibility"
+        subtitle="Control who can see this collection."
+        options={(['private', 'unlisted', 'public'] as CollectionVisibility[]).map(v => ({
+          label: VISIBILITY_LABELS[v],
+          value: v,
+          description: VISIBILITY_DESCRIPTIONS[v],
+          selected: visibilitySheetCollection?.visibility === v,
+        }))}
+        onSelect={value => {
+          if (visibilitySheetCollection) void changeVisibility(visibilitySheetCollection, value as CollectionVisibility)
+        }}
+        onDismiss={() => setVisibilitySheetCollection(null)}
+      />
     </SafeAreaView>
   )
 }
@@ -275,5 +332,15 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     },
     createButtonText: { color: c.bg, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
     error: { marginHorizontal: spacing[4], marginTop: spacing[3] },
+    visibilityBadge: {
+      borderRadius: radius.pill,
+      borderWidth: 0.5,
+      borderColor: c.border2,
+      paddingHorizontal: spacing[2],
+      paddingVertical: spacing[1],
+      backgroundColor: c.surface2,
+    },
+    visibilityBadgeText: { fontSize: fontSize.xs, color: c.text2, fontWeight: fontWeight.medium },
+    visibilityLoader: { marginHorizontal: spacing[2] },
   })
 }

@@ -12,6 +12,7 @@ module.exports = [
       'node_modules/**',
       '.expo/**',
       '.temp/**',
+      '.obsidian/**',
       'dist/**',
       'build/**',
       'coverage/**',

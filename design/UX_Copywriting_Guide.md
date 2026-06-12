@@ -369,3 +369,12 @@ Use this as a final review before any copy goes live.
 ---
 
 *A living document — review and update regularly as your product and team evolve.*
+
+---
+
+## Create-Flow Conventions (2026-06-01)
+
+- **Location fields on creation flows use `"Where did you eat?"` not `"Search for a restaurant…"`** — directive copy signals the field's purpose; search-style copy undersells the metadata value.
+- **Single primary media CTA → action sheet is canonical for media source selection.** Do not render Camera and Library as two parallel buttons — use one "Add photos" button that opens a `RekkusActionSheet` with Camera and Photo library as options. Camera first (primary action), Photo library second.
+- **Nearby count sub-label gives passive location confidence.** When nearby places are loaded and the location field is unfocused and empty, show `"N restaurant(s) near you"` below the field. This signals platform context before the user types. Hide once focused or once a place is confirmed.
+- **Character counters appear only while focused.** A counter at rest (`0/100`) exposes implementation detail without value. Show it only when the user is actively typing. Apply `accessibilityLiveRegion="polite"` so screen readers announce the value on change.

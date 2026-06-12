@@ -18,6 +18,7 @@ function computeDiscoverScore(
   post: Post,
   userCity: string | null,
   cuisineAffinities: CuisineAffinities,
+  dismissedCuisines: CuisineAffinities,
   topics: string[],
   trendingPostIds: string[],
   coords: { lat: number; lng: number } | null
@@ -40,7 +41,9 @@ function computeDiscoverScore(
     : 0
   const trendingBoost = post.dbId && trendingPostIds.includes(post.dbId) ? 4 : 0
   const completeness = (post.imageUrl ? 0.5 : 0) + (post.restaurantId ? 0.5 : 0) + (post.body ? 0.5 : 0)
-  return trendingLocal + nearby + quality + global + personalised + topicBoost + trendingBoost + completeness
+  const score = trendingLocal + nearby + quality + global + personalised + topicBoost + trendingBoost + completeness
+  const dismissalMultiplier = dismissedCuisines[cuisine] != null ? 0.5 : 1
+  return score * dismissalMultiplier
 }
 
 function applyCuisineDiversity(posts: Post[]): Post[] {
@@ -75,7 +78,7 @@ function applyCuisineDiversity(posts: Post[]): Post[] {
 export function useDiscover(excludeIds: Set<number> = new Set()): Post[] {
   const { posts } = usePosts()
   const { user } = useAuth()
-  const { cuisineAffinities } = useSearchHistory()
+  const { cuisineAffinities, dismissedCuisines } = useSearchHistory()
   const topics = useTopicFollows(user?.id)
   const { trendingPostIds } = useTrendingData()
   const userLocation = useUserLocation()
@@ -95,6 +98,7 @@ export function useDiscover(excludeIds: Set<number> = new Set()): Post[] {
           p,
           userCity,
           cuisineAffinities,
+          dismissedCuisines,
           topics,
           trendingPostIds,
           userLocation.coords
@@ -103,5 +107,5 @@ export function useDiscover(excludeIds: Set<number> = new Set()): Post[] {
       .sort((a, b) => b.score - a.score)
       .map(s => s.post)
     return applyCuisineDiversity(scored)
-  }, [posts, cuisineAffinities, excludeIds, topics, trendingPostIds, userLocation.coords, userCity])
+  }, [posts, cuisineAffinities, dismissedCuisines, excludeIds, topics, trendingPostIds, userLocation.coords, userCity])
 }

@@ -1537,6 +1537,7 @@ export type Database = {
           dish_tags: Json | null
           edit_count: number
           embedding: string | null
+          embedding_hash: string | null
           food_rating: number | null
           id: string
           last_edited_at: string | null
@@ -1561,6 +1562,7 @@ export type Database = {
           dish_tags?: Json | null
           edit_count?: number
           embedding?: string | null
+          embedding_hash?: string | null
           food_rating?: number | null
           id?: string
           last_edited_at?: string | null
@@ -1585,6 +1587,7 @@ export type Database = {
           dish_tags?: Json | null
           edit_count?: number
           embedding?: string | null
+          embedding_hash?: string | null
           food_rating?: number | null
           id?: string
           last_edited_at?: string | null
@@ -2043,6 +2046,27 @@ export type Database = {
           },
         ]
       }
+      restaurant_place_stubs: {
+        Row: {
+          created_at: string
+          expires_at: string
+          name: string
+          place_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          name: string
+          place_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          name?: string
+          place_id?: string
+        }
+        Relationships: []
+      }
       restaurant_popularity_cache: {
         Row: {
           avg_food_rating: number | null
@@ -2224,6 +2248,7 @@ export type Database = {
           created_by: string | null
           cuisine_type: string | null
           embedding: string | null
+          embedding_hash: string | null
           google_business_status: string | null
           google_details_fetched_at: string | null
           google_details_fields: string[] | null
@@ -2263,6 +2288,7 @@ export type Database = {
           created_by?: string | null
           cuisine_type?: string | null
           embedding?: string | null
+          embedding_hash?: string | null
           google_business_status?: string | null
           google_details_fetched_at?: string | null
           google_details_fields?: string[] | null
@@ -2302,6 +2328,7 @@ export type Database = {
           created_by?: string | null
           cuisine_type?: string | null
           embedding?: string | null
+          embedding_hash?: string | null
           google_business_status?: string | null
           google_details_fetched_at?: string | null
           google_details_fields?: string[] | null
@@ -2414,6 +2441,76 @@ export type Database = {
           },
           {
             foreignKeyName: "saved_locations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_search_audit_events: {
+        Row: {
+          context: Json
+          created_at: string
+          event_type: string
+          id: string
+          saved_search_id: string
+          user_id: string | null
+        }
+        Insert: {
+          context: Json
+          created_at?: string
+          event_type: string
+          id?: string
+          saved_search_id: string
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          event_type?: string
+          id?: string
+          saved_search_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_search_audit_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_searches: {
+        Row: {
+          created_at: string
+          id: string
+          normalized_query: string
+          query: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          normalized_query: string
+          query: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          normalized_query?: string
+          query?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_searches_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -2546,6 +2643,7 @@ export type Database = {
           score: number
           search_count: number
           updated_at: string
+          user_count: number
         }
         Insert: {
           id?: number
@@ -2554,6 +2652,7 @@ export type Database = {
           score?: number
           search_count?: number
           updated_at?: string
+          user_count?: number
         }
         Update: {
           id?: number
@@ -2562,6 +2661,7 @@ export type Database = {
           score?: number
           search_count?: number
           updated_at?: string
+          user_count?: number
         }
         Relationships: []
       }
@@ -2869,6 +2969,19 @@ export type Database = {
           match_count: number
         }[]
       }
+      fetch_trending_dishes: {
+        Args: { limit_count?: number; lookback_days?: number }
+        Returns: {
+          cuisine_type: string
+          first_posted_at: string | null
+          id: string
+          latest_posted_at: string | null
+          name: string
+          post_count: number
+          save_count: number
+          top_photo_url: string
+        }[]
+      }
       find_or_create_dish: {
         Args: {
           p_context?: Json
@@ -2883,12 +2996,41 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: string
       }
+      get_personalized_suggestions: {
+        Args: { p_failed_query: string; p_limit?: number; p_user_id: string }
+        Returns: {
+          query: string
+          score: number
+          source: string
+        }[]
+      }
       get_recent_search_history: {
         Args: { lookback_days?: number; max_results?: number }
         Returns: {
           last_searched_at: string
           query: string
           search_count: number
+        }[]
+      }
+      get_search_quality_metrics: {
+        Args: { lookback_days?: number }
+        Returns: {
+          attributed_review_count: number
+          attributed_save_count: number
+          attributed_view_count: number
+          click_count: number
+          ctr: number
+          day: string
+          query_count: number
+          reformulation_count: number
+          reformulation_rate: number
+          result_position: number | null
+          result_type: string | null
+          search_sessions: number
+          success_count: number
+          success_rate: number
+          zero_result_count: number
+          zero_result_rate: number
         }[]
       }
       leave_group: { Args: { p_conversation_id: string }; Returns: undefined }
@@ -2998,7 +3140,9 @@ export type Database = {
         }
         Returns: {
           cuisine_type: string
+          first_posted_at: string | null
           id: string
+          latest_posted_at: string | null
           name: string
           post_count: number
           save_count: number
@@ -3042,15 +3186,19 @@ export type Database = {
         Returns: {
           address: string
           city: string
+          created_at: string
           cuisine_type: string
+          first_posted_at: string | null
           google_place_id: string
           google_rating: number
           google_review_count: number
           id: string
+          latest_posted_at: string | null
           latitude: number
           longitude: number
           name: string
           open_now: boolean
+          post_count: number
           rank: number
           suburb: string
           top_dishes: string[]
@@ -3243,4 +3391,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

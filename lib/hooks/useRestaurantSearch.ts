@@ -1,18 +1,35 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { analytics } from '@/lib/analytics'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
 import {
+  distanceGroupForPrediction,
+  fetchFoodCategoryPredictions,
   fetchPredictions,
   fetchPlaceDetails,
+  upsertPlaceStubs,
   upsertRestaurant,
   searchRestaurantsByText,
   fetchNearbyRestaurants,
 } from '@/lib/services/restaurants'
 import type { Prediction, SelectedPlace } from '@/lib/services/restaurants'
+import {
+  classifyRestaurantTagIntent,
+  decideSearchProviderFallback,
+  resolveLocationSource,
+} from '@/lib/utils/searchIntent'
+import type { RestaurantTagIntent } from '@/lib/utils/searchIntent'
 
 type UseRestaurantSearchParams = {
   cuisineType: string
+  userId?: string | null | undefined
   onPlaceSelected: (place: SelectedPlace | null) => void
 }
+
+type RestaurantSelectionSource = 'nearby' | 'prediction'
+
+const RESTAURANT_TAG_DB_RESULT_LIMIT = 12
+const RESTAURANT_TAG_PROVIDER_TOP_UP_THRESHOLD = 6
+const RESTAURANT_TAG_VISIBLE_RESULT_LIMIT = 10
 
 type UseRestaurantSearchReturn = {
   locationSearch: string
@@ -24,8 +41,12 @@ type UseRestaurantSearchReturn = {
   searchFocused: boolean
   showNearby: boolean
   showDropdown: boolean
+  locationStatus: ReturnType<typeof useUserLocation>['status']
+  locationConstrained: boolean
+  restaurantTagIntent: RestaurantTagIntent
+  requestLocationAndSearch: () => Promise<void>
   handleSearchChange: (text: string) => void
-  selectPrediction: (item: Prediction) => Promise<void>
+  selectPrediction: (item: Prediction, source?: RestaurantSelectionSource) => Promise<void>
   onSearchFocus: () => void
   onSearchBlur: () => void
   clearSearch: () => void
@@ -54,14 +75,36 @@ function mergeRestaurantPredictions(
       return true
     })
     .sort((a, b) => b.score - a.score)
-    .map(({ item }) => item)
+    .map(({ item }) => ({
+      ...item,
+      distanceGroup: item.distanceGroup ?? distanceGroupForPrediction(item.distanceKm, item.source),
+    }))
+}
+
+function groupPredictionsByDistance(predictions: Prediction[]): Prediction[] {
+  const order: NonNullable<Prediction['distanceGroup']>[] = [
+    'nearby',
+    'city',
+    'state',
+    'country',
+    'worldwide',
+  ]
+  return order.flatMap(group => predictions.filter(item => item.distanceGroup === group))
+}
+
+function fallbackPlaceCountForTagging(localPlaceCount: number): number {
+  return localPlaceCount > 0 && localPlaceCount < RESTAURANT_TAG_PROVIDER_TOP_UP_THRESHOLD
+    ? 0
+    : localPlaceCount
 }
 
 export function useRestaurantSearch({
   cuisineType,
+  userId,
   onPlaceSelected,
 }: UseRestaurantSearchParams): UseRestaurantSearchReturn {
   const userLocation = useUserLocation()
+  const { status: locationStatus, requestLocation } = userLocation
 
   const [locationSearch, setLocationSearch] = useState('')
   const [predictions, setPredictions] = useState<Prediction[]>([])
@@ -70,6 +113,11 @@ export function useRestaurantSearch({
   const [searchFocused, setSearchFocused] = useState(false)
   const [nearbyPlaces, setNearbyPlaces] = useState<Prediction[]>([])
   const [nearbyLoading, setNearbyLoading] = useState(false)
+  const [restaurantTagIntent, setRestaurantTagIntent] = useState<RestaurantTagIntent>({
+    kind: 'general',
+    providerIntent: 'general',
+    confidence: 0.2,
+  })
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchRequestRef = useRef(0)
@@ -77,6 +125,11 @@ export function useRestaurantSearch({
   const selectionRequestRef = useRef(0)
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mountedRef = useRef(true)
+  const locationSearchRef = useRef(locationSearch)
+  locationSearchRef.current = locationSearch
+  // Always-current coords — avoids stale closure in handleSearchChange
+  const latestCoordsRef = useRef(userLocation.coords)
+  latestCoordsRef.current = userLocation.coords
 
   useEffect(() => {
     mountedRef.current = true
@@ -91,27 +144,84 @@ export function useRestaurantSearch({
   }, [])
 
   const handleSearchChange = useCallback(
-    (text: string) => {
+    (text: string, coordsOverride?: ReturnType<typeof useUserLocation>['coords']) => {
       setLocationSearch(text)
       if (debounceRef.current) clearTimeout(debounceRef.current)
       const requestId = searchRequestRef.current + 1
       searchRequestRef.current = requestId
-      if (text.length < 2) {
+      const query = text.trim()
+      const nextRestaurantTagIntent = classifyRestaurantTagIntent(query)
+      setRestaurantTagIntent(nextRestaurantTagIntent)
+      if (query.length < 2) {
         setPredictions([])
         setPredictionsLoading(false)
         return
       }
       setPredictionsLoading(true)
+      // Snapshot coords at call time: prefer explicit override (from requestLocationAndSearch),
+      // otherwise use the always-current ref so we never capture a stale closure.
+      const effectiveCoords = coordsOverride !== undefined ? coordsOverride : latestCoordsRef.current
       debounceRef.current = setTimeout(() => {
         // DB-first: query restaurants table via FTS (GIN index), then Google for new places
         void (async () => {
           try {
-            const [dbResults, googleResults] = await Promise.all([
-              searchRestaurantsByText(text, 8),
-              fetchPredictions(text, userLocation.coords),
-            ])
+            analytics.restaurantSearchTermEntered(userId ?? null, query)
+            const dbResults = await searchRestaurantsByText(
+              query,
+              RESTAURANT_TAG_DB_RESULT_LIMIT,
+              effectiveCoords
+            )
             if (!mountedRef.current || searchRequestRef.current !== requestId) return
-            setPredictions(mergeRestaurantPredictions(dbResults, googleResults).slice(0, 8))
+            const tagIntent = classifyRestaurantTagIntent(query)
+            const locationSource = resolveLocationSource(locationStatus, effectiveCoords != null)
+            const topUpThinLocalResults =
+              dbResults.length > 0 && dbResults.length < RESTAURANT_TAG_PROVIDER_TOP_UP_THRESHOLD
+            const fallbackDecision = decideSearchProviderFallback({
+              hasLocality: effectiveCoords != null,
+              intent: tagIntent.providerIntent,
+              localPlaceCount: fallbackPlaceCountForTagging(dbResults.length),
+              expandedPlaceCount: 0,
+            })
+            const fallbackReason = topUpThinLocalResults && fallbackDecision.shouldUseGoogleFallback
+              ? 'thin_local_results'
+              : fallbackDecision.reason
+            // Food-category queries (e.g. "Noodles") need Text Search, which understands
+            // cuisine/dish categories. Autocomplete only matches establishment names and
+            // returns ZERO_RESULTS for food terms. effectiveCoords is non-null here because
+            // food_dish without location is suppressed before shouldUseGoogleFallback=true.
+            const googleResults = fallbackDecision.shouldUseGoogleFallback
+              ? await (tagIntent.providerIntent === 'food_dish' && effectiveCoords != null
+                  ? fetchFoodCategoryPredictions(query, effectiveCoords)
+                  : fetchPredictions(query, effectiveCoords))
+              : []
+            if (fallbackDecision.shouldUseGoogleFallback) {
+              analytics.restaurantTaggingGoogleFallbackUsed(
+                userId ?? null,
+                query,
+                tagIntent.kind,
+                fallbackReason,
+                effectiveCoords != null,
+                locationSource
+              )
+              // Best-effort: persist place_id stubs so future searches hit our DB first
+              void upsertPlaceStubs(googleResults)
+            } else if (fallbackDecision.suppressed) {
+              analytics.restaurantTaggingGoogleFallbackSuppressed(
+                userId ?? null,
+                query,
+                tagIntent.kind,
+                fallbackReason,
+                locationSource
+              )
+            }
+            if (!mountedRef.current || searchRequestRef.current !== requestId) return
+            const merged = groupPredictionsByDistance(
+              mergeRestaurantPredictions(dbResults, googleResults)
+            ).slice(0, RESTAURANT_TAG_VISIBLE_RESULT_LIMIT)
+            if (merged.length === 0) {
+              analytics.restaurantSearchZeroResults(userId ?? null, query)
+            }
+            setPredictions(merged)
           } finally {
             if (mountedRef.current && searchRequestRef.current === requestId) {
               setPredictionsLoading(false)
@@ -120,11 +230,19 @@ export function useRestaurantSearch({
         })()
       }, 300)
     },
-    [userLocation.coords]
+    [userId, locationStatus]
   )
 
+  const requestLocationAndSearch = useCallback(async () => {
+    setSearchFocused(true)
+    const freshCoords = await requestLocation()
+    if (freshCoords && locationSearchRef.current.trim().length >= 2) {
+      handleSearchChange(locationSearchRef.current, freshCoords)
+    }
+  }, [requestLocation, handleSearchChange])
+
   const selectPrediction = useCallback(
-    async (item: Prediction) => {
+    async (item: Prediction, source: RestaurantSelectionSource = 'prediction') => {
       const requestId = ++selectionRequestRef.current
       searchRequestRef.current += 1
       nearbyRequestRef.current += 1
@@ -146,6 +264,13 @@ export function useRestaurantSearch({
             lng: item.dbDetails.lng,
             restaurantId: item.dbDetails.restaurantId,
           })
+          analytics.restaurantSelected(
+            userId ?? null,
+            item.place_id,
+            source,
+            item.dbDetails.restaurantId,
+            cuisineType || undefined
+          )
           setSelectingPlace(false)
         }
         return
@@ -165,12 +290,19 @@ export function useRestaurantSearch({
           lng: detail.geometry.location.lng,
           restaurantId,
         })
+        analytics.restaurantSelected(
+          userId ?? null,
+          item.place_id,
+          source,
+          restaurantId,
+          cuisineType || undefined
+        )
       }
       if (mountedRef.current && selectionRequestRef.current === requestId) {
         setSelectingPlace(false)
       }
     },
-    [cuisineType, onPlaceSelected]
+    [cuisineType, onPlaceSelected, userId]
   )
 
   const onSearchFocus = useCallback(() => {
@@ -181,7 +313,10 @@ export function useRestaurantSearch({
       void fetchNearbyRestaurants(userLocation.coords, 1)
         .then(results => {
           if (mountedRef.current && nearbyRequestRef.current === requestId) {
-            setNearbyPlaces(results)
+            setNearbyPlaces(groupPredictionsByDistance(results.map(item => ({
+              ...item,
+              distanceGroup: item.distanceGroup ?? distanceGroupForPrediction(item.distanceKm, item.source),
+            }))))
           }
         })
         .finally(() => {
@@ -207,6 +342,7 @@ export function useRestaurantSearch({
     if (debounceRef.current) clearTimeout(debounceRef.current)
     setLocationSearch('')
     setPredictions([])
+    setRestaurantTagIntent({ kind: 'general', providerIntent: 'general', confidence: 0.2 })
     setPredictionsLoading(false)
     setNearbyPlaces([])
     setNearbyLoading(false)
@@ -217,6 +353,7 @@ export function useRestaurantSearch({
     searchFocused && locationSearch.length < 2 && (nearbyLoading || nearbyPlaces.length > 0)
   const showDropdown =
     searchFocused && locationSearch.length >= 2 && (predictions.length > 0 || !predictionsLoading)
+  const locationConstrained = userLocation.coords != null
 
   return {
     locationSearch,
@@ -228,6 +365,10 @@ export function useRestaurantSearch({
     searchFocused,
     showNearby,
     showDropdown,
+    locationStatus,
+    locationConstrained,
+    restaurantTagIntent,
+    requestLocationAndSearch,
     handleSearchChange,
     selectPrediction,
     onSearchFocus,

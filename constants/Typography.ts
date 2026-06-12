@@ -35,6 +35,23 @@ export const fontWeight = {
   black: '900' as const,
 }
 
+export const fontFamily = {
+  serif: 'DMSerifDisplay-Regular',
+} as const
+
+export const letterSpacing = {
+  display: -1,          // large serif wordmarks
+  tighterHeading: -0.5, // large taglines, screen wordmarks
+  tightHeading: -0.3,   // standard headings / form titles
+  snug: -0.1,           // subtle body copy tightening
+  none: 0,              // explicit reset
+  fine: 0.1,            // map labels
+  wide: 0.5,            // chip labels, compact info text
+  loose: 0.6,           // settings section headers
+  wider: 0.8,           // taste/section headings
+  widest: 0.9,          // uppercase section labels
+} as const
+
 export const lineHeight = {
   xxs: 15,
   tight: 16,
@@ -58,7 +75,7 @@ export const typography = {
   },
   bodySmall: {
     fontSize: fontSize.sm,
-    lineHeight: 18,
+    lineHeight: lineHeight.small,
     fontWeight: fontWeight.regular,
   },
   bodyLarge: {

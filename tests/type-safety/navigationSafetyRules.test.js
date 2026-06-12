@@ -49,7 +49,29 @@ test('navigation safety scanner permits the intentional create-post stepped back
   assert.deepEqual(
     codes(
       'features/create-post/CreatePostScreen.tsx',
-      "BackHandler.addEventListener('hardwareBackPress', () => { handleBackRef.current(); return true })",
+      "usePreventRemove(shouldProtectNativeDismiss, () => { pendingRemoveAction.current = null }); BackHandler.addEventListener('hardwareBackPress', () => { handleBackRef.current(); return true })",
+    ),
+    [],
+  )
+})
+
+test('navigation safety scanner enforces create-post modal ownership', () => {
+  assert.deepEqual(
+    codes('lib/routes/index.ts', "createPost: () => ({ pathname: '/(tabs)/create' })"),
+    ['CREATE_POST_TAB_ROUTE'],
+  )
+  assert.deepEqual(
+    codes('app/(tabs)/_layout.tsx', '<Tabs.Screen name="create" options={{ href: null }} />'),
+    ['CREATE_POST_TAB_SCREEN'],
+  )
+  assert.deepEqual(
+    codes('features/create-post/CreatePostScreen.tsx', 'export default function PostScreen() { return null }'),
+    ['CREATE_POST_DISMISS_GUARD'],
+  )
+  assert.deepEqual(
+    codes(
+      'features/create-post/CreatePostScreen.tsx',
+      'usePreventRemove(shouldProtectNativeDismiss, () => { pendingRemoveAction.current = null })',
     ),
     [],
   )

@@ -1,7 +1,9 @@
 const { readText } = require('./files')
 
+// 7-column schema (reduced from 11 — Why It Matters, Dependencies, Burden, Suggested AI Command
+// were absorbed into the Problem column).
 const BACKLOG_HEADER =
-  '| Status | Priority | ID | Item | Why It Matters | Dependencies | Burden | Problem | Suggested AI Command | Implementations | Implementation Type |'
+  '| Status | Priority | ID | Item | Problem | Implementations | Implementation Type |'
 
 function hasExpectedBacklogSchema() {
   return readText('BACKLOG.md').includes(BACKLOG_HEADER)
@@ -26,13 +28,9 @@ function parseBacklogRows() {
       status: cells[0] ?? '',
       priority: cells[1] ?? '',
       item: cells[3] ?? '',
-      why: cells[4] ?? '',
-      dependencies: cells[5] ?? '',
-      burden: cells[6] ?? '',
-      problem: cells[7] ?? '',
-      command: cells[8] ?? '',
-      implementation: cells[9] ?? '',
-      implementationType: cells[10] ?? '',
+      problem: cells[4] ?? '',
+      implementation: cells[5] ?? '',
+      implementationType: cells[6] ?? '',
       cellCount: cells.length,
     })
   }

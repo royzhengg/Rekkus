@@ -66,7 +66,7 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing[1],
-      minHeight: 40,
+      minHeight: 44,
       paddingHorizontal: spacing[0],
       marginLeft: -spacing.px6,
       width: 96,
@@ -75,6 +75,24 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
     centerWrap: { alignItems: 'center', gap: spacing.px2 },
     stepTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
     stepProgress: { fontSize: fontSize.xs, color: c.text3, textAlign: 'center' },
+    stepDots: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.px5,
+      minHeight: spacing.px10,
+    },
+    stepDot: {
+      width: 5,
+      height: 4,
+      borderRadius: radius.xs,
+      backgroundColor: c.surface2,
+    },
+    stepDotActive: {
+      width: 20,
+      height: 4,
+      backgroundColor: c.accent,
+    },
     rightActions: {
       width: 96,
       flexDirection: 'row',
@@ -87,12 +105,6 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
       fontWeight: fontWeight.semibold,
       color: c.text2,
     },
-    saveText: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.bold,
-      color: c.accent,
-    },
-    saveTextDisabled: { color: c.text3, opacity: 0.55 },
     headerAction: {
       minWidth: 42,
       minHeight: 40,
@@ -101,16 +113,18 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
     },
     nextBtn: {
       minWidth: 42,
-      minHeight: 40,
+      minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    nextBtnDisabled: { opacity: 0.5 },
-    nextBtnText: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.bold,
-      color: c.accent,
+    nextBtnDisabled: { opacity: 0.45 },
+    nextHint: {
+      fontSize: fontSize.xs,
+      color: c.text3,
+      textAlign: 'center',
+      paddingHorizontal: spacing[4],
+      paddingVertical: spacing[1],
+      backgroundColor: c.bg,
     },
-    nextBtnTextDisabled: { color: c.text3 },
   })
 }

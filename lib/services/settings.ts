@@ -57,15 +57,6 @@ export async function fetchSettings(userId: string): Promise<Settings> {
   return normalizeSettings(data)
 }
 
-export async function updateSettings(userId: string, settings: Settings): Promise<void> {
-  const { error } = await supabase.from('user_settings').upsert({
-    id: userId,
-    ...settings,
-    updated_at: new Date().toISOString(),
-  })
-  if (error) throw error
-}
-
 export async function updateSettingValue<K extends keyof Settings>(
   userId: string,
   key: K,

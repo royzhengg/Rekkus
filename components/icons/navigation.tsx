@@ -138,3 +138,23 @@ export const ArrowLeft = React.memo(function ArrowLeft({ size = 20, color }: { s
     </Svg>
   )
 })
+
+export const ArrowRight = React.memo(function ArrowRight({ size = 20, color }: { size?: number; color?: string }) {
+  const { accent } = useThemeColors()
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color ?? accent} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M5 12h14M12 5l7 7-7 7" />
+    </Svg>
+  )
+})
+
+export const SaveDraftIcon = React.memo(function SaveDraftIcon({ size = 18, color }: { size?: number; color?: string }) {
+  const { accent } = useThemeColors()
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color ?? accent} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <Polyline points="17 21 17 13 7 13 7 21" />
+      <Polyline points="7 3 7 8 15 8" />
+    </Svg>
+  )
+})

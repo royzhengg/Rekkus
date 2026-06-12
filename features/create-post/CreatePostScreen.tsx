@@ -1,8 +1,9 @@
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'
+import { usePreventRemove, type NavigationAction } from '@react-navigation/native'
+import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router'
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, BackHandler, Pressable } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ChevronLeft } from '@/components/icons'
+import { ArrowRight, ChevronLeft, SaveDraftIcon } from '@/components/icons'
 import StepDetails from '@/components/post-create/StepDetails'
 import StepMedia from '@/components/post-create/StepMedia'
 import StepReview from '@/components/post-create/StepReview'
@@ -19,28 +20,26 @@ import { tasteToLegacyFood, valueToLegacyCost } from '@/lib/dataSources/rekkusPi
 import { haptic } from '@/lib/haptics'
 import { routes } from '@/lib/routes'
 import { findOrCreateDish } from '@/lib/services/dishes'
-import type { CreatePostDraft, CreatePostDraftStatus } from '@/lib/services/postDrafts'
 import {
   clearCreatePostDraft,
-  listCreatePostDraftSummaries,
-  loadCreatePostDraft,
   markCreatePostDraftPublished,
   saveCreatePostDraftAsNew,
   saveCreatePostDraftRemote,
-  saveCreatePostDraft,
 } from '@/lib/services/postDrafts'
 import { enqueueServerMediaProcessing } from '@/lib/services/postMediaProcessing'
 import { createPost, loadPostForEditing, recordPostEditEvent, updatePost } from '@/lib/services/posts'
-import type { SelectedPlace } from '@/lib/services/restaurants'
-import type { DishTag, PostMedia, RekkusOccasionTag, RekkusTasteVerdict, RekkusValueVerdict } from '@/types/domain'
 import { makeStyles } from './CreatePostScreen.styles'
 import { CreatePostSheets, type DraftNotice, type SaveDraftMode } from './CreatePostSheets'
+import { useCreatePostDraftLoader } from './useCreatePostDraftLoader'
+import { useCreatePostFormState } from './useCreatePostFormState'
 
 type Step = 1 | 2 | 3
-type EntryMode = 'loading' | 'choosing' | 'editing'
+
+const STEP_TITLES: Record<Step, string> = { 1: 'Media', 2: 'Review', 3: 'Share' }
 
 export default function PostScreen() {
   const router = useRouter()
+  const navigation = useNavigation()
   const { draftId, intent, nonce, postId } = useLocalSearchParams<{
     draftId?: string
     intent?: string
@@ -54,218 +53,75 @@ export default function PostScreen() {
   const { requireAuth } = useAuthGate()
   const c = useThemeColors()
   const styles = useMemo(() => makeStyles(c), [c])
-
   const [step, setStep] = useState<Step>(1)
   const [posting, setPosting] = useState(false)
   const [savingDraft, setSavingDraft] = useState(false)
-  const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(draftId)
-  const [currentDraftStatus, setCurrentDraftStatus] = useState<CreatePostDraftStatus | undefined>(undefined)
-  const [entryMode, setEntryMode] = useState<EntryMode>(draftId ? 'editing' : 'loading')
   const [saveSheetVisible, setSaveSheetVisible] = useState(false)
   const [draftNotice, setDraftNotice] = useState<DraftNotice | null>(null)
   const [leaveConfirmVisible, setLeaveConfirmVisible] = useState(false)
+  const [allowNativeRemove, setAllowNativeRemove] = useState(false)
   const [editConflictVisible, setEditConflictVisible] = useState(false)
   const [editBaselineCount, setEditBaselineCount] = useState<number | null>(null)
   const [retryPostAvailable, setRetryPostAvailable] = useState(false)
+  const [showNextHint, setShowNextHint] = useState(false)
+  const nextHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ignoreNextChooserDismiss = useRef(false)
+  const pendingRemoveAction = useRef<NavigationAction | null>(null)
   const sessionStartedAt = useRef<number>(Date.now())
   const stepEnteredAt = useRef<number>(Date.now())
   const rageTapNextTimestamps = useRef<number[]>([])
   const isEditingPost = intent === 'edit' && !!postId
-  // Step 1 state
-  const [media, setMedia] = useState<PostMedia[]>([])
-  const [title, setTitle] = useState('')
-  const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null)
-  const [dishTags, setDishTags] = useState<DishTag[]>([])
 
-  // Step 2 state
-  const [foodRating, setFoodRating] = useState(0)
-  const [vibeRating, setVibeRating] = useState(0)
-  const [costRating, setCostRating] = useState(0)
-  const [tasteVerdict, setTasteVerdict] = useState<RekkusTasteVerdict | undefined>(undefined)
-  const [valueVerdict, setValueVerdict] = useState<RekkusValueVerdict | undefined>(undefined)
-  const [occasionTags, setOccasionTags] = useState<RekkusOccasionTag[]>([])
-  const [body, setBody] = useState('')
-  const [mustOrder, setMustOrder] = useState('')
-  const [cuisineType, setCuisineType] = useState('')
-  const [hashtags, setHashtags] = useState<string[]>([])
-  const [hashtagInput, setHashtagInput] = useState('')
+  const form = useCreatePostFormState(user?.id, draftId)
+  const { entryMode, setEntryMode, refreshDraftSummaries } = useCreatePostDraftLoader({
+    draftId,
+    intent,
+    nonce,
+    userId: user?.id,
+    isEditingPost,
+    hasDraftContent: form.hasDraftContent,
+    currentDraftStatus: form.currentDraftStatus,
+    buildDraft: form.buildDraft,
+    setCurrentDraftId: form.setCurrentDraftId,
+    setCurrentDraftStatus: form.setCurrentDraftStatus,
+    applyDraftToForm: form.applyDraftToForm,
+    clearFormFields: form.clearFormFields,
+  })
 
-  const hasDraftContent =
-    media.length > 0 ||
-    title.trim().length > 0 ||
-    selectedPlace !== null ||
-    dishTags.length > 0 ||
-    foodRating > 0 ||
-    vibeRating > 0 ||
-    costRating > 0 ||
-    !!tasteVerdict ||
-    !!valueVerdict ||
-    occasionTags.length > 0 ||
-    body.trim().length > 0 ||
-    mustOrder.trim().length > 0 ||
-    cuisineType.trim().length > 0 ||
-    hashtags.length > 0 ||
-    hashtagInput.trim().length > 0
-  const canAdvance = title.trim().length >= 3 && media.length > 0
+  const shouldProtectNativeDismiss = entryMode === 'editing' && form.hasDraftContent && !allowNativeRemove
+
+  usePreventRemove(shouldProtectNativeDismiss, ({ data }) => {
+    pendingRemoveAction.current = data.action
+    analytics.createPostFunnel(user?.id ?? null, step, 'abandoned', {
+      duration_ms: Date.now() - stepEnteredAt.current,
+      reason: 'native_dismiss',
+    })
+    setLeaveConfirmVisible(true)
+  })
 
   useEffect(() => {
     if (!user) requireAuth()
   }, [user, requireAuth])
 
-  const refreshDraftSummaries = useCallback(async () => {
-    if (!user?.id) return []
-    const items = await listCreatePostDraftSummaries()
-    return items
-  }, [user?.id])
-
-  useEffect(() => {
-    if (!user?.id) return
-    if (isEditingPost) {
-      setEntryMode('editing')
-      return
-    }
-    if (draftId) {
-      setEntryMode('editing')
-      return
-    }
-    if (intent === 'new' || intent === 'choose') {
-      clearForm()
-      setEntryMode('editing')
-    }
-    if (intent === 'new') return
-    if (intent === 'choose') {
-      void refreshDraftSummaries().then(items => {
-        setEntryMode(items.length > 0 ? 'choosing' : 'editing')
-      })
-      return
-    }
-    void refreshDraftSummaries().then(items => {
-      setEntryMode(items.length > 0 ? 'choosing' : 'editing')
-    })
-  }, [draftId, intent, nonce, user?.id, isEditingPost, refreshDraftSummaries])
-
-  function applyDraftToForm(draft: CreatePostDraft) {
-    setCurrentDraftId(draft.remoteId ?? draft.id)
-    setCurrentDraftStatus(draft.status)
-    setMedia(draft.media ?? [])
-    setTitle(draft.title ?? '')
-    setSelectedPlace(draft.selectedPlace ?? null)
-    setDishTags(draft.dishTags ?? [])
-    setFoodRating(draft.foodRating ?? 0)
-    setVibeRating(draft.vibeRating ?? 0)
-    setCostRating(draft.costRating ?? 0)
-    setTasteVerdict(draft.tasteVerdict)
-    setValueVerdict(draft.valueVerdict)
-    setOccasionTags(draft.occasionTags ?? [])
-    setBody(draft.body ?? '')
-    setMustOrder(draft.mustOrder ?? '')
-    setCuisineType(draft.cuisineType ?? '')
-    setHashtags(draft.hashtags ?? [])
-    setHashtagInput(draft.hashtagInput ?? '')
-    setEntryMode('editing')
-  }
-
-  useEffect(() => {
-    if (!draftId) return
-    let mounted = true
-    void loadCreatePostDraft(draftId).then(draft => {
-      if (!mounted || !draft) return
-      applyDraftToForm(draft)
-    })
-    return () => {
-      mounted = false
-    }
-  }, [draftId])
-
+  const { applyPostToForm } = form
   useEffect(() => {
     if (!isEditingPost || !postId || !user?.id) return
     let mounted = true
     void loadPostForEditing(postId).then(post => {
       if (!mounted || !post) return
-      setMedia(post.media ?? [])
-      setTitle(post.title ?? '')
-      setSelectedPlace(post.restaurantId ? {
-        placeId: post.placeId ?? post.restaurantId,
-        restaurantId: post.restaurantId,
-        name: post.location,
-        address: post.address ?? '',
-        lat: post.lat ?? 0,
-        lng: post.lng ?? 0,
-      } : null)
-      setDishTags(post.dishTags ?? [])
-      setFoodRating(post.food ?? 0)
-      setVibeRating(post.vibe ?? 0)
-      setCostRating(post.cost ?? 0)
-      setTasteVerdict(post.tasteVerdict)
-      setValueVerdict(post.valueVerdict)
-      setOccasionTags(post.occasionTags ?? [])
-      setBody(post.body ?? '')
-      setMustOrder(post.mustOrder ?? '')
-      setCuisineType(post.cuisine_type ?? '')
-      setHashtags(post.tags ?? [])
-      setHashtagInput('')
-      setCurrentDraftId(undefined)
-      setCurrentDraftStatus(undefined)
+      applyPostToForm(post)
       setEditBaselineCount(post.editCount ?? 0)
       recordPostEditEvent(postId, user.id, 'edit_started').catch(() => {})
       analytics.postEdit(user.id, postId, 'started')
     })
-    return () => {
-      mounted = false
-    }
-  }, [isEditingPost, postId, user?.id])
-
-  const buildDraft = useCallback((): CreatePostDraft => {
-    return {
-      media,
-      id: currentDraftId,
-      remoteId: currentDraftId,
-      userId: user?.id,
-      status: currentDraftStatus,
-      title,
-      selectedPlace,
-      dishTags,
-      foodRating,
-      vibeRating,
-      costRating,
-      tasteVerdict,
-      valueVerdict,
-      occasionTags,
-      body,
-      mustOrder,
-      cuisineType,
-      hashtags,
-      hashtagInput,
-      updatedAt: new Date().toISOString(),
-    }
-  }, [media, currentDraftId, user?.id, currentDraftStatus, title, selectedPlace, dishTags, foodRating, vibeRating, costRating, tasteVerdict, valueVerdict, occasionTags, body, mustOrder, cuisineType, hashtags, hashtagInput])
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!hasDraftContent) return
-      if (entryMode !== 'editing') return
-      if (isEditingPost) return
-      if (currentDraftStatus === 'saved') return
-      void saveCreatePostDraft(buildDraft()).then(saved => {
-        setCurrentDraftId(saved.remoteId ?? saved.id)
-        setCurrentDraftStatus(saved.status)
-        void refreshDraftSummaries()
-      })
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [
-    hasDraftContent,
-    entryMode,
-    currentDraftStatus,
-    isEditingPost,
-    buildDraft,
-    refreshDraftSummaries,
-  ])
+    return () => { mounted = false }
+  }, [isEditingPost, postId, user?.id, applyPostToForm])
 
   useEffect(() => {
     stepEnteredAt.current = Date.now()
     analytics.createPostFunnel(user?.id ?? null, step, 'viewed')
+    setShowNextHint(false)
+    if (nextHintTimer.current) clearTimeout(nextHintTimer.current)
   }, [step, user?.id])
 
   // Ref keeps BackHandler current: handleBack is defined after the early return below.
@@ -291,7 +147,7 @@ export default function PostScreen() {
       return
     }
     if (step === 1) {
-      if (!hasDraftContent) {
+      if (!form.hasDraftContent) {
         router.replace('/(tabs)/feed')
         return
       }
@@ -304,6 +160,21 @@ export default function PostScreen() {
     else setStep((step - 1) as Step)
   }
   handleBackRef.current = handleBack
+
+  function clearPendingRemoveAction() {
+    pendingRemoveAction.current = null
+  }
+
+  function finishCreateExit() {
+    const pendingAction = pendingRemoveAction.current
+    pendingRemoveAction.current = null
+    setAllowNativeRemove(true)
+    if (pendingAction) {
+      setTimeout(() => navigation.dispatch(pendingAction), 0)
+      return
+    }
+    router.replace('/(tabs)/feed')
+  }
 
   function handleNext() {
     if (!user) return
@@ -319,29 +190,16 @@ export default function PostScreen() {
       analytics.createPostFunnel(user.id, step, 'completed', {
         duration_ms: now - stepEnteredAt.current,
       })
+      if (step === 1 && form.selectedPlace === null) {
+        analytics.restaurantFieldSkipped(user.id)
+      }
       setStep((step + 1) as Step)
     }
   }
 
   function clearForm() {
     setStep(1)
-    setMedia([])
-    setTitle('')
-    setSelectedPlace(null)
-    setDishTags([])
-    setFoodRating(0)
-    setVibeRating(0)
-    setCostRating(0)
-    setTasteVerdict(undefined)
-    setValueVerdict(undefined)
-    setOccasionTags([])
-    setBody('')
-    setMustOrder('')
-    setCuisineType('')
-    setHashtags([])
-    setHashtagInput('')
-    setCurrentDraftId(undefined)
-    setCurrentDraftStatus(undefined)
+    form.clearFormFields()
   }
 
   function startNewPost() {
@@ -350,14 +208,14 @@ export default function PostScreen() {
   }
 
   function openSaveDraftOptions() {
-    if (!hasDraftContent) {
+    if (!form.hasDraftContent) {
       setDraftNotice({
         title: 'Nothing to save yet',
         subtitle: 'Add media, a title, or review details before saving a draft.',
       })
       return
     }
-    if (currentDraftStatus === 'saved' && currentDraftId) {
+    if (form.currentDraftStatus === 'saved' && form.currentDraftId) {
       setSaveSheetVisible(true)
       return
     }
@@ -368,13 +226,13 @@ export default function PostScreen() {
     if (!user) return
     const showConfirmation = options.showConfirmation ?? true
     setSavingDraft(true)
-    const draft = { ...buildDraft(), status: 'saved' as const }
+    const draft = { ...form.buildDraft(), status: 'saved' as const }
     const saved = mode === 'new'
       ? await saveCreatePostDraftAsNew(draft, user.id)
       : await saveCreatePostDraftRemote(draft, { visible: true, userId: user.id })
     setSavingDraft(false)
-    setCurrentDraftId(saved.remoteId ?? saved.id)
-    setCurrentDraftStatus(saved.status)
+    form.setCurrentDraftId(saved.remoteId ?? saved.id)
+    form.setCurrentDraftStatus(saved.status)
     await refreshDraftSummaries()
     if (saved.syncStatus === 'failed') {
       setDraftNotice({
@@ -405,23 +263,22 @@ export default function PostScreen() {
       try {
         await updatePost(postId, {
           userId: user.id,
-          caption: title.trim(),
-          restaurantId: selectedPlace?.restaurantId ?? null,
-          foodRating: tasteToLegacyFood(tasteVerdict) || foodRating || null,
-          vibeRating: vibeRating || null,
-          costRating: valueToLegacyCost(valueVerdict) || costRating || null,
-          tasteVerdict: tasteVerdict ?? null,
-          valueVerdict: valueVerdict ?? null,
-          occasionTags,
-          cuisineType: cuisineType || null,
-          mustOrder: mustOrder.trim() || null,
-          dishTags,
-          media,
+          caption: form.title.trim(),
+          restaurantId: form.selectedPlace?.restaurantId ?? null,
+          foodRating: tasteToLegacyFood(form.tasteVerdict) || form.foodRating || null,
+          vibeRating: form.vibeRating || null,
+          costRating: valueToLegacyCost(form.valueVerdict) || form.costRating || null,
+          tasteVerdict: form.tasteVerdict ?? null,
+          valueVerdict: form.valueVerdict ?? null,
+          occasionTags: form.occasionTags,
+          cuisineType: form.cuisineType || null,
+          mustOrder: form.mustOrder.trim() || null,
+          dishTags: form.dishTags,
+          media: form.media,
           expectedEditCount: editBaselineCount,
         })
         analytics.postEdit(user.id, postId, 'saved')
         setPosting(false)
-
         router.replace(routes.postDetail(postId))
       } catch (error) {
         setPosting(false)
@@ -445,21 +302,21 @@ export default function PostScreen() {
     const jobId = `post-${Date.now()}`
     uploadQueue.startJob({
       id: jobId,
-      title: title.trim() || 'New post',
-      coverUri: media[0]?.thumbnailUrl ?? media[0]?.uri,
-      media,
+      title: form.title.trim() || 'New post',
+      coverUri: form.media[0]?.thumbnailUrl ?? form.media[0]?.uri,
+      media: form.media,
     })
     try {
       uploadQueue.updateJob(jobId, { status: 'uploading', progress: 0.45 })
-      await enqueueServerMediaProcessing(media)
+      await enqueueServerMediaProcessing(form.media)
       uploadQueue.updateJob(jobId, { status: 'publishing', progress: 0.84 })
       let dishId: string | null = null
-      if (mustOrder.trim() && selectedPlace?.restaurantId) {
+      if (form.mustOrder.trim() && form.selectedPlace?.restaurantId) {
         try {
           dishId = await findOrCreateDish({
-            name: mustOrder.trim(),
-            restaurantId: selectedPlace.restaurantId,
-            cuisineType: cuisineType || null,
+            name: form.mustOrder.trim(),
+            restaurantId: form.selectedPlace.restaurantId,
+            cuisineType: form.cuisineType || null,
             userId: user.id,
             context: { source: 'post_creation' },
           })
@@ -470,26 +327,26 @@ export default function PostScreen() {
       }
       await createPost({
         userId: user.id,
-        caption: title.trim() || null,
-        restaurantId: selectedPlace?.restaurantId ?? null,
-        foodRating: tasteToLegacyFood(tasteVerdict) || foodRating || null,
-        vibeRating: vibeRating || null,
-        costRating: valueToLegacyCost(valueVerdict) || costRating || null,
-        tasteVerdict: tasteVerdict ?? null,
-        valueVerdict: valueVerdict ?? null,
-        occasionTags,
-        cuisineType: cuisineType || null,
-        mustOrder: mustOrder.trim() || null,
+        caption: form.title.trim() || null,
+        restaurantId: form.selectedPlace?.restaurantId ?? null,
+        foodRating: tasteToLegacyFood(form.tasteVerdict) || form.foodRating || null,
+        vibeRating: form.vibeRating || null,
+        costRating: valueToLegacyCost(form.valueVerdict) || form.costRating || null,
+        tasteVerdict: form.tasteVerdict ?? null,
+        valueVerdict: form.valueVerdict ?? null,
+        occasionTags: form.occasionTags,
+        cuisineType: form.cuisineType || null,
+        mustOrder: form.mustOrder.trim() || null,
         dishId,
-        dishTags,
-        media,
+        dishTags: form.dishTags,
+        media: form.media,
       })
       analytics.createPostFunnel(user.id, 3, 'completed', {
         duration_ms: Date.now() - stepEnteredAt.current,
         session_duration_ms: Date.now() - sessionStartedAt.current,
       })
       clearForm()
-      await markCreatePostDraftPublished(currentDraftId)
+      await markCreatePostDraftPublished(form.currentDraftId)
       uploadQueue.completeJob(jobId)
       void haptic.confirmPublish()
       await refresh()
@@ -512,12 +369,6 @@ export default function PostScreen() {
     setRetryPostAvailable(false)
     setDraftNotice(null)
     void handlePost()
-  }
-
-  const STEP_TITLES: Record<Step, string> = {
-    1: 'Media',
-    2: 'Review',
-    3: 'Share',
   }
 
   if (entryMode === 'loading') {
@@ -551,14 +402,8 @@ export default function PostScreen() {
           ]}
           onSelect={value => {
             ignoreNextChooserDismiss.current = true
-            if (value === 'new') {
-              startNewPost()
-              return
-            }
-            if (value === 'all') {
-              router.push(routes.createDrafts())
-              return
-            }
+            if (value === 'new') { startNewPost(); return }
+            if (value === 'all') { router.push(routes.createDrafts()); return }
           }}
           onDismiss={() => {
             if (ignoreNextChooserDismiss.current) {
@@ -575,7 +420,8 @@ export default function PostScreen() {
   const sheetProps = {
     colors: c, saveSheetVisible, setSaveSheetVisible, draftNotice, setDraftNotice,
     leaveConfirmVisible, setLeaveConfirmVisible, editConflictVisible, setEditConflictVisible,
-    isEditingPost, onSaveDraft: saveDraftWithMode, onDraftDone: () => router.replace('/(tabs)/feed'),
+    isEditingPost, onSaveDraft: saveDraftWithMode, onDraftDone: finishCreateExit,
+    onCancelLeave: clearPendingRemoveAction,
     ...(retryPostAvailable ? { onRetryPost: handleRetryPost } : {}),
     onDiscard: async () => {
       analytics.createPostFunnel(user.id, step, 'abandoned', {
@@ -583,9 +429,9 @@ export default function PostScreen() {
         reason: 'discard',
       })
       if (isEditingPost && postId && user?.id) recordPostEditEvent(postId, user.id, 'edit_discarded').catch(() => {})
-      if (currentDraftId) await clearCreatePostDraft(currentDraftId)
+      if (form.currentDraftId) await clearCreatePostDraft(form.currentDraftId)
       clearForm()
-      router.replace('/(tabs)/feed')
+      finishCreateExit()
     },
     onReviewLatest: () => { if (postId) router.replace(routes.postDetail(postId)) },
     onSaveConflictDraft: () => saveDraftWithMode('new', { showConfirmation: true }),
@@ -595,13 +441,12 @@ export default function PostScreen() {
       if (postId) router.replace(routes.postDetail(postId))
     },
   }
-  const mediaProps = { media, setMedia, title, setTitle, selectedPlace, setSelectedPlace, cuisineType, dishTags, setDishTags }
-  const detailsProps = { foodRating, setFoodRating, vibeRating, setVibeRating, costRating, setCostRating, tasteVerdict, setTasteVerdict, valueVerdict, setValueVerdict, occasionTags, setOccasionTags, body, setBody, mustOrder, setMustOrder, cuisineType, setCuisineType, hashtags, setHashtags, hashtagInput, setHashtagInput }
-  const reviewProps = { title, body, media, selectedPlace, foodRating, vibeRating, costRating, tasteVerdict, valueVerdict, occasionTags, cuisineType, mustOrder, hashtags, onEditBasics: () => setStep(1), onEditDetails: () => setStep(2), onPost: handlePost, primaryLabel: isEditingPost ? 'Save changes' : 'Post review', posting, onSaveDraft: openSaveDraftOptions, savingDraft }
+  const mediaProps = { userId: user.id, media: form.media, setMedia: form.setMedia, title: form.title, setTitle: form.setTitle, selectedPlace: form.selectedPlace, setSelectedPlace: form.setSelectedPlace, cuisineType: form.cuisineType, dishTags: form.dishTags, setDishTags: form.setDishTags }
+  const detailsProps = { foodRating: form.foodRating, setFoodRating: form.setFoodRating, vibeRating: form.vibeRating, setVibeRating: form.setVibeRating, costRating: form.costRating, setCostRating: form.setCostRating, tasteVerdict: form.tasteVerdict, setTasteVerdict: form.setTasteVerdict, valueVerdict: form.valueVerdict, setValueVerdict: form.setValueVerdict, occasionTags: form.occasionTags, setOccasionTags: form.setOccasionTags, body: form.body, setBody: form.setBody, cuisineType: form.cuisineType, setCuisineType: form.setCuisineType, hashtags: form.hashtags, setHashtags: form.setHashtags, hashtagInput: form.hashtagInput, setHashtagInput: form.setHashtagInput, mustOrder: form.mustOrder, setMustOrder: form.setMustOrder, dishTags: form.dishTags }
+  const reviewProps = { title: form.title, body: form.body, media: form.media, dishTags: form.dishTags, selectedPlace: form.selectedPlace, foodRating: form.foodRating, vibeRating: form.vibeRating, costRating: form.costRating, tasteVerdict: form.tasteVerdict, valueVerdict: form.valueVerdict, occasionTags: form.occasionTags, cuisineType: form.cuisineType, mustOrder: form.mustOrder, hashtags: form.hashtags, onEditBasics: () => setStep(1), onEditDetails: () => setStep(2), onPost: handlePost, primaryLabel: isEditingPost ? 'Save changes' : 'Post review', posting, onSaveDraft: openSaveDraftOptions, savingDraft }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={handleBack}
@@ -615,39 +460,63 @@ export default function PostScreen() {
 
         <View style={styles.centerWrap}>
           <Text style={styles.stepTitle}>{STEP_TITLES[step]}</Text>
-          <Text style={styles.stepProgress}>{step} of 3</Text>
+          <View
+            style={styles.stepDots}
+            accessibilityRole="text"
+            accessibilityLabel={`Step ${step} of 3`}
+          >
+            {([1, 2, 3] as const).map(item => (
+              <View
+                key={item}
+                style={[styles.stepDot, item <= step && styles.stepDotActive]}
+                accessible={false}
+              />
+            ))}
+          </View>
         </View>
 
         <View style={styles.rightActions}>
-          {hasDraftContent && step < 3 && (
+          {form.hasDraftContent && (
             <TouchableOpacity
               onPress={openSaveDraftOptions}
               hitSlop={8}
               style={styles.headerAction}
               disabled={savingDraft || posting}
               accessibilityRole="button"
+              accessibilityLabel={savingDraft ? 'Saving draft' : 'Save draft'}
             >
-              <Text style={[styles.saveText, (savingDraft || posting) && styles.saveTextDisabled]}>
-                {savingDraft ? 'Saving' : 'Save'}
-              </Text>
+              <SaveDraftIcon size={20} color={(savingDraft || posting) ? c.text3 : c.accent} />
             </TouchableOpacity>
           )}
           {step < 3 ? (
             <View style={{ position: 'relative' }}>
               <TouchableOpacity
-                style={[styles.nextBtn, !canAdvance && styles.nextBtnDisabled]}
-                onPress={canAdvance ? handleNext : undefined}
-                disabled={!canAdvance}
+                style={[styles.nextBtn, !form.canAdvance && styles.nextBtnDisabled]}
+                onPress={form.canAdvance ? handleNext : undefined}
+                disabled={!form.canAdvance}
                 accessibilityRole="button"
+                accessibilityLabel="Next"
+                accessibilityHint={
+                  !form.canAdvance
+                    ? form.media.length === 0 && form.title.trim().length < 3
+                      ? 'Add a photo and a title of at least 3 characters to continue'
+                      : form.media.length === 0
+                      ? 'Add a photo to continue'
+                      : 'Your title needs at least 3 characters'
+                    : undefined
+                }
               >
-                <Text style={[styles.nextBtnText, !canAdvance && styles.nextBtnTextDisabled]}>
-                  Next
-                </Text>
+                <ArrowRight size={22} color={form.canAdvance ? c.accent : c.text3} />
               </TouchableOpacity>
-              {!canAdvance && (
+              {!form.canAdvance && (
                 <Pressable
                   style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                  onPress={() => analytics.deadClick(user.id, 'create_post', 'next', step)}
+                  onPress={() => {
+                    analytics.deadClick(user.id, 'create_post', 'next', step)
+                    setShowNextHint(true)
+                    if (nextHintTimer.current) clearTimeout(nextHintTimer.current)
+                    nextHintTimer.current = setTimeout(() => setShowNextHint(false), 3000)
+                  }}
                   accessible={false}
                 />
               )}
@@ -662,15 +531,22 @@ export default function PostScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {step === 1 && (
-          <StepMedia {...mediaProps} />
+        {step === 1 && showNextHint && !form.canAdvance && (
+          <Text
+            style={styles.nextHint}
+            accessibilityLiveRegion="polite"
+            accessibilityRole="text"
+          >
+            {form.media.length === 0 && form.title.trim().length < 3
+              ? 'Add a photo and a title to continue'
+              : form.media.length === 0
+              ? 'Add a photo to continue'
+              : 'Your title needs at least 3 characters'}
+          </Text>
         )}
-        {step === 2 && (
-          <StepDetails {...detailsProps} />
-        )}
-        {step === 3 && (
-          <StepReview {...reviewProps} />
-        )}
+        {step === 1 && <StepMedia {...mediaProps} />}
+        {step === 2 && <StepDetails {...detailsProps} />}
+        {step === 3 && <StepReview {...reviewProps} />}
       </KeyboardAvoidingView>
       <CreatePostSheets {...sheetProps} />
     </SafeAreaView>

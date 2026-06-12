@@ -15,7 +15,7 @@ import { ArrowLeft } from '@/components/icons'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontSize, fontWeight, lineHeight, letterSpacing } from '@/constants/Typography'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
@@ -142,7 +142,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       fontWeight: fontWeight.medium,
       color: c.text,
       marginBottom: spacing.px10,
-      letterSpacing: -0.3,
+      letterSpacing: letterSpacing.tightHeading,
     },
     subtitle: { fontSize: fontSize.md, color: c.text2, lineHeight: lineHeight.normal, marginBottom: spacing.px28 },
     emailHighlight: { color: c.text, fontWeight: fontWeight.medium },
