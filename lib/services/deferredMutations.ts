@@ -25,7 +25,6 @@ import { isRecord, parseJsonWithGuard } from '@/lib/utils/safeJson'
 
 // Phase 1 scope: saves, likes, follows, settings.
 // Phase 2 (B-239b): message_reaction, conversation_*.
-// place_status deferred — no service implementation yet.
 
 const STORAGE_KEY = 'rekkus:pending-mutations:v1'
 const STORAGE_VERSION = 1

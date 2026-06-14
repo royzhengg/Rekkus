@@ -454,9 +454,12 @@ export async function saveCreatePostDraftAsNew(
   return saveCreatePostDraftRemote(copy, { visible: true, userId: userId ?? draft.userId })
 }
 
-export async function loadCreatePostDraft(id?: string): Promise<CreatePostDraft | null> {
+export type LoadDraftResult = { draft: CreatePostDraft; restaurantCleared: boolean }
+
+export async function loadCreatePostDraft(id?: string): Promise<LoadDraftResult | null> {
   const ownerId = await currentUserId()
   if (ownerId) await migrateLocalDraftsToRemote(ownerId)
+  let draft: CreatePostDraft | null = null
   if (ownerId && id && isUuid(id)) {
     const { data, error } = await supabase.from('post_drafts')
       .select('*, post_draft_media ( * )')
@@ -465,10 +468,22 @@ export async function loadCreatePostDraft(id?: string): Promise<CreatePostDraft 
       .neq('status', 'discarded')
       .neq('status', 'published')
       .single()
-    if (!error && isRemoteDraftRow(data)) return mapRemoteDraft(data)
+    if (!error && isRemoteDraftRow(data)) draft = await mapRemoteDraft(data)
   }
-  const drafts = await readLocalDraftsRaw()
-  return (id ? drafts.find(draft => draft.id === id || draft.remoteId === id) : drafts[0]) ?? null
+  if (!draft) {
+    const drafts = await readLocalDraftsRaw()
+    draft = (id ? drafts.find(d => d.id === id || d.remoteId === id) : drafts[0]) ?? null
+  }
+  if (!draft) return null
+
+  const restaurantId = draft.selectedPlace?.restaurantId
+  if (restaurantId && isUuid(restaurantId)) {
+    const { data } = await supabase.from('restaurants').select('id').eq('id', restaurantId).maybeSingle()
+    if (!data) {
+      return { draft: { ...draft, selectedPlace: null }, restaurantCleared: true }
+    }
+  }
+  return { draft, restaurantCleared: false }
 }
 
 export async function deleteCreatePostDraft(id: string): Promise<void> {
@@ -484,9 +499,9 @@ export async function deleteCreatePostDraft(id: string): Promise<void> {
 }
 
 export async function duplicateCreatePostDraft(id: string): Promise<CreatePostDraft | null> {
-  const draft = await loadCreatePostDraft(id)
-  if (!draft) return null
-  return saveCreatePostDraftAsNew(draft, draft.userId)
+  const result = await loadCreatePostDraft(id)
+  if (!result) return null
+  return saveCreatePostDraftAsNew(result.draft, result.draft.userId)
 }
 
 export async function markCreatePostDraftPublished(id?: string): Promise<void> {

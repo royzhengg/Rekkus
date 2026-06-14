@@ -103,6 +103,13 @@ describe('routes', () => {
       pathname: '/(tabs)/saved',
       params: { section: 'places' },
     })
+    expect(routes.savedPlaces()).toEqual({
+      pathname: '/saved/places',
+    })
+    expect(routes.savedPlaces({ view: 'map' })).toEqual({
+      pathname: '/saved/places',
+      params: { view: 'map' },
+    })
     expect(routes.search('ramen', 'hashtag')).toEqual({
       pathname: '/(tabs)/search',
       params: { query: 'ramen', source: 'hashtag' },

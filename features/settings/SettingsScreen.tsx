@@ -79,6 +79,7 @@ function RowToggle({
         trackColor={{ false: colors.surface2, true: colors.text }}
         thumbColor={colors.bg}
         ios_backgroundColor={colors.surface2}
+        accessibilityLabel={label}
       />
     </View>
   )
@@ -257,6 +258,13 @@ export default function SettingsScreen() {
             label="Allow tags"
             value={settings.allow_tags}
             onValueChange={v => updateSetting('allow_tags', v)}
+          />
+          <Divider />
+          <RowToggle
+            label="Show activity status"
+            sublabel="Let people you message see when you were last active"
+            value={settings.show_activity_status}
+            onValueChange={v => updateSetting('show_activity_status', v)}
           />
         </View>
 

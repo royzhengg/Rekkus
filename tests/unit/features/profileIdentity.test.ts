@@ -37,7 +37,6 @@ function savedLocation(overrides: Partial<SavedLocation>): SavedLocation {
     id: 'saved-1',
     restaurant_id: 'restaurant-1',
     created_at: '2026-06-01T00:00:00Z',
-    save_status: 'want_to_try',
     restaurants: {
       name: 'Saved Spot',
       address: 'Hart St',

@@ -205,11 +205,10 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
   - "Open in Maps" → `RekkusActionSheet` (Apple Maps / Google Maps)
   - Tap map to dismiss card (debounced to avoid marker/map press conflict)
 - Canonical dish detail pages (`/dishes/[dishId]`) show first-party linked-post imagery/evidence, the canonical restaurant, bookmarking, and collection actions; no provider image lookup or free-text canonical guessing.
-- `Saved` is the visible tab destination: overview first, then Dishes, Places, Posts, and Collections drill-ins. `Saved > Places` retains list/map, intent status, permission, and post-visit prompt behaviour.
-- `saved_locations` stores private saved restaurant intent; `saved_dishes` stores private canonical dish bookmarks; post bookmarks remain in `saves`.
+- `Saved` is the visible tab destination: overview first, then Dishes, Places, Posts, and Collections drill-ins. `Saved > Places` retains list/map, collection filtering, permission, and post-visit prompt behaviour.
+- `saved_locations` stores private restaurant bookmarks; `saved_dishes` stores private canonical dish bookmarks; post bookmarks remain in `saves`.
 - Collections organise saved content and can contain canonical dishes, posts, and restaurants. Adding an item ensures its bookmark exists; confirmed unsave removes its collection memberships atomically.
-- Map selected-place card can toggle a saved restaurant between Want to try and Been here.
-- Saves, follows, likes/reactions, saved-place status, reversible conversation preferences, and settings queue their latest desired state offline and replay for the signed-in user after reconnect.
+- Saves, follows, likes/reactions, reversible conversation preferences, and settings queue their latest desired state offline and replay for the signed-in user after reconnect.
 - Posts, edits, comments, messages/attachments, reports/blocks, collection lifecycle changes, account/profile changes, and publishing remain explicit retry-only when offline.
 - `restaurants` table with canonical Rekkus IDs plus first-party provenance, verification status, source/alias/cache/observation/audit tables, and user-created restaurant RPC for self-reliant restaurant identity.
 - `food_rating`, `vibe_rating`, `cost_rating` columns on `posts` table (migration `20240110000000_post_ratings.sql`)

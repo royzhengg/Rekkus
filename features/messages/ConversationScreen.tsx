@@ -255,7 +255,7 @@ export default function ConversationScreen() {
     if (!user) return
     const subscription = AppState.addEventListener('change', state => {
       if (state === 'active') {
-        updateLastSeen(user.id)
+        void updateLastSeen(user.id)
       }
     })
     return () => subscription.remove()

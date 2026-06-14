@@ -7,7 +7,7 @@ jest.mock('@/lib/supabase', () => ({
 }))
 
 describe('service-boundary normalisation', () => {
-  it('defaults legacy saved locations to want_to_try while preserving joined details', () => {
+  it('normalizes saved locations without intent status while preserving joined details', () => {
     expect(normalizeSavedLocations([{
       id: 'save-1',
       restaurant_id: 'restaurant-1',
@@ -23,7 +23,6 @@ describe('service-boundary normalisation', () => {
       id: 'save-1',
       restaurant_id: 'restaurant-1',
       created_at: '2026-05-25T00:00:00.000Z',
-      save_status: 'want_to_try',
       restaurants: {
         name: 'Noodle House',
         address: null,

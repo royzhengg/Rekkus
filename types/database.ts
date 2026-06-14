@@ -2411,7 +2411,6 @@ export type Database = {
           created_at: string
           id: string
           restaurant_id: string
-          save_status: string
           updated_at: string
           user_id: string
         }
@@ -2419,7 +2418,6 @@ export type Database = {
           created_at?: string
           id?: string
           restaurant_id: string
-          save_status?: string
           updated_at?: string
           user_id: string
         }
@@ -2427,7 +2425,6 @@ export type Database = {
           created_at?: string
           id?: string
           restaurant_id?: string
-          save_status?: string
           updated_at?: string
           user_id?: string
         }

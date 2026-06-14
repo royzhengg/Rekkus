@@ -97,4 +97,4 @@ The re-fetch is guarded by the existing `useFocusEffect` + `useCallback([userId]
 
 ### Phase split rationale (B-239 vs B-239b)
 
-Phase 1 enrolls only reversible, idempotent, non-content-bearing mutations: saves, likes, follows, settings. Phase 2 (message reactions, conversation prefs, place_status) is deferred to B-239b because those operations require more nuanced conflict resolution (conversation state is relational, not last-write-wins) and the messaging surface has higher privacy sensitivity. Phase 2 screens fall back to `requireOnline()` gate + immediate service call.
+Phase 1 enrolls only reversible, idempotent, non-content-bearing mutations: saves, likes, follows, settings. Phase 2 (message reactions, conversation prefs) is deferred to B-239b because those operations require more nuanced conflict resolution (conversation state is relational, not last-write-wins) and the messaging surface has higher privacy sensitivity. Phase 2 screens fall back to `requireOnline()` gate + immediate service call.

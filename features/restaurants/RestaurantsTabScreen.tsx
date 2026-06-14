@@ -23,7 +23,6 @@ import { DARK_MAP_STYLE } from '@/constants/mapStyles'
 import { analytics } from '@/lib/analytics'
 import { SPRING_CARD } from '@/lib/animations'
 import { useAuth } from '@/lib/contexts/AuthContext'
-import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors, useIsDarkMode } from '@/lib/contexts/ThemeContext'
 import { useCollections } from '@/lib/hooks/useCollections'
 import { usePostVisitPrompt } from '@/lib/hooks/usePostVisitPrompt'
@@ -31,7 +30,6 @@ import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { useSavedLocations, type SavedLocation } from '@/lib/hooks/useSavedLocations'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
 import { routes } from '@/lib/routes'
-import { updateSavedLocationStatus } from '@/lib/services/collections'
 import {
   fetchRestaurantProviderDetail,
   getRestaurantProviderPhotoUrl,
@@ -43,7 +41,6 @@ import type { PlaceDetail } from './restaurantTypes'
 
 type PlaceFilter =
   | { type: 'all'; id: 'all'; label: string }
-  | { type: 'status'; id: 'want_to_try' | 'been_here'; label: string }
   | { type: 'collection'; id: string; label: string }
 function groupAlpha(locations: SavedLocation[]): { letter: string; items: SavedLocation[] }[] {
   const sorted = [...locations].sort((a, b) =>
@@ -84,10 +81,14 @@ const LocationRow = React.memo(function LocationRow({
     </TouchableOpacity>
   )
 })
-export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => void }) {
+type PlacesScreenProps = {
+  initialView?: 'list' | 'map'
+  onBackToSaved?: () => void
+}
+
+export default function PlacesScreen({ initialView = 'list', onBackToSaved }: PlacesScreenProps) {
   const router = useRouter()
   const { user } = useAuth()
-  const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const reduceMotion = useReducedMotion()
   const isDark = useIsDarkMode()
@@ -104,7 +105,7 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
   const visitPrompt = usePostVisitPrompt(savedLocations, gps)
   const [dismissedPromptId, setDismissedPromptId] = useState<string | null>(null)
   const activePrompt = visitPrompt && visitPrompt.restaurant_id !== dismissedPromptId ? visitPrompt : null
-  const [placesView, setPlacesView] = useState<'list' | 'map'>('list')
+  const [placesView, setPlacesView] = useState<'list' | 'map'>(initialView)
   const [sortBy, setSortBy] = useState<'alpha' | 'recent' | 'oldest'>('alpha')
   const [activeFilter, setActiveFilter] = useState<PlaceFilter>({
     type: 'all',
@@ -155,8 +156,6 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
   const filterOptions = useMemo<PlaceFilter[]>(
     () => [
       { type: 'all', id: 'all', label: 'All' },
-      { type: 'status', id: 'want_to_try', label: 'Want to try' },
-      { type: 'status', id: 'been_here', label: 'Been here' },
       ...collections.map(c => ({ type: 'collection' as const, id: c.id, label: c.name })),
     ],
     [collections]
@@ -164,9 +163,6 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
 
   const filteredLocations = useMemo(() => {
     if (activeFilter.type === 'all') return savedLocations
-    if (activeFilter.type === 'status') {
-      return savedLocations.filter(loc => (loc.save_status ?? 'want_to_try') === activeFilter.id)
-    }
     const restaurantIdsInCollection = new Set(
       collectionItems
         .filter(item => item.collection_id === activeFilter.id && item.target_type === 'restaurant')
@@ -267,27 +263,6 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
     await refresh()
     await refreshCollections()
   }, [refresh, refreshCollections])
-
-  const toggleSelectedStatus = useCallback(async () => {
-    if (!selectedLocation) return
-    const next =
-      (selectedLocation.save_status ?? 'want_to_try') === 'been_here'
-        ? 'want_to_try'
-        : 'been_here'
-    if (!requireOnline()) return
-    try {
-      const error = await updateSavedLocationStatus(selectedLocation.id, next)
-      if (error) throw new Error(error)
-      setSelectedLocation({ ...selectedLocation, save_status: next })
-      analytics.collectionInteraction(user?.id ?? null, 'saved_location_status_changed', undefined, {
-        status: next,
-        restaurant_id: selectedLocation.restaurant_id,
-      })
-      void refreshAll()
-    } catch {
-      // Silently ignore — status can be retried; offline guard above prevents silent data loss
-    }
-  }, [refreshAll, requireOnline, selectedLocation, user?.id])
 
   const navigateTo = useCallback(
     (loc: SavedLocation) => { navigateToRestaurant(router, loc) },
@@ -581,7 +556,6 @@ export default function PlacesScreen({ onBackToSaved }: { onBackToSaved?: () => 
                 pinLoading={pinLoading}
                 pinPhoto={pinPhoto}
                 pinDetail={pinDetail}
-                toggleSelectedStatus={toggleSelectedStatus}
                 navigateTo={navigateTo}
                 openInMaps={openInMaps}
               />

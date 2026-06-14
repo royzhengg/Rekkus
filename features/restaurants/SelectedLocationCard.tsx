@@ -18,7 +18,6 @@ type Props = {
   pinLoading: boolean
   pinPhoto: string
   pinDetail: PlaceDetail | null
-  toggleSelectedStatus: () => void
   navigateTo: (loc: SavedLocation) => void
   openInMaps: (loc: SavedLocation) => void
 }
@@ -31,13 +30,12 @@ export function SelectedLocationCard({
   pinLoading,
   pinPhoto,
   pinDetail,
-  toggleSelectedStatus,
   navigateTo,
   openInMaps,
 }: Props) {
   const todayText = pinDetail?.opening_hours?.weekday_text?.[todayHoursIndex()]
-  const saveStatus = selectedLocation?.save_status ?? 'want_to_try'
   const phoneNumber = pinDetail?.formatted_phone_number
+  const hasMeta = pinDetail?.rating != null || pinDetail?.opening_hours?.open_now != null
 
   return (
     <Animated.View style={[styles.locationCard, cardStyle]} pointerEvents={selectedLocation ? 'auto' : 'none'}>
@@ -45,11 +43,12 @@ export function SelectedLocationCard({
       {pinLoading && <ActivityIndicator size="small" color={colors.text3} style={{ marginBottom: spacing[1] }} />}
       {!!pinPhoto && <CachedImage source={{ uri: pinPhoto }} style={styles.cardPhoto} />}
       <Text style={styles.cardName} numberOfLines={1}>{selectedLocation?.restaurants?.name}</Text>
-      <View style={styles.cardMeta}>
-        <Text style={styles.cardMetaText}>{saveStatus === 'been_here' ? 'Been here' : 'Want to try'}</Text>
-        {pinDetail?.rating != null && <Text style={styles.cardMetaText}>⭐ {pinDetail.rating.toFixed(1)}</Text>}
-        {pinDetail?.opening_hours?.open_now != null && <OpenBadge openNow={pinDetail.opening_hours.open_now} />}
-      </View>
+      {hasMeta ? (
+        <View style={styles.cardMeta}>
+          {pinDetail?.rating != null && <Text style={styles.cardMetaText}>⭐ {pinDetail.rating.toFixed(1)}</Text>}
+          {pinDetail?.opening_hours?.open_now != null && <OpenBadge openNow={pinDetail.opening_hours.open_now} />}
+        </View>
+      ) : null}
       {todayText ? <Text style={styles.cardHours} numberOfLines={1}>{todayText}</Text> : null}
       {!!phoneNumber && (
         <TouchableOpacity style={styles.cardPhoneRow} onPress={() => Linking.openURL(`tel:${phoneNumber.replace(/\s/g, '')}`)}>
@@ -58,9 +57,6 @@ export function SelectedLocationCard({
         </TouchableOpacity>
       )}
       <View style={styles.cardActions}>
-        <TouchableOpacity style={styles.cardBtnSecondary} onPress={toggleSelectedStatus} accessibilityRole="button">
-          <Text style={styles.cardBtnSecondaryText}>{saveStatus === 'been_here' ? 'Mark want' : 'Mark been'}</Text>
-        </TouchableOpacity>
         <TouchableOpacity style={styles.cardBtnPrimary} onPress={() => selectedLocation && navigateTo(selectedLocation)} accessibilityRole="button">
           <Text style={styles.cardBtnPrimaryText}>View details</Text>
         </TouchableOpacity>

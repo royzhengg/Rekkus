@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { isCoolingDown } from '@/lib/utils/cooldown'
 
-type EntityType = 'restaurant' | 'post' | 'user' | 'collection' | 'dish'
+type EntityType = 'place' | 'post' | 'user' | 'collection' | 'dish'
 
 type EventPayload = {
   event_type: string
@@ -13,11 +13,11 @@ type EventPayload = {
 }
 
 type ProviderCacheState = 'hit' | 'miss' | 'deduped' | 'blocked' | 'error'
-type RestaurantSelectionSource = 'nearby' | 'prediction'
+type PlaceSelectionSource = 'nearby' | 'prediction'
 export type SearchAttribution = {
   searchSessionId: string
   query: string
-  resultType: 'post' | 'restaurant' | 'user' | 'dish'
+  resultType: 'post' | 'place' | 'user' | 'dish'
   resultPosition: number
 }
 
@@ -228,73 +228,73 @@ export const analytics = {
   // Place events
   viewPlace: (
     userId: string | null,
-    restaurantId: string,
+    placeId: string,
     query?: string,
     cuisineType?: string | null,
     attribution?: SearchAttribution | null
   ): void =>
     void track(userId, {
       event_type: 'place_view',
-      entity_type: 'restaurant',
-      entity_id: restaurantId,
+      entity_type: 'place',
+      entity_id: placeId,
       metadata: { query, cuisine_type: cuisineType, ...searchAttributionMetadata(attribution) },
     }),
 
-  clickPlace: (userId: string | null, restaurantId: string): void =>
+  clickPlace: (userId: string | null, placeId: string): void =>
     void track(userId, {
       event_type: 'place_click',
-      entity_type: 'restaurant',
-      entity_id: restaurantId,
+      entity_type: 'place',
+      entity_id: placeId,
     }),
 
   savePlace: (
     userId: string,
-    restaurantId: string,
+    placeId: string,
     cuisineType?: string | null,
     attribution?: SearchAttribution | null
   ): void =>
     void track(userId, {
       event_type: 'place_save',
-      entity_type: 'restaurant',
-      entity_id: restaurantId,
+      entity_type: 'place',
+      entity_id: placeId,
       metadata: { cuisine_type: cuisineType, ...searchAttributionMetadata(attribution) },
     }),
 
-  revisitPlace: (userId: string | null, restaurantId: string, source: string): void =>
+  revisitPlace: (userId: string | null, placeId: string, source: string): void =>
     void track(userId, {
-      event_type: 'restaurant_revisit',
-      entity_type: 'restaurant',
-      entity_id: restaurantId,
+      event_type: 'place_revisit',
+      entity_type: 'place',
+      entity_id: placeId,
       metadata: { source },
     }),
 
-  restaurantSearchTermEntered: (userId: string | null, query: string): void =>
+  placeSearchTermEntered: (userId: string | null, query: string): void =>
     void track(userId, {
       event_type: 'search_term_entered',
       metadata: { query },
     }),
 
-  restaurantSearchZeroResults: (userId: string | null, query: string): void =>
+  placeSearchZeroResults: (userId: string | null, query: string): void =>
     void track(userId, {
-      event_type: 'restaurant_search_zero_results',
+      event_type: 'place_search_zero_results',
       metadata: { query },
     }),
 
-  restaurantSelected: (
+  placeSelected: (
     userId: string | null,
-    placeId: string,
-    source: RestaurantSelectionSource,
-    restaurantId?: string | null,
+    googlePlaceId: string,
+    source: PlaceSelectionSource,
+    placeId?: string | null,
     cuisineType?: string | null
   ): void =>
     void track(userId, {
-      event_type: 'restaurant_selected',
-      entity_type: 'restaurant',
-      ...(restaurantId ? { entity_id: restaurantId } : {}),
+      event_type: 'place_selected',
+      entity_type: 'place',
+      ...(placeId ? { entity_id: placeId } : {}),
       metadata: {
-        place_id: placeId,
+        place_id: googlePlaceId,
         source,
-        restaurant_id: restaurantId,
+        restaurant_id: placeId,
         cuisine_type: cuisineType,
       },
     }),
@@ -343,7 +343,7 @@ export const analytics = {
 
   searchResultClick: (
     userId: string | null,
-    resultType: 'post' | 'restaurant' | 'user' | 'dish',
+    resultType: 'post' | 'place' | 'user' | 'dish',
     entityId: string,
     query: string,
     position: number,
@@ -351,7 +351,7 @@ export const analytics = {
   ): void =>
     void track(userId, {
       event_type: 'search_result_click',
-      entity_type: resultType === 'restaurant' ? 'restaurant' : resultType,
+      entity_type: resultType === 'place' ? 'place' : resultType,
       entity_id: entityId,
       metadata: {
         query,
@@ -546,7 +546,7 @@ export const analytics = {
       },
     }),
 
-  restaurantTaggingGoogleFallbackUsed: (
+  placeTaggingGoogleFallbackUsed: (
     userId: string | null,
     query: string,
     queryIntent: string,
@@ -565,7 +565,7 @@ export const analytics = {
       },
     }),
 
-  restaurantTaggingGoogleFallbackSuppressed: (
+  placeTaggingGoogleFallbackSuppressed: (
     userId: string | null,
     query: string,
     queryIntent: string,
@@ -782,7 +782,7 @@ export const analytics = {
     }
     void track(userId, {
       event_type: eventTypeByStatus[cacheStatus],
-      entity_type: 'restaurant',
+      entity_type: 'place',
       sampleRate: userId ? 1 : 0.1,
       metadata: {
         provider,

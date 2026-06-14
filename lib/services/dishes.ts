@@ -42,6 +42,10 @@ function parseDishRow(value: unknown): DishRow | null {
   }
 }
 
+export function mapRowToDish(row: DishRow): DishDetail {
+  return normalizeDish(row)
+}
+
 function normalizeDish(row: DishRow): DishDetail {
   const restaurant = row.restaurants
   return {

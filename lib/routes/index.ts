@@ -1,9 +1,9 @@
 // Typed route builders for Expo Router. All dynamic route construction lives here
 // so a route rename or param change is caught in one place, not scattered across features.
 
-export interface RestaurantDetailParams {
-  restaurantId: string
-  placeId?: string
+export interface PlaceDetailParams {
+  placeId: string
+  googlePlaceId?: string
   name?: string
   address?: string
   lat?: string | number
@@ -29,9 +29,9 @@ export interface DishDetailParams extends SearchAttributionRouteParams {
   dishId: string
 }
 
-export interface RestaurantMapParams {
-  restaurantId: string
-  placeId?: string
+export interface PlaceMapParams {
+  placeId: string
+  googlePlaceId?: string
   name?: string
   lat?: string
   lng?: string
@@ -45,6 +45,10 @@ export interface RestaurantMapParams {
   todayHours?: string
 }
 
+export interface SavedPlacesParams {
+  view?: 'list' | 'map'
+}
+
 export interface CreatePostParams {
   intent?: string
   postId?: string
@@ -54,8 +58,8 @@ export interface CreatePostParams {
   prefillAddress?: string
   prefillLat?: string
   prefillLng?: string
+  prefillGooglePlaceId?: string
   prefillPlaceId?: string
-  prefillRestaurantId?: string
 }
 
 export interface MessageShareParams {
@@ -126,16 +130,21 @@ export const routes = {
     params: { section },
   }),
 
+  savedPlaces: (opts: SavedPlacesParams = {}) => ({
+    pathname: '/saved/places' as const,
+    ...(opts.view !== undefined ? { params: { view: opts.view } } : {}),
+  }),
+
   collectionDetail: (collectionId: string) => ({
     pathname: '/collections/[collectionId]' as const,
     params: { collectionId },
   }),
 
-  restaurantDetail: (opts: RestaurantDetailParams) => ({
-    pathname: '/restaurants/[restaurantId]' as const,
+  placeDetail: (opts: PlaceDetailParams) => ({
+    pathname: '/places/[placeId]' as const,
     params: {
-      restaurantId: opts.restaurantId,
-      placeId: opts.placeId ?? 'none',
+      placeId: opts.placeId,
+      googlePlaceId: opts.googlePlaceId ?? 'none',
       name: opts.name ?? '',
       address: opts.address ?? '',
       lat: String(opts.lat ?? ''),
@@ -144,11 +153,11 @@ export const routes = {
     },
   }),
 
-  restaurantMap: (opts: RestaurantMapParams) => ({
-    pathname: '/restaurants/[restaurantId]/map' as const,
+  placeMap: (opts: PlaceMapParams) => ({
+    pathname: '/places/[placeId]/map' as const,
     params: {
-      restaurantId: opts.restaurantId,
-      placeId: opts.placeId ?? '',
+      placeId: opts.placeId,
+      googlePlaceId: opts.googlePlaceId ?? '',
       name: opts.name ?? '',
       lat: opts.lat ?? '',
       lng: opts.lng ?? '',

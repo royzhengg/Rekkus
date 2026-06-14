@@ -9,19 +9,22 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight } from '@/constants/Typography'
-import RestaurantsTabScreen from '@/features/restaurants/RestaurantsTabScreen'
+import { fontSize, fontWeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { useCollections } from '@/lib/hooks/useCollections'
-import { useSavedDishes } from '@/lib/hooks/useSavedDishes'
-import { useSavedLocations } from '@/lib/hooks/useSavedLocations'
-import { useSavedPosts } from '@/lib/hooks/useSavedPosts'
 import { routes } from '@/lib/routes'
-import { createPrivateCollection, updateCollectionVisibility, type Collection, type CollectionVisibility } from '@/lib/services/collections'
+import {
+  createPrivateCollection,
+  updateCollectionVisibility,
+  type Collection,
+  type CollectionVisibility,
+} from '@/lib/services/collections'
 import type { SavedLibrarySection } from '@/types/domain'
+import { SavedLibraryOverview } from './SavedLibraryOverview'
+import { useSavedLibrary } from './useSavedLibrary'
+import type { SavedLibraryScope } from './savedLibrary'
 
 const VISIBILITY_LABELS: Record<CollectionVisibility, string> = {
   private: 'Private',
@@ -36,7 +39,7 @@ const VISIBILITY_DESCRIPTIONS: Record<CollectionVisibility, string> = {
 }
 
 function parseSection(value: string | undefined): SavedLibrarySection {
-  return value === 'dishes' || value === 'places' || value === 'posts' || value === 'collections'
+  return value === 'dishes' || value === 'posts' || value === 'collections'
     ? value
     : 'overview'
 }
@@ -49,19 +52,15 @@ export default function SavedScreen() {
   const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  const dishes = useSavedDishes(user?.id)
-  const posts = useSavedPosts(user?.id)
-  const locations = useSavedLocations(user?.id)
-  const collections = useCollections(user?.id, [])
+  const [query, setQuery] = useState('')
+  const [scope, setScope] = useState<SavedLibraryScope>('all')
+  const library = useSavedLibrary(user?.id, scope, query)
+  const { collections, raw } = library
   const [newCollectionName, setNewCollectionName] = useState('')
   const [creating, setCreating] = useState(false)
   const [operationError, setOperationError] = useState<string | null>(null)
   const [visibilitySheetCollection, setVisibilitySheetCollection] = useState<Collection | null>(null)
   const [updatingVisibility, setUpdatingVisibility] = useState<Set<string>>(new Set())
-
-  if (section === 'places') {
-    return <RestaurantsTabScreen onBackToSaved={() => router.replace(routes.saved())} />
-  }
 
   async function createCollection() {
     if (!user?.id || !newCollectionName.trim()) return
@@ -75,7 +74,7 @@ export default function SavedScreen() {
       const collection = await createPrivateCollection(user.id, newCollectionName)
       analytics.collectionInteraction(user.id, 'create', collection.id)
       setNewCollectionName('')
-      await collections.refresh()
+      await raw.collections.refresh()
     } catch {
       setOperationError('Could not create that collection.')
     }
@@ -89,7 +88,7 @@ export default function SavedScreen() {
     try {
       await updateCollectionVisibility(collection.id, visibility)
       analytics.collectionInteraction(user.id, 'visibility_change', collection.id, { visibility })
-      await collections.refresh()
+      await raw.collections.refresh()
     } catch {
       setOperationError('Could not update visibility.')
     }
@@ -100,33 +99,36 @@ export default function SavedScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        {section === 'overview' ? null : (
+      {section === 'overview' ? null : (
+        <View style={styles.header}>
           <TouchableOpacity style={styles.back} onPress={() => router.replace(routes.saved())} accessibilityRole="button">
-            <Text style={styles.backText}>Saved</Text>
+            <Text style={styles.backText} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>Saved</Text>
           </TouchableOpacity>
-        )}
-        <Text style={styles.title}>{title}</Text>
-      </View>
+          <Text style={styles.title} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>{title}</Text>
+        </View>
+      )}
       {operationError ? <ErrorMessage message={operationError} style={styles.error} /> : null}
       {section === 'overview' ? (
-        <ScrollView contentContainerStyle={styles.overview}>
-          <Text style={styles.subtitle}>All the dishes, places, posts, and collections you want to return to.</Text>
-          <LibraryCard label="Dishes" count={dishes.savedDishes.length} onPress={() => router.push(routes.saved('dishes'))} styles={styles} />
-          <LibraryCard label="Places" count={locations.savedLocations.length} onPress={() => router.push(routes.saved('places'))} styles={styles} />
-          <LibraryCard label="Posts" count={posts.savedPosts.length} onPress={() => router.push(routes.saved('posts'))} styles={styles} />
-          <LibraryCard label="Collections" count={collections.collections.length} onPress={() => router.push(routes.saved('collections'))} styles={styles} />
-        </ScrollView>
+        <SavedLibraryOverview
+          library={library}
+          query={query}
+          scope={scope}
+          requireOnline={requireOnline}
+          setOperationError={setOperationError}
+          setQuery={setQuery}
+          setScope={setScope}
+          visibilityLabels={VISIBILITY_LABELS}
+        />
       ) : section === 'dishes' ? (
-        dishes.loading ? (
+        raw.dishes.loading ? (
           <EmptyState loading title="Loading saved dishes" />
-        ) : dishes.error ? (
-          <ErrorMessage message={dishes.error} style={styles.error} />
-        ) : dishes.savedDishes.length === 0 ? (
+        ) : raw.dishes.error ? (
+          <ErrorMessage message={raw.dishes.error} style={styles.error} />
+        ) : raw.dishes.savedDishes.length === 0 ? (
           <EmptyState title="No saved dishes yet" subtitle="Bookmark a dish page to keep it here." icon={<BookmarkIcon size={24} />} />
         ) : (
           <ScrollView contentContainerStyle={styles.list}>
-            {dishes.savedDishes.map(dish => (
+            {raw.dishes.savedDishes.map(dish => (
               <TouchableOpacity
                 key={dish.id}
                 style={styles.row}
@@ -135,8 +137,8 @@ export default function SavedScreen() {
               >
                 <ImagePlaceholder size={22} />
                 <View style={styles.rowBody}>
-                  <Text style={styles.rowTitle}>{dish.name}</Text>
-                  {dish.restaurant ? <Text style={styles.rowSubtitle}>{dish.restaurant.name}</Text> : null}
+                  <Text style={styles.rowTitle} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>{dish.name}</Text>
+                  {dish.restaurant ? <Text style={styles.rowSubtitle} maxFontSizeMultiplier={maxFontSizeMultiplier.body}>{dish.restaurant.name}</Text> : null}
                 </View>
                 <ChevronRight />
               </TouchableOpacity>
@@ -144,25 +146,26 @@ export default function SavedScreen() {
           </ScrollView>
         )
       ) : section === 'posts' ? (
-        posts.loading ? (
+        raw.posts.loading ? (
           <EmptyState loading title="Loading saved posts" />
-        ) : posts.error ? (
-          <ErrorMessage message={posts.error} style={styles.error} />
-        ) : posts.savedPosts.length === 0 ? (
+        ) : raw.posts.error ? (
+          <ErrorMessage message={raw.posts.error} style={styles.error} />
+        ) : raw.posts.savedPosts.length === 0 ? (
           <EmptyState title="No saved posts yet" subtitle="Bookmark reviews to find them here." icon={<BookmarkIcon size={24} />} />
         ) : (
           <ThumbGrid
-            posts={posts.savedPosts}
-            hasMore={posts.hasMore}
-            loadingMore={posts.loadingMore}
-            onLoadMore={() => { void posts.loadMore() }}
+            posts={raw.posts.savedPosts}
+            hasMore={raw.posts.hasMore}
+            loadingMore={raw.posts.loadingMore}
+            onLoadMore={() => { void raw.posts.loadMore() }}
             onPressPost={post => router.push(routes.postDetail(post.dbId))}
+            showLocation
           />
         )
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
           <View style={styles.createCard}>
-            <Text style={styles.createTitle}>New private collection</Text>
+            <Text style={styles.createTitle} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>New private collection</Text>
             <TextInput
               value={newCollectionName}
               onChangeText={setNewCollectionName}
@@ -182,14 +185,14 @@ export default function SavedScreen() {
               {creating ? <ActivityIndicator color={colors.bg} /> : (
                 <>
                   <PlusIcon size={17} color={colors.bg} />
-                  <Text style={styles.createButtonText}>Create</Text>
+                  <Text style={styles.createButtonText} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>Create</Text>
                 </>
               )}
             </TouchableOpacity>
           </View>
-          {collections.collections.length === 0 ? (
+          {collections.length === 0 ? (
             <EmptyState title="No collections yet" subtitle="Create one to organise saved dishes, posts, and places." />
-          ) : collections.collections.map(collection => (
+          ) : collections.map(collection => (
             <TouchableOpacity
               key={collection.id}
               style={styles.row}
@@ -197,8 +200,8 @@ export default function SavedScreen() {
               accessibilityRole="button"
             >
               <View style={styles.rowBody}>
-                <Text style={styles.rowTitle}>{collection.name}</Text>
-                <Text style={styles.rowSubtitle}>{VISIBILITY_LABELS[collection.visibility]}</Text>
+                <Text style={styles.rowTitle} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>{collection.name}</Text>
+                <Text style={styles.rowSubtitle} maxFontSizeMultiplier={maxFontSizeMultiplier.body}>{VISIBILITY_LABELS[collection.visibility]}</Text>
               </View>
               {updatingVisibility.has(collection.id) ? (
                 <ActivityIndicator size="small" style={styles.visibilityLoader} />
@@ -210,7 +213,7 @@ export default function SavedScreen() {
                   accessibilityLabel={`Visibility: ${VISIBILITY_LABELS[collection.visibility]}. Tap to change.`}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={styles.visibilityBadgeText}>{VISIBILITY_LABELS[collection.visibility]}</Text>
+                  <Text style={styles.visibilityBadgeText} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>{VISIBILITY_LABELS[collection.visibility]}</Text>
                 </TouchableOpacity>
               )}
               <ChevronRight />
@@ -237,28 +240,6 @@ export default function SavedScreen() {
   )
 }
 
-function LibraryCard({
-  label,
-  count,
-  onPress,
-  styles,
-}: {
-  label: string
-  count: number
-  onPress: () => void
-  styles: ReturnType<typeof makeStyles>
-}) {
-  return (
-    <TouchableOpacity style={styles.card} onPress={onPress} accessibilityRole="button">
-      <View>
-        <Text style={styles.cardTitle}>{label}</Text>
-        <Text style={styles.cardCount}>{count} saved</Text>
-      </View>
-      <ChevronRight />
-    </TouchableOpacity>
-  )
-}
-
 function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
@@ -273,21 +254,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     back: { position: 'absolute', left: spacing[4], minHeight: 44, justifyContent: 'center' },
     backText: { fontSize: fontSize.md, color: c.text2 },
     title: { fontSize: fontSize.lg, fontWeight: fontWeight.medium, color: c.text },
-    overview: { padding: spacing[4], gap: spacing[3] },
-    subtitle: { color: c.text2, fontSize: fontSize.base, marginBottom: spacing[2] },
-    card: {
-      minHeight: 76,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: spacing[4],
-      borderRadius: radius.lg2,
-      borderWidth: spacing.hairline,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-    },
-    cardTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: c.text },
-    cardCount: { fontSize: fontSize.bodySm, color: c.text3, marginTop: spacing[1] },
     list: { padding: spacing[4], gap: spacing[2], flexGrow: 1 },
     row: {
       minHeight: 64,

@@ -261,7 +261,7 @@ describe('StepMedia location nudge', () => {
     render(<StepMedia {...defaultProps} />)
 
     expect(screen.getByText('Nearby')).toBeTruthy()
-    expect(screen.getByText('Sydney')).toBeTruthy()
+    expect(screen.getByText('Further away')).toBeTruthy()
   })
 
   it('renders distance section headers for nearby restaurants', () => {

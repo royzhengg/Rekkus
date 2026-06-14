@@ -20,7 +20,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { BellIcon, BookmarkIcon, HeartIcon, MessageIcon, ShareIcon } from '@/components/icons'
+import { BellIcon, BookmarkIcon, HeartIcon, MessageIcon, PlusIcon, ShareIcon } from '@/components/icons'
 import { PostCard as RekkusPostCard } from '@/components/post/PostCard'
 import { PostCardSkeleton } from '@/components/post/PostCardSkeleton'
 import { PostUploadProgress } from '@/components/post/PostUploadProgress'
@@ -37,6 +37,7 @@ import { SPRING_SNAPPY } from '@/lib/animations'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
+import { useCreateLauncher } from '@/lib/contexts/CreateLauncherContext'
 import { usePosts } from '@/lib/contexts/PostsContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { demoUsers, demoCurrentUser } from '@/lib/dataSources/demoData'
@@ -56,6 +57,7 @@ export default function FeedScreen() {
   const { user } = useAuth()
   const { requireAuth } = useAuthGate()
   const { runDeferredMutation } = useConnectivity()
+  const { openCreateLauncher } = useCreateLauncher()
   const [longPressPost, setLongPressPost] = useState<Post | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [showNewUserNudge, setShowNewUserNudge] = useState(false)
@@ -232,6 +234,9 @@ export default function FeedScreen() {
           </IconButton>
           <IconButton accessibilityLabel="Open alerts" onPress={() => router.push('/(tabs)/alerts')}>
             <BellIcon />
+          </IconButton>
+          <IconButton accessibilityLabel="Create post" onPress={openCreateLauncher}>
+            <PlusIcon size={18} />
           </IconButton>
         </View>
       </View>

@@ -81,6 +81,57 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+type RestaurantRpcRow = {
+  id: string
+  name: string
+  google_place_id: string | null
+  latitude: number | null
+  longitude: number | null
+  cuisine_type: string | null
+  city: string | null
+  address: string | null
+  suburb?: string | null
+  rank?: number | null
+  distance_km?: number | null
+}
+
+export function mapRestaurantRpcRowToPrediction(
+  r: RestaurantRpcRow,
+  userLocation?: { lat: number; lng: number } | null
+): Prediction {
+  const lat = r.latitude ?? 0
+  const lng = r.longitude ?? 0
+  const distanceKm: number | undefined =
+    r.distance_km != null
+      ? r.distance_km
+      : userLocation && lat && lng
+        ? haversineKm(userLocation.lat, userLocation.lng, lat, lng)
+        : undefined
+  const secondaryParts = [r.cuisine_type, r.suburb ?? r.city, r.address].filter(Boolean).slice(0, 3)
+  if (distanceKm !== undefined) {
+    secondaryParts.push(distanceKm < 1 ? Math.round(distanceKm * 1000) + 'm' : distanceKm.toFixed(1) + 'km')
+  }
+  return {
+    place_id: r.google_place_id ?? r.id,
+    description: r.name,
+    structured_formatting: { main_text: r.name, secondary_text: secondaryParts.join(' · ') },
+    types: ['restaurant'],
+    source: 'rekkus',
+    score: Number(r.rank ?? 0) + 10,
+    ...(distanceKm !== undefined ? { distanceKm } : {}),
+    distanceGroup: distanceGroupForPrediction(distanceKm, 'rekkus'),
+    dbDetails: {
+      restaurantId: r.id,
+      lat,
+      lng,
+      address: r.address ?? '',
+      suburb: r.suburb ?? null,
+      city: r.city ?? null,
+      cuisineType: r.cuisine_type ?? null,
+    },
+  }
+}
+
 export type PlaceDetail = GooglePlaceMetadata
 type FullPlaceDetail = GooglePlaceDetail
 
@@ -160,75 +211,21 @@ export async function searchRestaurantsByText(
     max_results: maxResults,
     ...(userLocation ? { near_lat: userLocation.lat, near_lng: userLocation.lng } : {}),
   })
-  return (data ?? []).map((r) => {
-    const lat = r.latitude ?? 0
-    const lng = r.longitude ?? 0
-    const distanceKm = userLocation && lat && lng
-      ? haversineKm(userLocation.lat, userLocation.lng, lat, lng)
-      : undefined
-    const secondaryParts = [r.cuisine_type, r.suburb ?? r.city, r.address].filter(Boolean).slice(0, 3)
-    if (distanceKm !== undefined) secondaryParts.push(`${distanceKm < 1 ? Math.round(distanceKm * 1000) + 'm' : distanceKm.toFixed(1) + 'km'}`)
-    return {
-      place_id: r.google_place_id ?? r.id,
-      description: r.name,
-      structured_formatting: { main_text: r.name, secondary_text: secondaryParts.join(' · ') },
-      types: ['restaurant'],
-      source: 'rekkus',
-      score: Number(r.rank ?? 0) + 10,
-      ...(distanceKm !== undefined ? { distanceKm } : {}),
-      distanceGroup: distanceGroupForPrediction(distanceKm, 'rekkus'),
-      dbDetails: {
-        restaurantId: r.id,
-        lat,
-        lng,
-        address: r.address ?? '',
-        suburb: r.suburb ?? null,
-        city: r.city ?? null,
-        cuisineType: r.cuisine_type ?? null,
-      },
-    }
-  })
+  return (data ?? []).map((r) => mapRestaurantRpcRowToPrediction(r, userLocation))
 }
 
 export async function fetchNearbyRestaurants(
   location: { lat: number; lng: number },
-  radiusKm = 1
+  radiusKm = 2
 ): Promise<Prediction[]> {
-  const latDelta = radiusKm / 111
-  const lngDelta = radiusKm / (111 * Math.max(Math.cos((location.lat * Math.PI) / 180), 0.01))
-  const { data } = await supabase.rpc('restaurants_in_bounding_box', {
-    min_lat: location.lat - latDelta,
-    max_lat: location.lat + latDelta,
-    min_lng: location.lng - lngDelta,
-    max_lng: location.lng + lngDelta,
-    max_results: 8,
+  // @ts-expect-error -- restaurants_within_radius not yet in generated database types
+  const { data } = await supabase.rpc('restaurants_within_radius', {
+    p_lat: location.lat,
+    p_lng: location.lng,
+    p_radius_metres: radiusKm * 1000,
+    p_max_results: 8,
   })
-  return (data ?? []).map((r) => {
-    const lat = r.latitude ?? 0
-    const lng = r.longitude ?? 0
-    const distanceKm = lat && lng ? haversineKm(location.lat, location.lng, lat, lng) : undefined
-    const secondaryParts = [r.cuisine_type, r.city, r.address].filter(Boolean).slice(0, 3)
-    if (distanceKm !== undefined) secondaryParts.push(`${distanceKm < 1 ? Math.round(distanceKm * 1000) + 'm' : distanceKm.toFixed(1) + 'km'}`)
-    return {
-      place_id: r.google_place_id ?? r.id,
-      description: r.name,
-      structured_formatting: { main_text: r.name, secondary_text: secondaryParts.join(' · ') },
-      types: ['restaurant'],
-      source: 'rekkus',
-      score: 10,
-      ...(distanceKm !== undefined ? { distanceKm } : {}),
-      distanceGroup: distanceGroupForPrediction(distanceKm, 'rekkus'),
-      dbDetails: {
-        restaurantId: r.id,
-        lat,
-        lng,
-        address: r.address ?? '',
-        suburb: null,
-        city: r.city ?? null,
-        cuisineType: r.cuisine_type ?? null,
-      },
-    }
-  })
+  return ((data as RestaurantRpcRow[] | null) ?? []).map((r) => mapRestaurantRpcRowToPrediction(r, location))
 }
 
 export async function fetchPlaceDetails(placeId: string): Promise<FullPlaceDetail | null> {

@@ -10,6 +10,7 @@ import {
   Pressable,
 } from 'react-native'
 import { ImagePlaceholder, PlusIcon, VideoIcon } from '@/components/icons'
+import { LocationTag } from '@/components/LocationTag'
 import { CachedImage } from '@/components/ui/CachedImage'
 import { imgColors } from '@/constants/Colors'
 import { radius } from '@/constants/Radius'
@@ -25,6 +26,7 @@ type Props = {
   loadingMore?: boolean
   hasMore?: boolean
   onPressPost?: (post: Post) => void
+  showLocation?: boolean
 }
 
 export const ThumbGrid = React.memo(function ThumbGrid({
@@ -33,6 +35,7 @@ export const ThumbGrid = React.memo(function ThumbGrid({
   loadingMore,
   hasMore,
   onPressPost,
+  showLocation = false,
 }: Props) {
   const c = useThemeColors()
   const reduceMotion = useReducedMotion()
@@ -79,6 +82,11 @@ export const ThumbGrid = React.memo(function ThumbGrid({
                       <PlusIcon size={10} color="#fff" /* check:tokens-ignore */ />
                     )}
                     {mediaCount > 1 && <Text style={styles.badgeText}>{mediaCount}</Text>}
+                  </View>
+                )}
+                {showLocation && !!post.location && (
+                  <View style={styles.locationChip}>
+                    <LocationTag name={post.location} variant="pill" />
                   </View>
                 )}
               </View>
@@ -159,6 +167,12 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: c.surface2,
+    },
+    locationChip: {
+      position: 'absolute',
+      bottom: spacing.px6,
+      left: spacing.px6,
+      right: spacing.px6,
     },
     loadMore: { paddingVertical: spacing[4], alignItems: 'center' },
     loadMoreText: { fontSize: fontSize.base, color: c.text3 },

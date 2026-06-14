@@ -1,6 +1,6 @@
 import { normalizeCuisine } from '@/lib/dataSources/cuisines'
 import type { Collection, CollectionVisibility } from '@/lib/services/collections'
-import type { SavedLocation } from '@/lib/services/restaurants'
+import type { SavedPlace } from '@/lib/services/places'
 import type { Post } from '@/types/domain'
 
 export type ProfileInterest = {
@@ -152,7 +152,7 @@ export function deriveReviewedRestaurants(posts: ProfilePost[]): ProfileRestaura
 
 export function deriveTopRestaurants(
   reviewedRestaurants: ProfileRestaurant[],
-  savedLocations: SavedLocation[],
+  savedPlaces: SavedPlace[],
   limit = 3
 ): ProfileRestaurant[] {
   const reviewed = [...reviewedRestaurants].sort((a, b) =>
@@ -164,19 +164,19 @@ export function deriveTopRestaurants(
   const selected = reviewed.slice(0, limit)
   const seen = new Set(selected.map(restaurantRouteId))
 
-  for (const saved of savedLocations) {
+  for (const saved of savedPlaces) {
     if (selected.length >= limit) break
-    const savedRestaurant = saved.restaurants
-    if (!savedRestaurant) continue
-    const id = savedRestaurant.google_place_id ?? saved.restaurant_id
+    const savedPlace = saved.places
+    if (!savedPlace) continue
+    const id = savedPlace.google_place_id ?? saved.place_id
     if (seen.has(id)) continue
     selected.push({
-      id: saved.restaurant_id,
-      name: savedRestaurant.name,
-      address: savedRestaurant.address,
-      lat: savedRestaurant.latitude,
-      lng: savedRestaurant.longitude,
-      placeId: savedRestaurant.google_place_id,
+      id: saved.place_id,
+      name: savedPlace.name,
+      address: savedPlace.address,
+      lat: savedPlace.latitude,
+      lng: savedPlace.longitude,
+      placeId: savedPlace.google_place_id,
       photoUrl: null,
       reviewCount: 0,
       avgFoodRating: null,

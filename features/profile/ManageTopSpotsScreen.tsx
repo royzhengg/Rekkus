@@ -15,11 +15,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ChevronLeft, CloseIcon, PlusIcon, PinIcon } from '@/components/icons'
 import { CachedImage } from '@/components/ui/CachedImage'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { IconButton } from '@/components/ui/IconButton'
 import { ScreenHeader } from '@/components/ui/ScreenHeader'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, maxFontSizeMultiplier } from '@/constants/Typography'
+import { fontSize, fontWeight, lineHeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
@@ -186,7 +187,7 @@ export default function ManageTopSpotsScreen() {
           contentContainerStyle={styles.scrollContent}
         >
           {loadError && (
-            <Text style={styles.errorText}>Couldn't load saved spots. Try again.</Text>
+            <ErrorMessage message="Couldn't load saved spots. Try again." />
           )}
 
           <Text style={styles.sectionLabel}>Selected</Text>
@@ -317,7 +318,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     container: { flex: 1, backgroundColor: c.bg },
     flex: { flex: 1 },
     scrollContent: { paddingBottom: spacing[8] },
-    errorText: { fontSize: fontSize.bodySm, color: c.text3, marginHorizontal: spacing[5], marginTop: spacing[3] },
     sectionLabel: { fontSize: fontSize.bodySm, fontWeight: fontWeight.medium, color: c.text3, marginHorizontal: spacing[5], marginTop: spacing[5], marginBottom: spacing[2] },
     spotRow: {
       flexDirection: 'row',
@@ -383,7 +383,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     },
     predictionText: { flex: 1 },
     predictionMain: { fontSize: fontSize.base, color: c.text },
-    predictionSub: { fontSize: fontSize.bodySm, color: c.text3, marginTop: 2 },
+    predictionSub: { fontSize: fontSize.bodySm, color: c.text3, marginTop: spacing.px2 },
     noResults: { fontSize: fontSize.bodySm, color: c.text3, paddingVertical: spacing[3], textAlign: 'center' },
   })
 }

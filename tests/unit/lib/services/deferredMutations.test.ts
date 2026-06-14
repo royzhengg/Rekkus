@@ -24,7 +24,6 @@ jest.mock('@/lib/analytics', () => ({
 
 jest.mock('@/lib/services/collections', () => ({
   unsaveTarget: jest.fn(),
-  updateSavedLocationStatus: jest.fn(),
 }))
 jest.mock('@/lib/services/dishes', () => ({ saveDish: jest.fn() }))
 jest.mock('@/lib/services/messaging', () => ({

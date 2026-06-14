@@ -30,6 +30,7 @@ type ConnectivityValue = {
   syncEpoch: number
   runDeferredMutation: (input: DeferredMutationInput) => Promise<DeferredResult>
   requireOnline: () => boolean
+  registerSyncListener: (cb: () => void) => () => void
 }
 
 const ConnectivityContext = createContext<ConnectivityValue>({
@@ -40,6 +41,7 @@ const ConnectivityContext = createContext<ConnectivityValue>({
   syncEpoch: 0,
   runDeferredMutation: async () => ({ queued: false }),
   requireOnline: () => true,
+  registerSyncListener: () => () => {},
 })
 
 function mapNetworkState(networkState: Network.NetworkState): ConnectivityState {
@@ -77,6 +79,7 @@ export function ConnectivityProvider({ children }: { children: React.ReactNode }
   const [syncEpoch, setSyncEpoch] = useState(0)
   const flushingRef = useRef(false)
   const previousUserIdRef = useRef<string | null>(null)
+  const syncListenersRef = useRef<Set<() => void>>(new Set())
 
   const refreshPendingCount = useCallback(async () => {
     setPendingCount(user ? (await readDeferredMutations(user.id)).length : 0)
@@ -185,6 +188,16 @@ export function ConnectivityProvider({ children }: { children: React.ReactNode }
     }
   }, [refreshPendingCount, state, user])
 
+  useEffect(() => {
+    if (syncEpoch === 0) return
+    syncListenersRef.current.forEach(cb => cb())
+  }, [syncEpoch])
+
+  const registerSyncListener = useCallback((cb: () => void) => {
+    syncListenersRef.current.add(cb)
+    return () => { syncListenersRef.current.delete(cb) }
+  }, [])
+
   const value = useMemo<ConnectivityValue>(() => ({
     state,
     pendingCount,
@@ -193,7 +206,8 @@ export function ConnectivityProvider({ children }: { children: React.ReactNode }
     syncEpoch,
     runDeferredMutation,
     requireOnline: () => state !== 'offline',
-  }), [pendingCount, runDeferredMutation, state, syncEpoch, syncState])
+    registerSyncListener,
+  }), [pendingCount, registerSyncListener, runDeferredMutation, state, syncEpoch, syncState])
 
   return <ConnectivityContext.Provider value={value}>{children}</ConnectivityContext.Provider>
 }

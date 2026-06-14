@@ -27,6 +27,7 @@ describe('ConnectivityNotice', () => {
       isSyncing: false,
       runDeferredMutation: async () => ({ queued: false }),
       requireOnline: () => false,
+      registerSyncListener: () => () => {},
     })
 
     const screen = render(<ConnectivityNotice />)
@@ -44,6 +45,7 @@ describe('ConnectivityNotice', () => {
       isSyncing: true,
       runDeferredMutation: async () => ({ queued: false }),
       requireOnline: () => true,
+      registerSyncListener: () => () => {},
     })
     const syncing = render(<ConnectivityNotice />)
     expect(syncing.getByText('Syncing 1 pending change...')).toBeTruthy()
@@ -57,6 +59,7 @@ describe('ConnectivityNotice', () => {
       isSyncing: false,
       runDeferredMutation: async () => ({ queued: false }),
       requireOnline: () => true,
+      registerSyncListener: () => () => {},
     })
     const synced = render(<ConnectivityNotice />)
     expect(synced.getByText('Your pending changes are synced.')).toBeTruthy()

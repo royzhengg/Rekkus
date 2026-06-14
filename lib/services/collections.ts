@@ -336,14 +336,3 @@ export async function makeCollectionShareable(collectionId: string): Promise<str
   }
   return error ? null : shareSlug
 }
-
-export async function updateSavedLocationStatus(
-  savedLocationId: string,
-  status: 'want_to_try' | 'been_here'
-): Promise<string | null> {
-  const { error } = await supabase.from('saved_locations')
-    .update({ save_status: status, updated_at: new Date().toISOString() })
-    .eq('id', savedLocationId)
-
-  return error?.message ?? null
-}

@@ -15,6 +15,7 @@ import { PostsProvider } from '@/lib/contexts/PostsContext'
 import { PostUploadProvider } from '@/lib/contexts/PostUploadContext'
 import { SettingsProvider } from '@/lib/contexts/SettingsContext'
 import { ToastProvider } from '@/lib/contexts/ToastContext'
+import { UserLocationProvider } from '@/lib/contexts/UserLocationContext'
 import { refreshFeatureFlagOverrides } from '@/lib/featureFlags'
 import { restoreSession } from '@/lib/services/auth'
 import { initializeCrashReporting, withCrashReporting } from '@/lib/services/crashReporting'
@@ -99,6 +100,7 @@ function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
     {loaded ? <AuthProvider>
       <ConnectivityProvider>
+      <UserLocationProvider>
       <FeatureFlagOverrideRefresher />
       <SearchSynonymCacheLoader />
       <PushRegistrar />
@@ -134,6 +136,7 @@ function RootLayout() {
           </SettingsProvider>
         </PostUploadProvider>
       </PostsProvider>
+      </UserLocationProvider>
       </ConnectivityProvider>
     </AuthProvider> : null}
     </GestureHandlerRootView>

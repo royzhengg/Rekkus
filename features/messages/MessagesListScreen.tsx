@@ -42,6 +42,7 @@ import {
   type ConversationSummary,
 } from '@/lib/services/messaging'
 import { subscribeToInboxMessages, removeChannel } from '@/lib/services/messaging'
+import { getActivityStatus } from '@/lib/utils/activityStatus'
 import { avatarPalette } from '@/lib/utils/format'
 import { makeStyles } from './MessagesListScreen.styles'
 
@@ -85,7 +86,7 @@ function richPreview(item: ConversationSummary): string {
   }
 }
 
-const ConversationRow = React.memo(function ConversationRow({
+export const ConversationRow = React.memo(function ConversationRow({
   item,
   onPress,
   onLongPress,
@@ -110,6 +111,8 @@ const ConversationRow = React.memo(function ConversationRow({
   const isMuted = item.muted_until ? new Date(item.muted_until) > new Date() : false
   const isPinned = !!item.pinned_at
   const isUnread = item.unread_count > 0
+  const activityStatus = isGroup ? null : getActivityStatus(item.participant.last_seen_at)
+  const showActiveDot = !isGroup && (activityStatus?.kind === 'active_now' || activityStatus?.kind === 'recently_active')
 
   const displayName = isGroup
     ? (item.name ?? 'Group')
@@ -167,6 +170,9 @@ const ConversationRow = React.memo(function ConversationRow({
             <View style={styles.pinBadge}>
               <PinIcon size={9} color={colors.bg} />
             </View>
+          ) : null}
+          {showActiveDot ? (
+            <View testID="conversation-active-dot" style={styles.activeDot} />
           ) : null}
         </View>
         <View style={styles.rowBody}>

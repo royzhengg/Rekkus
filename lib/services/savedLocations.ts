@@ -6,7 +6,6 @@ export type SavedLocation = {
   id: string
   restaurant_id: string
   created_at: string
-  save_status: 'want_to_try' | 'been_here'
   restaurants: {
     name: string
     address: string | null
@@ -19,28 +18,18 @@ export type SavedLocation = {
 export type SavedLocationWithRestaurant = SavedLocation
 
 const SAVED_LOCATION_SELECT =
-  'id, restaurant_id, created_at, save_status, restaurants(name, address, latitude, longitude, google_place_id)'
-const LEGACY_SAVED_LOCATION_SELECT =
   'id, restaurant_id, created_at, restaurants(name, address, latitude, longitude, google_place_id)'
 
 export async function fetchSavedLocationsForUser(userId: string): Promise<SavedLocation[]> {
-  const query = (select: string) => supabase
+  const { data, error } = await supabase
     .from('saved_locations')
-    .select(select)
+    .select(SAVED_LOCATION_SELECT)
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(100)
-  const primary = await query(SAVED_LOCATION_SELECT)
-  let rows: unknown = primary.data
-  let error = primary.error
-  if (error?.message.includes('save_status')) {
-    const legacy = await query(LEGACY_SAVED_LOCATION_SELECT)
-    rows = legacy.data
-    error = legacy.error
-  }
   if (error) throw error
-  const savedLocations = normalizeSavedLocations(rows)
-  if (Array.isArray(rows) && savedLocations.length !== rows.length) {
+  const savedLocations = normalizeSavedLocations(data)
+  if (Array.isArray(data) && savedLocations.length !== data.length) {
     reportInvalidBoundary('saved_location_row_invalid')
   }
   return savedLocations
@@ -69,7 +58,6 @@ function parseSavedLocation(value: unknown): SavedLocation | null {
     id: value.id,
     restaurant_id: value.restaurant_id,
     created_at: value.created_at,
-    save_status: value.save_status === 'been_here' ? 'been_here' : 'want_to_try',
     restaurants: joined && isRecord(joined) && typeof joined.name === 'string' ? {
       name: joined.name,
       address: typeof joined.address === 'string' ? joined.address : null,

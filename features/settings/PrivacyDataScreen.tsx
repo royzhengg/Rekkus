@@ -1,12 +1,16 @@
 import { useRouter } from 'expo-router'
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, ChevronRight } from '@/components/icons'
+import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
+import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useToast } from '@/lib/contexts/ToastContext'
+import { submitPrivacyRequest } from '@/lib/services/privacyRequests'
 
 export const PRIVACY_POLICY_URL = 'https://rekkus.com/privacy'
 export const TERMS_URL = 'https://rekkus.com/terms'
@@ -44,9 +48,24 @@ export default function PrivacyDataScreen() {
   const router = useRouter()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const { user, deleteAccount } = useAuth()
+  const { showToast } = useToast()
+  const [deleteSheetVisible, setDeleteSheetVisible] = useState(false)
 
   const emailLink = (subject: string) =>
     Linking.openURL(`mailto:${PRIVACY_EMAIL}?subject=${encodeURIComponent(subject)}`)
+
+  async function handleExportRequest() {
+    if (!user) return
+    await submitPrivacyRequest(user.id, 'export')
+    showToast('Privacy request submitted', { title: 'Request received' })
+  }
+
+  async function handleDeleteConfirm() {
+    setDeleteSheetVisible(false)
+    await deleteAccount()
+    router.replace('/(tabs)/feed')
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -77,13 +96,13 @@ export default function PrivacyDataScreen() {
           <Row
             label="Request data export"
             sublabel="Ask for a copy of your account data."
-            onPress={() => emailLink('Data export request')}
+            onPress={() => void handleExportRequest()}
           />
           <Divider />
           <Row
-            label="Request account deletion"
-            sublabel="Ask Rekkus to delete your account and user-owned data."
-            onPress={() => emailLink('Account deletion request')}
+            label="Delete account now"
+            sublabel="Permanently delete your account and all data."
+            onPress={() => setDeleteSheetVisible(true)}
           />
           <Divider />
           <Row
@@ -115,6 +134,14 @@ export default function PrivacyDataScreen() {
           />
         </View>
       </ScrollView>
+      <RekkusActionSheet
+        visible={deleteSheetVisible}
+        title="Delete account"
+        subtitle="This will permanently delete your account and all your data. This cannot be undone."
+        options={[{ label: 'Delete account', value: 'confirm', destructive: true }]}
+        onSelect={() => void handleDeleteConfirm()}
+        onDismiss={() => setDeleteSheetVisible(false)}
+      />
     </SafeAreaView>
   )
 }

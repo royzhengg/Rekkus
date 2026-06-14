@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
   Image,
   Modal,
   useWindowDimensions,
@@ -18,28 +17,26 @@ import Animated, { FadeIn } from 'react-native-reanimated'
 import DishTagOverlay from '@/components/DishTagOverlay'
 import {
   CameraIcon,
-  ChevronRight,
   CloseIcon,
   PinIcon,
   ImagePlaceholder,
   PlusIcon,
 } from '@/components/icons'
 import DraggableMediaStrip from '@/components/post-create/DraggableMediaStrip'
-import { Chip } from '@/components/ui/Chip'
+import { RestaurantPicker } from '@/components/RestaurantPicker'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
-import { spacing } from '@/constants/Spacing'
 import { analytics } from '@/lib/analytics'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useUserLocationContext } from '@/lib/contexts/UserLocationContext'
 import { isEnabled } from '@/lib/featureFlags'
 import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
 import type { RecentPhoto } from '@/lib/hooks/useRecentPhotos'
 import { useRecentPhotos } from '@/lib/hooks/useRecentPhotos'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
-import { useRestaurantSearch } from '@/lib/hooks/useRestaurantSearch'
 import { MEDIA_LIMITS, validatePickedPostMedia } from '@/lib/services/media'
 import { preparePostMedia } from '@/lib/services/postMediaProcessing'
-import type { Prediction, PredictionDistanceGroup, SelectedPlace } from '@/lib/services/restaurants'
+import type { SelectedPlace } from '@/lib/services/restaurants'
 import type { DishTag, PostMedia } from '@/types/domain'
 import { makeStyles } from './StepMedia.styles'
 
@@ -104,14 +101,6 @@ async function resolveRecentPhotoAsset(photo: RecentPhoto): Promise<RecentPhotoP
   }
 }
 
-const DISTANCE_GROUP_LABELS: Record<PredictionDistanceGroup, string> = {
-  nearby: 'Nearby',
-  city: 'Sydney',
-  state: 'NSW',
-  country: 'Australia',
-  worldwide: 'Worldwide',
-}
-
 const NATIVE_PICKER_PRESENTATION_DELAY_MS = 350
 const PHOTO_LIBRARY_DENIED_MESSAGE =
   'Photo library access is needed to add photos. Enable it in Settings.'
@@ -123,10 +112,6 @@ const CAMERA_OPEN_ERROR =
   'Could not open your camera. Please try again.'
 const RECENT_PHOTO_READ_ERROR =
   'Could not read this photo. Try Add media instead.'
-
-function distanceGroupLabel(group: PredictionDistanceGroup | undefined): string {
-  return DISTANCE_GROUP_LABELS[group ?? 'worldwide']
-}
 
 function waitForNativePickerPresentationWindow(): Promise<void> {
   return new Promise(resolve => {
@@ -160,67 +145,7 @@ export default function StepMedia({
   const [mediaError, setMediaError] = useState<string | null>(null)
   const { request: requestPermission, recoveryVisible, recoveryMessage, dismissRecovery, openSettings } = usePermissionRecovery()
 
-  const {
-    locationSearch,
-    predictions,
-    predictionsLoading,
-    selectingPlace,
-    nearbyPlaces,
-    nearbyLoading,
-    searchFocused,
-    showNearby,
-    showDropdown,
-    locationStatus,
-    locationConstrained,
-    requestLocationAndSearch,
-    handleSearchChange,
-    selectPrediction,
-    onSearchFocus,
-    onSearchBlur,
-    clearSearch,
-  } = useRestaurantSearch({ cuisineType, userId: userId ?? null, onPlaceSelected: setSelectedPlace })
-  const showRestaurantLocationNudge =
-    !selectedPlace &&
-    !locationConstrained &&
-    locationSearch.trim().length >= 2 &&
-    locationStatus !== 'granted'
-  const restaurantEmptyText = locationConstrained
-    ? `No venues found near you for "${locationSearch}"`
-    : `No results for "${locationSearch}"`
-  const restaurantEmptyHint = locationConstrained
-    ? 'Try a different name or check your location.'
-    : 'Adding your location can improve nearby results.'
-
-  const renderPredictionRows = (
-    items: Prediction[],
-    source: 'nearby' | 'prediction'
-  ) => {
-    let previousGroup: string | null = null
-    return items.map((item, index) => {
-      const groupLabel = distanceGroupLabel(item.distanceGroup)
-      const showHeader = groupLabel !== previousGroup
-      previousGroup = groupLabel
-      return (
-        <View key={item.place_id}>
-          {showHeader && (
-            <Text style={styles.dropdownSectionHeader}>{groupLabel}</Text>
-          )}
-          <TouchableOpacity
-            style={[styles.dropdownItem, index === items.length - 1 && { borderBottomWidth: 0 }]}
-            onPress={() => selectPrediction(item, source)}
-          >
-            <PinIcon color={c.text3} size={13} />
-            <View style={styles.dropdownItemText}>
-              <Text style={styles.dropdownName}>{item.structured_formatting.main_text}</Text>
-              <Text style={styles.dropdownSub} numberOfLines={1}>
-                {item.structured_formatting.secondary_text}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      )
-    })
-  }
+  const { coords: userCoords, setManualCoords } = useUserLocationContext()
 
   const photos = useMemo(() => media.filter(item => item.type === 'image').map(item => item.uri), [media])
   const videoCount = media.filter(item => item.type === 'video').length
@@ -268,8 +193,18 @@ export default function StepMedia({
         selectionLimit: remaining,
         videoMaxDuration: MEDIA_LIMITS.maxPostVideoSeconds,
         presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
+        exif: true,
       })
       if (!result.canceled) {
+        // Pre-fill search bias from photo EXIF if user location is unknown
+        if (!userCoords) {
+          const firstAsset = result.assets[0]
+          const exifLat = firstAsset?.exif?.GPSLatitude as number | undefined
+          const exifLng = firstAsset?.exif?.GPSLongitude as number | undefined
+          if (typeof exifLat === 'number' && typeof exifLng === 'number') {
+            setManualCoords?.({ lat: exifLat, lng: exifLng })
+          }
+        }
         analytics.mediaEvent(null, 'media_selected', 'post_create', {
           media_count: result.assets.length,
         })
@@ -552,113 +487,12 @@ export default function StepMedia({
       </View>
 
       {/* Restaurant */}
-      <View style={styles.locationSection}>
-        <Text style={styles.sectionLabel}>RESTAURANT</Text>
-        {selectedPlace ? (
-          <View style={styles.locationConfirmed}>
-            <PinIcon color={c.accent} size={20} />
-            <View style={styles.locationConfirmedText}>
-              <Text style={styles.locationName} numberOfLines={1}>{selectedPlace.name}</Text>
-              <Text style={styles.locationAddress} numberOfLines={1}>
-                {selectedPlace.address.split(',').slice(0, 2).join(',')}
-              </Text>
-            </View>
-            {selectingPlace ? (
-              <ActivityIndicator size="small" color={c.text3} />
-            ) : (
-              <TouchableOpacity
-                onPress={() => setSelectedPlace(null)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Clear selected restaurant"
-              >
-                <CloseIcon size={10} color={c.text3} />
-              </TouchableOpacity>
-            )}
-          </View>
-        ) : (
-          <View style={styles.searchWrap}>
-            <PinIcon color={c.accent} size={20} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search or pick nearby..."
-              placeholderTextColor={c.text3}
-              value={locationSearch}
-              onChangeText={handleSearchChange}
-              onFocus={onSearchFocus}
-              onBlur={onSearchBlur}
-              returnKeyType="search"
-              accessibilityLabel="Restaurant name"
-              accessibilityHint="Search by name, or choose from restaurants near you"
-            />
-            {predictionsLoading && <ActivityIndicator size="small" color={c.text3} />}
-            {locationSearch.length > 0 && !predictionsLoading ? (
-              <TouchableOpacity
-                onPress={clearSearch}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Clear restaurant search"
-              >
-                <CloseIcon size={10} color={c.text3} />
-              </TouchableOpacity>
-            ) : (
-              <ChevronRight size={16} />
-            )}
-          </View>
-        )}
-
-        {!selectedPlace && nearbyPlaces.length > 0 && !searchFocused && locationSearch.length === 0 && (
-          <View style={styles.nearbyChips}>
-            {nearbyPlaces.slice(0, 3).map(item => (
-              <Chip
-                key={item.place_id}
-                label={item.structured_formatting.main_text}
-                onPress={() => selectPrediction(item, 'nearby')}
-              />
-            ))}
-          </View>
-        )}
-
-        {showNearby && (
-          <View style={styles.dropdown}>
-            {nearbyLoading ? (
-              <ActivityIndicator size="small" style={{ marginVertical: spacing[3] }} />
-            ) : (
-              <>
-                <Text style={styles.nearbyLabel}>Nearby on Rekkus</Text>
-                {renderPredictionRows(nearbyPlaces, 'nearby')}
-              </>
-            )}
-          </View>
-        )}
-
-        {showDropdown && (
-          <View style={styles.dropdown}>
-            {renderPredictionRows(predictions, 'prediction')}
-            {predictions.length === 0 && locationSearch.length >= 2 && !predictionsLoading && (
-              <View style={styles.dropdownEmpty}>
-                <Text style={styles.dropdownEmptyText}>{restaurantEmptyText}</Text>
-                {restaurantEmptyHint ? (
-                  <Text style={styles.dropdownEmptyHint}>{restaurantEmptyHint}</Text>
-                ) : null}
-                {showRestaurantLocationNudge ? (
-                  <TouchableOpacity
-                    style={styles.dropdownLocationButton}
-                    onPress={() => { void requestLocationAndSearch() }}
-                    disabled={locationStatus === 'requesting'}
-                    accessibilityRole="button"
-                    accessibilityLabel="Use current location for restaurant search"
-                  >
-                    <Text style={styles.dropdownLocationButtonText}>
-                      {locationStatus === 'requesting' ? 'Getting location…' : 'Use current location'}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            )}
-          </View>
-        )}
-      </View>
+      <RestaurantPicker
+        value={selectedPlace}
+        onSelect={setSelectedPlace}
+        cuisineType={cuisineType}
+        userId={userId ?? null}
+      />
 
       {/* Media */}
       {mediaError ? <ErrorMessage title="Could not add media" message={mediaError} /> : null}
