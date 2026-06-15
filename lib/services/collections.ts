@@ -117,7 +117,7 @@ export async function deleteCollection(collectionId: string): Promise<void> {
 }
 
 function isCollectionTargetType(value: unknown): value is CollectionTargetType {
-  return value === 'dish' || value === 'restaurant' || value === 'post'
+  return value === 'dish' || value === 'place' || value === 'post'
 }
 
 function parseCollectionItem(value: unknown): CollectionItem | null {
@@ -148,11 +148,11 @@ export async function fetchStaffPickCollections(): Promise<Collection[]> {
   )
 }
 
-export async function fetchRestaurantCollectionItems(
+export async function fetchPlaceCollectionItems(
   userId: string,
-  restaurantIds: string[]
+  placeIds: string[]
 ): Promise<CollectionItem[]> {
-  if (restaurantIds.length === 0) return []
+  if (placeIds.length === 0) return []
   const collections = await fetchCollections(userId)
   const collectionIds = collections.map(c => c.id)
   if (collectionIds.length === 0) return []
@@ -160,8 +160,8 @@ export async function fetchRestaurantCollectionItems(
   const { data } = await supabase.from('collection_items')
     .select('collection_id, target_type, target_id')
     .in('collection_id', collectionIds)
-    .eq('target_type', 'restaurant')
-    .in('target_id', restaurantIds)
+    .eq('target_type', 'place')
+    .in('target_id', placeIds)
     .limit(500)
 
   return (data ?? []).flatMap(row => {
@@ -216,7 +216,7 @@ export async function fetchTargetCollectionItems(
 
 export async function fetchCollectionRestaurantsByIds(ids: string[]): Promise<CollectionRestaurant[]> {
   if (ids.length === 0) return []
-  const { data, error } = await supabase.from('restaurants')
+  const { data, error } = await supabase.from('places')
     .select('id, name, address, google_place_id, latitude, longitude')
     .in('id', ids)
     .limit(Math.min(ids.length, 100))
@@ -335,15 +335,4 @@ export async function makeCollectionShareable(collectionId: string): Promise<str
     })
   }
   return error ? null : shareSlug
-}
-
-export async function updateSavedLocationStatus(
-  savedLocationId: string,
-  status: 'want_to_try' | 'been_here'
-): Promise<string | null> {
-  const { error } = await supabase.from('saved_locations')
-    .update({ save_status: status, updated_at: new Date().toISOString() })
-    .eq('id', savedLocationId)
-
-  return error?.message ?? null
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useToast } from '@/lib/contexts/ToastContext'
 import type { CreatePostDraft, CreatePostDraftStatus } from '@/lib/services/postDrafts'
 import { listCreatePostDraftSummaries, loadCreatePostDraft, saveCreatePostDraft } from '@/lib/services/postDrafts'
 
@@ -33,6 +34,7 @@ export function useCreatePostDraftLoader({
   applyDraftToForm,
   clearFormFields,
 }: DraftLoaderParams) {
+  const { showToast } = useToast()
   const [entryMode, setEntryMode] = useState<EntryMode>(draftId ? 'editing' : 'loading')
 
   const refreshDraftSummaries = useCallback(async () => {
@@ -64,13 +66,16 @@ export function useCreatePostDraftLoader({
   useEffect(() => {
     if (!draftId) return
     let mounted = true
-    void loadCreatePostDraft(draftId).then(draft => {
-      if (!mounted || !draft) return
-      applyDraftToForm(draft)
+    void loadCreatePostDraft(draftId).then(result => {
+      if (!mounted || !result) return
+      applyDraftToForm(result.draft)
+      if (result.restaurantCleared) {
+        showToast("The place you tagged is no longer available — please re-select.")
+      }
       setEntryMode('editing')
     })
     return () => { mounted = false }
-  }, [draftId, applyDraftToForm])
+  }, [draftId, applyDraftToForm, showToast])
 
   useEffect(() => {
     const timer = setTimeout(() => {

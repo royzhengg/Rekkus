@@ -263,7 +263,7 @@ export default function SearchScreen() {
     city: r.suburb ?? null,
     suburb: r.suburb ?? null,
     cuisine_type: null,
-    google_place_id: r.placeId ?? null,
+    google_place_id: r.googlePlaceId ?? null,
     latitude: r.lat ?? null,
     longitude: r.lng ?? null,
     google_rating: null,

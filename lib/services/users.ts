@@ -240,6 +240,18 @@ export function removeFollowChannel(channel: SupabaseChannel): void {
   void supabase.removeChannel(channel)
 }
 
-export function updateLastSeen(userId: string): void {
-  void supabase.from('users').update({ last_seen_at: new Date().toISOString() }).eq('id', userId)
+export async function updateLastSeen(userId: string): Promise<void> {
+  await supabase.from('users').update({ last_seen_at: new Date().toISOString() }).eq('id', userId)
+}
+
+export function mapRowToFollowListUser(row: unknown): { id: string; username: string; full_name: string | null; avatar_url: string | null } | null {
+  if (!row || typeof row !== 'object') return null
+  const r = row as Record<string, unknown>
+  if (typeof r['id'] !== 'string' || typeof r['username'] !== 'string') return null
+  return {
+    id: r['id'],
+    username: r['username'],
+    full_name: typeof r['full_name'] === 'string' ? r['full_name'] : null,
+    avatar_url: typeof r['avatar_url'] === 'string' ? r['avatar_url'] : null,
+  }
 }

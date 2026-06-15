@@ -208,14 +208,14 @@ export async function fetchSearchPersonalizationSignals(
 async function fetchSavedRestaurantIdsForSearch(userId: string): Promise<string[]> {
   try {
     const { data, error } = await supabase
-      .from('saved_locations')
-      .select('restaurant_id')
+      .from('saved_places')
+      .select('place_id')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(100)
     if (error) throw error
-    return (data ?? [])
-      .map(row => row.restaurant_id)
+    return ((data ?? []) as Array<{ place_id: string | null }>)
+      .map(row => row.place_id)
       .filter((id): id is string => typeof id === 'string')
   } catch {
     return []

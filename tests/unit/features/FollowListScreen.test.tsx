@@ -91,6 +91,7 @@ describe('FollowListScreen', () => {
       syncEpoch,
       runDeferredMutation: jest.fn(),
       requireOnline: jest.fn(() => true),
+      registerSyncListener: jest.fn(() => jest.fn()),
     }))
     mockFetchUserIdByUsername.mockResolvedValue('target-1')
     mockFetchFollowers.mockResolvedValue([

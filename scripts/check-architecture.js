@@ -16,9 +16,9 @@ const locAllowlist = new Set([
   // B-239: reversible inbox preference sync remains coordinated in the existing conversation list workflow.
   'features/messages/MessagesListScreen.tsx',
   // B-239: place save and governance recovery remain coordinated in the existing detail workflow.
-  'features/restaurants/RestaurantDetailScreen.tsx',
+  'features/places/PlaceDetailScreen.tsx',
   // B-239: saved-place intent sync remains coordinated in the existing places tab workflow.
-  'features/restaurants/RestaurantsTabScreen.tsx',
+  'features/places/PlacesTabScreen.tsx',
   // B-282: dish detail additions pushed PostDetailScreen over 600; extract detail panels to reduce — B-282
   'features/posts/PostDetailScreen.tsx',
   // B-568: search enrichment (trending user_count, dish intent, engagement signals) pushed SearchScreen over 600; extract discovery hooks to reduce — B-568
@@ -29,8 +29,6 @@ const locAllowlist = new Set([
 const sharedLocAllowlist = new Map([
   // B-405: dish tag onboarding tooltip added first-time disclosure; extract tag modal to reduce — B-405
   ['components/post-create/StepMedia.tsx', 'B-405: dish tag onboarding tooltip added first-time disclosure; extract tag modal to reduce — B-405'],
-  // B-587/B-588: place stub cache + food category Text Search added; extract provider helpers to reduce — B-587
-  ['lib/services/restaurants.ts', 'B-587/B-588: place stub cache + food category Text Search added; extract provider helpers to reduce — B-587'],
 ])
 const supabaseAllowlist = new Map()
 

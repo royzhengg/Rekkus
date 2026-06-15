@@ -2,23 +2,23 @@ import type { ProfileRestaurant } from '@/features/profile/profileIdentity'
 import { hydrateProfileRestaurantPhotos } from '@/features/profile/profilePhotos'
 import {
   fetchRestaurantProviderDetail,
-  fetchRestaurantRow,
-  fetchRestaurantRowByPlaceId,
-  getRestaurantDisplayPhoto,
+  fetchPlaceRow,
+  fetchPlaceRowByGooglePlaceId,
+  getPlaceDisplayPhoto,
   getRestaurantProviderPhotoUrl,
-} from '@/lib/services/restaurants'
+} from '@/lib/services/places'
 
-jest.mock('@/lib/services/restaurants', () => ({
-  fetchRestaurantRow: jest.fn(),
-  fetchRestaurantRowByPlaceId: jest.fn(),
-  getRestaurantDisplayPhoto: jest.fn(),
+jest.mock('@/lib/services/places', () => ({
+  fetchPlaceRow: jest.fn(),
+  fetchPlaceRowByGooglePlaceId: jest.fn(),
+  getPlaceDisplayPhoto: jest.fn(),
   fetchRestaurantProviderDetail: jest.fn(),
   getRestaurantProviderPhotoUrl: jest.fn(),
 }))
 
-const mockFetchRestaurantRow = jest.mocked(fetchRestaurantRow)
-const mockFetchRestaurantRowByPlaceId = jest.mocked(fetchRestaurantRowByPlaceId)
-const mockGetRestaurantDisplayPhoto = jest.mocked(getRestaurantDisplayPhoto)
+const mockFetchRestaurantRow = jest.mocked(fetchPlaceRow)
+const mockFetchRestaurantRowByPlaceId = jest.mocked(fetchPlaceRowByGooglePlaceId)
+const mockGetRestaurantDisplayPhoto = jest.mocked(getPlaceDisplayPhoto)
 const mockFetchRestaurantProviderDetail = jest.mocked(fetchRestaurantProviderDetail)
 const mockGetRestaurantProviderPhotoUrl = jest.mocked(getRestaurantProviderPhotoUrl)
 

@@ -1,16 +1,16 @@
 export type Dish = {
   id: string
   name: string
-  restaurantId?: string | undefined
+  placeId?: string | undefined
   cuisineType?: string | undefined
 }
 
 export type DishDetail = Dish & {
-  restaurant?: {
+  place?: {
     id: string
     name: string
     address?: string | undefined
-    placeId?: string | undefined
+    googlePlaceId?: string | undefined
     lat?: number | undefined
     lng?: number | undefined
   } | undefined
@@ -22,7 +22,7 @@ export type SavedDish = DishDetail & {
 }
 
 export type SavedLibrarySection = 'overview' | 'dishes' | 'places' | 'posts' | 'collections'
-export type CollectionTargetType = 'dish' | 'restaurant' | 'post'
+export type CollectionTargetType = 'dish' | 'place' | 'post'
 
 export type DishTag = {
   photoIndex: number
@@ -110,16 +110,18 @@ export interface Post {
   tall: boolean
   tags: string[]
   location: string
-  food: number
-  vibe: number
-  cost: number
+  food?: number | undefined
+  vibe?: number | undefined
+  cost?: number | undefined
   tasteVerdict?: RekkusTasteVerdict | undefined
   valueVerdict?: RekkusValueVerdict | undefined
   occasionTags?: RekkusOccasionTag[] | undefined
   cuisine_type?: string | undefined
   mustOrder?: string | undefined
-  restaurantId?: string | undefined
+  cashDiscount?: boolean | undefined
+  googleReviewFreebie?: boolean | undefined
   placeId?: string | undefined
+  googlePlaceId?: string | undefined
   lat?: number | undefined
   lng?: number | undefined
   address?: string | undefined
@@ -127,18 +129,18 @@ export interface Post {
   dishId?: string | undefined
 }
 
-export interface Restaurant {
+export interface Place {
   name: string
   suburb: string
   lat?: number | undefined
   lng?: number | undefined
-  placeId?: string | undefined
+  googlePlaceId?: string | undefined
   address?: string | undefined
 }
 
 export type TopSpot = {
   position: number // 1 | 2 | 3
-  restaurantId: string
+  placeId: string
 }
 
 export interface MockUser {

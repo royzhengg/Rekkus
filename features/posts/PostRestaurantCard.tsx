@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { Avatar } from '@/components/Avatar'
-import { BookmarkIcon, PinIcon } from '@/components/icons'
+import { SaveIcon, PinIcon } from '@/components/icons'
 import { Chip } from '@/components/ui/Chip'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
@@ -93,7 +93,7 @@ export function PostRestaurantCard({
           accessibilityRole="button"
           accessibilityLabel={locationSaved ? 'Remove saved location' : 'Save location'}
         >
-          <BookmarkIcon size={14} filled={locationSaved} inactiveColor={colors.text3} />
+          <SaveIcon size={14} filled={locationSaved} inactiveColor={colors.text3} />
         </TouchableOpacity>
       </View>
 

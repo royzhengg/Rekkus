@@ -167,7 +167,7 @@ export async function preparePostMedia(
   onProgress?: (progress: MediaProgress) => void
 ): Promise<PreparedMediaResult> {
   const existingVideos = existingMedia.filter(item => item.type === 'video').length
-  const validation = validatePickedPostMedia(assets, existingMedia.length)
+  const validation = validatePickedPostMedia(assets, existingMedia.length, existingVideos)
   if (validation.error || validation.acceptedMedia.length === 0) {
     return {
       media: existingMedia,
@@ -178,9 +178,6 @@ export async function preparePostMedia(
 
   const prepared: PostMediaAsset[] = []
   for (const accepted of validation.acceptedMedia) {
-    if (accepted.type === 'video' && existingVideos + prepared.filter(item => item.type === 'video').length >= MEDIA_LIMITS.maxPostVideos) {
-      continue
-    }
     prepared.push(
       accepted.type === 'video'
         ? await prepareVideo(accepted, onProgress)

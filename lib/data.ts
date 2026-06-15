@@ -1,4 +1,4 @@
-export type { DishTag, MockUser, Post, Restaurant } from '@/types/domain'
+export type { DishTag, MockUser, Post } from '@/types/domain'
 export {
   IMG_KEYS,
   MOCK_USERS,

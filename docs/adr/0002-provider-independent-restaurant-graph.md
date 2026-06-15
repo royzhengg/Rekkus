@@ -1,5 +1,7 @@
 # ADR 0002: Provider-Independent Restaurant Graph
 
+> **Naming note (2026-06-15):** The domain entity is now canonically called **"place"** following ADR 0020. This ADR retains its original "restaurant" terminology for historical accuracy. The infrastructure audit tables (`restaurant_audit_events`, `restaurant_sources`, `restaurant_provider_cache`, etc.) also retain their original names.
+
 ## Status
 
 Accepted

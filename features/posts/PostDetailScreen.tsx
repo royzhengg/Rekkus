@@ -39,10 +39,10 @@ import { useCollectionPicker } from '@/lib/hooks/useCollectionPicker'
 import { routes } from '@/lib/routes'
 import { fetchTargetCollectionItems } from '@/lib/services/collections'
 import { addPostComment } from '@/lib/services/comments'
+import { upsertResolvedPlace } from '@/lib/services/places'
 import { addPostReaction, deletePost, fetchPostSocialState, removePostReaction, type PostCommentRow, type PostReactionType } from '@/lib/services/posts'
-import { upsertResolvedRestaurant } from '@/lib/services/restaurants'
 import { fetchIsFollowing, fetchUserIdByUsername } from '@/lib/services/users'
-import { navigateToRestaurantFromPost } from '@/lib/utils/restaurantNavigation'
+import { navigateToPlaceFromPost } from '@/lib/utils/placeNavigation'
 import { routeParamNumber, routeParamString } from '@/lib/utils/routeParams'
 import { PostActionsBar } from './PostActionsBar'
 import { PostComments } from './PostComments'
@@ -116,7 +116,7 @@ export default function PostDetailScreen() {
       !sessionId ||
       !query ||
       position == null ||
-      (resultType !== 'post' && resultType !== 'restaurant' && resultType !== 'user' && resultType !== 'dish')
+      (resultType !== 'post' && resultType !== 'place' && resultType !== 'user' && resultType !== 'dish')
     ) {
       return null
     }
@@ -142,7 +142,7 @@ export default function PostDetailScreen() {
     if (!resolvedPost?.dbId) return
     const dbId = resolvedPost.dbId
 
-    const socialState = await fetchPostSocialState(dbId, user?.id, resolvedPost.restaurantId)
+    const socialState = await fetchPostSocialState(dbId, user?.id, resolvedPost.placeId)
     setLikeCount(socialState.likeCount)
     setComments(socialState.comments)
     setReactionCounts(socialState.reactionCounts)
@@ -150,7 +150,7 @@ export default function PostDetailScreen() {
     setLiked(socialState.liked)
     setSaved(socialState.saved)
     setLocationSaved(socialState.locationSaved)
-  }, [resolvedPost?.dbId, resolvedPost?.restaurantId, user?.id])
+  }, [resolvedPost?.dbId, resolvedPost?.placeId, user?.id])
 
   useEffect(() => {
     void loadSocialState()
@@ -242,13 +242,13 @@ export default function PostDetailScreen() {
     }
   }
 
-  async function resolveAndSaveLocation(restaurantId?: string): Promise<string | null> {
-    if (restaurantId) return restaurantId
+  async function resolveAndSaveLocation(placeId?: string): Promise<string | null> {
+    if (placeId) return placeId
     if (!resolvedPost?.location) return null
     if (!requireOnline()) return null
     const resolved = await geocodeLocation(resolvedPost.location)
     if (!resolved) return null
-    return upsertResolvedRestaurant(resolved)
+    return upsertResolvedPlace(resolved)
   }
 
   async function toggleLocationSave() {
@@ -256,8 +256,8 @@ export default function PostDetailScreen() {
     const wasLocationSaved = locationSaved
     setOperationError(null)
     setLocationSaved(!wasLocationSaved)
-    const restaurantId = await resolveAndSaveLocation(resolvedPost?.restaurantId)
-    if (!restaurantId) {
+    const placeId = await resolveAndSaveLocation(resolvedPost?.placeId)
+    if (!placeId) {
       setLocationSaved(wasLocationSaved)
       setOperationError({
         title: 'Could not save location',
@@ -267,7 +267,7 @@ export default function PostDetailScreen() {
     }
     if (wasLocationSaved) {
       try {
-        await runDeferredMutation({ kind: 'place_save', restaurantId, targetState: false })
+        await runDeferredMutation({ kind: 'place_save', placeId, targetState: false })
       } catch {
         setLocationSaved(wasLocationSaved)
         setOperationError({
@@ -277,7 +277,7 @@ export default function PostDetailScreen() {
       }
     } else {
       try {
-        await runDeferredMutation({ kind: 'place_save', restaurantId, targetState: true })
+        await runDeferredMutation({ kind: 'place_save', placeId, targetState: true })
         void haptic.confirmSave()
       } catch {
         setLocationSaved(wasLocationSaved)
@@ -287,7 +287,7 @@ export default function PostDetailScreen() {
         })
         return
       }
-      analytics.savePlace(user.id, restaurantId, resolvedPost?.cuisine_type, searchAttribution)
+      analytics.savePlace(user.id, placeId, resolvedPost?.cuisine_type, searchAttribution)
     }
   }
 
@@ -314,12 +314,12 @@ export default function PostDetailScreen() {
   async function handleLocationTap() {
     if (!resolvedPost) return
     if (resolvedPost.lat && resolvedPost.lng) {
-      if (resolvedPost.restaurantId) {
-        analytics.revisitPlace(user?.id ?? null, resolvedPost.restaurantId, 'post_location_tap')
+      if (resolvedPost.placeId) {
+        analytics.revisitPlace(user?.id ?? null, resolvedPost.placeId, 'post_location_tap')
       }
-      navigateToRestaurantFromPost(router, {
-        restaurantId: resolvedPost.restaurantId,
+      navigateToPlaceFromPost(router, {
         placeId: resolvedPost.placeId,
+        googlePlaceId: resolvedPost.googlePlaceId,
         name: resolvedPost.location,
         address: resolvedPost.address ?? resolvedPost.location,
         lat: resolvedPost.lat,
@@ -337,9 +337,9 @@ export default function PostDetailScreen() {
       })
       return
     }
-    analytics.revisitPlace(user?.id ?? null, resolvedPost.restaurantId ?? resolved.placeId, 'post_location_tap')
-    navigateToRestaurantFromPost(router, {
-      placeId: resolved.placeId,
+    analytics.revisitPlace(user?.id ?? null, resolvedPost.placeId ?? resolved.googlePlaceId, 'post_location_tap')
+    navigateToPlaceFromPost(router, {
+      googlePlaceId: resolved.googlePlaceId,
       name: resolved.name,
       address: resolved.address,
       lat: resolved.lat,

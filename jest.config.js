@@ -4,6 +4,9 @@ const config = {
   watchman: false,
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    '@react-native-async-storage/async-storage': require.resolve(
+      '@react-native-async-storage/async-storage/jest/async-storage-mock.js',
+    ),
   },
   // Type-safety fixtures run through their own Node runner; Jest owns unit tests only.
   roots: ['<rootDir>/tests/unit'],
@@ -48,9 +51,6 @@ const config = {
     },
     './lib/hooks/useAutocomplete.ts': {
       statements: 94,
-    },
-    './lib/hooks/useRestaurantSearch.ts': {
-      statements: 86,
     },
   },
 }

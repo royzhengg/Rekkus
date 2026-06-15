@@ -10,6 +10,8 @@ const allowlist = new Map([
   ['locationGeocodeFallback', 'B-585'],
   // B-410: createPostProgressDots — shipped as always-on; tombstone retained to prevent crashes from stale Metro bundles
   ['createPostProgressDots', 'B-410'],
+  // B-590: rekkusPicks — data source used unconditionally in SearchFiltersSheet/SearchScreen; flag wiring tracked
+  ['rekkusPicks', 'B-590'],
 ])
 
 // Extract all flag keys from the `const flags = { ... }` object

@@ -57,7 +57,7 @@ if (
   failures.push('main Search provider fallback must use the shared intent/locality gate and must not call Google fallback with null coordinates for ambiguous food queries.')
 }
 
-const useRestaurantSearch = read('lib/hooks/useRestaurantSearch.ts')
+const useRestaurantSearch = read('lib/hooks/usePlaceSearch.ts')
 if (!/decideSearchProviderFallback/.test(useRestaurantSearch) || !/fetchPredictions\(\s*query,\s*effectiveCoords\s*\)/.test(useRestaurantSearch)) {
   failures.push('create-post restaurant tagging must keep the shared fallback gate and pass effective coords (userLocation.coords or explicit override) into provider predictions.')
 }

@@ -26,7 +26,7 @@ function makeRow(overrides: Partial<SavedPostRow> = {}): SavedPostRow {
     cuisine_type: 'Japanese',
     must_order: 'Tonkotsu ramen',
     dish_tags: null,
-    restaurant_id: null,
+    place_id: null,
     dish_id: null,
     photo_url: null,
     media: [],

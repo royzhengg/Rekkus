@@ -45,7 +45,7 @@ import { validatePickedMessageAttachment } from '@/lib/services/media'
 import { uploadAttachment, computeFileHash } from '@/lib/services/messageAttachments'
 import { sendRichMessage, type DirectMessage, type MessageType } from '@/lib/services/messaging'
 import { moderateMessageMedia } from '@/lib/services/moderation'
-import { fetchSavedLocationsForUser, type SavedLocationWithRestaurant } from '@/lib/services/restaurants'
+import { fetchSavedPlacesForUser, type SavedPlaceWithPlace } from '@/lib/services/places'
 import { richTypePreview } from './MessageBubble'
 import { makeMessageInputStyles } from './MessageInput.styles'
 import { useMessageGifPicker } from './useMessageGifPicker'
@@ -77,7 +77,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
   const [locationSheet, setLocationSheet] = useState(false)
   const gif = useMessageGifPicker()
   const [savedPlacePickerVisible, setSavedPlacePickerVisible] = useState(false)
-  const [savedPlaces, setSavedPlaces] = useState<SavedLocationWithRestaurant[]>([])
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlaceWithPlace[]>([])
   const [loadingSavedPlaces, setLoadingSavedPlaces] = useState(false)
   const { request: requestPermission, recoveryVisible, recoveryMessage, dismissRecovery, openSettings } = usePermissionRecovery()
   const reduceMotion = useReducedMotion()
@@ -205,7 +205,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
     } else if (value === 'saved_place') {
       setSavedPlacePickerVisible(true)
       setLoadingSavedPlaces(true)
-      const places = await fetchSavedLocationsForUser(currentUserId).catch(() => [])
+      const places = await fetchSavedPlacesForUser(currentUserId).catch(() => [])
       setSavedPlaces(places)
       setLoadingSavedPlaces(false)
     }
@@ -239,20 +239,20 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
     }
   }
 
-  async function handleSavedPlaceSelect(place: SavedLocationWithRestaurant) {
+  async function handleSavedPlaceSelect(place: SavedPlaceWithPlace) {
     setSavedPlacePickerVisible(false)
-    if (!place.restaurants) return
+    if (!place.places) return
     if (!requireOnline()) {
       onShowError({ title: 'You are offline', message: 'Reconnect to share this place.' })
       return
     }
-    const { name, address, latitude, longitude, google_place_id } = place.restaurants
+    const { name, address, latitude, longitude, google_place_id } = place.places
     const { message, error } = await sendRichMessage(conversationId, currentUserId, 'place_share', null, null, {
       name,
       address,
       lat: latitude,
       lng: longitude,
-      restaurant_id: place.restaurant_id,
+      place_id: place.place_id,
       google_place_id,
     })
     if (error) {
@@ -569,7 +569,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(fu
                 keyExtractor={item => item.id}
                 contentContainerStyle={{ paddingBottom: spacing[8] }}
                 renderItem={({ item }) => {
-                  const r = item.restaurants
+                  const r = item.places
                   if (!r) return null
                   return (
                     <TouchableOpacity

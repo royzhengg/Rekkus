@@ -3,7 +3,7 @@ import { analytics } from '@/lib/analytics'
 import type { Post } from '@/types/domain'
 import { useAutocomplete } from './useAutocomplete'
 import { usePopularityCache } from './usePopularityCache'
-import { useSavedRestaurants } from './useSavedRestaurants'
+import { useSavedPlaceIds } from './useSavedPlaceIds'
 import { useSearchResults } from './useSearchResults'
 import { usePosts } from '../contexts/PostsContext'
 import {
@@ -67,7 +67,7 @@ export function useSearch(
   const requestIdRef = useRef(0)
 
   const popularityCache = usePopularityCache()
-  const savedRestaurantIds = useSavedRestaurants(options.userId)
+  const savedRestaurantIds = useSavedPlaceIds(options.userId)
   const suggestions = useAutocomplete(query, userLocation)
 
   const words = useMemo(() => parseWords(query), [query])

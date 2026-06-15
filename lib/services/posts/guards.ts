@@ -87,7 +87,7 @@ export function isRawPost(value: unknown): value is RawPost {
     isNullableNumber(value.cost_rating) &&
     isNullableString(value.cuisine_type) &&
     isNullableString(value.must_order) &&
-    isNullableString(value.restaurant_id) &&
+    isNullableString(value.place_id) &&
     (value.taste_verdict === null || isTasteVerdict(value.taste_verdict)) &&
     (value.value_verdict === null || isValueVerdict(value.value_verdict)) &&
     (value.occasion_tags === null || (Array.isArray(value.occasion_tags) && value.occasion_tags.every(isOccasionTag))) &&
@@ -96,7 +96,7 @@ export function isRawPost(value: unknown): value is RawPost {
     isNullableNumber(value.edit_count) &&
     isUserRelation(value.users) &&
     (value.post_photos === null || (Array.isArray(value.post_photos) && value.post_photos.every(isRawPostPhoto))) &&
-    isRestaurantRelation(value.restaurants)
+    isRestaurantRelation(value.places)
   )
 }
 
@@ -126,9 +126,9 @@ export function isCachedPost(value: unknown): value is Post {
     typeof value.tall === 'boolean' &&
     Array.isArray(value.tags) &&
     typeof value.location === 'string' &&
-    typeof value.food === 'number' &&
-    typeof value.vibe === 'number' &&
-    typeof value.cost === 'number' &&
+    (value.food === undefined || typeof value.food === 'number') &&
+    (value.vibe === undefined || typeof value.vibe === 'number') &&
+    (value.cost === undefined || typeof value.cost === 'number') &&
     (value.media === undefined || (Array.isArray(value.media) && value.media.every(isPostMediaAsset)))
   )
 }

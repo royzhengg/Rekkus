@@ -496,7 +496,7 @@ const PostCompactRow = React.memo(function PostCompactRow({
           <Text style={styles.postRowTitle} numberOfLines={2}>
             {post.title}
           </Text>
-          <PostRatingStrip food={post.food} vibe={post.vibe} cost={post.cost} />
+          <PostRatingStrip {...(post.food != null ? { food: post.food } : {})} {...(post.vibe != null ? { vibe: post.vibe } : {})} {...(post.cost != null ? { cost: post.cost } : {})} />
         </View>
       </TouchableOpacity>
     </Animated.View>

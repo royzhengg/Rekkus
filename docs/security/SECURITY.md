@@ -15,11 +15,11 @@ This document tracks Rekkus security controls, risks, and ISO 27001-readiness. I
 
 | Data | Classification | Notes |
 | --- | --- | --- |
-| Public posts, restaurant metadata, public profiles | Public app data | Publicly readable by design |
-| Saves (`saves`, `saved_locations`, `saved_dishes`), collections, topic follows, settings, push tokens, auth identities | User-private/shareable | RLS scoped to owner; collection rows may be unlisted/public-readable only when visibility allows |
+| Public posts, place metadata, public profiles | Public app data | Publicly readable by design |
+| Saves (`saves`, `saved_places`, `saved_dishes`), collections, topic follows, settings, push tokens, auth identities | User-private/shareable | RLS scoped to owner; collection rows may be unlisted/public-readable only when visibility allows |
 | Analytics events | Internal telemetry | Avoid sensitive content in metadata |
-| Restaurant observations, sources, aliases, provider cache | Source-attributed data | Must preserve provenance, retention, attribution, and audit rules |
-| Restaurant audit events and privacy requests | Compliance evidence | Minimized, access-controlled, and retained by policy |
+| Place observations, sources, aliases, provider cache | Source-attributed data | Must preserve provenance, retention, attribution, and audit rules. Note: underlying tables retain historical `restaurant_` prefix. |
+| Place audit events and privacy requests | Compliance evidence | Minimized, access-controlled, and retained by policy. Note: `restaurant_audit_events` retains historical naming. |
 | `auth_audit_events` | Compliance evidence (ISO A.12.4.1) | Permanent retention; service-role only; written via `record_auth_audit_event` SECURITY DEFINER RPC |
 | `content_lifecycle_events` | Compliance evidence | Post/comment creation/deletion; no FK on entity_id — survives cascade delete; service-role only |
 | `feature_flag_audit_events` | Compliance evidence | Runtime flag override mutations; fail-closed database trigger; service-role only |
@@ -42,7 +42,7 @@ This document tracks Rekkus security controls, risks, and ISO 27001-readiness. I
 - Auth/email actions have cooldowns or provider rate limits.
 - Analytics and notification events are deduped/throttled where practical.
 - No raw tokens, reset links, passwords, or service errors are logged.
-- Canonical restaurant changes, provider refreshes, moderation/admin actions, privacy requests, and async jobs must produce audit evidence.
+- Canonical place changes, provider refreshes, moderation/admin actions, privacy requests, and async jobs must produce audit evidence.
 - Authentication events (login, logout, OAuth) must be recorded in `auth_audit_events` via SECURITY DEFINER RPC — not only in `analytics_events` (90-day retention is insufficient for ISO compliance).
 - `auth_audit_events.context` must include device metadata (`device_os`, `device_version`) on login events. Client-side calls pass these from `Platform.OS`/`Platform.Version`. Server-side sessions capture `ip_hash` (SHA-256 of client IP, pseudonymised) and `device_os` (from user-agent) via the `auth-audit-hook` Edge Function (B-520). Raw IP is never stored.
 - `check:risk-guardrails` enforces that every `recordAuthAuditEvent` login call includes a context argument — bare login audit calls fail CI. Login, password-change, and account-deletion events are additionally captured server-side by a PostgreSQL trigger on `auth.users` (B-519) — atomic with the auth transaction and immune to client crashes. `logout` is client-only (intentional: session invalidation does not update `auth.users` rows). Duplicate records from both paths are acceptable.
@@ -51,7 +51,7 @@ This document tracks Rekkus security controls, risks, and ISO 27001-readiness. I
 - Runtime feature flag overrides must be recorded in `feature_flag_audit_events` by the fail-closed trigger on `feature_flag_overrides`; operational control changes must not depend on a UI write path for audit coverage.
 - All domain audit tables are unified under `platform_audit_events_view` (ADR 0011). The `check:audit` guardrail enforces that every `*_audit_events` table is present in the view.
 - New data/provider features must pass the compliance, data inventory, RLS, audit, provider, privacy, and ISO checks before release.
-- Saved-library writes use owner-scoped rows. Collection adds atomically establish the target bookmark; confirmed unsave removes owned memberships and the bookmark together so private intent does not drift.
+- Saved-library writes use owner-scoped rows. Collection adds atomically establish the target save; confirmed unsave removes owned memberships and the save together so private intent does not drift.
 - Offline write recovery persists only strictly validated reversible desired-state intents in `AsyncStorage`. Authored posts/comments/messages, safety reports/blocks, profile/auth/account writes, collection creation/sharing/deletion, and publishing require explicit retry while online.
 - Public beta requires a monitored vulnerability disclosure path with scope, expected response time, and escalation to incident handling.
 
@@ -69,12 +69,12 @@ Auth and email-like actions must use provider rate limits plus app-side cooldown
 
 ## Moderation And Abuse Foundation
 
-- Posts, comments, profiles, and restaurants route reports through `content_reports`.
+- Posts, comments, profiles, and places route reports through `content_reports`.
 - User blocks are stored in `user_blocks` and remain owner-scoped by RLS.
 - `moderation_actions`, `moderation_appeals`, `user_trust_profiles`, and soft-delete columns provide the first queue, appeal, trust, and reversible action model before an admin dashboard exists.
 - Soft delete is enforced end-to-end: RLS SELECT policies filter `deleted_at is null` on `posts`, `comments`, and `post_photos`; hard-delete is blocked at the RLS layer; all deletes go through `delete_post()` / `delete_comment()` SECURITY DEFINER RPCs (owner-only). Content is physically purged after 30 days via `purge_soft_deleted_content()` (batched, pg_cron scheduled). Restore is possible within the 30-day window via `restore_post()` / `restore_comment()` (service role only — required for `moderation_appeals` flow). See ADR 0003.
 - Abuse analytics use the sanitized `abuse_signal` event; do not include raw private content, exact location, secrets, or free-form private notes.
-- Post editing is owner-only through existing post RLS plus `post_edit_events`. The audit table records event type and changed field names/count only; captions, media URLs, restaurant names, addresses, and before/after values are forbidden.
+- Post editing is owner-only through existing post RLS plus `post_edit_events`. The audit table records event type and changed field names/count only; captions, media URLs, place names, addresses, and before/after values are forbidden.
 - AI moderation remains disabled for user content until it is a first-pass flagger with human review, appeal, provider boundary, and audit evidence.
 
 ## Server-Side Rate Limit Strategy

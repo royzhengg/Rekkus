@@ -1,4 +1,4 @@
-import type { SelectedPlace } from '@/lib/services/restaurants'
+import type { SelectedPlace } from '@/lib/services/places'
 import type {
   DishTag,
   PostMedia,
@@ -39,13 +39,12 @@ export type CreatePostDraft = {
   title: string
   selectedPlace: SelectedPlace | null
   dishTags: DishTag[]
-  foodRating: number
-  vibeRating: number
-  costRating: number
   tasteVerdict?: RekkusTasteVerdict | undefined
   valueVerdict?: RekkusValueVerdict | undefined
   occasionTags?: RekkusOccasionTag[] | undefined
   body: string
+  cashDiscount?: boolean | undefined
+  googleReviewFreebie?: boolean | undefined
   mustOrder: string
   cuisineType: string
   hashtags: string[]

@@ -50,7 +50,7 @@ function makePost(index: number): Post {
     vibe: 4,
     cost: 3,
     cuisine_type: 'Japanese',
-    restaurantId: `rest-${restaurantIndex}`,
+    placeId: `rest-${restaurantIndex}`,
   }
 }
 

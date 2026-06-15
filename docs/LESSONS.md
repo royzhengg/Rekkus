@@ -23,3 +23,6 @@ This file is navigation only. Before work, identify the relevant topic below and
 | [Phase 0 Audit](lessons/phase0-audit.md) | Historical stabilisation findings and their prevention rules |
 | [Permissions](lessons/permissions.md) | Permission request timing, canAskAgain recovery, and form autofill metadata |
 | [Media](lessons/media.md) | Native picker timing, modal-over-modal iOS constraint, and camera/library launch patterns |
+| [Location Tagging](lessons/location-tagging.md) | Restaurant location resolution, geocoding fallbacks, and place attachment to posts |
+| [Schema](lessons/schema.md) | DB schema patterns, FTS columns, migration conventions, and foreign key discipline |
+| [Post Create Flow](lessons/post-create-flow.md) | Post creation flow overhaul: field hierarchy, UX patterns, and step ordering |

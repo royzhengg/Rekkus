@@ -56,9 +56,9 @@ export function runRuntimeBoundaryGuardTests(assert: StrictAssert) {
   assert.equal(isRawPost(null), false)
   const rawPost = {
     id: 'p1', user_id: 'u1', caption: null, food_rating: null, vibe_rating: null,
-    cost_rating: null, cuisine_type: null, must_order: null, restaurant_id: null,
+    cost_rating: null, cuisine_type: null, must_order: null, place_id: null,
     taste_verdict: null, value_verdict: null, occasion_tags: null, created_at: null,
-    last_edited_at: null, edit_count: null, users: null, restaurants: null, post_photos: [],
+    last_edited_at: null, edit_count: null, users: null, places: null, post_photos: [],
   }
   assert.equal(isRawPost(rawPost), true)
   assert.equal(isRawPost({

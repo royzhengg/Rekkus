@@ -74,7 +74,7 @@ Never import `lib/mocks` from `app/` or `features/`; route through data-source b
 - `RekkusActionSheet` for choice/action lists; no `ActionSheetIOS`.
 - External calls behind services; no direct Google/Supabase logic in screens unless creating the service.
 - Authenticated writes: auth check in app, RLS for authorisation. Service-role secrets only in Supabase Edge Functions. `EXPO_PUBLIC_*` values: no private secrets.
-- **Cache-first, API-last:** Check DB before any paid external API (Google Places, geocoding, etc.). Store result with TTL (Google Places: 30-day per ToS; public reference data: indefinite). Reference: `restaurant_provider_cache`, `lib/utils/locationResolver.ts`.
+- **Cache-first, API-last:** Check DB before any paid external API (Google Places, geocoding, etc.). Store result with TTL (Google Places: 30-day per ToS; public reference data: indefinite). Reference: `restaurant_provider_cache` (infra table; keeps historical name), `lib/utils/locationResolver.ts`.
 - **Token enforcement:** No hardcoded hex colours, pixel spacing, or font sizes in `features/`. Import from `constants/Colors.ts`, `constants/Spacing.ts`, `constants/Typography.ts`. Run `check:tokens` + `check:darkmode` before any styling commit.
 - **Touch targets:** Min 44×44pt. Use `<IconButton>` (`components/ui/IconButton.tsx`); never raw `TouchableOpacity` with width/height < 44.
 - **Android parity:** All flows, UI states, and navigation must work on Android before shipping. `Platform.OS`/`Platform.select` only for genuine platform affordances — never to gate core functionality. Verify on Android before marking any UI/navigation/permission change done.

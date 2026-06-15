@@ -11,6 +11,7 @@ export type Settings = {
   allow_comments: boolean
   allow_tags: boolean
   autoplay_videos: boolean
+  show_activity_status: boolean
   theme_mode: 'light' | 'dark' | 'system'
 }
 
@@ -24,6 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
   allow_comments: true,
   allow_tags: true,
   autoplay_videos: true,
+  show_activity_status: true,
   theme_mode: 'system',
 }
 
@@ -43,6 +45,7 @@ export function normalizeSettings(value: unknown): Settings {
     allow_comments: typeof value.allow_comments === 'boolean' ? value.allow_comments : DEFAULT_SETTINGS.allow_comments,
     allow_tags: typeof value.allow_tags === 'boolean' ? value.allow_tags : DEFAULT_SETTINGS.allow_tags,
     autoplay_videos: typeof value.autoplay_videos === 'boolean' ? value.autoplay_videos : DEFAULT_SETTINGS.autoplay_videos,
+    show_activity_status: typeof value.show_activity_status === 'boolean' ? value.show_activity_status : DEFAULT_SETTINGS.show_activity_status,
     theme_mode: themeMode(value.theme_mode),
   }
 }
@@ -62,9 +65,10 @@ export async function updateSettingValue<K extends keyof Settings>(
   key: K,
   value: Settings[K]
 ): Promise<void> {
-  const { error } = await supabase.from('user_settings').update({
+  const { error } = await supabase.from('user_settings').upsert({
+    id: userId,
     [key]: value,
     updated_at: new Date().toISOString(),
-  } as never).eq('id', userId)
+  } as never, { onConflict: 'id' })
   if (error) throw error
 }

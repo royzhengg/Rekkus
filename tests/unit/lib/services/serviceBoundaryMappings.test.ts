@@ -1,5 +1,5 @@
 import { mapAlertRow } from '@/lib/services/alerts'
-import { normalizeSavedLocations } from '@/lib/services/savedLocations'
+import { normalizeSavedPlaces } from '@/lib/services/savedPlaces'
 import { DEFAULT_SETTINGS, normalizeSettings } from '@/lib/services/settings'
 
 jest.mock('@/lib/supabase', () => ({
@@ -7,12 +7,12 @@ jest.mock('@/lib/supabase', () => ({
 }))
 
 describe('service-boundary normalisation', () => {
-  it('defaults legacy saved locations to want_to_try while preserving joined details', () => {
-    expect(normalizeSavedLocations([{
+  it('normalizes saved places without intent status while preserving joined details', () => {
+    expect(normalizeSavedPlaces([{
       id: 'save-1',
-      restaurant_id: 'restaurant-1',
+      place_id: 'restaurant-1',
       created_at: '2026-05-25T00:00:00.000Z',
-      restaurants: {
+      places: {
         name: 'Noodle House',
         address: null,
         latitude: -33.8,
@@ -21,10 +21,9 @@ describe('service-boundary normalisation', () => {
       },
     }])).toEqual([{
       id: 'save-1',
-      restaurant_id: 'restaurant-1',
+      place_id: 'restaurant-1',
       created_at: '2026-05-25T00:00:00.000Z',
-      save_status: 'want_to_try',
-      restaurants: {
+      places: {
         name: 'Noodle House',
         address: null,
         latitude: -33.8,

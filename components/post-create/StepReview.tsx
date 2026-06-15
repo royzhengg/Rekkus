@@ -18,7 +18,7 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import type { SelectedPlace } from '@/lib/services/restaurants'
+import type { SelectedPlace } from '@/lib/services/places'
 import type { DishTag, PostMedia, RekkusOccasionTag, RekkusTasteVerdict, RekkusValueVerdict } from '@/types/domain'
 
 type Props = {
@@ -27,14 +27,13 @@ type Props = {
   media: PostMedia[]
   dishTags?: DishTag[] | undefined
   selectedPlace: SelectedPlace | null
-  foodRating: number
-  vibeRating: number
-  costRating: number
   tasteVerdict?: RekkusTasteVerdict | undefined
   valueVerdict?: RekkusValueVerdict | undefined
   occasionTags?: RekkusOccasionTag[] | undefined
   cuisineType: string
   mustOrder: string
+  cashDiscount?: boolean | undefined
+  googleReviewFreebie?: boolean | undefined
   hashtags: string[]
   onEditBasics: () => void
   onEditDetails: () => void
@@ -56,12 +55,16 @@ export default function StepReview({
   occasionTags,
   cuisineType,
   mustOrder,
+  cashDiscount,
+  googleReviewFreebie,
   hashtags,
   onEditBasics,
   onEditDetails,
   onPost,
+  onSaveDraft,
   primaryLabel = 'Post review',
   posting,
+  savingDraft,
 }: Props) {
   const c = useThemeColors()
   const styles = useMemo(() => makeStyles(c), [c])
@@ -162,6 +165,22 @@ export default function StepReview({
             </View>
           )}
 
+          {/* Community intel */}
+          {(cashDiscount || googleReviewFreebie) && (
+            <View style={styles.intelRow}>
+              {cashDiscount && (
+                <View style={styles.intelPill}>
+                  <Text style={styles.intelPillText}>💵 Cash discount</Text>
+                </View>
+              )}
+              {googleReviewFreebie && (
+                <View style={styles.intelPill}>
+                  <Text style={styles.intelPillText}>⭐ Review freebie</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Hashtags */}
           {hashtags.length > 0 && (
             <View style={styles.hashtags}>
@@ -231,6 +250,20 @@ export default function StepReview({
               <SendIcon active size={16} color={c.white} />
               <Text style={styles.postBtnText}>{primaryLabel}</Text>
             </>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.saveDraftBtn, savingDraft && styles.saveDraftBtnDisabled]}
+          onPress={onSaveDraft}
+          disabled={savingDraft}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Save draft"
+        >
+          {savingDraft ? (
+            <ActivityIndicator color={c.text2} size="small" />
+          ) : (
+            <Text style={styles.saveDraftText}>Save draft</Text>
           )}
         </TouchableOpacity>
         <Text style={styles.confidenceText}>Your review helps others discover great food</Text>
@@ -337,6 +370,18 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     },
     metaPillText: { fontSize: fontSize.sm, color: c.text2 },
 
+    // Community intel
+    intelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.px6 },
+    intelPill: {
+      backgroundColor: c.surface,
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.px10,
+      paddingVertical: spacing[1],
+      borderWidth: 0.5,
+      borderColor: c.border,
+    },
+    intelPillText: { fontSize: fontSize.sm, color: c.text2 },
+
     // Hashtags
     hashtags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.px5, paddingBottom: spacing[1] },
     hashtag: { fontSize: fontSize.bodySm, color: c.info },
@@ -374,6 +419,16 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       justifyContent: 'center',
     },
     editBtnText: { fontSize: fontSize.sm, color: c.text3, fontWeight: fontWeight.medium },
+    saveDraftBtn: {
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.pill2,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    saveDraftBtnDisabled: { opacity: 0.5 },
+    saveDraftText: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: c.text2 },
     confidenceText: { fontSize: fontSize.xs, color: c.text3, textAlign: 'center' },
     postBtn: {
       minHeight: 52,

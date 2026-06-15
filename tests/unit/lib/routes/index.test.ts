@@ -10,16 +10,17 @@ describe('routes', () => {
     ['user following', routes.userFollows('roy', 'following'), { pathname: '/user/[username]/follows', params: { username: 'roy', listType: 'following' } }],
     ['conversation info', routes.conversationInfo('conv-1'), { pathname: '/messages/info', params: { conversationId: 'conv-1' } }],
     ['draft edit', routes.draftEdit('draft-1'), { pathname: '/create', params: { draftId: 'draft-1' } }],
+    ['manage top spots', routes.manageTopSpots(), { pathname: '/manage-top-spots' }],
   ])('builds the %s route contract', (_label, route, expected) => {
     expect(route).toEqual(expected)
   })
 
   it('normalises optional restaurant detail values for route params', () => {
-    expect(routes.restaurantDetail({ restaurantId: 'rest-1', lat: -33.87, lng: 151.21 })).toEqual({
-      pathname: '/restaurants/[restaurantId]',
+    expect(routes.placeDetail({ placeId: 'rest-1', lat: -33.87, lng: 151.21 })).toEqual({
+      pathname: '/places/[placeId]',
       params: {
-        restaurantId: 'rest-1',
-        placeId: 'none',
+        placeId: 'rest-1',
+        googlePlaceId: 'none',
         name: '',
         address: '',
         lat: '-33.87',
@@ -56,11 +57,11 @@ describe('routes', () => {
         searchResultPosition: '2',
       },
     })
-    expect(routes.restaurantDetail({ restaurantId: 'rest-1', ...attribution })).toEqual({
-      pathname: '/restaurants/[restaurantId]',
+    expect(routes.placeDetail({ placeId: 'rest-1', ...attribution })).toEqual({
+      pathname: '/places/[placeId]',
       params: {
-        restaurantId: 'rest-1',
-        placeId: 'none',
+        placeId: 'rest-1',
+        googlePlaceId: 'none',
         name: '',
         address: '',
         lat: '',
@@ -74,11 +75,11 @@ describe('routes', () => {
   })
 
   it('normalises absent restaurant map values to strings', () => {
-    expect(routes.restaurantMap({ restaurantId: 'rest-1' })).toEqual({
-      pathname: '/restaurants/[restaurantId]/map',
+    expect(routes.placeMap({ placeId: 'rest-1' })).toEqual({
+      pathname: '/places/[placeId]/map',
       params: {
-        restaurantId: 'rest-1',
-        placeId: '',
+        placeId: 'rest-1',
+        googlePlaceId: '',
         name: '',
         lat: '',
         lng: '',
@@ -102,6 +103,13 @@ describe('routes', () => {
     expect(routes.saved('places')).toEqual({
       pathname: '/(tabs)/saved',
       params: { section: 'places' },
+    })
+    expect(routes.savedPlaces()).toEqual({
+      pathname: '/saved/places',
+    })
+    expect(routes.savedPlaces({ view: 'map' })).toEqual({
+      pathname: '/saved/places',
+      params: { view: 'map' },
     })
     expect(routes.search('ramen', 'hashtag')).toEqual({
       pathname: '/(tabs)/search',

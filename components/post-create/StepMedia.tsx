@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as ImagePicker from 'expo-image-picker'
-import * as MediaLibrary from 'expo-media-library'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
@@ -9,37 +8,33 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
   Image,
   Modal,
   useWindowDimensions,
 } from 'react-native'
-import Animated, { FadeIn } from 'react-native-reanimated'
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
 import DishTagOverlay from '@/components/DishTagOverlay'
 import {
   CameraIcon,
-  ChevronRight,
   CloseIcon,
-  PinIcon,
+  TagIcon,
   ImagePlaceholder,
   PlusIcon,
 } from '@/components/icons'
 import DraggableMediaStrip from '@/components/post-create/DraggableMediaStrip'
-import { Chip } from '@/components/ui/Chip'
+import { RestaurantPicker } from '@/components/RestaurantPicker'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
-import { spacing } from '@/constants/Spacing'
 import { analytics } from '@/lib/analytics'
+import { SPRING_SNAPPY } from '@/lib/animations'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useUserLocationContext } from '@/lib/contexts/UserLocationContext'
 import { isEnabled } from '@/lib/featureFlags'
 import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
-import type { RecentPhoto } from '@/lib/hooks/useRecentPhotos'
-import { useRecentPhotos } from '@/lib/hooks/useRecentPhotos'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
-import { useRestaurantSearch } from '@/lib/hooks/useRestaurantSearch'
 import { MEDIA_LIMITS, validatePickedPostMedia } from '@/lib/services/media'
+import type { SelectedPlace } from '@/lib/services/places'
 import { preparePostMedia } from '@/lib/services/postMediaProcessing'
-import type { Prediction, PredictionDistanceGroup, SelectedPlace } from '@/lib/services/restaurants'
 import type { DishTag, PostMedia } from '@/types/domain'
 import { makeStyles } from './StepMedia.styles'
 
@@ -56,77 +51,15 @@ type Props = {
   setDishTags: (tags: DishTag[]) => void
 }
 
-type RecentPhotoPickedAsset = {
-  uri: string
-  type: 'image'
-  width: number
-  height: number
-  mimeType: string | null
-}
-
-function inferImageMimeTypeFromSources(...sources: Array<string | null | undefined>): string | null {
-  for (const source of sources) {
-    const extension = source?.split('?')[0]?.split('.').pop()?.toLowerCase()
-    switch (extension) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg'
-      case 'png':
-        return 'image/png'
-      case 'webp':
-        return 'image/webp'
-      case 'heic':
-        return 'image/heic'
-      case 'heif':
-        return 'image/heif'
-      default:
-        break
-    }
-  }
-  return null
-}
-
-async function resolveRecentPhotoAsset(photo: RecentPhoto): Promise<RecentPhotoPickedAsset | null> {
-  try {
-    const info = await MediaLibrary.getAssetInfoAsync(photo.id)
-    const uri = info.localUri ?? info.uri ?? photo.uri
-    const mimeType = inferImageMimeTypeFromSources(info.filename, info.localUri, info.uri, photo.filename, photo.uri)
-    if (!uri || !mimeType) return null
-    return {
-      uri,
-      type: 'image',
-      width: info.width || photo.width,
-      height: info.height || photo.height,
-      mimeType,
-    }
-  } catch {
-    return null
-  }
-}
-
-const DISTANCE_GROUP_LABELS: Record<PredictionDistanceGroup, string> = {
-  nearby: 'Nearby',
-  city: 'Sydney',
-  state: 'NSW',
-  country: 'Australia',
-  worldwide: 'Worldwide',
-}
-
 const NATIVE_PICKER_PRESENTATION_DELAY_MS = 350
 const PHOTO_LIBRARY_DENIED_MESSAGE =
-  'Photo library access is needed to add photos. Enable it in Settings.'
+  'Media library access is needed to add media. Enable it in Settings.'
 const CAMERA_DENIED_MESSAGE =
   'Camera access is needed to take a food photo. Enable it in Settings.'
 const PHOTO_LIBRARY_OPEN_ERROR =
-  'Could not open your photo library. Please try again.'
+  'Could not open your media library. Please try again.'
 const CAMERA_OPEN_ERROR =
   'Could not open your camera. Please try again.'
-const RECENT_PHOTO_READ_ERROR =
-  'Could not read this photo. Try Add media instead.'
-
-function distanceGroupLabel(group: PredictionDistanceGroup | undefined): string {
-  return DISTANCE_GROUP_LABELS[group ?? 'worldwide']
-}
 
 function waitForNativePickerPresentationWindow(): Promise<void> {
   return new Promise(resolve => {
@@ -151,6 +84,7 @@ export default function StepMedia({
   const styles = useMemo(() => makeStyles(c), [c])
   const { width: screenWidth } = useWindowDimensions()
 
+  const pendingPickerRef = useRef<'camera' | 'library' | null>(null)
   const [_titleFocused, setTitleFocused] = useState(false)
   const [mediaPickerVisible, setMediaPickerVisible] = useState(false)
   const [dishTagModal, setDishTagModal] = useState(false)
@@ -160,85 +94,28 @@ export default function StepMedia({
   const [mediaError, setMediaError] = useState<string | null>(null)
   const { request: requestPermission, recoveryVisible, recoveryMessage, dismissRecovery, openSettings } = usePermissionRecovery()
 
-  const {
-    locationSearch,
-    predictions,
-    predictionsLoading,
-    selectingPlace,
-    nearbyPlaces,
-    nearbyLoading,
-    searchFocused,
-    showNearby,
-    showDropdown,
-    locationStatus,
-    locationConstrained,
-    requestLocationAndSearch,
-    handleSearchChange,
-    selectPrediction,
-    onSearchFocus,
-    onSearchBlur,
-    clearSearch,
-  } = useRestaurantSearch({ cuisineType, userId: userId ?? null, onPlaceSelected: setSelectedPlace })
-  const showRestaurantLocationNudge =
-    !selectedPlace &&
-    !locationConstrained &&
-    locationSearch.trim().length >= 2 &&
-    locationStatus !== 'granted'
-  const restaurantEmptyText = locationConstrained
-    ? `No venues found near you for "${locationSearch}"`
-    : `No results for "${locationSearch}"`
-  const restaurantEmptyHint = locationConstrained
-    ? 'Try a different name or check your location.'
-    : 'Adding your location can improve nearby results.'
-
-  const renderPredictionRows = (
-    items: Prediction[],
-    source: 'nearby' | 'prediction'
-  ) => {
-    let previousGroup: string | null = null
-    return items.map((item, index) => {
-      const groupLabel = distanceGroupLabel(item.distanceGroup)
-      const showHeader = groupLabel !== previousGroup
-      previousGroup = groupLabel
-      return (
-        <View key={item.place_id}>
-          {showHeader && (
-            <Text style={styles.dropdownSectionHeader}>{groupLabel}</Text>
-          )}
-          <TouchableOpacity
-            style={[styles.dropdownItem, index === items.length - 1 && { borderBottomWidth: 0 }]}
-            onPress={() => selectPrediction(item, source)}
-          >
-            <PinIcon color={c.text3} size={13} />
-            <View style={styles.dropdownItemText}>
-              <Text style={styles.dropdownName}>{item.structured_formatting.main_text}</Text>
-              <Text style={styles.dropdownSub} numberOfLines={1}>
-                {item.structured_formatting.secondary_text}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      )
-    })
-  }
+  const { coords: userCoords, setManualCoords } = useUserLocationContext()
 
   const photos = useMemo(() => media.filter(item => item.type === 'image').map(item => item.uri), [media])
   const videoCount = media.filter(item => item.type === 'video').length
-  const recentPhotoStripShownRef = useRef(false)
-  const recentPhotos = useRecentPhotos({
-    enabled: media.length === 0,
-  })
 
+  const preparingCount = media.filter(item => item.processingStatus === 'preparing').length
+  const progressValue = useSharedValue(1)
   useEffect(() => {
-    if (media.length > 0 || recentPhotos.photos.length === 0 || recentPhotoStripShownRef.current) return
-    recentPhotoStripShownRef.current = true
-    analytics.mediaEvent(null, 'recent_photo_strip_shown', 'post_create', {
-      photo_count: recentPhotos.photos.length,
-    })
-  }, [media.length, recentPhotos.photos.length])
+    const ratio = media.length === 0 ? 1 : (media.length - preparingCount) / media.length
+    progressValue.value = withSpring(ratio, SPRING_SNAPPY)
+  }, [preparingCount, media.length, progressValue])
+  const progressBarStyle = useAnimatedStyle(() => ({ width: `${progressValue.value * 100}%` as `${number}%` }), [])
 
   function showMediaError(message: string) {
     setMediaError(message)
+  }
+
+  function firePendingPicker() {
+    const pending = pendingPickerRef.current
+    pendingPickerRef.current = null
+    if (pending === 'camera') void takePhoto()
+    else if (pending === 'library') void addMedia()
   }
 
   async function addMedia() {
@@ -268,8 +145,18 @@ export default function StepMedia({
         selectionLimit: remaining,
         videoMaxDuration: MEDIA_LIMITS.maxPostVideoSeconds,
         presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
+        exif: true,
       })
       if (!result.canceled) {
+        // Pre-fill search bias from photo EXIF if user location is unknown
+        if (!userCoords) {
+          const firstAsset = result.assets[0]
+          const exifLat = firstAsset?.exif?.GPSLatitude as number | undefined
+          const exifLng = firstAsset?.exif?.GPSLongitude as number | undefined
+          if (typeof exifLat === 'number' && typeof exifLng === 'number') {
+            setManualCoords?.({ lat: exifLat, lng: exifLng })
+          }
+        }
         analytics.mediaEvent(null, 'media_selected', 'post_create', {
           media_count: result.assets.length,
         })
@@ -358,53 +245,19 @@ export default function StepMedia({
     }
   }
 
-  async function addRecentPhoto(photo: RecentPhoto) {
-    setMediaError(null)
-    analytics.mediaEvent(null, 'recent_photo_selected', 'post_create')
-    analytics.mediaEvent(null, 'media_selected', 'post_create', {
-      media_count: 1,
-      media_type: 'image',
-      source: 'recent_photo_strip',
-    })
-    analytics.mediaEvent(null, 'media_prepare_started', 'post_create', {
-      media_count: 1,
-      media_type: 'image',
-      source: 'recent_photo_strip',
-    })
-    const asset = await resolveRecentPhotoAsset(photo)
-    if (!asset) {
-      showMediaError(RECENT_PHOTO_READ_ERROR)
-      analytics.uploadFailure(null, 'post_recent_photo_strip', 'metadata_unavailable')
-      analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
-        reason: 'metadata_unavailable',
-        media_type: 'image',
-        source: 'recent_photo_strip',
-      })
+  async function replaceCoverWithCrop() {
+    const currentPermission = await ImagePicker.getMediaLibraryPermissionsAsync()
+    if (!currentPermission.granted && !currentPermission.canAskAgain) {
+      await requestPermission(() => Promise.resolve(currentPermission), PHOTO_LIBRARY_DENIED_MESSAGE)
       return
     }
-
-    const { media: nextMedia, rejectedCount, error } = await preparePostMedia([asset], media)
-    if (error) showMediaError(error)
-    else if (rejectedCount > 0 && nextMedia.length === media.length) {
-      showMediaError(RECENT_PHOTO_READ_ERROR)
+    if (!currentPermission.granted) {
+      const requestedResult = await requestPermission(
+        () => ImagePicker.requestMediaLibraryPermissionsAsync(),
+        PHOTO_LIBRARY_DENIED_MESSAGE
+      )
+      if (!requestedResult.granted) return
     }
-    if (rejectedCount > 0) {
-      analytics.uploadFailure(null, 'post_recent_photo_strip', 'validation_rejected', rejectedCount)
-      analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
-        reason: error ?? 'validation_rejected',
-        media_type: 'image',
-        source: 'recent_photo_strip',
-      })
-    }
-    setMedia(nextMedia)
-    analytics.mediaEvent(null, 'media_prepare_completed', 'post_create', {
-      media_count: nextMedia.length,
-      media_type: 'image',
-      source: 'recent_photo_strip',
-    })
-  }
-
-  async function replaceCoverWithCrop() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -552,122 +405,21 @@ export default function StepMedia({
       </View>
 
       {/* Restaurant */}
-      <View style={styles.locationSection}>
-        <Text style={styles.sectionLabel}>RESTAURANT</Text>
-        {selectedPlace ? (
-          <View style={styles.locationConfirmed}>
-            <PinIcon color={c.accent} size={20} />
-            <View style={styles.locationConfirmedText}>
-              <Text style={styles.locationName} numberOfLines={1}>{selectedPlace.name}</Text>
-              <Text style={styles.locationAddress} numberOfLines={1}>
-                {selectedPlace.address.split(',').slice(0, 2).join(',')}
-              </Text>
-            </View>
-            {selectingPlace ? (
-              <ActivityIndicator size="small" color={c.text3} />
-            ) : (
-              <TouchableOpacity
-                onPress={() => setSelectedPlace(null)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Clear selected restaurant"
-              >
-                <CloseIcon size={10} color={c.text3} />
-              </TouchableOpacity>
-            )}
-          </View>
-        ) : (
-          <View style={styles.searchWrap}>
-            <PinIcon color={c.accent} size={20} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search or pick nearby..."
-              placeholderTextColor={c.text3}
-              value={locationSearch}
-              onChangeText={handleSearchChange}
-              onFocus={onSearchFocus}
-              onBlur={onSearchBlur}
-              returnKeyType="search"
-              accessibilityLabel="Restaurant name"
-              accessibilityHint="Search by name, or choose from restaurants near you"
-            />
-            {predictionsLoading && <ActivityIndicator size="small" color={c.text3} />}
-            {locationSearch.length > 0 && !predictionsLoading ? (
-              <TouchableOpacity
-                onPress={clearSearch}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Clear restaurant search"
-              >
-                <CloseIcon size={10} color={c.text3} />
-              </TouchableOpacity>
-            ) : (
-              <ChevronRight size={16} />
-            )}
-          </View>
-        )}
-
-        {!selectedPlace && nearbyPlaces.length > 0 && !searchFocused && locationSearch.length === 0 && (
-          <View style={styles.nearbyChips}>
-            {nearbyPlaces.slice(0, 3).map(item => (
-              <Chip
-                key={item.place_id}
-                label={item.structured_formatting.main_text}
-                onPress={() => selectPrediction(item, 'nearby')}
-              />
-            ))}
-          </View>
-        )}
-
-        {showNearby && (
-          <View style={styles.dropdown}>
-            {nearbyLoading ? (
-              <ActivityIndicator size="small" style={{ marginVertical: spacing[3] }} />
-            ) : (
-              <>
-                <Text style={styles.nearbyLabel}>Nearby on Rekkus</Text>
-                {renderPredictionRows(nearbyPlaces, 'nearby')}
-              </>
-            )}
-          </View>
-        )}
-
-        {showDropdown && (
-          <View style={styles.dropdown}>
-            {renderPredictionRows(predictions, 'prediction')}
-            {predictions.length === 0 && locationSearch.length >= 2 && !predictionsLoading && (
-              <View style={styles.dropdownEmpty}>
-                <Text style={styles.dropdownEmptyText}>{restaurantEmptyText}</Text>
-                {restaurantEmptyHint ? (
-                  <Text style={styles.dropdownEmptyHint}>{restaurantEmptyHint}</Text>
-                ) : null}
-                {showRestaurantLocationNudge ? (
-                  <TouchableOpacity
-                    style={styles.dropdownLocationButton}
-                    onPress={() => { void requestLocationAndSearch() }}
-                    disabled={locationStatus === 'requesting'}
-                    accessibilityRole="button"
-                    accessibilityLabel="Use current location for restaurant search"
-                  >
-                    <Text style={styles.dropdownLocationButtonText}>
-                      {locationStatus === 'requesting' ? 'Getting location…' : 'Use current location'}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            )}
-          </View>
-        )}
-      </View>
+      <RestaurantPicker
+        value={selectedPlace}
+        onSelect={setSelectedPlace}
+        cuisineType={cuisineType}
+        userId={userId ?? null}
+      />
 
       {/* Media */}
       {mediaError ? <ErrorMessage title="Could not add media" message={mediaError} /> : null}
       {media.length === 0 ? (
         <View style={styles.mediaSection}>
-          <Text style={styles.sectionLabel}>MEDIA</Text>
           <View style={styles.photoEmpty}>
-            <ImagePlaceholder size={36} color={c.text3} />
-            <Text style={styles.photoEmptySub}>Tap your media to tag dishes</Text>
+            <CameraIcon size={40} color={c.text3} />
+            <Text style={styles.photoEmptyTitle}>Add your photos or videos</Text>
+            <Text style={styles.photoEmptySub}>Tag dishes to help friends discover what to order</Text>
           </View>
           <TouchableOpacity
             style={styles.mediaAddBtn}
@@ -679,33 +431,6 @@ export default function StepMedia({
             <PlusIcon size={16} color="#fff" /* check:tokens-ignore */ />
             <Text style={styles.mediaAddBtnText}>Add media</Text>
           </TouchableOpacity>
-          {(recentPhotos.loading || recentPhotos.photos.length > 0) && !recentPhotos.denied && !recentPhotos.error && (
-            <View style={styles.recentPhotosWrap}>
-              <Text style={styles.recentPhotosTitle}>RECENTS</Text>
-              <View style={styles.recentPhotosGrid}>
-                {recentPhotos.loading
-                  ? Array.from({ length: 5 }).map((_, index) => (
-                    <View
-                      key={`recent-photo-loading-${index}`}
-                      style={styles.recentPhotoSkeleton}
-                      accessibilityElementsHidden
-                      importantForAccessibility="no"
-                    />
-                  ))
-                  : recentPhotos.photos.slice(0, 5).map((photo, index) => (
-                    <TouchableOpacity
-                      key={photo.id}
-                      style={styles.recentPhotoButton}
-                      onPress={() => { void addRecentPhoto(photo) }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Add recent photo ${index + 1}`}
-                    >
-                      <Image source={{ uri: photo.uri }} style={styles.recentPhotoImage} resizeMode="cover" />
-                    </TouchableOpacity>
-                  ))}
-              </View>
-            </View>
-          )}
         </View>
       ) : (
         <View style={styles.photosSection}>
@@ -716,13 +441,22 @@ export default function StepMedia({
             onAdd={media.length < MEDIA_LIMITS.maxPostMedia ? addMedia : undefined}
           />
 
+          {/* Compression progress bar */}
+          {preparingCount > 0 && (
+            <View style={styles.progressTrack}>
+              <Animated.View style={[styles.progressFill, progressBarStyle]} />
+            </View>
+          )}
+
+          {/* Dish tag hint — shown once on first photo */}
           {showDishTagTooltip && (
             <Animated.View
               {...(!reduceMotion ? { entering: FadeIn.duration(200) } : {})}
               style={styles.dishTagTooltip}
             >
+              <TagIcon size={14} color={c.accent} />
               <Text style={styles.dishTagTooltipText}>
-                Tag the dishes in your photos — it helps friends discover what to order
+                Tap "Tag dishes" to pin dish names to your photos
               </Text>
               <TouchableOpacity
                 onPress={dismissDishTagTooltip}
@@ -731,27 +465,33 @@ export default function StepMedia({
                 accessibilityLabel="Dismiss tip"
                 style={styles.dishTagTooltipDismiss}
               >
-                <CloseIcon size={12} color={c.accent} />
+                <CloseIcon size={12} color={c.text3} />
               </TouchableOpacity>
             </Animated.View>
           )}
 
-          {/* Photo action row */}
+          {/* Actions */}
           {photos.length > 0 && (
             <View style={styles.photoActions}>
-              <TouchableOpacity style={styles.photoActionBtn} onPress={replaceCoverWithCrop} accessibilityRole="button" accessibilityLabel="Replace cover photo" accessibilityHint="Opens photo library to pick a 3 by 4 cropped cover image">
+              <TouchableOpacity
+                style={styles.photoActionBtn}
+                onPress={replaceCoverWithCrop}
+                accessibilityRole="button"
+                accessibilityLabel="Replace cover photo"
+                accessibilityHint="Opens photo library to pick a 3 by 4 cropped cover image"
+              >
                 <ImagePlaceholder size={13} color={c.accent} />
                 <Text style={styles.photoActionText}>3:4 cover</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.photoActionBtn}
+                style={styles.dishTagBtn}
                 onPress={openDishTagModal}
                 accessibilityRole="button"
                 accessibilityLabel="Tag dishes in photo"
                 accessibilityHint={dishTags.length > 0 ? `${dishTags.length} dish${dishTags.length !== 1 ? 'es' : ''} tagged. Tap to add more.` : 'Opens a photo view where you can pin dish names'}
               >
-                <PinIcon size={13} color={c.accent} />
-                <Text style={styles.photoActionText}>
+                <TagIcon size={14} color={c.accent} />
+                <Text style={styles.dishTagBtnText}>
                   Tag dishes{dishTags.length > 0 ? ` · ${dishTags.length}` : ''}
                 </Text>
               </TouchableOpacity>
@@ -762,10 +502,10 @@ export default function StepMedia({
           )}
           {photos.length > 0 && dishTags.length > 0 && (
             <View style={styles.dishTagChips}>
-              {dishTags.slice(0, 6).map((tag, index) => (
-                <Text key={`${tag.name}-${index}`} style={styles.dishTagChip}>
-                  {tag.name}
-                </Text>
+              {[...new Set(dishTags.map(t => t.name))].slice(0, 8).map((name) => (
+                <View key={name} style={styles.dishTagChipPill}>
+                  <Text style={styles.dishTagChip}>{name}</Text>
+                </View>
               ))}
             </View>
           )}
@@ -873,18 +613,16 @@ export default function StepMedia({
         title="Add media"
         options={[
           { label: 'Camera', value: 'camera', icon: <CameraIcon size={16} color={c.accent} /> },
-          { label: 'Photo library', value: 'library', icon: <ImagePlaceholder size={16} color={c.accent} /> },
+          { label: 'Media library', value: 'library', icon: <ImagePlaceholder size={16} color={c.accent} /> },
         ]}
         onSelect={v => {
+          pendingPickerRef.current = v === 'camera' ? 'camera' : 'library'
           setMediaPickerVisible(false)
-          // Defer past the sheet's ~300ms slide-out animation. iOS silently
-          // drops a native picker presentation while a modal VC is still
-          // dismissing; Android can also fail on some versions for the same reason.
-          setTimeout(() => {
-            if (v === 'camera') void takePhoto()
-            else void addMedia()
-          }, NATIVE_PICKER_PRESENTATION_DELAY_MS)
+          // Android fallback — onAfterDismiss (iOS Modal.onDismiss) is not available on Android.
+          // 500ms gives comfortable buffer for the ~300ms sheet animation plus bridge latency.
+          setTimeout(firePendingPicker, 500)
         }}
+        onAfterDismiss={firePendingPicker}
         onDismiss={() => setMediaPickerVisible(false)}
       />
       <RekkusActionSheet

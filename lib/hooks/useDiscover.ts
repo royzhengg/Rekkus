@@ -30,9 +30,9 @@ function computeDiscoverScore(
     coords && post.lat != null && post.lng != null
       ? distanceBoost(haversineKm(coords.lat, coords.lng, post.lat, post.lng)) * 0.6
       : isLocal
-        ? post.food * 0.3
+        ? (post.food ?? 0) * 0.3
         : 0
-  const quality = post.food >= 4.0 ? post.food * 0.25 : 0
+  const quality = (post.food ?? 0) >= 4.0 ? (post.food ?? 0) * 0.25 : 0
   const global = likes * 0.1
   const cuisine = (post.cuisine_type ?? '').toLowerCase()
   const personalised = (cuisineAffinities[cuisine] ?? 0) * 1.5
@@ -40,7 +40,7 @@ function computeDiscoverScore(
     ? 2
     : 0
   const trendingBoost = post.dbId && trendingPostIds.includes(post.dbId) ? 4 : 0
-  const completeness = (post.imageUrl ? 0.5 : 0) + (post.restaurantId ? 0.5 : 0) + (post.body ? 0.5 : 0)
+  const completeness = (post.imageUrl ? 0.5 : 0) + (post.placeId ? 0.5 : 0) + (post.body ? 0.5 : 0)
   const score = trendingLocal + nearby + quality + global + personalised + topicBoost + trendingBoost + completeness
   const dismissalMultiplier = dismissedCuisines[cuisine] != null ? 0.5 : 1
   return score * dismissalMultiplier

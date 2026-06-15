@@ -359,7 +359,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 All icons from `@/components/icons`. Never inline SVGs or define local icon functions in screens.
 
 ```tsx
-import { HeartIcon, BookmarkIcon, ChevronLeft, PinIcon, ... } from '@/components/icons'
+import { HeartIcon, SaveIcon, ChevronLeft, PinIcon, ... } from '@/components/icons'
 ```
 
 Icons accept optional `size` and `color` props. They call `useThemeColors()` internally when no `color` is passed.
@@ -522,11 +522,11 @@ Default: search bar + category chips + trending list.
 Active: result count label + 2-col grid (same as feed).
 Zero-results: `NoResultsCard` (`features/search/NoResultsCard.tsx`) — heading "No results for X" + 3 alternative `Chip` actions from local taste signals with `CHIPS` as static fallback. Never show a blank screen.
 
-### Create Review
+### Create Post
 
-Create composer: Title -> restaurant/place -> food media, then Review, then Share preview. Camera and Library are primary actions; mixed media uses drag-to-reorder thumbnails, item 0 is Cover, and dish tags apply to photos only. 3:4 cover and Tag dishes are compact icon pills below the strip. Review is core-first: compact icon-led Taste/Value/Occasion chips -> written review -> always-visible Best dish -> collapsed Optional details for Cuisine and Tags. Existing cuisine/tag values automatically expand Optional details and remain summarised when collapsed. Selected pick helper copy remains visible; visible Food/Vibe/Cost cards do not return. Header actions share size, weight, hit area, and disabled styling; Share hides the top Save and keeps Save draft in the final action area. Share edit actions use step names: Edit media and Edit review.
+Create composer: Title -> place -> food media, then Details, then Share preview. Camera and Library are primary actions; mixed media uses drag-to-reorder thumbnails, item 0 is Cover, and dish tags apply to photos only. 3:4 cover and Tag dishes are compact icon pills below the strip. Details are core-first: compact icon-led Taste/Value/Occasion chips -> written caption -> always-visible Best dish -> collapsed Optional details for Cuisine and Tags. Existing cuisine/tag values automatically expand Optional details and remain summarised when collapsed. Selected pick helper copy remains visible; visible Food/Vibe/Cost cards do not return. Header actions share size, weight, hit area, and disabled styling; Share hides the top Save and keeps Save draft in the final action area. Share edit actions use step names: Edit media and Edit details.
 
-**Step 1 (Media) spacing tokens (B-404):** `titleSection.paddingTop` = `spacing.px10` (10px); `locationSection.paddingTop` = `spacing[1]` (4px); `photoEmpty.marginTop` = `spacing[2]` (8px); `photoEmpty.aspectRatio` = 2.2 (~156px tall on 375px screen). These values keep the restaurant search and dish tagging prompt visible above the fold without scrolling on standard phone sizes.
+**Step 1 (Media) spacing tokens (B-404):** `titleSection.paddingTop` = `spacing.px10` (10px); `locationSection.paddingTop` = `spacing[1]` (4px); `photoEmpty.marginTop` = `spacing[2]` (8px); `photoEmpty.aspectRatio` = 2.2 (~156px tall on 375px screen). These values keep the place search and dish tagging prompt visible above the fold without scrolling on standard phone sizes.
 
 ### Post Collections
 
@@ -534,13 +534,13 @@ Profile grids use `ThumbGrid`: 3-column thumbnails with video/carousel badges an
 
 ### Saved Library And Dish Detail
 
-The visible tab is **Saved**. It opens an overview with Dishes, Places, Posts, and Collections; Places preserves its list/map and visit-prompt utility inside that drill-in. Dish detail leads with first-party post imagery, dish name, canonical restaurant, bookmark, collection action, and linked post evidence. Only canonical dish mentions are tappable.
+The visible tab is **Saved**. It opens an overview with Dishes, Places, Posts, and Collections; Places preserves its list/map and visit-prompt utility inside that drill-in. Dish detail leads with first-party post imagery, dish name, canonical place, save, collection action, and linked post evidence. Only canonical dish mentions are tappable.
 
 Collection picking uses a `RekkusActionSheet` list plus a private create action. Mixed collection detail uses one row language for dish, post, and place members in saved order.
 
 ### Upload & Drafts
 
-`PostUploadProgress` appears as a compact media row with thumbnail, status hierarchy, progress, posted success, and failed dismiss state. Draft rows look like saved post previews with thumbnail, title, restaurant/media/date metadata, and compact Duplicate/Delete actions.
+`PostUploadProgress` appears as a compact media row with thumbnail, status hierarchy, progress, posted success, and failed dismiss state. Draft rows look like saved post previews with thumbnail, title, place/media/date metadata, and compact Duplicate/Delete actions.
 
 Create launcher: the floating Create action opens a Rekkus sheet over the current screen. With saved drafts it shows **New post** and **Edit a draft** only; never show a long draft list in the launcher.
 

@@ -176,7 +176,7 @@ describe('analytics', () => {
   })
 
   it('emits create-post restaurant search term analytics', async () => {
-    analytics.restaurantSearchTermEntered('user-1', 'ramen')
+    analytics.placeSearchTermEntered('user-1', 'ramen')
     await flushAnalytics()
 
     expect(lastInsertedRow()).toMatchObject({
@@ -188,12 +188,12 @@ describe('analytics', () => {
   })
 
   it('emits create-post restaurant zero-results analytics', async () => {
-    analytics.restaurantSearchZeroResults('user-1', 'xyzzy')
+    analytics.placeSearchZeroResults('user-1', 'xyzzy')
     await flushAnalytics()
 
     expect(lastInsertedRow()).toMatchObject({
       user_id: 'user-1',
-      event_type: 'restaurant_search_zero_results',
+      event_type: 'place_search_zero_results',
       event_version: 1,
       metadata: { query: 'xyzzy' },
     })
@@ -226,15 +226,14 @@ describe('analytics', () => {
   })
 
   it('emits selected restaurant analytics with source metadata', async () => {
-    analytics.restaurantSelected('user-1', 'place-1', 'nearby', 'restaurant-1', 'Japanese')
+    analytics.placeSelected('user-1', 'place-1', 'nearby', 'restaurant-1', 'Japanese')
     await flushAnalytics()
 
     expect(lastInsertedRow()).toMatchObject({
       user_id: 'user-1',
-      event_type: 'restaurant_selected',
+      event_type: 'place_selected',
       event_version: 1,
-      entity_type: 'restaurant',
-      entity_id: 'restaurant-1',
+      entity_type: 'place',
       metadata: {
         place_id: 'place-1',
         source: 'nearby',

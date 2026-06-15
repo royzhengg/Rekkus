@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect  } from 'react'
-import { fetchPopularityCache } from '../services/restaurants'
-import type { PopularityCacheRow } from '../services/restaurants'
+import { fetchPlacePopularityCache as fetchPopularityCache } from '../services/places'
+import type { PopularityCacheRow } from '../services/places'
 
 export type { PopularityCacheRow }
 
@@ -13,7 +13,7 @@ export function usePopularityCache(): Map<string, PopularityCacheRow> {
     if (loadedAt.current && now - loadedAt.current < 30 * 60 * 1000) return
     void fetchPopularityCache(2000).then(rows => {
       const map = new Map<string, PopularityCacheRow>()
-      for (const row of rows) map.set(row.restaurant_id, row)
+      for (const row of rows) map.set(row.place_id, row)
       setPopularityCache(map)
       loadedAt.current = Date.now()
     })

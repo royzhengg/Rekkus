@@ -2,29 +2,38 @@
 
 ## Never present a native picker synchronously after dismissing a React Native Modal
 
-**Bug (2026-06):** Tapping Camera or Photo library in the create-post action sheet did nothing on a real device. No error, no picker.
+**Bug (2026-06, updated fix 2026-06):** Tapping Camera or Media library in the create-post action sheet did nothing on a real device — non-deterministically. No error, no picker.
 
-**Why it happens:** `RekkusActionSheet` wraps options in a React Native `Modal` with `animationType="slide"`. On iOS, the OS will silently drop any attempt to present a new native view controller (camera or photo library picker) while another modal VC is still in its ~300ms dismiss animation. Android can fail similarly when a Dialog/Activity transition is in flight.
+**Why it happens:** `RekkusActionSheet` wraps options in a React Native `Modal` with `animationType="slide"`. On iOS, the OS will silently drop any attempt to present a new native view controller (camera or photo library picker) while another modal VC is still in its ~350ms dismiss animation. Android can fail similarly when a Dialog/Activity transition is in flight.
 
-**The pattern that breaks:**
+The previous fix used `setTimeout(fn, 350)`. This is still racy: the iOS `Modal` animation is itself ~350ms, and the JS→native bridge adds 1–3 frames of latency before the animation even starts. So `setTimeout(350)` often fires 50–100ms before the animation completes.
+
+**The correct fix:** use `RekkusActionSheet.onAfterDismiss`, which maps to the native `Modal.onDismiss` prop on iOS. This fires after the dismiss animation has fully completed — no race possible. Keep a `setTimeout` at 500ms as an Android fallback (Modal.onDismiss is iOS-only):
+
 ```typescript
-onSelect={v => {
-  setSheetVisible(false)            // starts dismiss animation
-  void launchSomePicker()           // called while animation is still running — dropped on iOS
-}}
+const pendingPickerRef = useRef<'camera' | 'library' | null>(null)
+
+function firePendingPicker() {
+  const pending = pendingPickerRef.current
+  pendingPickerRef.current = null
+  if (pending === 'camera') void takePhoto()
+  else if (pending === 'library') void addMedia()
+}
+
+<RekkusActionSheet
+  onSelect={v => {
+    pendingPickerRef.current = v === 'camera' ? 'camera' : 'library'
+    setSheetVisible(false)
+    setTimeout(firePendingPicker, 500)  // Android fallback
+  }}
+  onAfterDismiss={firePendingPicker}    // iOS: fires after animation ends
+  onDismiss={() => setSheetVisible(false)}
+/>
 ```
 
-**The fix:** defer the picker call past the animation with `setTimeout(fn, 350)`:
-```typescript
-onSelect={v => {
-  setSheetVisible(false)
-  setTimeout(() => void launchSomePicker(), 350)
-}}
-```
+`firePendingPicker` clears the ref before acting so the iOS and Android paths are idempotent — whichever fires second is a no-op.
 
-**Where to apply:** any `RekkusActionSheet.onSelect` (or any `Modal` `onRequestClose`/`onDismiss`) that immediately presents native camera, photo library, document picker, or any other native VC/Activity. The delay of 350ms covers the 300ms slide animation with a small margin.
-
-**Regression test:** `tests/unit/features/StepMedia.test.tsx` — "StepMedia picker deferral" — verifies the picker is not called synchronously using jest fake timers.
+**Where to apply:** any `RekkusActionSheet.onSelect` that follows with native camera, photo library, document picker, or any other native VC/Activity. Do NOT use raw `setTimeout` — it will race on devices under load.
 
 ## Treat OS permission prompts as native presentation windows too
 

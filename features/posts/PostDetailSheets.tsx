@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { BookmarkIcon } from '@/components/icons'
+import { SaveIcon } from '@/components/icons'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
@@ -62,7 +62,7 @@ export function PostDetailSheets({
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <View style={styles.sheetIcon}>
-            <BookmarkIcon size={22} filled />
+            <SaveIcon size={22} filled />
           </View>
           <Text style={styles.sheetTitle}>Post saved!</Text>
           <Text style={styles.sheetBody}>Added to your saved posts.</Text>

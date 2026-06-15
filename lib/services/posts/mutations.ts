@@ -31,21 +31,9 @@ export async function updatePost(postId: string, payload: UpdatePostPayload): Pr
     patch.caption = payload.caption
     changedFields.push('caption')
   }
-  if ('restaurantId' in payload) {
-    patch.restaurant_id = payload.restaurantId
-    changedFields.push('restaurant_id')
-  }
-  if ('foodRating' in payload) {
-    patch.food_rating = payload.foodRating
-    changedFields.push('food_rating')
-  }
-  if ('vibeRating' in payload) {
-    patch.vibe_rating = payload.vibeRating
-    changedFields.push('vibe_rating')
-  }
-  if ('costRating' in payload) {
-    patch.cost_rating = payload.costRating
-    changedFields.push('cost_rating')
+  if ('placeId' in payload) {
+    patch.place_id = payload.placeId
+    changedFields.push('place_id')
   }
   if ('tasteVerdict' in payload) {
     patch.taste_verdict = payload.tasteVerdict
@@ -160,15 +148,14 @@ export async function updatePost(postId: string, payload: UpdatePostPayload): Pr
 export async function createPost(params: {
   userId: string
   caption: string | null
-  restaurantId: string | null
-  foodRating: number | null
-  vibeRating: number | null
-  costRating: number | null
+  placeId: string | null
   tasteVerdict: RekkusTasteVerdict | null
   valueVerdict: RekkusValueVerdict | null
   occasionTags: RekkusOccasionTag[]
   cuisineType: string | null
   mustOrder: string | null
+  cashDiscount?: boolean | null
+  googleReviewFreebie?: boolean | null
   dishId?: string | null
   dishTags: DishTag[]
   media: PostMediaAsset[]
@@ -177,10 +164,7 @@ export async function createPost(params: {
     .insert({
       user_id: params.userId,
       caption: params.caption,
-      restaurant_id: params.restaurantId,
-      food_rating: params.foodRating,
-      vibe_rating: params.vibeRating,
-      cost_rating: params.costRating,
+      place_id: params.placeId,
       taste_verdict: params.tasteVerdict,
       value_verdict: params.valueVerdict,
       occasion_tags: params.occasionTags,

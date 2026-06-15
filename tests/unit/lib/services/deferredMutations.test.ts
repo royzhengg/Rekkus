@@ -24,7 +24,6 @@ jest.mock('@/lib/analytics', () => ({
 
 jest.mock('@/lib/services/collections', () => ({
   unsaveTarget: jest.fn(),
-  updateSavedLocationStatus: jest.fn(),
 }))
 jest.mock('@/lib/services/dishes', () => ({ saveDish: jest.fn() }))
 jest.mock('@/lib/services/messaging', () => ({
@@ -44,7 +43,7 @@ jest.mock('@/lib/services/posts', () => ({
   togglePostLike: jest.fn(),
   togglePostSave: jest.fn(),
 }))
-jest.mock('@/lib/services/restaurants', () => ({ saveLocation: jest.fn() }))
+jest.mock('@/lib/services/places', () => ({ savePlace: jest.fn() }))
 jest.mock('@/lib/services/settings', () => ({ updateSettingValue: jest.fn() }))
 jest.mock('@/lib/services/users', () => ({ followUser: jest.fn(), unfollowUser: jest.fn() }))
 

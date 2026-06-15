@@ -9,12 +9,12 @@ import { isRecord } from '../../utils/safeJson'
 import type { CreatePostDraft, CreatePostDraftStatus, CreatePostDraftSyncStatus } from './types'
 
 type SelectedPlaceShape = {
-  placeId: string
+  googlePlaceId: string
   name: string
   address: string
   lat: number
   lng: number
-  restaurantId?: string | undefined
+  placeId?: string | undefined
 }
 
 export type RemoteDraftMediaRow = {
@@ -112,7 +112,7 @@ function isDishTag(value: unknown): value is DishTag {
 function isSelectedPlace(value: unknown): value is SelectedPlaceShape {
   return (
     isRecord(value) &&
-    typeof value.placeId === 'string' &&
+    typeof value.googlePlaceId === 'string' &&
     typeof value.name === 'string' &&
     typeof value.address === 'string' &&
     typeof value.lat === 'number' &&
@@ -136,9 +136,6 @@ export function isLocalDraft(value: unknown): value is CreatePostDraft {
     typeof value.title === 'string' &&
     (value.selectedPlace === null || isSelectedPlace(value.selectedPlace)) &&
     Array.isArray(value.dishTags) && value.dishTags.every(isDishTag) &&
-    typeof value.foodRating === 'number' &&
-    typeof value.vibeRating === 'number' &&
-    typeof value.costRating === 'number' &&
     typeof value.body === 'string' &&
     typeof value.mustOrder === 'string' &&
     typeof value.cuisineType === 'string' &&

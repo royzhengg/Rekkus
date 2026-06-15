@@ -255,7 +255,7 @@ export default function ConversationScreen() {
     if (!user) return
     const subscription = AppState.addEventListener('change', state => {
       if (state === 'active') {
-        updateLastSeen(user.id)
+        void updateLastSeen(user.id)
       }
     })
     return () => subscription.remove()
@@ -314,12 +314,12 @@ export default function ConversationScreen() {
   }, [conversationId, requireOnline])
 
   const handlePressPlaceShare = useCallback((meta: Record<string, unknown>) => {
-    const restaurantId = metaString(meta, 'restaurant_id') ?? metaString(meta, 'google_place_id')
-    if (!restaurantId) return
-    const placeId = metaString(meta, 'google_place_id')
-    router.push(routes.restaurantDetail({
-      restaurantId,
-      ...(placeId ? { placeId } : {}),
+    const placeId = metaString(meta, 'restaurant_id') ?? metaString(meta, 'google_place_id')
+    if (!placeId) return
+    const googlePlaceId = metaString(meta, 'google_place_id')
+    router.push(routes.placeDetail({
+      placeId,
+      ...(googlePlaceId ? { googlePlaceId } : {}),
       name: metaString(meta, 'name') ?? '',
       address: metaString(meta, 'address') ?? '',
       lat: String(meta.lat ?? ''),

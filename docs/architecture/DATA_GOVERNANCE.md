@@ -9,48 +9,48 @@ Canonical entity IDs are immutable UUIDs. A real-world entity can gain aliases, 
 | Entity | Canonical ID |
 | --- | --- |
 | User | `user_id` |
-| Restaurant | `restaurant_id` |
+| Place | `place_id` |
 | Dish | `dish_id`; unlinked dish-tag/free-text display remains non-canonical |
-| Review/post | `review_id` or current `post_id` until review naming is migrated |
+| Post | `post_id` |
 | Collection | `collection_id` when collections ship |
 
 ## Source-Of-Truth Map
 
 | Area | Source Of Truth | Notes |
 | --- | --- | --- |
-| Restaurant identity | `restaurants` | Rekkus canonical identity. |
-| User-created restaurants | `restaurants.created_by`, `create_user_restaurant`, `restaurant_sources` | First-party restaurant creation with provenance and audit evidence. |
+| Place identity | `places` | Rekkus canonical identity. |
+| User-created places | `places.created_by`, `create_user_restaurant`, `restaurant_sources` | First-party place creation with provenance and audit evidence. Note: `create_user_restaurant` and `restaurant_sources` retain historical naming. |
 | Provider IDs | `restaurant_sources` | Google/OSM/provider mappings and provenance. |
 | Provider snapshots | `restaurant_provider_cache` | TTL, attribution, retention, and cacheability metadata. |
-| Google-selected restaurants | `restaurants`, `restaurant_sources`, `restaurant_provider_cache`, `restaurant_audit_events` | Selection promotes the place into the local graph with provider provenance; autocomplete suggestions that are merely displayed are not durable canonical data. |
+| Google-selected places | `places`, `restaurant_sources`, `restaurant_provider_cache`, `restaurant_audit_events` | Selection promotes the place into the local graph with provider provenance; autocomplete suggestions that are merely displayed are not durable canonical data. Note: `restaurant_sources`, `restaurant_provider_cache`, and `restaurant_audit_events` retain historical naming. |
 | User/system observations | `restaurant_observations` | Candidate facts awaiting trust or promotion. |
 | Duplicate aliases | `restaurant_aliases` | Alternate names, old IDs, and duplicate hints. |
 | Restaurant audit | `restaurant_audit_events` | Append-only restaurant graph change evidence. |
 | Ownership history | `restaurant_ownership_events` | Claim, approval, rejection, transfer, and removal history. |
 | Merge history | `restaurant_merge_events` | Canonical/merged ID evidence and rollback references. |
-| Repair history | `data_repair_events` | Malformed restaurant, post, dish, and user repair reports. |
+| Repair history | `data_repair_events` | Malformed place, post, dish, and user repair reports. |
 | Analytics | `analytics_events` | Privacy-safe event log only. |
 | Post edit audit | `post_edit_events` | Privacy-minimized owner edit evidence; field names/count only. |
-| Dish bookmark intent | `saved_dishes` | Owner-private save state for a canonical dish. |
+| Saved dish intent | `saved_dishes` | Owner-private save state for a canonical dish. |
 | Saved organisation | `collection_items` | Membership only; collection-add atomically ensures the corresponding base save exists. |
 
 ## Audit And History Rules
 
 - Critical admin, security, moderation, provider refresh, merge, alias, and ownership actions should be append-only.
-- User-created restaurants must record source and audit evidence before they are treated as durable first-party supply.
-- Selected provider restaurants must record source, provider cache, and audit evidence before future searches rely on them as local supply.
-- Community metadata corrections and verification are observations until reviewed or promoted; they must not silently overwrite canonical restaurant fields.
-- Restaurant claims and transfers need ownership history before restaurant owner workflows scale.
+- User-created places must record source and audit evidence before they are treated as durable first-party supply.
+- Selected provider places must record source, provider cache, and audit evidence before future searches rely on them as local supply.
+- Community metadata corrections and verification are observations until reviewed or promoted; they must not silently overwrite canonical place fields.
+- Place claims and transfers need ownership history before place owner workflows scale.
 - Duplicate cleanup must preserve alias and merge history so old links and references remain explainable.
 - Repair workflows should record actor, reason, affected entity, before/after categories, and rollback path.
-- B-283 canonicalisation backfills only posts with a canonical restaurant and non-empty `best_dish`, and records bounded `dish_audit_events` context; UI never guesses links from display text.
-- Admin platform restaurant actions must use `restaurant_merge_events`, `restaurant_ownership_events`, `restaurant_audit_events`, and `data_repair_events` as the operational evidence path before any custom dashboard writes directly to canonical data.
+- B-283 canonicalisation backfills only posts with a canonical place and non-empty `best_dish`, and records bounded `dish_audit_events` context; UI never guesses links from display text.
+- Admin platform place actions must use `restaurant_merge_events`, `restaurant_ownership_events`, `restaurant_audit_events`, and `data_repair_events` as the operational evidence path before any custom dashboard writes directly to canonical data. Note: these audit tables retain their historical `restaurant_` prefix naming.
 - `scripts/ops/check-audit.js` validates audit/history table coverage, service helper evidence, and the absence of broad update/delete policies on append-only history tables.
 
 ## Display Precedence
 
-- Restaurant photos should use Rekkus post or owner-submitted photos first, then provider photos only as fallback.
-- Restaurant ranking should use Rekkus post count and food ratings before provider rating/review-count boosts.
+- Place photos should use Rekkus post or owner-submitted photos first, then provider photos only as fallback.
+- Place ranking should use Rekkus post count and food ratings before provider rating/review-count boosts.
 - Owner-submitted content can become primary only after ownership evidence exists; until then it is stored as pending observation or repair evidence.
 
 ## Messaging Entities
@@ -74,11 +74,11 @@ Prefer bounded categories such as `feature`, `reason`, `source`, `status`, `surf
 
 `lib/analytics.ts` sanitizes analytics metadata with an allowlist, string length cap, and obvious PII redaction before writing to `analytics_events`.
 
-Post edit audit rows follow the same minimization principle. `post_edit_events` may record post id, owner id, event type, changed field names, changed field count, and timestamp. It must not record raw captions, comments, media URLs, restaurant/place names, full addresses, provider payloads, or before/after values.
+Post edit audit rows follow the same minimization principle. `post_edit_events` may record post id, owner id, event type, changed field names, changed field count, and timestamp. It must not record raw captions, comments, media URLs, place names, full addresses, provider payloads, or before/after values.
 
 ## Owners
 
 - Architecture overview: [ARCHITECTURE.md](ARCHITECTURE.md)
 - Analytics metadata: [../analytics/EVENTS.md](../analytics/EVENTS.md)
 - Security and compliance: [../security/SECURITY.md](../security/SECURITY.md), [../security/COMPLIANCE.md](../security/COMPLIANCE.md)
-- Restaurant graph ADR: [../adr/0002-provider-independent-restaurant-graph.md](../adr/0002-provider-independent-restaurant-graph.md)
+- Place graph ADR: [../adr/0002-provider-independent-restaurant-graph.md](../adr/0002-provider-independent-restaurant-graph.md)

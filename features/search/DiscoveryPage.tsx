@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router'
 import React, { useMemo, useState } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native'
 import { Avatar } from '@/components/Avatar'
-import { BookmarkIcon, ClockIcon, CloseIcon, PinIcon } from '@/components/icons'
+import { SaveIcon, ClockIcon, CloseIcon, PinIcon } from '@/components/icons'
 import { Chip } from '@/components/ui/Chip'
 import { IconButton } from '@/components/ui/IconButton'
 import { radius } from '@/constants/Radius'
@@ -88,7 +88,7 @@ export function DiscoveryPage({
                   accessibilityRole="button"
                   accessibilityLabel={`Search saved query ${item}`}
                 >
-                  <BookmarkIcon filled size={15} activeColor={colors.accent} />
+                  <SaveIcon filled size={15} activeColor={colors.accent} />
                   <Text style={styles.recentSearchText} numberOfLines={1}>
                     {item}
                   </Text>
@@ -99,7 +99,7 @@ export function DiscoveryPage({
                   onPress={() => onUnsaveSearch(item)}
                   accessibilityLabel={`Unsave search ${item}`}
                 >
-                  <BookmarkIcon filled size={18} activeColor={colors.accent} />
+                  <SaveIcon filled size={18} activeColor={colors.accent} />
                 </IconButton>
               </View>
             ))}
@@ -132,7 +132,7 @@ export function DiscoveryPage({
                     onPress={() => onSaveSearch(item)}
                     accessibilityLabel={`Save search ${item}`}
                   >
-                    <BookmarkIcon size={18} inactiveColor={colors.text2} />
+                    <SaveIcon size={18} inactiveColor={colors.text2} />
                   </IconButton>
                 )}
                 <IconButton

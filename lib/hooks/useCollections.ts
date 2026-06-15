@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   fetchCollections,
-  fetchRestaurantCollectionItems,
+  fetchPlaceCollectionItems,
   type Collection,
   type CollectionItem,
 } from '@/lib/services/collections'
 
-export function useCollections(userId: string | undefined, restaurantIds: string[]) {
+export function useCollections(userId: string | undefined, placeIds: string[]) {
   const [collections, setCollections] = useState<Collection[]>([])
   const [items, setItems] = useState<CollectionItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -19,11 +19,11 @@ export function useCollections(userId: string | undefined, restaurantIds: string
     }
     setLoading(true)
     const nextCollections = await fetchCollections(userId)
-    const nextItems = await fetchRestaurantCollectionItems(userId, restaurantIds)
+    const nextItems = await fetchPlaceCollectionItems(userId, placeIds)
     setCollections(nextCollections)
     setItems(nextItems)
     setLoading(false)
-  }, [userId, restaurantIds])
+  }, [userId, placeIds])
 
   useEffect(() => {
     void refresh()

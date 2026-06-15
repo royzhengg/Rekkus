@@ -6,14 +6,14 @@
  * text matches (Paris, USA, Thailand) for queries like "Beef" from a Sydney user.
  *
  * Fix: strictbounds=true + 50km radius hard-restricts autocomplete to the metro area.
- * Additionally, `searchRestaurantsByText` now passes `near_lat`/`near_lng` to the RPC
+ * Additionally, `searchPlacesByText` now passes `near_lat`/`near_lng` to the RPC
  * so the DB distance multipliers are applied.
  *
  * These tests lock in both behaviours so neither can silently regress.
  */
 
 import { fetchPlaceAutocompleteJson } from '@/lib/services/googlePlaces'
-import { fetchPredictions, searchRestaurantsByText } from '@/lib/services/restaurants'
+import { fetchPredictions, searchPlacesByText } from '@/lib/services/places'
 import { supabase } from '@/lib/supabase'
 import { classifySearchIntent, decideSearchProviderFallback } from '@/lib/utils/searchIntent'
 
@@ -119,10 +119,10 @@ describe('fetchPlaceAutocompleteJson URL construction', () => {
 })
 
 // ---------------------------------------------------------------------------
-// searchRestaurantsByText — RPC coordinate propagation
+// searchPlacesByText — RPC coordinate propagation
 // ---------------------------------------------------------------------------
 
-describe('searchRestaurantsByText coordinate propagation', () => {
+describe('searchPlacesByText coordinate propagation', () => {
   const mockRpcResult = {
     data: [
       {
@@ -150,10 +150,10 @@ describe('searchRestaurantsByText coordinate propagation', () => {
   })
 
   it('passes near_lat and near_lng to the RPC when userLocation is provided', async () => {
-    await searchRestaurantsByText('beef', 8, sydneyCoords)
+    await searchPlacesByText('beef', 8, sydneyCoords)
 
     expect(mockRpc).toHaveBeenCalledWith(
-      'search_restaurants_full_text',
+      'search_places_full_text',
       expect.objectContaining({
         query_text: 'beef',
         max_results: 8,
@@ -164,7 +164,7 @@ describe('searchRestaurantsByText coordinate propagation', () => {
   })
 
   it('omits near_lat/near_lng when no location provided', async () => {
-    await searchRestaurantsByText('beef', 8, null)
+    await searchPlacesByText('beef', 8, null)
 
     const call = mockRpc.mock.calls[0]
     const args = call?.[1] as Record<string, unknown>
@@ -173,7 +173,7 @@ describe('searchRestaurantsByText coordinate propagation', () => {
   })
 
   it('computes and attaches distanceKm for each result when location is provided', async () => {
-    const results = await searchRestaurantsByText('beef', 8, sydneyCoords)
+    const results = await searchPlacesByText('beef', 8, sydneyCoords)
 
     expect(results[0]?.distanceKm).toBeDefined()
     expect(typeof results[0]?.distanceKm).toBe('number')
@@ -181,13 +181,13 @@ describe('searchRestaurantsByText coordinate propagation', () => {
   })
 
   it('does not attach distanceKm when no location provided', async () => {
-    const results = await searchRestaurantsByText('beef', 8, null)
+    const results = await searchPlacesByText('beef', 8, null)
 
     expect(results[0]?.distanceKm).toBeUndefined()
   })
 
   it('appends distance label to secondary_text when location provided', async () => {
-    const results = await searchRestaurantsByText('beef', 8, sydneyCoords)
+    const results = await searchPlacesByText('beef', 8, sydneyCoords)
 
     // secondary_text should contain a distance unit
     const secondary = results[0]?.structured_formatting.secondary_text ?? ''

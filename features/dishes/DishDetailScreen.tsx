@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { CollectionPickerSheet } from '@/components/CollectionPickerSheet'
-import { BookmarkIcon, ChevronLeft, ImagePlaceholder, PlusIcon } from '@/components/icons'
+import { SaveIcon, ChevronLeft, ImagePlaceholder, PlusIcon } from '@/components/icons'
 import { ThumbGrid } from '@/components/ThumbGrid'
 import { CachedImage } from '@/components/ui/CachedImage'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -58,7 +58,7 @@ export default function DishDetailScreen() {
       !sessionId ||
       !query ||
       position == null ||
-      (resultType !== 'post' && resultType !== 'restaurant' && resultType !== 'user' && resultType !== 'dish')
+      (resultType !== 'post' && resultType !== 'place' && resultType !== 'user' && resultType !== 'dish')
     ) {
       return null
     }
@@ -138,7 +138,7 @@ export default function DishDetailScreen() {
             accessibilityLabel={detail.saved ? 'Remove saved dish' : 'Save dish'}
             onPress={() => requireAuth(() => { void handleBookmark() })}
           >
-            <BookmarkIcon filled={detail.saved} />
+            <SaveIcon filled={detail.saved} />
           </IconButton>
         </View>
       </View>
@@ -152,21 +152,21 @@ export default function DishDetailScreen() {
         <View style={styles.content}>
           <Text style={styles.name}>{detail.dish.name}</Text>
           {detail.dish.cuisineType ? <Text style={styles.cuisine}>{detail.dish.cuisineType}</Text> : null}
-          {detail.dish.restaurant ? (
+          {detail.dish.place ? (
             <TouchableOpacity
               style={styles.restaurant}
               accessibilityRole="button"
-              onPress={() => router.push(routes.restaurantDetail({
-                restaurantId: detail.dish?.restaurant?.id ?? '',
-                ...(detail.dish?.restaurant?.placeId ? { placeId: detail.dish.restaurant.placeId } : {}),
-                ...(detail.dish?.restaurant?.name ? { name: detail.dish.restaurant.name } : {}),
-                ...(detail.dish?.restaurant?.address ? { address: detail.dish.restaurant.address } : {}),
-                ...(detail.dish?.restaurant?.lat != null ? { lat: detail.dish.restaurant.lat } : {}),
-                ...(detail.dish?.restaurant?.lng != null ? { lng: detail.dish.restaurant.lng } : {}),
+              onPress={() => router.push(routes.placeDetail({
+                placeId: detail.dish?.place?.id ?? '',
+                ...(detail.dish?.place?.googlePlaceId ? { googlePlaceId: detail.dish.place.googlePlaceId } : {}),
+                ...(detail.dish?.place?.name ? { name: detail.dish.place.name } : {}),
+                ...(detail.dish?.place?.address ? { address: detail.dish.place.address } : {}),
+                ...(detail.dish?.place?.lat != null ? { lat: detail.dish.place.lat } : {}),
+                ...(detail.dish?.place?.lng != null ? { lng: detail.dish.place.lng } : {}),
               }))}
             >
               <Text style={styles.restaurantLabel}>At</Text>
-              <Text style={styles.restaurantName}>{detail.dish.restaurant.name}</Text>
+              <Text style={styles.restaurantName}>{detail.dish.place.name}</Text>
             </TouchableOpacity>
           ) : null}
           <Text style={styles.evidenceTitle}>Posts featuring this dish</Text>

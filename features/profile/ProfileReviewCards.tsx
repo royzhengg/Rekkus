@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { BookmarkIcon, CommentIcon, HeartIcon, ImagePlaceholder } from '@/components/icons'
+import { SaveIcon, CommentIcon, HeartIcon, ImagePlaceholder } from '@/components/icons'
 import { CachedImage } from '@/components/ui/CachedImage'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
@@ -60,7 +60,7 @@ export function ProfileReviewCards({ posts, onPressPost, hasMore, onLoadMore }: 
               {[post.cuisine_type, post.address?.split(',')[0]].filter(Boolean).join(' • ')}
             </Text>
             <Text style={styles.rating} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-              ★★★★★ {post.food.toFixed(1)}
+              ★★★★★ {post.food?.toFixed(1) ?? '—'}
             </Text>
             <Text style={styles.body} numberOfLines={3} maxFontSizeMultiplier={maxFontSizeMultiplier.body}>
               {post.body || post.mustOrder || post.title}
@@ -79,7 +79,7 @@ export function ProfileReviewCards({ posts, onPressPost, hasMore, onLoadMore }: 
                 </Text>
               </View>
               <View style={styles.saveIcon}>
-                <BookmarkIcon size={18} inactiveColor={colors.text3} />
+                <SaveIcon size={18} inactiveColor={colors.text3} />
               </View>
             </View>
           </View>

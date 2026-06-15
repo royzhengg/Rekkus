@@ -4,24 +4,7 @@ import type { Database } from './database'
 // Apply to the supabase client so .from() calls remain fully typed.
 // Remove each entry once `npm run db:types` has been re-run and database.ts includes it.
 
-type UserTopSpotsRow = {
-  id: string
-  user_id: string
-  position: number
-  restaurant_id: string
-  created_at: string
-  updated_at: string
-}
+// user_top_spots was added to database.ts in the rename_restaurants_to_places migration update.
+// This file is kept for future use.
 
-export type DatabaseWithExtensions = Database & {
-  public: Database['public'] & {
-    Tables: Database['public']['Tables'] & {
-      user_top_spots: {
-        Row: UserTopSpotsRow
-        Insert: { id?: string; user_id: string; position: number; restaurant_id: string; created_at?: string; updated_at?: string }
-        Update: { position?: number; restaurant_id?: string; updated_at?: string }
-        Relationships: []
-      }
-    }
-  }
-}
+export type DatabaseWithExtensions = Database

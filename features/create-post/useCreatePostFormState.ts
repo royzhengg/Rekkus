@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
+import type { SelectedPlace } from '@/lib/services/places'
 import type { CreatePostDraft, CreatePostDraftStatus } from '@/lib/services/postDrafts'
-import type { SelectedPlace } from '@/lib/services/restaurants'
 import type { DishTag, Post, PostMedia, RekkusOccasionTag, RekkusTasteVerdict, RekkusValueVerdict } from '@/types/domain'
 
 export function useCreatePostFormState(userId: string | undefined, initialDraftId: string | undefined) {
@@ -8,13 +8,12 @@ export function useCreatePostFormState(userId: string | undefined, initialDraftI
   const [title, setTitle] = useState('')
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null)
   const [dishTags, setDishTags] = useState<DishTag[]>([])
-  const [foodRating, setFoodRating] = useState(0)
-  const [vibeRating, setVibeRating] = useState(0)
-  const [costRating, setCostRating] = useState(0)
   const [tasteVerdict, setTasteVerdict] = useState<RekkusTasteVerdict | undefined>(undefined)
   const [valueVerdict, setValueVerdict] = useState<RekkusValueVerdict | undefined>(undefined)
   const [occasionTags, setOccasionTags] = useState<RekkusOccasionTag[]>([])
   const [body, setBody] = useState('')
+  const [cashDiscount, setCashDiscount] = useState(false)
+  const [googleReviewFreebie, setGoogleReviewFreebie] = useState(false)
   const [mustOrder, setMustOrder] = useState('')
   const [cuisineType, setCuisineType] = useState('')
   const [hashtags, setHashtags] = useState<string[]>([])
@@ -27,9 +26,6 @@ export function useCreatePostFormState(userId: string | undefined, initialDraftI
     title.trim().length > 0 ||
     selectedPlace !== null ||
     dishTags.length > 0 ||
-    foodRating > 0 ||
-    vibeRating > 0 ||
-    costRating > 0 ||
     !!tasteVerdict ||
     !!valueVerdict ||
     occasionTags.length > 0 ||
@@ -40,6 +36,7 @@ export function useCreatePostFormState(userId: string | undefined, initialDraftI
     hashtagInput.trim().length > 0
 
   const canAdvance = title.trim().length >= 3 && media.length > 0
+  const canAdvanceStep2 = body.trim().length > 0 && tasteVerdict != null && cuisineType.trim().length > 0
 
   const applyDraftToForm = useCallback((draft: CreatePostDraft) => {
     setCurrentDraftId(draft.remoteId ?? draft.id)
@@ -48,13 +45,12 @@ export function useCreatePostFormState(userId: string | undefined, initialDraftI
     setTitle(draft.title ?? '')
     setSelectedPlace(draft.selectedPlace ?? null)
     setDishTags(draft.dishTags ?? [])
-    setFoodRating(draft.foodRating ?? 0)
-    setVibeRating(draft.vibeRating ?? 0)
-    setCostRating(draft.costRating ?? 0)
     setTasteVerdict(draft.tasteVerdict)
     setValueVerdict(draft.valueVerdict)
     setOccasionTags(draft.occasionTags ?? [])
     setBody(draft.body ?? '')
+    setCashDiscount(draft.cashDiscount ?? false)
+    setGoogleReviewFreebie(draft.googleReviewFreebie ?? false)
     setMustOrder(draft.mustOrder ?? '')
     setCuisineType(draft.cuisineType ?? '')
     setHashtags(draft.hashtags ?? [])
@@ -64,22 +60,21 @@ export function useCreatePostFormState(userId: string | undefined, initialDraftI
   const applyPostToForm = useCallback((post: Post) => {
     setMedia(post.media ?? [])
     setTitle(post.title ?? '')
-    setSelectedPlace(post.restaurantId ? {
-      placeId: post.placeId ?? post.restaurantId,
-      restaurantId: post.restaurantId,
+    setSelectedPlace(post.placeId || post.googlePlaceId ? {
+      googlePlaceId: post.googlePlaceId ?? post.placeId ?? '',
+      placeId: post.placeId,
       name: post.location,
       address: post.address ?? '',
       lat: post.lat ?? 0,
       lng: post.lng ?? 0,
     } : null)
     setDishTags(post.dishTags ?? [])
-    setFoodRating(post.food ?? 0)
-    setVibeRating(post.vibe ?? 0)
-    setCostRating(post.cost ?? 0)
     setTasteVerdict(post.tasteVerdict)
     setValueVerdict(post.valueVerdict)
     setOccasionTags(post.occasionTags ?? [])
     setBody(post.body ?? '')
+    setCashDiscount(post.cashDiscount ?? false)
+    setGoogleReviewFreebie(post.googleReviewFreebie ?? false)
     setMustOrder(post.mustOrder ?? '')
     setCuisineType(post.cuisine_type ?? '')
     setHashtags(post.tags ?? [])
@@ -97,32 +92,30 @@ export function useCreatePostFormState(userId: string | undefined, initialDraftI
     title,
     selectedPlace,
     dishTags,
-    foodRating,
-    vibeRating,
-    costRating,
     tasteVerdict,
     valueVerdict,
     occasionTags,
     body,
+    cashDiscount,
+    googleReviewFreebie,
     mustOrder,
     cuisineType,
     hashtags,
     hashtagInput,
     updatedAt: new Date().toISOString(),
-  }), [media, currentDraftId, userId, currentDraftStatus, title, selectedPlace, dishTags, foodRating, vibeRating, costRating, tasteVerdict, valueVerdict, occasionTags, body, mustOrder, cuisineType, hashtags, hashtagInput])
+  }), [media, currentDraftId, userId, currentDraftStatus, title, selectedPlace, dishTags, tasteVerdict, valueVerdict, occasionTags, body, cashDiscount, googleReviewFreebie, mustOrder, cuisineType, hashtags, hashtagInput])
 
   const clearFormFields = useCallback(() => {
     setMedia([])
     setTitle('')
     setSelectedPlace(null)
     setDishTags([])
-    setFoodRating(0)
-    setVibeRating(0)
-    setCostRating(0)
     setTasteVerdict(undefined)
     setValueVerdict(undefined)
     setOccasionTags([])
     setBody('')
+    setCashDiscount(false)
+    setGoogleReviewFreebie(false)
     setMustOrder('')
     setCuisineType('')
     setHashtags([])
@@ -136,13 +129,12 @@ export function useCreatePostFormState(userId: string | undefined, initialDraftI
     title, setTitle,
     selectedPlace, setSelectedPlace,
     dishTags, setDishTags,
-    foodRating, setFoodRating,
-    vibeRating, setVibeRating,
-    costRating, setCostRating,
     tasteVerdict, setTasteVerdict,
     valueVerdict, setValueVerdict,
     occasionTags, setOccasionTags,
     body, setBody,
+    cashDiscount, setCashDiscount,
+    googleReviewFreebie, setGoogleReviewFreebie,
     mustOrder, setMustOrder,
     cuisineType, setCuisineType,
     hashtags, setHashtags,
@@ -151,6 +143,7 @@ export function useCreatePostFormState(userId: string | undefined, initialDraftI
     currentDraftStatus, setCurrentDraftStatus,
     hasDraftContent,
     canAdvance,
+    canAdvanceStep2,
     applyDraftToForm,
     applyPostToForm,
     buildDraft,

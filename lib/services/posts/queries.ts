@@ -12,7 +12,7 @@ export function extractPostRow(p: RawPost | null | undefined): SavedPostRow | nu
     .filter((ph) => !ph.deleted_at)
     .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
   const photo = sortedPhotos.find((ph) => (ph.media_type ?? 'image') === 'image') ?? sortedPhotos[0]
-  const r = p.restaurants
+  const r = p.places
   return {
     id: p.id,
     user_id: p.user_id,
@@ -24,7 +24,7 @@ export function extractPostRow(p: RawPost | null | undefined): SavedPostRow | nu
     must_order: p.must_order,
     dish_id: p.dish_id,
     dish_tags: p.dish_tags ?? null,
-    restaurant_id: p.restaurant_id,
+    place_id: p.place_id,
     photo_url: photo?.url ?? null,
     media: sortedPhotos.map((ph) => ({
       id: ph.id,
@@ -60,10 +60,10 @@ export function extractPostRow(p: RawPost | null | undefined): SavedPostRow | nu
 }
 
 const POST_SELECT = `
-  id, user_id, caption, food_rating, vibe_rating, cost_rating, taste_verdict, value_verdict, occasion_tags, cuisine_type, must_order, dish_id, dish_tags, restaurant_id, created_at, last_edited_at, edit_count,
+  id, user_id, caption, food_rating, vibe_rating, cost_rating, taste_verdict, value_verdict, occasion_tags, cuisine_type, must_order, dish_id, dish_tags, place_id, created_at, last_edited_at, edit_count,
   users ( username, full_name, avatar_url ),
   post_photos ( id, url, order_index, media_type, processed_url, thumbnail_url, mime_type, duration_ms, width, height, size_bytes, processing_status, processing_error, deleted_at ),
-  restaurants ( name, address, latitude, longitude, google_place_id )
+  places ( name, address, latitude, longitude, google_place_id )
 `.trim()
 
 export const PAGE_SIZE = 20

@@ -7,7 +7,7 @@ import {
   profileCollectionIsVisible,
 } from '@/features/profile/profileIdentity'
 import type { Collection } from '@/lib/services/collections'
-import type { SavedLocation } from '@/lib/services/restaurants'
+import type { SavedPlace } from '@/lib/services/places'
 import type { Post } from '@/types/domain'
 
 function post(overrides: Partial<Post>): Post {
@@ -32,13 +32,12 @@ function post(overrides: Partial<Post>): Post {
   }
 }
 
-function savedLocation(overrides: Partial<SavedLocation>): SavedLocation {
+function savedLocation(overrides: Partial<SavedPlace>): SavedPlace {
   return {
     id: 'saved-1',
-    restaurant_id: 'restaurant-1',
+    place_id: 'restaurant-1',
     created_at: '2026-06-01T00:00:00Z',
-    save_status: 'want_to_try',
-    restaurants: {
+    places: {
       name: 'Saved Spot',
       address: 'Hart St',
       latitude: -33.8,
@@ -76,8 +75,8 @@ describe('profile identity helpers', () => {
 
   it('deduplicates reviewed restaurants by restaurant id and counts reviews', () => {
     const restaurants = deriveReviewedRestaurants([
-      post({ restaurantId: 'restaurant-1', location: 'Henry Lees', createdAt: '2026-06-01T00:00:00Z', food: 4, imageUrl: 'https://example.com/first.jpg' }),
-      post({ restaurantId: 'restaurant-1', location: 'Henry Lees', createdAt: '2026-06-02T00:00:00Z', food: 5 }),
+      post({ placeId: 'restaurant-1', location: 'Henry Lees', createdAt: '2026-06-01T00:00:00Z', food: 4, imageUrl: 'https://example.com/first.jpg' }),
+      post({ placeId: 'restaurant-1', location: 'Henry Lees', createdAt: '2026-06-02T00:00:00Z', food: 5 }),
       post({ placeId: 'place-2', location: 'Doodee King', food: 3 }),
     ])
 
@@ -94,11 +93,11 @@ describe('profile identity helpers', () => {
 
   it('uses reviewed restaurants before saved fallback restaurants', () => {
     const reviewed = deriveReviewedRestaurants([
-      post({ restaurantId: 'restaurant-1', location: 'Reviewed Spot', food: 5 }),
+      post({ placeId: 'restaurant-1', location: 'Reviewed Spot', food: 5 }),
     ])
     const top = deriveTopRestaurants(reviewed, [
-      savedLocation({ restaurant_id: 'restaurant-1', restaurants: { name: 'Reviewed Spot', address: null, latitude: null, longitude: null, google_place_id: null } }),
-      savedLocation({ id: 'saved-2', restaurant_id: 'restaurant-2', restaurants: { name: 'Saved Fallback', address: 'King St', latitude: null, longitude: null, google_place_id: null } }),
+      savedLocation({ place_id: 'restaurant-1', places: { name: 'Reviewed Spot', address: null, latitude: null, longitude: null, google_place_id: null } }),
+      savedLocation({ id: 'saved-2', place_id: 'restaurant-2', places: { name: 'Saved Fallback', address: 'King St', latitude: null, longitude: null, google_place_id: null } }),
     ])
 
     expect(top.map(restaurant => restaurant.name)).toEqual(['Reviewed Spot', 'Saved Fallback'])

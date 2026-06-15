@@ -141,7 +141,7 @@ jest.mock('@/lib/services/posts', () => ({
 jest.mock('@/lib/services/postDrafts', () => ({
   clearCreatePostDraft: jest.fn(),
   listCreatePostDraftSummaries: jest.fn(() => Promise.resolve([])),
-  loadCreatePostDraft: jest.fn(),
+  loadCreatePostDraft: jest.fn(() => Promise.resolve(null)),
   markCreatePostDraftPublished: jest.fn(),
   saveCreatePostDraftAsNew: jest.fn(),
   saveCreatePostDraftRemote: jest.fn(),

@@ -14,18 +14,17 @@ import {
   unmuteConversation,
   unpinConversation,
 } from '@/lib/services/messaging'
+import { savePlace } from '@/lib/services/places'
 import {
   togglePostLike,
   togglePostSave,
 } from '@/lib/services/posts'
-import { saveLocation } from '@/lib/services/restaurants'
 import { updateSettingValue, type Settings } from '@/lib/services/settings'
 import { followUser, unfollowUser } from '@/lib/services/users'
 import { isRecord, parseJsonWithGuard } from '@/lib/utils/safeJson'
 
 // Phase 1 scope: saves, likes, follows, settings.
 // Phase 2 (B-239b): message_reaction, conversation_*.
-// place_status deferred — no service implementation yet.
 
 const STORAGE_KEY = 'rekkus:pending-mutations:v1'
 const STORAGE_VERSION = 1
@@ -42,7 +41,7 @@ type BaseMutation = {
 export type DeferredMutation =
   | (BaseMutation & { kind: 'post_save'; postId: string; targetState: boolean; removeCollectionMemberships?: boolean; cuisineType?: string | null; searchAttribution?: SearchAttribution | null })
   | (BaseMutation & { kind: 'dish_save'; dishId: string; targetState: boolean; removeCollectionMemberships?: boolean })
-  | (BaseMutation & { kind: 'place_save'; restaurantId: string; targetState: boolean; removeCollectionMemberships?: boolean })
+  | (BaseMutation & { kind: 'place_save'; placeId: string; targetState: boolean; removeCollectionMemberships?: boolean })
   | (BaseMutation & { kind: 'follow'; targetUserId: string; targetState: boolean })
   | (BaseMutation & { kind: 'post_like'; postId: string; targetState: boolean })
   | (BaseMutation & { kind: 'setting'; setting: keyof Settings; value: Settings[keyof Settings] })
@@ -85,7 +84,7 @@ function isSearchAttribution(value: unknown): value is SearchAttribution {
     typeof value.query === 'string' &&
     typeof value.resultPosition === 'number' &&
     (value.resultType === 'post' ||
-      value.resultType === 'restaurant' ||
+      value.resultType === 'place' ||
       value.resultType === 'user' ||
       value.resultType === 'dish')
 }
@@ -111,8 +110,8 @@ export function isDeferredMutation(value: unknown): value is DeferredMutation {
         typeof value.dishId === 'string' && isBoolean(value.targetState) &&
         (value.removeCollectionMemberships === undefined || isBoolean(value.removeCollectionMemberships))
     case 'place_save':
-      return hasOnlyKeys(value, [...BASE_KEYS, 'restaurantId', 'targetState', 'removeCollectionMemberships']) &&
-        typeof value.restaurantId === 'string' && isBoolean(value.targetState) &&
+      return hasOnlyKeys(value, [...BASE_KEYS, 'placeId', 'targetState', 'removeCollectionMemberships']) &&
+        typeof value.placeId === 'string' && isBoolean(value.targetState) &&
         (value.removeCollectionMemberships === undefined || isBoolean(value.removeCollectionMemberships))
     case 'follow':
       return hasOnlyKeys(value, [...BASE_KEYS, 'targetUserId', 'targetState']) &&
@@ -154,7 +153,7 @@ function deferredMutationKey(mutation: DeferredMutation): string {
   switch (mutation.kind) {
     case 'post_save': return `${mutation.userId}:post_save:${mutation.postId}`
     case 'dish_save': return `${mutation.userId}:dish_save:${mutation.dishId}`
-    case 'place_save': return `${mutation.userId}:place_save:${mutation.restaurantId}`
+    case 'place_save': return `${mutation.userId}:place_save:${mutation.placeId}`
     case 'follow': return `${mutation.userId}:follow:${mutation.targetUserId}`
     case 'post_like': return `${mutation.userId}:post_like:${mutation.postId}`
     case 'setting': return `${mutation.userId}:setting:${mutation.setting}`
@@ -272,8 +271,8 @@ export async function executeDeferredMutation(mutation: DeferredMutation): Promi
       else await unsaveTarget('dish', mutation.dishId, mutation.removeCollectionMemberships ?? false)
       return
     case 'place_save':
-      if (mutation.targetState) await saveLocation(mutation.userId, mutation.restaurantId)
-      else await unsaveTarget('restaurant', mutation.restaurantId, mutation.removeCollectionMemberships ?? false)
+      if (mutation.targetState) await savePlace(mutation.userId, mutation.placeId)
+      else await unsaveTarget('place', mutation.placeId, mutation.removeCollectionMemberships ?? false)
       return
     case 'follow':
       if (mutation.targetState) await followUser(mutation.userId, mutation.targetUserId)

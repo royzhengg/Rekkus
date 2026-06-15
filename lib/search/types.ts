@@ -58,7 +58,7 @@ export type SearchFilters = {
   sort?: SearchSortMode
 }
 
-export type SearchSuggestionType = 'restaurant' | 'dish' | 'hashtag' | 'post' | 'area' | 'tag'
+export type SearchSuggestionType = 'place' | 'dish' | 'hashtag' | 'post' | 'area' | 'tag'
 
 export type SearchSuggestion = {
   suggestion_type: SearchSuggestionType
@@ -164,7 +164,7 @@ export type SearchExplanationBadge =
 
 export type SearchPersonalizationReason =
   | 'recent_search'
-  | 'saved_restaurant'
+  | 'saved_place'
   | 'saved_dish'
   | 'saved_post'
   | 'recent_area'

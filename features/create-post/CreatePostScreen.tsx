@@ -16,7 +16,6 @@ import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { usePosts } from '@/lib/contexts/PostsContext'
 import { usePostUploadQueue } from '@/lib/contexts/PostUploadContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { tasteToLegacyFood, valueToLegacyCost } from '@/lib/dataSources/rekkusPicks'
 import { haptic } from '@/lib/haptics'
 import { routes } from '@/lib/routes'
 import { findOrCreateDish } from '@/lib/services/dishes'
@@ -264,15 +263,14 @@ export default function PostScreen() {
         await updatePost(postId, {
           userId: user.id,
           caption: form.title.trim(),
-          restaurantId: form.selectedPlace?.restaurantId ?? null,
-          foodRating: tasteToLegacyFood(form.tasteVerdict) || form.foodRating || null,
-          vibeRating: form.vibeRating || null,
-          costRating: valueToLegacyCost(form.valueVerdict) || form.costRating || null,
+          placeId: form.selectedPlace?.placeId ?? null,
           tasteVerdict: form.tasteVerdict ?? null,
           valueVerdict: form.valueVerdict ?? null,
           occasionTags: form.occasionTags,
           cuisineType: form.cuisineType || null,
           mustOrder: form.mustOrder.trim() || null,
+          cashDiscount: form.cashDiscount,
+          googleReviewFreebie: form.googleReviewFreebie,
           dishTags: form.dishTags,
           media: form.media,
           expectedEditCount: editBaselineCount,
@@ -311,11 +309,11 @@ export default function PostScreen() {
       await enqueueServerMediaProcessing(form.media)
       uploadQueue.updateJob(jobId, { status: 'publishing', progress: 0.84 })
       let dishId: string | null = null
-      if (form.mustOrder.trim() && form.selectedPlace?.restaurantId) {
+      if (form.mustOrder.trim() && form.selectedPlace?.placeId) {
         try {
           dishId = await findOrCreateDish({
             name: form.mustOrder.trim(),
-            restaurantId: form.selectedPlace.restaurantId,
+            placeId: form.selectedPlace.placeId,
             cuisineType: form.cuisineType || null,
             userId: user.id,
             context: { source: 'post_creation' },
@@ -328,15 +326,14 @@ export default function PostScreen() {
       await createPost({
         userId: user.id,
         caption: form.title.trim() || null,
-        restaurantId: form.selectedPlace?.restaurantId ?? null,
-        foodRating: tasteToLegacyFood(form.tasteVerdict) || form.foodRating || null,
-        vibeRating: form.vibeRating || null,
-        costRating: valueToLegacyCost(form.valueVerdict) || form.costRating || null,
+        placeId: form.selectedPlace?.placeId ?? null,
         tasteVerdict: form.tasteVerdict ?? null,
         valueVerdict: form.valueVerdict ?? null,
         occasionTags: form.occasionTags,
         cuisineType: form.cuisineType || null,
         mustOrder: form.mustOrder.trim() || null,
+        cashDiscount: form.cashDiscount,
+        googleReviewFreebie: form.googleReviewFreebie,
         dishId,
         dishTags: form.dishTags,
         media: form.media,
@@ -441,9 +438,11 @@ export default function PostScreen() {
       if (postId) router.replace(routes.postDetail(postId))
     },
   }
+  const canAdvanceCurrentStep = step === 2 ? form.canAdvanceStep2 : form.canAdvance
+
   const mediaProps = { userId: user.id, media: form.media, setMedia: form.setMedia, title: form.title, setTitle: form.setTitle, selectedPlace: form.selectedPlace, setSelectedPlace: form.setSelectedPlace, cuisineType: form.cuisineType, dishTags: form.dishTags, setDishTags: form.setDishTags }
-  const detailsProps = { foodRating: form.foodRating, setFoodRating: form.setFoodRating, vibeRating: form.vibeRating, setVibeRating: form.setVibeRating, costRating: form.costRating, setCostRating: form.setCostRating, tasteVerdict: form.tasteVerdict, setTasteVerdict: form.setTasteVerdict, valueVerdict: form.valueVerdict, setValueVerdict: form.setValueVerdict, occasionTags: form.occasionTags, setOccasionTags: form.setOccasionTags, body: form.body, setBody: form.setBody, cuisineType: form.cuisineType, setCuisineType: form.setCuisineType, hashtags: form.hashtags, setHashtags: form.setHashtags, hashtagInput: form.hashtagInput, setHashtagInput: form.setHashtagInput, mustOrder: form.mustOrder, setMustOrder: form.setMustOrder, dishTags: form.dishTags }
-  const reviewProps = { title: form.title, body: form.body, media: form.media, dishTags: form.dishTags, selectedPlace: form.selectedPlace, foodRating: form.foodRating, vibeRating: form.vibeRating, costRating: form.costRating, tasteVerdict: form.tasteVerdict, valueVerdict: form.valueVerdict, occasionTags: form.occasionTags, cuisineType: form.cuisineType, mustOrder: form.mustOrder, hashtags: form.hashtags, onEditBasics: () => setStep(1), onEditDetails: () => setStep(2), onPost: handlePost, primaryLabel: isEditingPost ? 'Save changes' : 'Post review', posting, onSaveDraft: openSaveDraftOptions, savingDraft }
+  const detailsProps = { tasteVerdict: form.tasteVerdict, setTasteVerdict: form.setTasteVerdict, valueVerdict: form.valueVerdict, setValueVerdict: form.setValueVerdict, occasionTags: form.occasionTags, setOccasionTags: form.setOccasionTags, body: form.body, setBody: form.setBody, cuisineType: form.cuisineType, setCuisineType: form.setCuisineType, hashtags: form.hashtags, setHashtags: form.setHashtags, hashtagInput: form.hashtagInput, setHashtagInput: form.setHashtagInput, mustOrder: form.mustOrder, setMustOrder: form.setMustOrder, cashDiscount: form.cashDiscount, setCashDiscount: form.setCashDiscount, googleReviewFreebie: form.googleReviewFreebie, setGoogleReviewFreebie: form.setGoogleReviewFreebie, dishTags: form.dishTags }
+  const reviewProps = { title: form.title, body: form.body, media: form.media, dishTags: form.dishTags, selectedPlace: form.selectedPlace, tasteVerdict: form.tasteVerdict, valueVerdict: form.valueVerdict, occasionTags: form.occasionTags, cuisineType: form.cuisineType, mustOrder: form.mustOrder, cashDiscount: form.cashDiscount, googleReviewFreebie: form.googleReviewFreebie, hashtags: form.hashtags, onEditBasics: () => setStep(1), onEditDetails: () => setStep(2), onPost: handlePost, primaryLabel: isEditingPost ? 'Save changes' : 'Post review', posting, onSaveDraft: openSaveDraftOptions, savingDraft }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -491,14 +490,16 @@ export default function PostScreen() {
           {step < 3 ? (
             <View style={{ position: 'relative' }}>
               <TouchableOpacity
-                style={[styles.nextBtn, !form.canAdvance && styles.nextBtnDisabled]}
-                onPress={form.canAdvance ? handleNext : undefined}
-                disabled={!form.canAdvance}
+                style={[styles.nextBtn, !canAdvanceCurrentStep && styles.nextBtnDisabled]}
+                onPress={canAdvanceCurrentStep ? handleNext : undefined}
+                disabled={!canAdvanceCurrentStep}
                 accessibilityRole="button"
                 accessibilityLabel="Next"
                 accessibilityHint={
-                  !form.canAdvance
-                    ? form.media.length === 0 && form.title.trim().length < 3
+                  !canAdvanceCurrentStep
+                    ? step === 2
+                      ? 'Add your review, pick a taste rating, and choose a cuisine to continue'
+                      : form.media.length === 0 && form.title.trim().length < 3
                       ? 'Add a photo and a title of at least 3 characters to continue'
                       : form.media.length === 0
                       ? 'Add a photo to continue'
@@ -506,9 +507,9 @@ export default function PostScreen() {
                     : undefined
                 }
               >
-                <ArrowRight size={22} color={form.canAdvance ? c.accent : c.text3} />
+                <ArrowRight size={22} color={canAdvanceCurrentStep ? c.accent : c.text3} />
               </TouchableOpacity>
-              {!form.canAdvance && (
+              {!canAdvanceCurrentStep && (
                 <Pressable
                   style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                   onPress={() => {
@@ -531,13 +532,15 @@ export default function PostScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {step === 1 && showNextHint && !form.canAdvance && (
+        {showNextHint && !canAdvanceCurrentStep && (
           <Text
             style={styles.nextHint}
             accessibilityLiveRegion="polite"
             accessibilityRole="text"
           >
-            {form.media.length === 0 && form.title.trim().length < 3
+            {step === 2
+              ? 'Write your review, pick a taste rating, and choose a cuisine to continue'
+              : form.media.length === 0 && form.title.trim().length < 3
               ? 'Add a photo and a title to continue'
               : form.media.length === 0
               ? 'Add a photo to continue'

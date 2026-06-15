@@ -153,8 +153,9 @@ async function uploadOneDraftMedia(
 
   const ext = extForMedia(media)
   const storagePath = `${userId}/${draftId}/${media.localId || `media-${index}`}.${ext}`
-  const fileContent = await FileSystem.readAsStringAsync(media.uri, { encoding: 'base64' as const })
-  const { error } = await supabase.storage.from(DRAFT_BUCKET).upload(storagePath, decode(fileContent), {
+  const response = await fetch(media.uri)
+  const blob = await response.blob()
+  const { error } = await supabase.storage.from(DRAFT_BUCKET).upload(storagePath, blob, {
     contentType: mimeForMedia(media),
     upsert: true,
   })
@@ -174,17 +175,14 @@ export async function uploadDraftMedia(draftId: string, media: PostMedia[], user
 }
 
 function draftPayload(draft: CreatePostDraft, userId: string, status: CreatePostDraftStatus) {
-  const restaurantId = draft.selectedPlace?.restaurantId
+  const placeId = draft.selectedPlace?.placeId
   return {
     user_id: userId,
     title: draft.title ?? '',
     body: draft.body ?? '',
     selected_place: draft.selectedPlace ?? null,
-    restaurant_id: isUuid(restaurantId) ? restaurantId : null,
+    place_id: isUuid(placeId) ? placeId : null,
     dish_tags: draft.dishTags ?? [],
-    food_rating: draft.foodRating ?? 0,
-    vibe_rating: draft.vibeRating ?? 0,
-    cost_rating: draft.costRating ?? 0,
     taste_verdict: draft.tasteVerdict ?? null,
     value_verdict: draft.valueVerdict ?? null,
     occasion_tags: draft.occasionTags ?? [],
@@ -247,6 +245,7 @@ async function saveRemoteDraft(draft: CreatePostDraft, options: SaveOptions): Pr
         .single()
 
   if (result.error || !result.data) {
+    reportInvalidBoundary('post_draft_db_save_failed')
     return upsertLocalDraft({
       ...draft,
       status,
@@ -275,6 +274,7 @@ async function saveRemoteDraft(draft: CreatePostDraft, options: SaveOptions): Pr
     await upsertLocalDraft(synced)
     return synced
   } catch {
+    reportInvalidBoundary('post_draft_media_upload_failed')
     const failed = {
       ...draft,
       id: remoteId,
@@ -337,9 +337,6 @@ async function mapRemoteDraft(row: RemoteDraftRow): Promise<CreatePostDraft> {
     title: row.title ?? '',
     selectedPlace: row.selected_place ?? null,
     dishTags: row.dish_tags ?? [],
-    foodRating: row.food_rating ?? 0,
-    vibeRating: row.vibe_rating ?? 0,
-    costRating: row.cost_rating ?? 0,
     tasteVerdict: row.taste_verdict ?? undefined,
     valueVerdict: row.value_verdict ?? undefined,
     occasionTags: row.occasion_tags ?? [],
@@ -454,9 +451,12 @@ export async function saveCreatePostDraftAsNew(
   return saveCreatePostDraftRemote(copy, { visible: true, userId: userId ?? draft.userId })
 }
 
-export async function loadCreatePostDraft(id?: string): Promise<CreatePostDraft | null> {
+export type LoadDraftResult = { draft: CreatePostDraft; restaurantCleared: boolean }
+
+export async function loadCreatePostDraft(id?: string): Promise<LoadDraftResult | null> {
   const ownerId = await currentUserId()
   if (ownerId) await migrateLocalDraftsToRemote(ownerId)
+  let draft: CreatePostDraft | null = null
   if (ownerId && id && isUuid(id)) {
     const { data, error } = await supabase.from('post_drafts')
       .select('*, post_draft_media ( * )')
@@ -465,10 +465,22 @@ export async function loadCreatePostDraft(id?: string): Promise<CreatePostDraft 
       .neq('status', 'discarded')
       .neq('status', 'published')
       .single()
-    if (!error && isRemoteDraftRow(data)) return mapRemoteDraft(data)
+    if (!error && isRemoteDraftRow(data)) draft = await mapRemoteDraft(data)
   }
-  const drafts = await readLocalDraftsRaw()
-  return (id ? drafts.find(draft => draft.id === id || draft.remoteId === id) : drafts[0]) ?? null
+  if (!draft) {
+    const drafts = await readLocalDraftsRaw()
+    draft = (id ? drafts.find(d => d.id === id || d.remoteId === id) : drafts[0]) ?? null
+  }
+  if (!draft) return null
+
+  const placeId = draft.selectedPlace?.placeId
+  if (placeId && isUuid(placeId)) {
+    const { data } = await supabase.from('places').select('id').eq('id', placeId).maybeSingle()
+    if (!data) {
+      return { draft: { ...draft, selectedPlace: null }, restaurantCleared: true }
+    }
+  }
+  return { draft, restaurantCleared: false }
 }
 
 export async function deleteCreatePostDraft(id: string): Promise<void> {
@@ -484,9 +496,9 @@ export async function deleteCreatePostDraft(id: string): Promise<void> {
 }
 
 export async function duplicateCreatePostDraft(id: string): Promise<CreatePostDraft | null> {
-  const draft = await loadCreatePostDraft(id)
-  if (!draft) return null
-  return saveCreatePostDraftAsNew(draft, draft.userId)
+  const result = await loadCreatePostDraft(id)
+  if (!result) return null
+  return saveCreatePostDraftAsNew(result.draft, result.draft.userId)
 }
 
 export async function markCreatePostDraftPublished(id?: string): Promise<void> {
@@ -530,11 +542,3 @@ async function migrateLocalDraftsToRemote(userId: string): Promise<void> {
   if (allSynced) await AsyncStorage.setItem(migrationKey, 'true')
 }
 
-function decode(base64: string): Uint8Array {
-  const binaryStr = atob(base64)
-  const bytes = new Uint8Array(binaryStr.length)
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i)
-  }
-  return bytes
-}

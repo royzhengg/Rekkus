@@ -1,4 +1,4 @@
-import type { MockUser, Post, Restaurant } from '@/types/domain'
+import type { MockUser, Place, Post } from '@/types/domain'
 
 export const POSTS: Post[] = [
   {
@@ -129,7 +129,7 @@ export const POSTS: Post[] = [
   },
 ]
 
-export const RESTAURANTS: Restaurant[] = [
+export const RESTAURANTS: Place[] = [
   { name: 'Gaku Robata', suburb: 'Surry Hills, NSW' },
   { name: 'Lucky House Dumplings', suburb: 'Haymarket, NSW' },
   { name: 'Pasta Emilia', suburb: 'Surry Hills, NSW' },

@@ -1,14 +1,12 @@
-import { Tabs } from 'expo-router'
+import { Tabs, useRouter } from 'expo-router'
 import React from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { Svg, Circle, Path, Polyline, Line } from 'react-native-svg'
-import { PlusIcon } from '@/components/icons'
 import { FloatingActionButton } from '@/components/ui/FloatingActionButton'
 import { TabBarMaterialBackground } from '@/components/ui/TabBarMaterialBackground'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
 import { APP_ENV } from '@/lib/config'
-import { useCreateLauncher } from '@/lib/contexts/CreateLauncherContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useFeatureFlag } from '@/lib/featureFlags'
 import { canUseIosTabBarMaterial } from '@/lib/utils/iosTabMaterial'
@@ -87,9 +85,9 @@ const PersonIcon = React.memo(function PersonIcon({ color }: { color: string }) 
 })
 
 export default function TabLayout() {
+  const router = useRouter()
   const colors = useThemeColors()
   const materialFlagEnabled = useFeatureFlag('iosTabBarMaterial')
-  const { openCreateLauncher } = useCreateLauncher()
   const materialEligible = canUseIosTabBarMaterial(Platform.OS, APP_ENV, materialFlagEnabled)
 
   return (
@@ -141,28 +139,35 @@ export default function TabLayout() {
         <Tabs.Screen name="places" options={{ href: null }} />
         <Tabs.Screen name="restaurants" options={{ href: null }} />
       </Tabs>
-      <View pointerEvents="box-none" style={styles.floatingCreate}>
-        <FloatingActionButton accessibilityLabel="Create post" onPress={openCreateLauncher}>
-          <PlusIcon color={colors.bg} size={22} />
-        </FloatingActionButton>
-      </View>
+      {materialEligible ? (
+        <View style={styles.fabContainer}>
+          <FloatingActionButton
+            accessibilityLabel="Create post"
+            onPress={() => router.push('/post')}
+          >
+            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" stroke={colors.bg}>
+              <Line x1={12} y1={5} x2={12} y2={19} />
+              <Line x1={5} y1={12} x2={19} y2={12} />
+            </Svg>
+          </FloatingActionButton>
+        </View>
+      ) : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  fabContainer: {
+    position: 'absolute',
+    bottom: TAB_BAR_HEIGHT / 2 - spacing.px28,
+    alignSelf: 'center',
+    zIndex: 10,
+  },
   materialTabBar: {
     position: 'absolute',
   },
   materialScene: {
     paddingBottom: TAB_BAR_HEIGHT,
-  },
-  floatingCreate: {
-    position: 'absolute',
-    bottom: spacing.px40,
-    left: spacing[0],
-    right: spacing[0],
-    alignItems: 'center',
   },
 })

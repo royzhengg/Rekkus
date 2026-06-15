@@ -17,7 +17,7 @@ import { usePosts } from '@/lib/contexts/PostsContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { demoCurrentUser } from '@/lib/dataSources/demoData'
 import { usePagedList } from '@/lib/hooks/usePagedList'
-import { useSavedLocations } from '@/lib/hooks/useSavedLocations'
+import { useSavedPlaces } from '@/lib/hooks/useSavedPlaces'
 import { routes } from '@/lib/routes'
 import { fetchProfileCollections, type Collection } from '@/lib/services/collections'
 import { fetchTopSpotsWithDetails } from '@/lib/services/topSpots'
@@ -72,7 +72,7 @@ export default function ProfileScreen() {
   const [hydratedTopRestaurants, setHydratedTopRestaurants] = useState<ProfileRestaurant[]>([])
   const [manualTopSpots, setManualTopSpots] = useState<ProfileRestaurant[] | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const { savedLocations, refresh: refreshLocations } = useSavedLocations(user?.id)
+  const { savedPlaces, refresh: refreshLocations } = useSavedPlaces(user?.id)
 
   useEffect(() => {
     const normalisedTab = normalizeProfileTabParam(tabParam)
@@ -167,8 +167,8 @@ export default function ProfileScreen() {
   const reviewedRestaurants = useMemo(() => deriveReviewedRestaurants(myPosts), [myPosts])
   const topRestaurantsSource = useMemo(() => {
     if (manualTopSpots && manualTopSpots.length > 0) return manualTopSpots
-    return deriveTopRestaurants(reviewedRestaurants, savedLocations)
-  }, [manualTopSpots, reviewedRestaurants, savedLocations])
+    return deriveTopRestaurants(reviewedRestaurants, savedPlaces)
+  }, [manualTopSpots, reviewedRestaurants, savedPlaces])
 
   useEffect(() => {
     let cancelled = false
@@ -196,9 +196,9 @@ export default function ProfileScreen() {
 
   const openRestaurant = useCallback((restaurant: ProfileRestaurant) => {
     analytics.profileInteraction(user?.id ?? null, user?.id ?? null, 'top_restaurant_tapped')
-    router.push(routes.restaurantDetail({
-      restaurantId: restaurant.id,
-      ...(restaurant.placeId ? { placeId: restaurant.placeId } : {}),
+    router.push(routes.placeDetail({
+      placeId: restaurant.id,
+      ...(restaurant.placeId ? { googlePlaceId: restaurant.placeId } : {}),
       name: restaurant.name,
       address: restaurant.address ?? '',
       lat: restaurant.lat ?? '',
