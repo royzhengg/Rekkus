@@ -1,5 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native'
 import * as Location from 'expo-location'
+import React from 'react'
+import { UserLocationProvider } from '@/lib/contexts/UserLocationContext'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
 
 jest.mock('expo-location', () => ({
@@ -9,20 +11,26 @@ jest.mock('expo-location', () => ({
   geocodeAsync: jest.fn(),
 }))
 
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn().mockResolvedValue(null),
+  setItem: jest.fn().mockResolvedValue(undefined),
+  removeItem: jest.fn().mockResolvedValue(undefined),
+  clear: jest.fn().mockResolvedValue(undefined),
+}))
+
 const mockRequestPermission = jest.mocked(Location.requestForegroundPermissionsAsync)
 const mockGetPosition = jest.mocked(Location.getCurrentPositionAsync)
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(UserLocationProvider, null, children)
 
 describe('useUserLocation', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    // Reset module-level cache so each test starts from 'idle'.
-    const { result, unmount } = renderHook(() => useUserLocation())
-    act(() => { result.current.clearLocation() })
-    unmount()
   })
 
   it('does not request foreground location permission on mount', () => {
-    renderHook(() => useUserLocation())
+    renderHook(() => useUserLocation(), { wrapper })
 
     expect(mockRequestPermission).not.toHaveBeenCalled()
     expect(mockGetPosition).not.toHaveBeenCalled()
@@ -33,7 +41,7 @@ describe('useUserLocation', () => {
     mockGetPosition.mockResolvedValue({
       coords: { latitude: -33.87, longitude: 151.21 },
     } as Location.LocationObject)
-    const { result } = renderHook(() => useUserLocation())
+    const { result } = renderHook(() => useUserLocation(), { wrapper })
 
     await act(async () => {
       await result.current.requestLocation()
@@ -52,7 +60,7 @@ describe('useUserLocation', () => {
     mockGetPosition.mockResolvedValue({
       coords: { latitude: -33.87, longitude: 151.21 },
     } as Location.LocationObject)
-    const { result } = renderHook(() => useUserLocation())
+    const { result } = renderHook(() => useUserLocation(), { wrapper })
 
     expect(result.current.status).toBe('idle')
 
@@ -71,7 +79,7 @@ describe('useUserLocation', () => {
 
   it('sets status to denied when permission is not granted', async () => {
     mockRequestPermission.mockResolvedValue({ status: 'denied' } as Location.LocationPermissionResponse)
-    const { result } = renderHook(() => useUserLocation())
+    const { result } = renderHook(() => useUserLocation(), { wrapper })
 
     await act(async () => {
       await result.current.requestLocation()
@@ -85,7 +93,7 @@ describe('useUserLocation', () => {
   it('sets status to error when getCurrentPositionAsync throws', async () => {
     mockRequestPermission.mockResolvedValue({ status: 'granted' } as Location.LocationPermissionResponse)
     mockGetPosition.mockRejectedValue(new Error('location unavailable'))
-    const { result } = renderHook(() => useUserLocation())
+    const { result } = renderHook(() => useUserLocation(), { wrapper })
 
     await act(async () => {
       await result.current.requestLocation()

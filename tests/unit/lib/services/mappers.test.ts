@@ -1,5 +1,5 @@
 import { mapRowToDish } from '@/lib/services/dishes'
-import { mapRestaurantRpcRowToPrediction } from '@/lib/services/restaurants'
+import { mapPlaceRpcRowToPrediction } from '@/lib/services/places'
 import { mapRowToFollowListUser } from '@/lib/services/users'
 
 jest.mock('@/lib/supabase', () => ({ supabase: { from: jest.fn(), rpc: jest.fn(), channel: jest.fn(), removeChannel: jest.fn() } }))
@@ -12,8 +12,8 @@ describe('mapRowToDish', () => {
       id: 'dish-1',
       name: 'Tonkatsu',
       cuisine_type: 'Japanese',
-      restaurant_id: 'rest-1',
-      restaurants: {
+      place_id: 'rest-1',
+      places: {
         id: 'rest-1',
         name: 'Ginza',
         address: '1 Main St',
@@ -25,13 +25,13 @@ describe('mapRowToDish', () => {
     expect(result).toEqual({
       id: 'dish-1',
       name: 'Tonkatsu',
-      restaurantId: 'rest-1',
+      placeId: 'rest-1',
       cuisineType: 'Japanese',
-      restaurant: {
+      place: {
         id: 'rest-1',
         name: 'Ginza',
         address: '1 Main St',
-        placeId: 'place-abc',
+        googlePlaceId: 'place-abc',
         lat: 35.6,
         lng: 139.7,
       },
@@ -43,22 +43,22 @@ describe('mapRowToDish', () => {
       id: 'dish-2',
       name: 'Edamame',
       cuisine_type: null,
-      restaurant_id: null,
-      restaurants: null,
+      place_id: null,
+      places: null,
     })
     expect(result.id).toBe('dish-2')
     expect(result.cuisineType).toBeUndefined()
-    expect(result.restaurantId).toBeUndefined()
-    expect(result.restaurant).toBeUndefined()
+    expect(result.placeId).toBeUndefined()
+    expect(result.place).toBeUndefined()
   })
 
-  it('omits restaurant fields that are null in the row', () => {
+  it('omits place fields that are null in the row', () => {
     const result = mapRowToDish({
       id: 'dish-3',
       name: 'Ramen',
       cuisine_type: null,
-      restaurant_id: 'rest-2',
-      restaurants: {
+      place_id: 'rest-2',
+      places: {
         id: 'rest-2',
         name: 'Noodle Bar',
         address: null,
@@ -67,10 +67,10 @@ describe('mapRowToDish', () => {
         longitude: null,
       },
     })
-    expect(result.restaurant).toEqual({ id: 'rest-2', name: 'Noodle Bar' })
-    expect(result.restaurant?.address).toBeUndefined()
-    expect(result.restaurant?.placeId).toBeUndefined()
-    expect(result.restaurant?.lat).toBeUndefined()
+    expect(result.place).toEqual({ id: 'rest-2', name: 'Noodle Bar' })
+    expect(result.place?.address).toBeUndefined()
+    expect(result.place?.googlePlaceId).toBeUndefined()
+    expect(result.place?.lat).toBeUndefined()
   })
 })
 
@@ -113,7 +113,7 @@ describe('mapRowToFollowListUser', () => {
   })
 })
 
-// ── mapRestaurantRpcRowToPrediction ───────────────────────────────────────────
+// ── mapPlaceRpcRowToPrediction ───────────────────────────────────────────────
 
 const baseRow = {
   id: 'rest-1',
@@ -126,14 +126,14 @@ const baseRow = {
   address: '10 Downing St',
 }
 
-describe('mapRestaurantRpcRowToPrediction', () => {
+describe('mapPlaceRpcRowToPrediction', () => {
   it('maps a row to a Prediction with source rekkus', () => {
-    const result = mapRestaurantRpcRowToPrediction(baseRow, null)
+    const result = mapPlaceRpcRowToPrediction(baseRow, null)
     expect(result.place_id).toBe('place-xyz')
     expect(result.description).toBe('The Fox')
     expect(result.source).toBe('rekkus')
     expect(result.structured_formatting.main_text).toBe('The Fox')
-    expect(result.dbDetails?.restaurantId).toBe('rest-1')
+    expect(result.dbDetails?.placeId).toBe('rest-1')
     expect(result.dbDetails?.lat).toBe(51.5)
     expect(result.dbDetails?.lng).toBe(-0.12)
     expect(result.dbDetails?.cuisineType).toBe('British')
@@ -141,38 +141,38 @@ describe('mapRestaurantRpcRowToPrediction', () => {
   })
 
   it('falls back to id when google_place_id is null', () => {
-    const result = mapRestaurantRpcRowToPrediction({ ...baseRow, google_place_id: null }, null)
+    const result = mapPlaceRpcRowToPrediction({ ...baseRow, google_place_id: null }, null)
     expect(result.place_id).toBe('rest-1')
   })
 
   it('includes distance when userLocation is provided', () => {
-    const result = mapRestaurantRpcRowToPrediction(baseRow, { lat: 51.5, lng: -0.12 })
+    const result = mapPlaceRpcRowToPrediction(baseRow, { lat: 51.5, lng: -0.12 })
     expect(result.distanceKm).toBeDefined()
     expect(result.distanceKm).toBeCloseTo(0, 1)
   })
 
   it('omits distanceKm when userLocation is null', () => {
-    const result = mapRestaurantRpcRowToPrediction(baseRow, null)
+    const result = mapPlaceRpcRowToPrediction(baseRow, null)
     expect(result.distanceKm).toBeUndefined()
   })
 
   it('includes distance label in secondary text when location provided', () => {
-    const result = mapRestaurantRpcRowToPrediction(baseRow, { lat: 51.5, lng: -0.12 })
+    const result = mapPlaceRpcRowToPrediction(baseRow, { lat: 51.5, lng: -0.12 })
     expect(result.structured_formatting.secondary_text).toContain('m')
   })
 
   it('adds rank to base score of 10', () => {
-    const result = mapRestaurantRpcRowToPrediction({ ...baseRow, rank: 5 }, null)
+    const result = mapPlaceRpcRowToPrediction({ ...baseRow, rank: 5 }, null)
     expect(result.score).toBe(15)
   })
 
   it('uses score 10 when rank is absent', () => {
-    const result = mapRestaurantRpcRowToPrediction(baseRow, null)
+    const result = mapPlaceRpcRowToPrediction(baseRow, null)
     expect(result.score).toBe(10)
   })
 
   it('uses suburb in secondary text when provided', () => {
-    const result = mapRestaurantRpcRowToPrediction({ ...baseRow, suburb: 'Mayfair' }, null)
+    const result = mapPlaceRpcRowToPrediction({ ...baseRow, suburb: 'Mayfair' }, null)
     expect(result.structured_formatting.secondary_text).toContain('Mayfair')
     expect(result.dbDetails?.suburb).toBe('Mayfair')
   })

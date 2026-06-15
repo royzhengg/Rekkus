@@ -216,7 +216,7 @@ export async function fetchTargetCollectionItems(
 
 export async function fetchCollectionRestaurantsByIds(ids: string[]): Promise<CollectionRestaurant[]> {
   if (ids.length === 0) return []
-  const { data, error } = await supabase.from('restaurants')
+  const { data, error } = await supabase.from('places')
     .select('id, name, address, google_place_id, latitude, longitude')
     .in('id', ids)
     .limit(Math.min(ids.length, 100))

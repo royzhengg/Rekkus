@@ -110,14 +110,16 @@ export interface Post {
   tall: boolean
   tags: string[]
   location: string
-  food: number
-  vibe: number
-  cost: number
+  food?: number | undefined
+  vibe?: number | undefined
+  cost?: number | undefined
   tasteVerdict?: RekkusTasteVerdict | undefined
   valueVerdict?: RekkusValueVerdict | undefined
   occasionTags?: RekkusOccasionTag[] | undefined
   cuisine_type?: string | undefined
   mustOrder?: string | undefined
+  cashDiscount?: boolean | undefined
+  googleReviewFreebie?: boolean | undefined
   placeId?: string | undefined
   googlePlaceId?: string | undefined
   lat?: number | undefined

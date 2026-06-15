@@ -15,8 +15,8 @@ type DishRow = {
   id: string
   name: string
   cuisine_type: string | null
-  restaurant_id: string | null
-  restaurants: DishRestaurantRow | null
+  place_id: string | null
+  places: DishRestaurantRow | null
 }
 
 function parseRestaurant(value: unknown): DishRestaurantRow | null {
@@ -37,8 +37,8 @@ function parseDishRow(value: unknown): DishRow | null {
     id: value.id,
     name: value.name,
     cuisine_type: typeof value.cuisine_type === 'string' ? value.cuisine_type : null,
-    restaurant_id: typeof value.restaurant_id === 'string' ? value.restaurant_id : null,
-    restaurants: parseRestaurant(value.restaurants),
+    place_id: typeof value.place_id === 'string' ? value.place_id : null,
+    places: parseRestaurant(value.places),
   }
 }
 
@@ -47,20 +47,20 @@ export function mapRowToDish(row: DishRow): DishDetail {
 }
 
 function normalizeDish(row: DishRow): DishDetail {
-  const restaurant = row.restaurants
+  const place = row.places
   return {
     id: row.id,
     name: row.name,
-    ...(row.restaurant_id ? { restaurantId: row.restaurant_id } : {}),
+    ...(row.place_id ? { placeId: row.place_id } : {}),
     ...(row.cuisine_type ? { cuisineType: row.cuisine_type } : {}),
-    ...(restaurant ? {
-      restaurant: {
-        id: restaurant.id,
-        name: restaurant.name,
-        ...(restaurant.address ? { address: restaurant.address } : {}),
-        ...(restaurant.google_place_id ? { placeId: restaurant.google_place_id } : {}),
-        ...(restaurant.latitude != null ? { lat: restaurant.latitude } : {}),
-        ...(restaurant.longitude != null ? { lng: restaurant.longitude } : {}),
+    ...(place ? {
+      place: {
+        id: place.id,
+        name: place.name,
+        ...(place.address ? { address: place.address } : {}),
+        ...(place.google_place_id ? { googlePlaceId: place.google_place_id } : {}),
+        ...(place.latitude != null ? { lat: place.latitude } : {}),
+        ...(place.longitude != null ? { lng: place.longitude } : {}),
       },
     } : {}),
   }
@@ -68,14 +68,14 @@ function normalizeDish(row: DishRow): DishDetail {
 
 export async function findOrCreateDish(params: {
   name: string
-  restaurantId: string
+  placeId: string
   cuisineType?: string | null
   userId?: string
   context?: Record<string, string>
 }): Promise<string> {
   const { data, error } = await supabase.rpc('find_or_create_dish', {
     p_name:          params.name.trim(),
-    p_restaurant_id: params.restaurantId,
+    p_restaurant_id: params.placeId,
     p_context:       params.context ?? null,
     ...(params.cuisineType != null ? { p_cuisine_type: params.cuisineType } : {}),
     ...(params.userId != null ? { p_created_by: params.userId } : {}),
@@ -85,8 +85,8 @@ export async function findOrCreateDish(params: {
 }
 
 const DISH_SELECT = `
-  id, name, cuisine_type, restaurant_id,
-  restaurants ( id, name, address, google_place_id, latitude, longitude )
+  id, name, cuisine_type, place_id,
+  places ( id, name, address, google_place_id, latitude, longitude )
 `.trim()
 
 export async function fetchDishDetail(dishId: string): Promise<DishDetail | null> {

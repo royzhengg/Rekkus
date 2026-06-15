@@ -116,12 +116,12 @@ async function fetchPlaceClickRows(
 
 async function fetchRestaurantIdsByCity(city: string): Promise<string[]> {
   const { data, error } = await supabase
-    .from('restaurants')
+    .from('places')
     .select('id')
     .ilike('city', city)
     .limit(500)
   if (error) throw error
-  return (data ?? []).map(row => row.id)
+  return (data as Array<{ id: string }> ?? []).map(row => row.id)
 }
 
 export async function fetchTrendingPlaceClicks(
@@ -146,7 +146,7 @@ export async function fetchPopularPlacesByIds(placeIds: string[]): Promise<Place
   if (uniqueIds.length === 0) return []
 
   const { data, error } = await supabase
-    .from('restaurants')
+    .from('places')
     .select(
       'id, name, address, city, suburb, cuisine_type, google_place_id, latitude, longitude, google_rating, google_review_count, open_now'
     )
@@ -165,7 +165,7 @@ export async function resolveTrendingCityFromCoords(
   const radiusKm = 25
   const latDelta = radiusKm / 111
   const lngDelta = radiusKm / (111 * Math.max(Math.cos((location.lat * Math.PI) / 180), 0.01))
-  const { data, error } = await supabase.rpc('restaurants_in_bounding_box', {
+  const { data, error } = await supabase.rpc('places_in_bounding_box', {
     min_lat: location.lat - latDelta,
     max_lat: location.lat + latDelta,
     min_lng: location.lng - lngDelta,

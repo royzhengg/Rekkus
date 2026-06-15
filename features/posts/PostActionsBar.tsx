@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { BookmarkIcon, CommentIcon, HeartIcon, ShareIcon } from '@/components/icons'
+import { SaveIcon, CommentIcon, HeartIcon, ShareIcon } from '@/components/icons'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
@@ -68,7 +68,7 @@ export function PostActionsBar({
           accessibilityRole="button"
           accessibilityLabel={saved ? 'Remove saved post' : 'Save post'}
         >
-          <BookmarkIcon filled={saved} />
+          <SaveIcon filled={saved} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionBtn}

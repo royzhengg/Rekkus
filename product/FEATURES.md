@@ -100,24 +100,24 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 
 ### Create (post)
 
-- Modern media-first composer: camera and library actions are primary, with draft-safe progress through Media → Review → Share.
+- Clean, inviting 3-step composer (Media → Your Take → Preview) designed for natural recommendation writing rather than a form-filling chore.
 - Media picker accepts ordered mixed media: up to 10 total items, up to 3 videos, and 60 seconds per video; photos/videos can be reordered together.
-- Hybrid media preparation starts immediately after selection through `lib/services/postMediaProcessing.ts`, using `react-native-compressor` on-device first and the `process-post-media` Edge Function as the server-side orchestration fallback.
-- Draft safety: background autosave remains an invisible recovery net, while explicit **Save** is available on every create step and writes an account-synced saved draft.
+- Hybrid media preparation starts immediately after selection through `lib/services/postMediaProcessing.ts`, using `react-native-compressor` on-device first and the `process-post-media` Edge Function as the server-side orchestration fallback. A spring-animated compression progress bar is shown while preparing.
+- Draft safety: background autosave remains an invisible recovery net, while explicit **Save draft** is available on every create step and writes an account-synced saved draft.
 - When saved drafts exist, tapping Create opens a compact Rekkus **New post** / Drafts choice sheet instead of guessing which draft to load.
 - Saved drafts sync through Supabase, include private draft media previews, show newest first, and can be resumed, duplicated with numbered names, saved as a new draft, or soft-discarded without creating a public post.
-- **Dish tagging**: dish tags stay photo-only; mixed posts clearly mark taggable photos, video-only posts hide tagging, and tags carry `mediaLocalId`/`mediaId` so they survive reorder.
-- **3:4 cover crop**: "3:4 cover" button → `launchImageLibraryAsync({ allowsEditing: true, aspect: [3,4] })` → replaces cover photo with native-cropped version
-- Title input (max 100 chars, counter)
-- Body / review input (multiline)
-- **Rekkus Picks** replace primary Food/Vibe/Cost entry with Taste, Value, and Occasion chips. Selecting a chip reveals helper copy such as "Worth a trip — Good enough to go out of your way for." Legacy numeric ratings remain populated for compatibility.
-- The Review step uses a compact core-first hierarchy: Picks, written review, and always-visible Best dish precede collapsed optional Cuisine and Tags metadata; saved optional values remain discoverable when collapsed.
+- **Dish tagging** (Step 1): persistent "Tag dishes" pill button below media strip after photo is added; first-time discovery hint shown once via `AsyncStorage` flag; tap to enter full-screen overlay; placed tags render as pill labels on the photo; tagged dish names shown as de-duped chips below strip; tags carry `mediaLocalId`/`mediaId` so they survive reorder.
+- **3:4 cover crop**: "3:4 cover" button in Step 1 → `launchImageLibraryAsync({ allowsEditing: true, aspect: [3,4] })` → replaces cover photo with native-cropped version.
+- **Step 2 mandatory fields** (required to advance): body text review, taste verdict Rekkus Pick, and cuisine type.
+- **Rekkus Picks** (Step 2): Taste verdict (required) and Value verdict (optional) use direct inline chip rows — no tab switching. Numeric food/vibe/cost ratings removed entirely.
+- **Occasion tags** (Step 2, optional): multi-select up to 3 (quick_bite, solo, casual, date, group, special).
+- **Must order** (Step 2, optional): freetext or select from dish-tagged names.
+- **Community intel toggles** (Step 2, optional): "Cash discounts" (`cashDiscount` on the post) and "Google review freebie" (`googleReviewFreebie` on the post) — surface place-level intelligence not captured by any other app.
 - Cuisine picker uses a searchable alphabetical list from `lib/dataSources/cuisines.ts`; cuisine is separate from restaurant type.
-- **Best dish field**: freetext (max 60 chars) in Step 2; saved as `best_dish` on posts; aggregated on location page
-- Location picker — local-first restaurant lookup with Google Places Autocomplete fallback (REST, no library), updates while typing, shows cuisine/location context in one unified ranked list, links to canonical `restaurants.id`, and records source/observation metadata.
-- Hashtag tokeniser (space/enter adds blue pill token)
-- Share preview shows the real post content without fake like/comment/share chrome.
-- Auth gate on mount — guests are prompted before accessing
+- Hashtag tokeniser (space/enter adds `#tag` pill, max 10 tags).
+- **Step 3 Preview** shows a real preview card matching feed render; "Save draft" secondary button and primary "Post review" CTA; "Edit media" and "Edit review" affordances to jump back.
+- Location picker — local-first restaurant lookup with Google Places Autocomplete fallback (REST, no library), updates while typing, shows cuisine/location context in one unified ranked list, links to canonical `places.id`, and records source/observation metadata.
+- Auth gate on mount — guests are prompted before accessing.
 
 ### Alerts
 

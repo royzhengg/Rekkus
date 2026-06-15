@@ -33,59 +33,8 @@ jest.mock('@/components/ui/RekkusActionSheet', () => ({
   },
 }))
 
-type HarnessProps = {
-  initialCuisine?: string
-  initialHashtags?: string[]
-  initialMustOrder?: string
-}
-
-function Harness({ initialCuisine = '', initialHashtags = [], initialMustOrder = '' }: HarnessProps) {
-  const [tasteVerdict, setTasteVerdict] = useState<RekkusTasteVerdict | undefined>()
-  const [valueVerdict, setValueVerdict] = useState<RekkusValueVerdict | undefined>()
-  const [occasionTags, setOccasionTags] = useState<RekkusOccasionTag[]>([])
-  const [body, setBody] = useState('')
-  const [cuisineType, setCuisineType] = useState(initialCuisine)
-  const [hashtags, setHashtags] = useState(initialHashtags)
-  const [hashtagInput, setHashtagInput] = useState('')
-  const [mustOrder, setMustOrder] = useState(initialMustOrder)
-
-  return (
-    <StepDetails
-      foodRating={0}
-      setFoodRating={jest.fn()}
-      vibeRating={0}
-      setVibeRating={jest.fn()}
-      costRating={0}
-      setCostRating={jest.fn()}
-      tasteVerdict={tasteVerdict}
-      setTasteVerdict={setTasteVerdict}
-      valueVerdict={valueVerdict}
-      setValueVerdict={setValueVerdict}
-      occasionTags={occasionTags}
-      setOccasionTags={setOccasionTags}
-      body={body}
-      setBody={setBody}
-      cuisineType={cuisineType}
-      setCuisineType={setCuisineType}
-      hashtags={hashtags}
-      setHashtags={setHashtags}
-      hashtagInput={hashtagInput}
-      setHashtagInput={setHashtagInput}
-      mustOrder={mustOrder}
-      setMustOrder={setMustOrder}
-      dishTags={[]}
-    />
-  )
-}
-
-function props(overrides: Partial<ComponentProps<typeof StepDetails>> = {}) {
+function makeProps(overrides: Partial<ComponentProps<typeof StepDetails>> = {}): ComponentProps<typeof StepDetails> {
   return {
-    foodRating: 0,
-    setFoodRating: jest.fn(),
-    vibeRating: 0,
-    setVibeRating: jest.fn(),
-    costRating: 0,
-    setCostRating: jest.fn(),
     tasteVerdict: undefined,
     setTasteVerdict: jest.fn(),
     valueVerdict: undefined,
@@ -102,73 +51,125 @@ function props(overrides: Partial<ComponentProps<typeof StepDetails>> = {}) {
     setHashtagInput: jest.fn(),
     mustOrder: '',
     setMustOrder: jest.fn(),
+    cashDiscount: false,
+    setCashDiscount: jest.fn(),
+    googleReviewFreebie: false,
+    setGoogleReviewFreebie: jest.fn(),
     dishTags: [],
     ...overrides,
   }
 }
 
+function Harness({ initialCuisine = '', initialHashtags = [] as string[], initialMustOrder = '' }: { initialCuisine?: string; initialHashtags?: string[]; initialMustOrder?: string } = {}) {
+  const [tasteVerdict, setTasteVerdict] = useState<RekkusTasteVerdict | undefined>()
+  const [valueVerdict, setValueVerdict] = useState<RekkusValueVerdict | undefined>()
+  const [occasionTags, setOccasionTags] = useState<RekkusOccasionTag[]>([])
+  const [body, setBody] = useState('')
+  const [cuisineType, setCuisineType] = useState(initialCuisine)
+  const [hashtags, setHashtags] = useState<string[]>(initialHashtags)
+  const [hashtagInput, setHashtagInput] = useState('')
+  const [mustOrder, setMustOrder] = useState(initialMustOrder)
+  const [cashDiscount, setCashDiscount] = useState(false)
+  const [googleReviewFreebie, setGoogleReviewFreebie] = useState(false)
+
+  return (
+    <StepDetails
+      tasteVerdict={tasteVerdict}
+      setTasteVerdict={setTasteVerdict}
+      valueVerdict={valueVerdict}
+      setValueVerdict={setValueVerdict}
+      occasionTags={occasionTags}
+      setOccasionTags={setOccasionTags}
+      body={body}
+      setBody={setBody}
+      cuisineType={cuisineType}
+      setCuisineType={setCuisineType}
+      hashtags={hashtags}
+      setHashtags={setHashtags}
+      hashtagInput={hashtagInput}
+      setHashtagInput={setHashtagInput}
+      mustOrder={mustOrder}
+      setMustOrder={setMustOrder}
+      cashDiscount={cashDiscount}
+      setCashDiscount={setCashDiscount}
+      googleReviewFreebie={googleReviewFreebie}
+      setGoogleReviewFreebie={setGoogleReviewFreebie}
+      dishTags={[]}
+    />
+  )
+}
+
 describe('StepDetails', () => {
-  test('shows all sections including optional which is always visible', () => {
+  test('shows mandatory fields first — body input, taste verdict chips, cuisine row', () => {
     const screen = render(<Harness />)
 
-    expect(screen.getByText('Rekkus Picks')).toBeTruthy()
-    expect(screen.getByText('Your Take')).toBeTruthy()
-    expect(screen.getByText('Best Dish')).toBeTruthy()
-    expect(screen.getByText('Optional')).toBeTruthy()
-    // Optional section is always expanded — Cuisine visible without any tap
-    expect(screen.getByText('Cuisine')).toBeTruthy()
+    expect(screen.getByPlaceholderText(/What did you think/)).toBeTruthy()
+    expect(screen.getByText(/How was the food/)).toBeTruthy()
+    expect(screen.getByLabelText(/Select cuisine type/)).toBeTruthy()
   })
 
-  test('keeps pick mappings — taste and value require switching tabs first', () => {
-    const callbacks = props({ occasionTags: ['quick_bite', 'solo', 'casual'] })
-    const screen = render(<StepDetails {...callbacks} />)
+  test('taste verdict chips are directly visible without tab switching', () => {
+    const p = makeProps()
+    const screen = render(<StepDetails {...p} />)
 
-    // Taste tab is default — Craveable is visible
+    // Taste options are immediately visible — no tab to press first
     fireEvent.press(screen.getByText('Craveable'))
-    expect(callbacks.setTasteVerdict).toHaveBeenCalledWith('craveable')
-    expect(callbacks.setFoodRating).toHaveBeenCalledWith(3)
+    expect(p.setTasteVerdict).toHaveBeenCalledWith('craveable')
+    // No legacy numeric rating called
+    expect((p as Record<string, unknown>).setFoodRating).toBeUndefined()
+  })
 
-    // Switch to Value tab
-    fireEvent.press(screen.getByText('Value'))
+  test('taste verdict toggles off when tapped again', () => {
+    const p = makeProps({ tasteVerdict: 'craveable' })
+    const screen = render(<StepDetails {...p} />)
+    fireEvent.press(screen.getByText('Craveable'))
+    expect(p.setTasteVerdict).toHaveBeenCalledWith(undefined)
+  })
+
+  test('value verdict chip is visible in More Details section', () => {
+    const p = makeProps()
+    const screen = render(<StepDetails {...p} />)
     fireEvent.press(screen.getByText('Great value'))
-    expect(callbacks.setValueVerdict).toHaveBeenCalledWith('great_value')
-    expect(callbacks.setCostRating).toHaveBeenCalledWith(1)
-
-    // Switch to Occasion tab — 3 already selected, adding Special drops oldest
-    fireEvent.press(screen.getByText('Occasion'))
-    fireEvent.press(screen.getByText('Special'))
-    expect(callbacks.setOccasionTags).toHaveBeenCalledWith(['quick_bite', 'solo', 'casual'])
+    expect(p.setValueVerdict).toHaveBeenCalledWith('great_value')
+    expect((p as Record<string, unknown>).setCostRating).toBeUndefined()
   })
 
-  test('shows cuisine and tags when pre-populated, tags render without # prefix', () => {
-    const screen = render(<Harness initialCuisine="Japanese" initialHashtags={['ramen']} />)
-
-    expect(screen.getByText('Cuisine')).toBeTruthy()
-    // Tags render without # prefix
-    expect(screen.getByText('ramen')).toBeTruthy()
-
-    fireEvent.press(screen.getByLabelText('Remove tag ramen'))
-    expect(screen.queryByText('ramen')).toBeNull()
+  test('cash discount toggle calls setCashDiscount with true', () => {
+    const p = makeProps({ cashDiscount: false })
+    const screen = render(<StepDetails {...p} />)
+    const toggle = screen.getByLabelText('Cash discounts available')
+    fireEvent(toggle, 'valueChange', true)
+    expect(p.setCashDiscount).toHaveBeenCalledWith(true)
   })
 
-  test('supports optional cuisine selection', () => {
+  test('google review freebie toggle calls setGoogleReviewFreebie with true', () => {
+    const p = makeProps({ googleReviewFreebie: false })
+    const screen = render(<StepDetails {...p} />)
+    const toggle = screen.getByLabelText('Google review freebie available')
+    fireEvent(toggle, 'valueChange', true)
+    expect(p.setGoogleReviewFreebie).toHaveBeenCalledWith(true)
+  })
+
+  test('cuisine selection via action sheet', () => {
     const screen = render(<Harness />)
-    // Optional section always visible — no need to expand
-    fireEvent.press(screen.getByLabelText('Select cuisine'))
+    fireEvent.press(screen.getByLabelText('Select cuisine type'))
     fireEvent.press(screen.getByLabelText('Select Japanese cuisine'))
     expect(screen.getByText('Japanese')).toBeTruthy()
   })
 
-  test('adds and removes a tag from the optional details panel', () => {
-    const screen = render(<Harness />)
+  test('tags render with # prefix and can be removed', () => {
+    const screen = render(<Harness initialHashtags={['ramen']} />)
+    expect(screen.getByText('#ramen')).toBeTruthy()
+    fireEvent.press(screen.getByLabelText('Remove tag ramen'))
+    expect(screen.queryByText('#ramen')).toBeNull()
+  })
 
+  test('adds a hashtag via input', () => {
+    const screen = render(<Harness />)
     fireEvent.press(screen.getByLabelText('Add tag'))
     const tagInput = screen.getByPlaceholderText('e.g. surryhills, ramen')
     fireEvent.changeText(tagInput, 'ramen')
     fireEvent(tagInput, 'onSubmitEditing')
-
-    expect(screen.getByText('ramen')).toBeTruthy()
-    fireEvent.press(screen.getByLabelText('Remove tag ramen'))
-    expect(screen.queryByText('ramen')).toBeNull()
+    expect(screen.getByText('#ramen')).toBeTruthy()
   })
 })

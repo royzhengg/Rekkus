@@ -26,7 +26,7 @@ jest.mock('react-native-safe-area-context', () => {
 jest.mock('@/components/icons', () => {
   const { Text } = jest.requireActual('react-native')
   return {
-    BookmarkIcon: () => <Text>bookmark-icon</Text>,
+    SaveIcon: () => <Text>save-icon</Text>,
     ChevronRight: () => <Text>chevron-icon</Text>,
     ImagePlaceholder: () => <Text>image-placeholder</Text>,
     ListIcon: () => <Text>list-icon</Text>,
@@ -112,12 +112,12 @@ const items: SavedLibraryItem[] = [
     routeId: 'dish-1',
   },
   {
-    id: 'restaurant:restaurant-1',
-    type: 'restaurant',
+    id: 'place:restaurant-1',
+    type: 'place',
     title: 'Golden Dumpling',
     subtitle: '1 Market Street',
     savedAt: '2026-06-11T10:00:00.000Z',
-    targetType: 'restaurant',
+    targetType: 'place',
     targetId: 'restaurant-1',
     routeId: 'restaurant-1',
   },
@@ -167,7 +167,7 @@ function setupLibraryMock() {
     raw: {
       collections: { collections: [], items: [], loading: false, refresh },
       dishes: { savedDishes: [], loading: false, error: null, refresh },
-      locations: { savedLocations: [], error: null, refresh, refreshing: false },
+      locations: { savedPlaces: [], error: null, refresh, refreshing: false },
       posts: { savedPosts: [], loading: false, loadingMore: false, hasMore: false, loadMore: jest.fn(), refresh, refreshing: false, error: null },
     },
   }))

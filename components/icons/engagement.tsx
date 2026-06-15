@@ -45,7 +45,7 @@ export const HeartIcon = React.memo(function HeartIcon({
   )
 })
 
-export const BookmarkIcon = React.memo(function BookmarkIcon({
+export const SaveIcon = React.memo(function SaveIcon({
   filled = false,
   size = 21,
   activeColor,

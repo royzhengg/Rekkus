@@ -228,7 +228,7 @@ export default function PlaceMapScreen() {
             style={styles.phoneRow}
             onPress={callPhone}
             accessibilityRole="button"
-            accessibilityLabel="Call restaurant"
+            accessibilityLabel="Call place"
           >
             <PhoneIcon />
             <Text style={styles.phoneText}>{displayPhone}</Text>

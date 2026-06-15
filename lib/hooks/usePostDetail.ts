@@ -8,6 +8,7 @@ import { useToast } from '@/lib/contexts/ToastContext'
 import { haptic } from '@/lib/haptics'
 import { fetchTargetCollectionItems } from '@/lib/services/collections'
 import { addPostComment } from '@/lib/services/comments'
+import { upsertResolvedPlace } from '@/lib/services/places'
 import {
   addPostReaction,
   fetchPostSocialState,
@@ -15,7 +16,6 @@ import {
   type PostCommentRow,
   type PostReactionType,
 } from '@/lib/services/posts'
-import { upsertResolvedRestaurant } from '@/lib/services/restaurants'
 import { fetchIsFollowing, fetchUserIdByUsername } from '@/lib/services/users'
 import { navigateToPlaceFromPost } from '@/lib/utils/placeNavigation'
 import type { Post } from '@/types/domain'
@@ -210,7 +210,7 @@ export function usePostDetail(
     if (!requireOnline()) return null
     const resolved = await geocodeLocation(resolvedPost.location)
     if (!resolved) return null
-    return upsertResolvedRestaurant(resolved)
+    return upsertResolvedPlace(resolved)
   }, [requireOnline, resolvedPost?.location])
 
   const toggleLocationSave = useCallback(async () => {
@@ -226,14 +226,14 @@ export function usePostDetail(
     }
     if (wasLocationSaved) {
       try {
-        await runDeferredMutation({ kind: 'place_save', restaurantId: placeId, targetState: false })
+        await runDeferredMutation({ kind: 'place_save', placeId, targetState: false })
       } catch {
         setLocationSaved(wasLocationSaved)
         setOperationError({ title: 'Could not update saved location', message: 'Check your connection and try again.' })
       }
     } else {
       try {
-        await runDeferredMutation({ kind: 'place_save', restaurantId: placeId, targetState: true })
+        await runDeferredMutation({ kind: 'place_save', placeId, targetState: true })
         void haptic.confirmSave()
       } catch {
         setLocationSaved(wasLocationSaved)
@@ -328,7 +328,7 @@ export function usePostDetail(
       setOperationError({ title: 'Could not open location', message: 'We could not find this place reliably right now.' })
       return
     }
-    analytics.revisitPlace(userId ?? null, resolvedPost.placeId ?? resolved.placeId, 'post_location_tap')
+    analytics.revisitPlace(userId ?? null, resolvedPost.placeId ?? resolved.placeId ?? '', 'post_location_tap')
     navigateToPlaceFromPost(router, {
       placeId: resolved.placeId,
       name: resolved.name,

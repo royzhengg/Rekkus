@@ -24,8 +24,8 @@ import { fontSize, fontWeight, lineHeight, maxFontSizeMultiplier } from '@/const
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { useRestaurantSearch } from '@/lib/hooks/useRestaurantSearch'
-import type { Prediction, SelectedPlace } from '@/lib/services/restaurants'
+import { usePlaceSearch } from '@/lib/hooks/usePlaceSearch'
+import type { Prediction, SelectedPlace } from '@/lib/services/places'
 import { fetchTopSpotsWithDetails, saveTopSpots } from '@/lib/services/topSpots'
 import type { ProfileRestaurant } from './profileIdentity'
 
@@ -42,9 +42,9 @@ export default function ManageTopSpotsScreen() {
 
   const onPlaceSelected = useCallback((place: SelectedPlace | null) => {
     if (!place) return
-    const id = place.restaurantId ?? place.placeId
+    const id = place.placeId ?? place.googlePlaceId
     setSelectedSpots(prev => {
-      if (prev.some(s => s.id === id || s.placeId === place.placeId)) return prev
+      if (prev.some(s => s.id === id || s.placeId === place.googlePlaceId)) return prev
       if (prev.length >= 3) return prev
       const newSpot: ProfileRestaurant = {
         id,
@@ -52,7 +52,7 @@ export default function ManageTopSpotsScreen() {
         address: place.address,
         lat: place.lat,
         lng: place.lng,
-        placeId: place.placeId,
+        placeId: place.googlePlaceId,
         photoUrl: null,
         reviewCount: 0,
         avgFoodRating: null,
@@ -66,7 +66,7 @@ export default function ManageTopSpotsScreen() {
   }, [user?.id])
 
   const { locationSearch, predictions, predictionsLoading, selectingPlace, handleSearchChange, selectPrediction, onSearchFocus, onSearchBlur, clearSearch } =
-    useRestaurantSearch({ cuisineType: '', userId: user?.id, onPlaceSelected })
+    usePlaceSearch({ cuisineType: '', userId: user?.id, onPlaceSelected })
 
   useEffect(() => {
     analytics.screen(user?.id ?? null, 'manage_top_spots')
@@ -118,7 +118,7 @@ export default function ManageTopSpotsScreen() {
     if (!user || saving) return
     setSaving(true)
     try {
-      const spots = selectedSpots.map((r, i) => ({ position: i + 1, restaurantId: r.id }))
+      const spots = selectedSpots.map((r, i) => ({ position: i + 1, placeId: r.id }))
       await saveTopSpots(user.id, spots)
       analytics.profileInteraction(user.id, user.id, 'top_spots_saved', { visible_count: spots.length })
       router.back()

@@ -98,7 +98,7 @@ failures.push(
     schemaSource: schema,
     searchServiceSource: searchService,
     searchPipelineSource: searchPipeline,
-    restaurantServiceSource: exists('lib/services/restaurants.ts') ? readText('lib/services/restaurants.ts') : '',
+    restaurantServiceSource: exists('lib/services/places.ts') ? readText('lib/services/places.ts') : '',
   }),
 )
 

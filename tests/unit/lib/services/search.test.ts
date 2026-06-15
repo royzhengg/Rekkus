@@ -276,7 +276,7 @@ describe('fetchTrendingPlaceClicks', () => {
       { entity_id: 'rest-2' },
       { entity_id: 'rest-2' },
     ])
-    expect(mockFrom).toHaveBeenCalledWith('restaurants')
+    expect(mockFrom).toHaveBeenCalledWith('places')
     expect(mockFrom).toHaveBeenCalledWith('analytics_events')
   })
 
@@ -560,10 +560,10 @@ describe('B-572/B-576/B-578/B-579 search services', () => {
 
   it('builds bounded dish graph evidence from linked posts', async () => {
     mockDishGraphQuery([
-      { id: 'post-1', dish_id: 'dish-1', restaurant_id: 'rest-1' },
-      { id: 'post-2', dish_id: 'dish-1', restaurant_id: 'rest-2' },
-      { id: 'post-3', dish_id: 'dish-1', restaurant_id: 'rest-2' },
-      { id: 9, dish_id: 'bad', restaurant_id: 'bad' },
+      { id: 'post-1', dish_id: 'dish-1', place_id: 'rest-1' },
+      { id: 'post-2', dish_id: 'dish-1', place_id: 'rest-2' },
+      { id: 'post-3', dish_id: 'dish-1', place_id: 'rest-2' },
+      { id: 9, dish_id: 'bad', place_id: 'bad' },
     ])
 
     const evidence = await fetchDishGraphEvidence(['dish-1'])
@@ -623,7 +623,7 @@ describe('searchPlaces', () => {
     mockRpc.mockResolvedValue({ data: [validPlace, { id: 9 }], error: null } as never)
 
     await expect(searchPlaces('ramen', null)).resolves.toEqual([validPlace])
-    expect(mockRpc).toHaveBeenCalledWith('search_restaurants_full_text', {
+    expect(mockRpc).toHaveBeenCalledWith('search_places_full_text', {
       query_text: 'ramen',
       max_results: 40,
     })
@@ -657,7 +657,7 @@ describe('searchPlaces', () => {
 
     await searchPlaces('ramen', null, bounds)
 
-    expect(mockRpc).toHaveBeenCalledWith('restaurants_in_bounding_box', {
+    expect(mockRpc).toHaveBeenCalledWith('places_in_bounding_box', {
       ...bounds,
       max_results: 50,
     })

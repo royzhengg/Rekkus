@@ -9,9 +9,9 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ back: mockBack }),
 }))
 
-jest.mock('@/features/restaurants/RestaurantsTabScreen', () => {
+jest.mock('@/features/places/PlacesTabScreen', () => {
   const { Text } = jest.requireActual('react-native')
-  return function MockRestaurantsTabScreen({ initialView }: { initialView?: 'list' | 'map' }) {
+  return function MockPlacesTabScreen({ initialView }: { initialView?: 'list' | 'map' }) {
     return <Text>{`places-${initialView ?? 'list'}`}</Text>
   }
 })

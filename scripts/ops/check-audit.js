@@ -116,15 +116,15 @@ if (!/create\s+or\s+replace\s+function\s+(?:public\.)?delete_own_account/i.test(
   failures.push('delete_own_account() RPC must exist in migrations (B-522: account deletion audit trail).')
 }
 
-const restaurantService = require('./lib/files').readText('lib/services/restaurants.ts')
+const placeService = require('./lib/files').readText('lib/services/places.ts')
 for (const helper of [
-  'recordRestaurantAuditEvent',
-  'submitRestaurantClaim',
-  'recordRestaurantAlias',
-  'recordRestaurantMergeEvidence',
+  'recordPlaceAuditEvent',
+  'submitPlaceClaim',
+  'recordPlaceAlias',
+  'recordPlaceMergeEvidence',
   'reportDataRepair',
 ]) {
-  if (!restaurantService.includes(helper)) failures.push(`lib/services/restaurants.ts must expose ${helper}.`)
+  if (!placeService.includes(helper)) failures.push(`lib/services/places.ts must expose ${helper}.`)
 }
 
 const auditSubjects = [

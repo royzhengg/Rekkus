@@ -7,7 +7,7 @@ import {
   savedLibraryItemMetadata,
 } from '@/features/saved/savedLibrary'
 import type { Collection } from '@/lib/services/collections'
-import type { SavedLocation } from '@/lib/services/restaurants'
+import type { SavedPlace } from '@/lib/services/places'
 import type { Post, SavedDish } from '@/types/domain'
 
 const dish: SavedDish = {
@@ -15,14 +15,14 @@ const dish: SavedDish = {
   name: 'Chilli wontons',
   savedAt: '2026-06-12T10:00:00.000Z',
   representativeImageUrl: 'https://example.com/wontons.jpg',
-  restaurant: { id: 'restaurant-1', name: 'Golden Dumpling' },
+  place: { id: 'restaurant-1', name: 'Golden Dumpling' },
 }
 
-const place: SavedLocation = {
+const place: SavedPlace = {
   id: 'saved-location-1',
-  restaurant_id: 'restaurant-1',
+  place_id: 'restaurant-1',
   created_at: '2026-06-11T10:00:00.000Z',
-  restaurants: {
+  places: {
     name: 'Golden Dumpling',
     address: '1 Market Street',
     latitude: null,
@@ -73,7 +73,7 @@ describe('savedLibrary', () => {
 
     expect(items.map(item => item.id)).toEqual([
       'dish:dish-1',
-      'restaurant:restaurant-1',
+      'place:restaurant-1',
       'post:post-1',
       'collection:collection-1',
     ])
@@ -99,10 +99,10 @@ describe('savedLibrary', () => {
       collections: [collection],
     })
 
-    expect(filterSavedLibraryItems(items, 'places', '').map(item => item.type)).toEqual(['restaurant'])
+    expect(filterSavedLibraryItems(items, 'places', '').map(item => item.type)).toEqual(['place'])
     expect(filterSavedLibraryItems(items, 'all', 'noodles').map(item => item.id)).toEqual(['post:post-1'])
     expect(filterSavedLibraryItems(items, 'collections', 'weeknight').map(item => item.id)).toEqual(['collection:collection-1'])
-    expect(items.filter(isSelectableSavedLibraryItem).map(item => item.type)).toEqual(['dish', 'restaurant', 'post'])
+    expect(items.filter(isSelectableSavedLibraryItem).map(item => item.type)).toEqual(['dish', 'place', 'post'])
   })
 
   it('builds clean display metadata for saved rows', () => {
@@ -123,9 +123,9 @@ describe('savedLibrary', () => {
   })
 
   it('uses a neutral saved-place fallback when address is unavailable', () => {
-    const placeWithoutAddress: SavedLocation = {
+    const placeWithoutAddress: SavedPlace = {
       ...place,
-      restaurants: {
+      places: {
         name: 'Golden Dumpling',
         address: null,
         latitude: null,

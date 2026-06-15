@@ -18,8 +18,8 @@ describe('fetchDishDetail', () => {
         id: 'dish-1',
         name: 'Tonkotsu ramen',
         cuisine_type: 'Japanese',
-        restaurant_id: 'restaurant-1',
-        restaurants: {
+        place_id: 'restaurant-1',
+        places: {
           id: 'restaurant-1',
           name: 'Noodle Bar',
           address: '1 Main St',
@@ -42,12 +42,12 @@ describe('fetchDishDetail', () => {
       id: 'dish-1',
       name: 'Tonkotsu ramen',
       cuisineType: 'Japanese',
-      restaurantId: 'restaurant-1',
-      restaurant: {
+      placeId: 'restaurant-1',
+      place: {
         id: 'restaurant-1',
         name: 'Noodle Bar',
         address: '1 Main St',
-        placeId: 'google-1',
+        googlePlaceId: 'google-1',
         lat: -33.87,
         lng: 151.21,
       },

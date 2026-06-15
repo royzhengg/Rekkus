@@ -12,7 +12,7 @@ export type SavedPostRow = {
   must_order: string | null
   dish_id: string | null
   dish_tags: { photoIndex: number; x: number; y: number; name: string }[] | null
-  restaurant_id: string | null
+  place_id: string | null
   photo_url: string | null
   media: Array<{
     id?: string
@@ -75,15 +75,14 @@ export type PostSocialState = {
 
 export type UpdatePostPayload = {
   caption?: string | null
-  restaurantId?: string | null
-  foodRating?: number | null
-  vibeRating?: number | null
-  costRating?: number | null
+  placeId?: string | null
   tasteVerdict?: RekkusTasteVerdict | null
   valueVerdict?: RekkusValueVerdict | null
   occasionTags?: RekkusOccasionTag[]
   cuisineType?: string | null
   mustOrder?: string | null
+  cashDiscount?: boolean | null
+  googleReviewFreebie?: boolean | null
   dishId?: string | null
   dishTags?: DishTag[]
   media?: PostMediaAsset[]
@@ -120,7 +119,7 @@ export type RawPost = {
   must_order: string | null
   dish_id: string | null
   dish_tags: { photoIndex: number; x: number; y: number; name: string }[] | null
-  restaurant_id: string | null
+  place_id: string | null
   taste_verdict: RekkusTasteVerdict | null
   value_verdict: RekkusValueVerdict | null
   occasion_tags: RekkusOccasionTag[] | null
@@ -129,7 +128,7 @@ export type RawPost = {
   edit_count: number | null
   users: { username: string; full_name: string | null; avatar_url: string | null } | null
   post_photos: RawPostPhoto[] | null
-  restaurants: { name: string; address: string | null; latitude: number | null; longitude: number | null; google_place_id: string | null } | null
+  places: { name: string; address: string | null; latitude: number | null; longitude: number | null; google_place_id: string | null } | null
 }
 
 export function mapRowToPost(row: SavedPostRow, index: number): Post {
@@ -181,8 +180,8 @@ export function mapRowToPost(row: SavedPostRow, index: number): Post {
     mustOrder: row.must_order ?? undefined,
     dishTags: row.dish_tags ?? undefined,
     dishId: row.dish_id ?? undefined,
-    restaurantId: row.restaurant_id ?? undefined,
-    placeId: row.restaurant_place_id ?? undefined,
+    placeId: row.place_id ?? undefined,
+    googlePlaceId: row.restaurant_place_id ?? undefined,
     lat: row.restaurant_lat ?? undefined,
     lng: row.restaurant_lng ?? undefined,
     address: row.restaurant_address ?? undefined,

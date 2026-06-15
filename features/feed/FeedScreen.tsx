@@ -20,7 +20,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { BellIcon, BookmarkIcon, HeartIcon, MessageIcon, PlusIcon, ShareIcon } from '@/components/icons'
+import { BellIcon, SaveIcon, HeartIcon, MessageIcon, PlusIcon, ShareIcon } from '@/components/icons'
 import { PostCard as RekkusPostCard } from '@/components/post/PostCard'
 import { PostCardSkeleton } from '@/components/post/PostCardSkeleton'
 import { PostUploadProgress } from '@/components/post/PostUploadProgress'
@@ -407,7 +407,7 @@ export default function FeedScreen() {
         options={[
           { label: 'Open post', value: 'open' },
           { label: 'Like', value: 'like', icon: <HeartIcon size={18} /> },
-          { label: 'Save', value: 'save', icon: <BookmarkIcon size={18} /> },
+          { label: 'Save', value: 'save', icon: <SaveIcon size={18} /> },
           { label: longPressPost ? `Go to @${longPressPost.creator}` : 'Go to creator', value: 'creator', icon: <ShareIcon size={18} /> },
         ]}
         onSelect={handleLongPressAction}

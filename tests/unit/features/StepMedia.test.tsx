@@ -1,11 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import * as ImagePicker from 'expo-image-picker'
-import * as MediaLibrary from 'expo-media-library'
 import StepMedia from '@/components/post-create/StepMedia'
 import { analytics } from '@/lib/analytics'
 import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
-import { useRecentPhotos } from '@/lib/hooks/useRecentPhotos'
-import { useRestaurantSearch } from '@/lib/hooks/useRestaurantSearch'
+import { usePlaceSearch } from '@/lib/hooks/usePlaceSearch'
 import { preparePostMedia } from '@/lib/services/postMediaProcessing'
 import type { PostMedia } from '@/types/domain'
 
@@ -14,11 +12,21 @@ jest.mock('expo-sqlite', () => ({}))
 
 jest.mock('react-native-reanimated', () => {
   const { View } = jest.requireActual('react-native')
-  return { __esModule: true, default: { View }, FadeIn: { duration: () => undefined } }
+  const useSharedValue = (initial: number) => ({ value: initial })
+  const useAnimatedStyle = (fn: () => object) => fn()
+  const withSpring = (value: number) => value
+  return {
+    __esModule: true,
+    default: { View },
+    FadeIn: { duration: () => undefined },
+    useSharedValue,
+    useAnimatedStyle,
+    withSpring,
+  }
 })
 
-jest.mock('@/lib/hooks/useRestaurantSearch', () => ({
-  useRestaurantSearch: jest.fn(),
+jest.mock('@/lib/hooks/usePlaceSearch', () => ({
+  usePlaceSearch: jest.fn(),
 }))
 
 jest.mock('@/lib/contexts/ThemeContext', () => {
@@ -36,10 +44,6 @@ jest.mock('@/lib/hooks/usePermissionRecovery', () => ({
     dismissRecovery: jest.fn(),
     openSettings: jest.fn(),
   })),
-}))
-
-jest.mock('@/lib/hooks/useRecentPhotos', () => ({
-  useRecentPhotos: jest.fn(),
 }))
 
 jest.mock('@/lib/analytics', () => ({
@@ -60,10 +64,6 @@ jest.mock('expo-image-picker', () => ({
   launchCameraAsync: jest.fn(),
   requestCameraPermissionsAsync: jest.fn(),
   requestMediaLibraryPermissionsAsync: jest.fn(),
-}))
-
-jest.mock('expo-media-library', () => ({
-  getAssetInfoAsync: jest.fn(),
 }))
 
 jest.mock('@/lib/services/media', () => ({
@@ -90,14 +90,12 @@ jest.mock('@/components/ui/RekkusActionSheet', () => ({
   },
 }))
 
-const mockUseRestaurantSearch = jest.mocked(useRestaurantSearch)
-const mockUseRecentPhotos = jest.mocked(useRecentPhotos)
+const mockUsePlaceSearch = jest.mocked(usePlaceSearch)
 const mockPreparePostMedia = jest.mocked(preparePostMedia)
 const mockMediaEvent = jest.mocked(analytics.mediaEvent)
 const mockUploadFailure = jest.mocked(analytics.uploadFailure)
-const mockGetAssetInfo = jest.mocked(MediaLibrary.getAssetInfoAsync)
 
-function baseHookReturn(overrides: Partial<ReturnType<typeof useRestaurantSearch>> = {}): ReturnType<typeof useRestaurantSearch> {
+function baseHookReturn(overrides: Partial<ReturnType<typeof usePlaceSearch>> = {}): ReturnType<typeof usePlaceSearch> {
   return {
     locationSearch: '',
     predictions: [],
@@ -110,7 +108,7 @@ function baseHookReturn(overrides: Partial<ReturnType<typeof useRestaurantSearch
     showDropdown: false,
     locationStatus: 'granted',
     locationConstrained: true,
-    restaurantTagIntent: { kind: 'general', providerIntent: 'general', confidence: 0.2 },
+    placeTagIntent: { kind: 'general', providerIntent: 'general', confidence: 0.2 },
     requestLocationAndSearch: jest.fn(),
     handleSearchChange: jest.fn(),
     selectPrediction: jest.fn(),
@@ -131,44 +129,14 @@ const defaultProps = {
   cuisineType: '',
   dishTags: [],
   setDishTags: jest.fn(),
-  mustOrder: '',
-  setMustOrder: jest.fn(),
-}
-
-function recentPhoto(index: number) {
-  return {
-    id: `recent-${index}`,
-    uri: `file:///recent-${index}.jpg`,
-    width: 800,
-    height: 600,
-    filename: `recent-${index}.jpg`,
-  }
-}
-
-function recentPhotoInfo(overrides: Partial<MediaLibrary.AssetInfo> = {}): MediaLibrary.AssetInfo {
-  return {
-    id: 'recent-0',
-    filename: 'recent-0.jpg',
-    uri: 'ph://recent-0',
-    localUri: 'file:///recent-0.jpg',
-    mediaType: 'photo',
-    width: 800,
-    height: 600,
-    creationTime: 1000,
-    modificationTime: 1000,
-    duration: 0,
-    ...overrides,
-  }
 }
 
 describe('StepMedia location nudge', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     capturedMediaOnSelect = undefined
-    mockUseRestaurantSearch.mockReturnValue(baseHookReturn())
-    mockUseRecentPhotos.mockReturnValue({ photos: [], loading: false, denied: false, error: null })
+    mockUsePlaceSearch.mockReturnValue(baseHookReturn())
     mockPreparePostMedia.mockResolvedValue({ media: [], rejectedCount: 0, error: null })
-    mockGetAssetInfo.mockResolvedValue(recentPhotoInfo())
   })
 
   it('does not show nudge when locationStatus is granted', () => {
@@ -177,11 +145,11 @@ describe('StepMedia location nudge', () => {
   })
 
   it('does not show nudge when a place is already selected', () => {
-    mockUseRestaurantSearch.mockReturnValue(baseHookReturn({ locationStatus: 'idle' }))
+    mockUsePlaceSearch.mockReturnValue(baseHookReturn({ locationStatus: 'idle' }))
     render(
       <StepMedia
         {...defaultProps}
-        selectedPlace={{ placeId: 'p1', name: 'Ramen Bar', address: '1 Food St', lat: -33.87, lng: 151.21, restaurantId: 'r1' }}
+        selectedPlace={{ googlePlaceId: 'gp-1', placeId: 'p1', name: 'Ramen Bar', address: '1 Food St', lat: -33.87, lng: 151.21 }}
       />
     )
     expect(screen.queryByText('Enable location for better results')).toBeNull()
@@ -189,13 +157,13 @@ describe('StepMedia location nudge', () => {
 
   it('shows location nudge for any zero-result search without location', () => {
     const requestLocationAndSearch = jest.fn()
-    mockUseRestaurantSearch.mockReturnValue(baseHookReturn({
+    mockUsePlaceSearch.mockReturnValue(baseHookReturn({
       locationSearch: 'cafe',
       searchFocused: true,
       showDropdown: true,
       locationStatus: 'idle',
       locationConstrained: false,
-      restaurantTagIntent: { kind: 'venue_category', providerIntent: 'food_dish', confidence: 0.87 },
+      placeTagIntent: { kind: 'venue_category', providerIntent: 'food_dish', confidence: 0.87 },
       requestLocationAndSearch,
     }))
 
@@ -207,13 +175,13 @@ describe('StepMedia location nudge', () => {
   })
 
   it('shows disabled "Getting location…" button while location is being fetched', () => {
-    mockUseRestaurantSearch.mockReturnValue(baseHookReturn({
+    mockUsePlaceSearch.mockReturnValue(baseHookReturn({
       locationSearch: 'pasta',
       searchFocused: true,
       showDropdown: true,
       locationStatus: 'requesting',
       locationConstrained: false,
-      restaurantTagIntent: { kind: 'dish_or_menu_item', providerIntent: 'food_dish', confidence: 0.86 },
+      placeTagIntent: { kind: 'dish_or_menu_item', providerIntent: 'food_dish', confidence: 0.86 },
     }))
 
     render(<StepMedia {...defaultProps} />)
@@ -222,13 +190,13 @@ describe('StepMedia location nudge', () => {
   })
 
   it('shows location nudge for dish searches without location', () => {
-    mockUseRestaurantSearch.mockReturnValue(baseHookReturn({
+    mockUsePlaceSearch.mockReturnValue(baseHookReturn({
       locationSearch: 'omelette',
       searchFocused: true,
       showDropdown: true,
       locationStatus: 'idle',
       locationConstrained: false,
-      restaurantTagIntent: { kind: 'dish_or_menu_item', providerIntent: 'food_dish', confidence: 0.86 },
+      placeTagIntent: { kind: 'dish_or_menu_item', providerIntent: 'food_dish', confidence: 0.86 },
     }))
 
     render(<StepMedia {...defaultProps} />)
@@ -238,7 +206,7 @@ describe('StepMedia location nudge', () => {
   })
 
   it('renders distance section headers for typed restaurant predictions', () => {
-    mockUseRestaurantSearch.mockReturnValue(baseHookReturn({
+    mockUsePlaceSearch.mockReturnValue(baseHookReturn({
       locationSearch: 'ramen',
       searchFocused: true,
       showDropdown: true,
@@ -265,7 +233,7 @@ describe('StepMedia location nudge', () => {
   })
 
   it('renders distance section headers for nearby restaurants', () => {
-    mockUseRestaurantSearch.mockReturnValue(baseHookReturn({
+    mockUsePlaceSearch.mockReturnValue(baseHookReturn({
       searchFocused: true,
       showNearby: true,
       nearbyPlaces: [
@@ -283,172 +251,54 @@ describe('StepMedia location nudge', () => {
     expect(screen.getByText('Nearby on Rekkus')).toBeTruthy()
     expect(screen.getByText('Nearby')).toBeTruthy()
   })
+})
 
-  it('renders up to 5 recent photos while media is empty', () => {
-    mockUseRecentPhotos.mockReturnValue({
-      photos: Array.from({ length: 5 }, (_, index) => recentPhoto(index)),
-      loading: false,
-      denied: false,
-      error: null,
-    })
-
-    render(<StepMedia {...defaultProps} />)
-
-    expect(screen.getByText('RECENTS')).toBeTruthy()
-    expect(screen.getByLabelText('Add recent photo 1')).toBeTruthy()
-    expect(screen.getByLabelText('Add recent photo 5')).toBeTruthy()
+describe('StepMedia — empty state and media present', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockUsePlaceSearch.mockReturnValue(baseHookReturn())
+    mockPreparePostMedia.mockResolvedValue({ media: [], rejectedCount: 0, error: null })
   })
 
-  it('hides recent photos when media already exists', () => {
-    mockUseRecentPhotos.mockReturnValue({
-      photos: [recentPhoto(0)],
-      loading: false,
-      denied: false,
-      error: null,
-    })
-
-    render(
-      <StepMedia
-        {...defaultProps}
-        media={[{ localId: 'media-1', uri: 'file:///selected.jpg', type: 'image' } as PostMedia]}
-      />
-    )
-
+  it('shows clean empty state with camera icon and Add photos button when no media', () => {
+    render(<StepMedia {...defaultProps} />)
+    expect(screen.getByText('Add your photos')).toBeTruthy()
+    expect(screen.getByLabelText('Add photos or video')).toBeTruthy()
+    // Recent photos strip is gone
     expect(screen.queryByText('RECENTS')).toBeNull()
-    expect(screen.queryByLabelText('Add recent photo 1')).toBeNull()
   })
 
-  it('does not show the must-order prompt on the media step after media is added', () => {
+  it('shows Tag dishes pill button when media is present', () => {
     render(
       <StepMedia
         {...defaultProps}
-        media={[{ localId: 'media-1', uri: 'file:///selected.jpg', type: 'image' } as PostMedia]}
+        media={[{ localId: 'media-1', uri: 'file:///selected.jpg', type: 'image', processingStatus: 'ready' } as PostMedia]}
       />
     )
-
-    expect(screen.queryByPlaceholderText("What's the must-order dish?")).toBeNull()
-    expect(screen.queryByLabelText('Must order dish')).toBeNull()
+    expect(screen.getByLabelText('Tag dishes in photo')).toBeTruthy()
   })
 
-  it('adds a tapped recent photo through media preparation', async () => {
-    const nextMedia = [{ localId: 'media-1', uri: 'file:///recent-0.jpg', type: 'image' } as PostMedia]
-    const setMedia = jest.fn()
-    mockUseRecentPhotos.mockReturnValue({
-      photos: [recentPhoto(0)],
-      loading: false,
-      denied: false,
-      error: null,
-    })
-    mockPreparePostMedia.mockResolvedValue({ media: nextMedia, rejectedCount: 0, error: null })
-
-    render(<StepMedia {...defaultProps} setMedia={setMedia} />)
-    fireEvent.press(screen.getByLabelText('Add recent photo 1'))
-
-    await waitFor(() => {
-      expect(mockGetAssetInfo).toHaveBeenCalledWith('recent-0')
-      expect(mockPreparePostMedia).toHaveBeenCalledWith(
-        [{ uri: 'file:///recent-0.jpg', type: 'image', width: 800, height: 600, mimeType: 'image/jpeg' }],
-        []
-      )
-    })
-    expect(setMedia).toHaveBeenCalledWith(nextMedia)
-    expect(mockMediaEvent).toHaveBeenCalledWith(null, 'recent_photo_selected', 'post_create')
-  })
-
-  it('resolves extensionless iOS recent photo URIs before media preparation', async () => {
-    const nextMedia = [{ localId: 'media-1', uri: 'file:///resolved-recent.jpg', type: 'image' } as PostMedia]
-    const setMedia = jest.fn()
-    mockUseRecentPhotos.mockReturnValue({
-      photos: [{ id: 'recent-ios', uri: 'ph://asset-id', width: 640, height: 480 }],
-      loading: false,
-      denied: false,
-      error: null,
-    })
-    mockGetAssetInfo.mockResolvedValue(recentPhotoInfo({
-      id: 'recent-ios',
-      filename: 'IMG_0001',
-      uri: 'ph://asset-id',
-      localUri: 'file:///resolved-recent.jpg',
-      width: 640,
-      height: 480,
-    }))
-    mockPreparePostMedia.mockResolvedValue({ media: nextMedia, rejectedCount: 0, error: null })
-
-    render(<StepMedia {...defaultProps} setMedia={setMedia} />)
-    fireEvent.press(screen.getByLabelText('Add recent photo 1'))
-
-    await waitFor(() => {
-      expect(mockGetAssetInfo).toHaveBeenCalledWith('recent-ios')
-      expect(mockPreparePostMedia).toHaveBeenCalledWith(
-        [{ uri: 'file:///resolved-recent.jpg', type: 'image', width: 640, height: 480, mimeType: 'image/jpeg' }],
-        []
-      )
-    })
-    expect(setMedia).toHaveBeenCalledWith(nextMedia)
-  })
-
-  it('shows a clearer error when recent photo metadata cannot be read', async () => {
-    mockUseRecentPhotos.mockReturnValue({
-      photos: [{ id: 'recent-ios', uri: 'ph://asset-id', width: 640, height: 480 }],
-      loading: false,
-      denied: false,
-      error: null,
-    })
-    mockGetAssetInfo.mockResolvedValue({
-      id: 'recent-ios',
-      filename: 'IMG_0001',
-      uri: 'ph://asset-id',
-      mediaType: 'photo',
-      width: 640,
-      height: 480,
-      creationTime: 1000,
-      modificationTime: 1000,
-      duration: 0,
-    })
-
-    render(<StepMedia {...defaultProps} />)
-    fireEvent.press(screen.getByLabelText('Add recent photo 1'))
-
-    await waitFor(() => {
-      expect(screen.getByText('Could not add media')).toBeTruthy()
-    })
-    expect(screen.getByText('Could not read this photo. Try Add media instead.')).toBeTruthy()
-    expect(mockPreparePostMedia).not.toHaveBeenCalled()
-    expect(mockUploadFailure).toHaveBeenCalledWith(null, 'post_recent_photo_strip', 'metadata_unavailable')
-  })
-
-  it('shows media error and upload analytics when recent photo is rejected', async () => {
-    mockUseRecentPhotos.mockReturnValue({
-      photos: [recentPhoto(0)],
-      loading: false,
-      denied: false,
-      error: null,
-    })
-    mockPreparePostMedia.mockResolvedValue({
-      media: [],
-      rejectedCount: 1,
-      error: 'Unsupported file type.',
-    })
-
-    render(<StepMedia {...defaultProps} />)
-    fireEvent.press(screen.getByLabelText('Add recent photo 1'))
-
-    await waitFor(() => {
-      expect(screen.getByText('Could not add media')).toBeTruthy()
-    })
-    expect(screen.getByText('Unsupported file type.')).toBeTruthy()
-    expect(mockUploadFailure).toHaveBeenCalledWith(
-      null,
-      'post_recent_photo_strip',
-      'validation_rejected',
-      1
+  it('shows tagged dish chips as de-duped pills below the strip', () => {
+    render(
+      <StepMedia
+        {...defaultProps}
+        media={[
+          { localId: 'media-1', uri: 'file:///selected.jpg', type: 'image', processingStatus: 'ready' } as PostMedia,
+        ]}
+        dishTags={[
+          { name: 'Ramen', photoIndex: 0, x: 0.3, y: 0.5 },
+          { name: 'Ramen', photoIndex: 0, x: 0.4, y: 0.6 }, // duplicate — should appear once
+          { name: 'Gyoza', photoIndex: 0, x: 0.7, y: 0.3 },
+        ]}
+      />
     )
+    const ramenChips = screen.getAllByText('Ramen')
+    expect(ramenChips).toHaveLength(1) // de-duped
+    expect(screen.getByText('Gyoza')).toBeTruthy()
   })
 })
 
 // Regression: picker must not be called while the action sheet is still animating out.
-// iOS silently drops a native picker presentation while a modal VC is still dismissing;
-// Android can also fail on some versions for the same reason.
 describe('StepMedia picker deferral', () => {
   const mockUsePermissionRecovery = jest.mocked(usePermissionRecovery)
 
@@ -456,8 +306,7 @@ describe('StepMedia picker deferral', () => {
     jest.useFakeTimers()
     capturedMediaOnSelect = undefined
     jest.clearAllMocks()
-    mockUseRestaurantSearch.mockReturnValue(baseHookReturn())
-    mockUseRecentPhotos.mockReturnValue({ photos: [], loading: false, denied: false, error: null })
+    mockUsePlaceSearch.mockReturnValue(baseHookReturn())
     jest.mocked(ImagePicker.getMediaLibraryPermissionsAsync).mockResolvedValue({
       granted: true,
       canAskAgain: true,
@@ -496,7 +345,7 @@ describe('StepMedia picker deferral', () => {
 
     await act(async () => {
       jest.advanceTimersByTime(350)
-      await null // flush the permission-check microtask so launchCameraAsync is reached
+      await null
     })
     expect(mockLaunchCamera).toHaveBeenCalledTimes(1)
   })
@@ -520,81 +369,6 @@ describe('StepMedia picker deferral', () => {
     expect(mockLaunchLibrary).toHaveBeenCalledWith(expect.objectContaining({
       presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
     }))
-  })
-
-  it('waits for the permission prompt to settle before launching the library picker', async () => {
-    const mockLaunchLibrary = jest.mocked(ImagePicker.launchImageLibraryAsync)
-    const requestPermission = jest.fn().mockResolvedValue({ granted: true, canAskAgain: true })
-    jest.mocked(ImagePicker.getMediaLibraryPermissionsAsync).mockResolvedValue({
-      granted: false,
-      canAskAgain: true,
-      status: ImagePicker.PermissionStatus.UNDETERMINED,
-      expires: 'never',
-    })
-    mockLaunchLibrary.mockResolvedValue({ canceled: true, assets: null })
-    mockUsePermissionRecovery.mockReturnValue({
-      request: requestPermission,
-      recoveryVisible: false,
-      recoveryMessage: '',
-      dismissRecovery: jest.fn(),
-      openSettings: jest.fn(),
-    })
-
-    render(<StepMedia {...defaultProps} />)
-    fireEvent.press(screen.getByLabelText('Add photos or video'))
-    expect(capturedMediaOnSelect).toBeDefined()
-
-    act(() => { capturedMediaOnSelect!('library') })
-
-    await act(async () => {
-      jest.advanceTimersByTime(350)
-      await null
-    })
-    expect(requestPermission).toHaveBeenCalledTimes(1)
-    expect(mockLaunchLibrary).not.toHaveBeenCalled()
-
-    await act(async () => {
-      jest.advanceTimersByTime(349)
-      await null
-    })
-    expect(mockLaunchLibrary).not.toHaveBeenCalled()
-
-    await act(async () => {
-      jest.advanceTimersByTime(1)
-      await null
-    })
-    expect(mockLaunchLibrary).toHaveBeenCalledTimes(1)
-  })
-
-  it('delegates permanently denied library permission to recovery and does not launch', async () => {
-    const mockLaunchLibrary = jest.mocked(ImagePicker.launchImageLibraryAsync)
-    const requestPermission = jest.fn().mockResolvedValue({ granted: false, canAskAgain: false })
-    jest.mocked(ImagePicker.getMediaLibraryPermissionsAsync).mockResolvedValue({
-      granted: false,
-      canAskAgain: false,
-      status: ImagePicker.PermissionStatus.DENIED,
-      expires: 'never',
-    })
-    mockUsePermissionRecovery.mockReturnValue({
-      request: requestPermission,
-      recoveryVisible: true,
-      recoveryMessage: 'Photo library access is needed to add photos. Enable it in Settings.',
-      dismissRecovery: jest.fn(),
-      openSettings: jest.fn(),
-    })
-
-    render(<StepMedia {...defaultProps} />)
-    fireEvent.press(screen.getByLabelText('Add photos or video'))
-    expect(capturedMediaOnSelect).toBeDefined()
-
-    act(() => { capturedMediaOnSelect!('library') })
-
-    await act(async () => {
-      jest.advanceTimersByTime(350)
-      await null
-    })
-    expect(requestPermission).toHaveBeenCalledTimes(1)
-    expect(mockLaunchLibrary).not.toHaveBeenCalled()
   })
 
   it('shows an inline error when the library picker rejects', async () => {

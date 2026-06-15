@@ -25,7 +25,7 @@ export type ProfileRestaurant = {
 
 type ProfilePost = Pick<
   Post,
-  'restaurantId' | 'placeId' | 'location' | 'address' | 'lat' | 'lng' | 'food' | 'createdAt' | 'cuisine_type' | 'imageUrl'
+  'placeId' | 'googlePlaceId' | 'location' | 'address' | 'lat' | 'lng' | 'food' | 'createdAt' | 'cuisine_type' | 'imageUrl'
 >
 
 const CUISINE_EMOJI: Record<string, string> = {
@@ -47,7 +47,7 @@ const CUISINE_EMOJI: Record<string, string> = {
 }
 
 function keyForRestaurant(post: ProfilePost): string | null {
-  const id = post.restaurantId?.trim() || post.placeId?.trim()
+  const id = post.placeId?.trim() || post.googlePlaceId?.trim()
   if (id) return id.toLowerCase()
   const name = post.location.trim().toLowerCase()
   if (!name) return null
@@ -85,7 +85,7 @@ export function deriveProfileInterests(posts: ProfilePost[], limit = 4): Profile
     const key = label.toLowerCase()
     const current = byCuisine.get(key) ?? { label, count: 0, totalFood: 0 }
     current.count += 1
-    current.totalFood += post.food > 0 ? post.food : 0
+    current.totalFood += (post.food ?? 0) > 0 ? (post.food ?? 0) : 0
     byCuisine.set(key, current)
   }
 
@@ -112,7 +112,7 @@ export function deriveReviewedRestaurants(posts: ProfilePost[]): ProfileRestaura
     const existing = byRestaurant.get(key)
     if (existing) {
       existing.reviewCount += 1
-      existing.totalFood += post.food > 0 ? post.food : 0
+      existing.totalFood += (post.food ?? 0) > 0 ? (post.food ?? 0) : 0
       if (isNewer(post.createdAt ?? null, existing.lastReviewedAt)) {
         existing.lastReviewedAt = post.createdAt ?? null
       }
@@ -124,17 +124,17 @@ export function deriveReviewedRestaurants(posts: ProfilePost[]): ProfileRestaura
     }
 
     byRestaurant.set(key, {
-      id: post.restaurantId ?? post.placeId ?? key,
+      id: post.placeId ?? post.googlePlaceId ?? key,
       name: post.location,
       address: post.address ?? null,
       lat: post.lat ?? null,
       lng: post.lng ?? null,
-      placeId: post.placeId ?? null,
+      placeId: post.googlePlaceId ?? null,
       photoUrl: post.imageUrl ?? null,
       reviewCount: 1,
       avgFoodRating: null,
       lastReviewedAt: post.createdAt ?? null,
-      totalFood: post.food > 0 ? post.food : 0,
+      totalFood: (post.food ?? 0) > 0 ? (post.food ?? 0) : 0,
     })
   }
 

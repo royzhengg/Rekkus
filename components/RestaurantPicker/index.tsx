@@ -17,8 +17,8 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, letterSpacing } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { useRestaurantSearch } from '@/lib/hooks/useRestaurantSearch'
-import type { Prediction, PredictionDistanceGroup, SelectedPlace } from '@/lib/services/restaurants'
+import { usePlaceSearch } from '@/lib/hooks/usePlaceSearch'
+import type { Prediction, PredictionDistanceGroup, SelectedPlace } from '@/lib/services/places'
 
 type Props = {
   value: SelectedPlace | null
@@ -61,7 +61,7 @@ export function RestaurantPicker({ value, onSelect, cuisineType, userId }: Props
     onSearchFocus,
     onSearchBlur,
     clearSearch,
-  } = useRestaurantSearch({ cuisineType, userId, onPlaceSelected: onSelect })
+  } = usePlaceSearch({ cuisineType, userId, onPlaceSelected: onSelect })
 
   const showLocationNudge =
     !value &&

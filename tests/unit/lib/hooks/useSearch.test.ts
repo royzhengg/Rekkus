@@ -27,8 +27,8 @@ jest.mock('@/lib/hooks/useAutocomplete', () => ({
 jest.mock('@/lib/hooks/usePopularityCache', () => ({
   usePopularityCache: () => new Map(),
 }))
-jest.mock('@/lib/hooks/useSavedRestaurants', () => ({
-  useSavedRestaurants: () => new Set(),
+jest.mock('@/lib/hooks/useSavedPlaceIds', () => ({
+  useSavedPlaceIds: () => new Set(),
 }))
 jest.mock('@/lib/hooks/useSearchResults', () => ({
   useSearchResults: ({ dbPlaces }: { dbPlaces: PlaceResult[] }) => ({

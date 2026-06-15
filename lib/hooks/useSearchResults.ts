@@ -7,7 +7,7 @@ import {
 } from '../utils/searchScoring'
 import type { PlaceResult, PersonResult, SearchFilters, UserLocation } from './searchTypes'
 import type { CuisineAffinities } from './useSearchHistory'
-import type { PopularityCacheRow } from '../services/restaurants'
+import type { PopularityCacheRow } from '../services/places'
 import type {
   CuisineExpansion,
   GooglePrediction,

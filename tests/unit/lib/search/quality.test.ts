@@ -229,7 +229,7 @@ describe('Popularity signals', () => {
       longitude: 151.21,
     })
     const posts = Array.from({ length: 5 }, (_, i) =>
-      makePost({ id: i + 1, dbId: `p${i}`, restaurantId: 'popular' })
+      makePost({ id: i + 1, dbId: `p${i}`, placeId: 'popular' })
     )
 
     const result = computePlaceResults({

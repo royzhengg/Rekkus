@@ -11,8 +11,8 @@ function computeFollowingScore(post: Post): number {
     ? Math.max(1, (Date.now() - new Date(post.createdAt).getTime()) / 36e5)
     : 24
   const recencyDecay = 1 / Math.sqrt(1 + ageHours / 24)
-  const qualityBoost = post.food >= 4.5 ? 300 : post.food >= 4 ? 100 : 0
-  const completenessBoost = (post.imageUrl ? 35 : 0) + (post.restaurantId ? 35 : 0) + (post.body ? 20 : 0)
+  const qualityBoost = (post.food ?? 0) >= 4.5 ? 300 : (post.food ?? 0) >= 4 ? 100 : 0
+  const completenessBoost = (post.imageUrl ? 35 : 0) + (post.placeId ? 35 : 0) + (post.body ? 20 : 0)
   return (likes * 100 + qualityBoost + completenessBoost) * recencyDecay
 }
 

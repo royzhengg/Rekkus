@@ -103,7 +103,7 @@ export async function fetchPostLikes(postId: string): Promise<number> {
 export async function fetchPostSocialState(
   postId: string,
   userId?: string,
-  restaurantId?: string | null
+  placeId?: string | null
 ): Promise<PostSocialState> {
   const [countRes, commentsRes, reactionsRes] = await Promise.all([
     supabase.from('likes')
@@ -139,8 +139,8 @@ export async function fetchPostSocialState(
     ])
     liked = !!likeRes.data
     saved = !!saveRes.data
-    if (restaurantId) {
-      const { data } = await supabase.from('saved_locations').select('id').eq('restaurant_id', restaurantId).eq('user_id', userId).maybeSingle()
+    if (placeId) {
+      const { data } = await supabase.from('saved_places').select('id').eq('place_id', placeId).eq('user_id', userId).maybeSingle()
       locationSaved = !!data
     }
   }

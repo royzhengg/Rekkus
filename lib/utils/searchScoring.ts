@@ -2,7 +2,7 @@ import { normalizeCuisine } from '@/lib/dataSources/cuisines'
 import { demoUsers } from '@/lib/dataSources/demoData'
 import type { PlaceResult, PersonResult, SearchFilters, UserLocation } from '@/lib/hooks/searchTypes'
 import type { CuisineAffinities } from '@/lib/hooks/useSearchHistory'
-import type { PopularityCacheRow } from '@/lib/services/restaurants'
+import type { PopularityCacheRow } from '@/lib/services/places'
 import type { Post, PostMediaType } from '@/types/domain'
 import { CUISINE_ALIASES, cuisineMatchesAlias, getCuisineSynonyms } from './cuisineSynonyms'
 import { haversineKm, distanceBoost } from './geo'
@@ -242,8 +242,8 @@ export function rekkusPickBoost(post: Post): number {
   if (post.tasteVerdict === 'worth_a_trip') score += 2.25
   else if (post.tasteVerdict === 'must_order') score += 1.75
   else if (post.tasteVerdict === 'craveable') score += 1
-  else if (post.food >= 4.5) score += 0.8
-  else if (post.food >= 4.0) score += 0.35
+  else if ((post.food ?? 0) >= 4.5) score += 0.8
+  else if ((post.food ?? 0) >= 4.0) score += 0.35
 
   if (post.valueVerdict === 'great_value') score += 0.6
   else if (post.valueVerdict === 'worth_the_splurge') score += 0.45
@@ -554,17 +554,17 @@ export function computePlaceResults({
   const foodRatingCount = new Map<string, number>()
   const savedCuisineCounts = new Map<string, number>()
   for (const post of posts) {
-    if (post.restaurantId) {
+    if (post.placeId) {
       postCountByRestaurant.set(
-        post.restaurantId,
-        (postCountByRestaurant.get(post.restaurantId) ?? 0) + 1
+        post.placeId,
+        (postCountByRestaurant.get(post.placeId) ?? 0) + 1
       )
       if (post.food != null) {
         foodRatingSum.set(
-          post.restaurantId,
-          (foodRatingSum.get(post.restaurantId) ?? 0) + post.food
+          post.placeId,
+          (foodRatingSum.get(post.placeId) ?? 0) + post.food
         )
-        foodRatingCount.set(post.restaurantId, (foodRatingCount.get(post.restaurantId) ?? 0) + 1)
+        foodRatingCount.set(post.placeId, (foodRatingCount.get(post.placeId) ?? 0) + 1)
       }
     }
   }

@@ -148,9 +148,9 @@ export default function UserProfileScreen() {
 
   const openRestaurant = useCallback((restaurant: ProfileRestaurant) => {
     analytics.profileInteraction(user?.id ?? null, targetUserId, 'top_restaurant_tapped')
-    router.push(routes.restaurantDetail({
-      restaurantId: restaurant.id,
-      ...(restaurant.placeId ? { placeId: restaurant.placeId } : {}),
+    router.push(routes.placeDetail({
+      placeId: restaurant.id,
+      ...(restaurant.placeId ? { googlePlaceId: restaurant.placeId } : {}),
       name: restaurant.name,
       address: restaurant.address ?? '',
       lat: restaurant.lat ?? '',

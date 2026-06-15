@@ -71,13 +71,13 @@ export function Dollars({ count, size = 10 }: { count: number; size?: number }) 
 
 // Compact inline strip shown on post rows — replaces emoji ratings
 export function PostRatingStrip({
-  food,
-  vibe,
-  cost,
+  food = 0,
+  vibe = 0,
+  cost = 0,
 }: {
-  food: number
-  vibe: number
-  cost: number
+  food?: number
+  vibe?: number
+  cost?: number
 }) {
   const { text3, border2 } = useThemeColors()
   return (

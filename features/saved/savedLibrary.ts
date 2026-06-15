@@ -75,7 +75,7 @@ export function buildSavedLibraryItems(input: SavedLibraryInput): SavedLibraryIt
     id: `dish:${dish.id}`,
     type: 'dish',
     title: dish.name,
-    subtitle: [dish.restaurant?.name, dish.restaurant?.address?.split(',')[0]].filter(Boolean).join(' · ') || 'Saved dish',
+    subtitle: [dish.place?.name, dish.place?.address?.split(',')[0]].filter(Boolean).join(' · ') || 'Saved dish',
     savedAt: dish.savedAt,
     ...(dish.representativeImageUrl ? { imageUrl: dish.representativeImageUrl } : {}),
     targetType: 'dish',

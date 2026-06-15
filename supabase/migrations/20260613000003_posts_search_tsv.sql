@@ -5,21 +5,20 @@
 -- dishes already uses this pattern (search_tsv GENERATED ALWAYS AS ... STORED).
 -- posts was missing it.
 --
--- The column covers: must_order (A), dish_tags json strings (A), cuisine_type (B),
--- caption (C), occasion_tags (D).  Hashtag names remain a join-time enrichment in
--- the search functions because they live in a separate table.
+-- The column covers: must_order (A), dish_tags json text (A), cuisine_type (B),
+-- caption (C). occasion_tags is excluded because array_to_string/array_out are
+-- STABLE (not IMMUTABLE) and cannot be used in generated column expressions.
+-- Hashtag names remain a join-time enrichment in search functions.
 
 alter table public.posts
   add column if not exists search_tsv tsvector generated always as (
     setweight(to_tsvector('simple', coalesce(must_order, '')), 'A') ||
-    setweight(jsonb_to_tsvector('simple', coalesce(dish_tags, '[]'::jsonb), '["string"]'), 'A') ||
+    setweight(to_tsvector('simple', coalesce(dish_tags::text, '')), 'A') ||
     setweight(to_tsvector('simple', coalesce(cuisine_type, '')), 'B') ||
-    setweight(to_tsvector('simple', coalesce(caption, '')), 'C') ||
-    setweight(to_tsvector('simple', coalesce(array_to_string(occasion_tags, ' '), '')), 'D')
+    setweight(to_tsvector('simple', coalesce(caption, '')), 'C')
   ) stored;
 
 -- Replace the old functional expression index with a GIN index on the stored column.
--- The stored column makes the index usable by queries that reference search_tsv directly.
 drop index if exists public.posts_search_tsv_idx;
 
 create index if not exists posts_search_tsv_gin

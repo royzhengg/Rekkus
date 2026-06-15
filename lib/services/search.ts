@@ -202,8 +202,8 @@ export async function searchPlaces(
   suburbFilter?: string
 ): Promise<PlaceResult[]> {
   const { data } = bounds
-    ? await supabase.rpc('restaurants_in_bounding_box', { ...bounds, max_results: 50 })
-    : await supabase.rpc('search_restaurants_full_text', {
+    ? await supabase.rpc('places_in_bounding_box', { ...bounds, max_results: 50 })
+    : await supabase.rpc('search_places_full_text', {
         query_text: query,
         max_results: 40,
         ...(userLocation ? { near_lat: userLocation.lat, near_lng: userLocation.lng } : {}),
@@ -424,7 +424,7 @@ export async function resolveSearchExpansion({
       .map(c => `cuisine_type.ilike.%${String(c.cuisine_type).replace(/,/g, '')}%`)
       .join(',')
     const { data } = await supabase
-      .from('restaurants')
+      .from('places')
       .select(
         'id, name, address, city, cuisine_type, google_place_id, latitude, longitude, google_rating, google_review_count, open_now'
       )
@@ -460,7 +460,7 @@ export async function fetchDishGraphEvidence(
 
   const { data, error } = await supabase
     .from('posts')
-    .select('id, dish_id, restaurant_id')
+    .select('id, dish_id, place_id')
     .in('dish_id', uniqueDishIds)
     .is('deleted_at', null)
     .limit(200)
@@ -470,7 +470,7 @@ export async function fetchDishGraphEvidence(
   for (const row of data ?? []) {
     if (typeof row.dish_id !== 'string' || typeof row.id !== 'string') continue
     const current = byDish.get(row.dish_id) ?? { restaurants: new Set<string>(), posts: [] }
-    if (typeof row.restaurant_id === 'string') current.restaurants.add(row.restaurant_id)
+    if (typeof row.place_id === 'string') current.restaurants.add(row.place_id)
     if (current.posts.length < 5) current.posts.push(row.id)
     byDish.set(row.dish_id, current)
   }

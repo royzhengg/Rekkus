@@ -15,8 +15,8 @@ export default function LegacyRestaurantDetailRedirect() {
   return (
     <Redirect
       href={{
-        pathname: '/restaurants/[restaurantId]',
-        params: { ...forwarded, restaurantId: placeId },
+        pathname: '/places/[placeId]',
+        params: { ...forwarded, placeId },
       }}
     />
   )

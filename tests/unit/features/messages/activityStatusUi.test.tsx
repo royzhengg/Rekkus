@@ -38,7 +38,7 @@ jest.mock('@/components/icons', () => ({
     const { Text: MockText } = jest.requireActual('react-native')
     return <MockText>bell</MockText>
   },
-  BookmarkIcon: () => {
+  SaveIcon: () => {
     const { Text: MockText } = jest.requireActual('react-native')
     return <MockText>bookmark</MockText>
   },

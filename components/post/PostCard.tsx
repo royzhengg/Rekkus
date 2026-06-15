@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated'
 import { Avatar } from '@/components/Avatar'
-import { BookmarkIcon, HeartIcon, PinIcon } from '@/components/icons'
+import { SaveIcon, HeartIcon, PinIcon } from '@/components/icons'
 import { PostMediaCarousel } from '@/components/post/PostMediaCarousel'
 import { PostPicksSummary } from '@/components/post/PostPicksSummary'
 import { radius } from '@/constants/Radius'
@@ -134,7 +134,7 @@ export function PostCard({ post, compact, onPressPost, onPressCreator, onPressTa
             <HeartIcon size={12} />
             <Text style={styles.likeText}>{post.likes}</Text>
           </View>
-          <BookmarkIcon size={13} inactiveColor={c.text3} />
+          <SaveIcon size={13} inactiveColor={c.text3} />
         </View>
       </View>
       </TouchableOpacity>

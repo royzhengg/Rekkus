@@ -174,17 +174,14 @@ export async function uploadDraftMedia(draftId: string, media: PostMedia[], user
 }
 
 function draftPayload(draft: CreatePostDraft, userId: string, status: CreatePostDraftStatus) {
-  const restaurantId = draft.selectedPlace?.restaurantId
+  const placeId = draft.selectedPlace?.placeId
   return {
     user_id: userId,
     title: draft.title ?? '',
     body: draft.body ?? '',
     selected_place: draft.selectedPlace ?? null,
-    restaurant_id: isUuid(restaurantId) ? restaurantId : null,
+    place_id: isUuid(placeId) ? placeId : null,
     dish_tags: draft.dishTags ?? [],
-    food_rating: draft.foodRating ?? 0,
-    vibe_rating: draft.vibeRating ?? 0,
-    cost_rating: draft.costRating ?? 0,
     taste_verdict: draft.tasteVerdict ?? null,
     value_verdict: draft.valueVerdict ?? null,
     occasion_tags: draft.occasionTags ?? [],
@@ -337,9 +334,6 @@ async function mapRemoteDraft(row: RemoteDraftRow): Promise<CreatePostDraft> {
     title: row.title ?? '',
     selectedPlace: row.selected_place ?? null,
     dishTags: row.dish_tags ?? [],
-    foodRating: row.food_rating ?? 0,
-    vibeRating: row.vibe_rating ?? 0,
-    costRating: row.cost_rating ?? 0,
     tasteVerdict: row.taste_verdict ?? undefined,
     valueVerdict: row.value_verdict ?? undefined,
     occasionTags: row.occasion_tags ?? [],
@@ -476,9 +470,9 @@ export async function loadCreatePostDraft(id?: string): Promise<LoadDraftResult 
   }
   if (!draft) return null
 
-  const restaurantId = draft.selectedPlace?.restaurantId
-  if (restaurantId && isUuid(restaurantId)) {
-    const { data } = await supabase.from('restaurants').select('id').eq('id', restaurantId).maybeSingle()
+  const placeId = draft.selectedPlace?.placeId
+  if (placeId && isUuid(placeId)) {
+    const { data } = await supabase.from('places').select('id').eq('id', placeId).maybeSingle()
     if (!data) {
       return { draft: { ...draft, selectedPlace: null }, restaurantCleared: true }
     }

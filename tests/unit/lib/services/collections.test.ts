@@ -55,10 +55,10 @@ describe('collection saved-target RPC contract', () => {
   })
 
   it('passes confirmed membership removal to transactional unsave', async () => {
-    await unsaveTarget('restaurant', 'restaurant-1', true)
+    await unsaveTarget('place', 'restaurant-1', true)
 
     expect(mockRpc).toHaveBeenCalledWith('unsave_target', {
-      p_target_type: 'restaurant',
+      p_target_type: 'place',
       p_target_id: 'restaurant-1',
       p_remove_collection_memberships: true,
     })

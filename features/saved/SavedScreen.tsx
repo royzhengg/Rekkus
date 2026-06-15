@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { BookmarkIcon, ChevronRight, ImagePlaceholder, PlusIcon } from '@/components/icons'
+import { SaveIcon, ChevronRight, ImagePlaceholder, PlusIcon } from '@/components/icons'
 import { ThumbGrid } from '@/components/ThumbGrid'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
@@ -125,7 +125,7 @@ export default function SavedScreen() {
         ) : raw.dishes.error ? (
           <ErrorMessage message={raw.dishes.error} style={styles.error} />
         ) : raw.dishes.savedDishes.length === 0 ? (
-          <EmptyState title="No saved dishes yet" subtitle="Bookmark a dish page to keep it here." icon={<BookmarkIcon size={24} />} />
+          <EmptyState title="No saved dishes yet" subtitle="Save a dish to keep it here." icon={<SaveIcon size={24} />} />
         ) : (
           <ScrollView contentContainerStyle={styles.list}>
             {raw.dishes.savedDishes.map(dish => (
@@ -138,7 +138,7 @@ export default function SavedScreen() {
                 <ImagePlaceholder size={22} />
                 <View style={styles.rowBody}>
                   <Text style={styles.rowTitle} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>{dish.name}</Text>
-                  {dish.restaurant ? <Text style={styles.rowSubtitle} maxFontSizeMultiplier={maxFontSizeMultiplier.body}>{dish.restaurant.name}</Text> : null}
+                  {dish.place ? <Text style={styles.rowSubtitle} maxFontSizeMultiplier={maxFontSizeMultiplier.body}>{dish.place.name}</Text> : null}
                 </View>
                 <ChevronRight />
               </TouchableOpacity>
@@ -151,7 +151,7 @@ export default function SavedScreen() {
         ) : raw.posts.error ? (
           <ErrorMessage message={raw.posts.error} style={styles.error} />
         ) : raw.posts.savedPosts.length === 0 ? (
-          <EmptyState title="No saved posts yet" subtitle="Bookmark reviews to find them here." icon={<BookmarkIcon size={24} />} />
+          <EmptyState title="No saved posts yet" subtitle="Save posts to find them here." icon={<SaveIcon size={24} />} />
         ) : (
           <ThumbGrid
             posts={raw.posts.savedPosts}

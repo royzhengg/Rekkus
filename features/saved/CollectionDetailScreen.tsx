@@ -49,7 +49,7 @@ export default function CollectionDetailScreen() {
         ])
         const dishIds = itemPage.rows.filter(item => item.target_type === 'dish').map(item => item.target_id)
         const postIds = itemPage.rows.filter(item => item.target_type === 'post').map(item => item.target_id)
-        const restaurantIds = itemPage.rows.filter(item => item.target_type === 'restaurant').map(item => item.target_id)
+        const restaurantIds = itemPage.rows.filter(item => item.target_type === 'place').map(item => item.target_id)
         const [dishRows, postRows, restaurantRows] = await Promise.all([
           fetchDishesByIds(dishIds),
           fetchPostsByIds(postIds),
@@ -102,7 +102,7 @@ export default function CollectionDetailScreen() {
                 <CollectionRow
                   key={item.id ?? item.target_id}
                   title={dish.name}
-                  subtitle={dish.restaurant?.name ?? 'Dish'}
+                  subtitle={dish.place?.name ?? 'Dish'}
                   leading={<ImagePlaceholder size={22} />}
                   onPress={() => router.push(routes.dishDetail(dish.id))}
                   styles={styles}
@@ -131,9 +131,9 @@ export default function CollectionDetailScreen() {
                 title={restaurant.name}
                 subtitle={restaurant.address ?? 'Place'}
                 leading={<PinIcon />}
-                onPress={() => router.push(routes.restaurantDetail({
-                  restaurantId: restaurant.id,
-                  ...(restaurant.googlePlaceId ? { placeId: restaurant.googlePlaceId } : {}),
+                onPress={() => router.push(routes.placeDetail({
+                  placeId: restaurant.id,
+                  ...(restaurant.googlePlaceId ? { googlePlaceId: restaurant.googlePlaceId } : {}),
                   name: restaurant.name,
                   ...(restaurant.address ? { address: restaurant.address } : {}),
                   ...(restaurant.latitude != null ? { lat: restaurant.latitude } : {}),

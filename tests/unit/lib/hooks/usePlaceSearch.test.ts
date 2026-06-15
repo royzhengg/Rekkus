@@ -1,17 +1,17 @@
 import { act, renderHook } from '@testing-library/react-native'
 import { analytics } from '@/lib/analytics'
-import { useRestaurantSearch } from '@/lib/hooks/useRestaurantSearch'
+import { usePlaceSearch } from '@/lib/hooks/usePlaceSearch'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
-import type { Prediction } from '@/lib/services/restaurants'
+import type { Prediction } from '@/lib/services/places'
 import {
   fetchFoodCategoryPredictions,
-  fetchNearbyRestaurants,
+  fetchNearbyPlaces,
   fetchPlaceDetails,
   fetchPredictions,
-  searchRestaurantsByText,
+  searchPlacesByText,
   upsertPlaceStubs,
-  upsertRestaurant,
-} from '@/lib/services/restaurants'
+  upsertPlace,
+} from '@/lib/services/places'
 import { classifyRestaurantTagIntent } from '@/lib/utils/searchIntent'
 
 const mockBaseLocation = {
@@ -31,16 +31,16 @@ jest.mock('@/lib/hooks/useUserLocation', () => ({
 
 jest.mock('@/lib/analytics', () => ({
   analytics: {
-    restaurantSearchTermEntered: jest.fn(),
-    restaurantSearchZeroResults: jest.fn(),
-    restaurantSelected: jest.fn(),
-    restaurantTaggingGoogleFallbackUsed: jest.fn(),
-    restaurantTaggingGoogleFallbackSuppressed: jest.fn(),
+    placeSearchTermEntered: jest.fn(),
+    placeSearchZeroResults: jest.fn(),
+    placeSelected: jest.fn(),
+    placeTaggingGoogleFallbackUsed: jest.fn(),
+    placeTaggingGoogleFallbackSuppressed: jest.fn(),
   },
 }))
 
 const mockUseUserLocation = jest.mocked(useUserLocation)
-jest.mock('@/lib/services/restaurants', () => ({
+jest.mock('@/lib/services/places', () => ({
   distanceGroupForPrediction: jest.fn((distanceKm: number | undefined, source?: string) => {
     if (distanceKm === undefined) return source === 'rekkus' ? 'nearby' : 'worldwide'
     if (distanceKm <= 2) return 'nearby'
@@ -50,24 +50,24 @@ jest.mock('@/lib/services/restaurants', () => ({
     return 'worldwide'
   }),
   fetchFoodCategoryPredictions: jest.fn(),
-  fetchNearbyRestaurants: jest.fn(),
+  fetchNearbyPlaces: jest.fn(),
   fetchPlaceDetails: jest.fn(),
   fetchPredictions: jest.fn(),
-  searchRestaurantsByText: jest.fn(),
+  searchPlacesByText: jest.fn(),
   upsertPlaceStubs: jest.fn().mockResolvedValue(undefined),
-  upsertRestaurant: jest.fn(),
+  upsertPlace: jest.fn(),
 }))
 
 const mockFetchFoodCategoryPredictions = jest.mocked(fetchFoodCategoryPredictions)
-const mockFetchNearbyRestaurants = jest.mocked(fetchNearbyRestaurants)
+const mockFetchNearbyPlaces = jest.mocked(fetchNearbyPlaces)
 const mockFetchPlaceDetails = jest.mocked(fetchPlaceDetails)
 const mockFetchPredictions = jest.mocked(fetchPredictions)
-const mockSearchRestaurantsByText = jest.mocked(searchRestaurantsByText)
+const mockSearchPlacesByText = jest.mocked(searchPlacesByText)
 jest.mocked(upsertPlaceStubs)
-const mockUpsertRestaurant = jest.mocked(upsertRestaurant)
-const mockRestaurantSearchTermEntered = jest.mocked(analytics.restaurantSearchTermEntered)
-const mockRestaurantSearchZeroResults = jest.mocked(analytics.restaurantSearchZeroResults)
-const mockRestaurantSelected = jest.mocked(analytics.restaurantSelected)
+const mockUpsertPlace = jest.mocked(upsertPlace)
+const mockPlaceSearchTermEntered = jest.mocked(analytics.placeSearchTermEntered)
+const mockPlaceSearchZeroResults = jest.mocked(analytics.placeSearchZeroResults)
+const mockPlaceSelected = jest.mocked(analytics.placeSelected)
 
 function deferred<T>() {
   let complete: ((value: T) => void) | undefined
@@ -107,7 +107,7 @@ function localPrediction(index: number, overrides: Partial<Prediction> = {}): Pr
     source: 'rekkus',
     score: 10 - index,
     dbDetails: {
-      restaurantId: `rest-${index}`,
+      placeId: `rest-${index}`,
       lat: -33.87,
       lng: 151.21,
       address: `${index} Food Street`,
@@ -116,24 +116,24 @@ function localPrediction(index: number, overrides: Partial<Prediction> = {}): Pr
   })
 }
 
-describe('useRestaurantSearch', () => {
+describe('usePlaceSearch', () => {
   beforeEach(() => {
     jest.useFakeTimers()
     jest.clearAllMocks()
     mockUseUserLocation.mockReturnValue(mockBaseLocation)
     mockFetchFoodCategoryPredictions.mockResolvedValue([])
-    mockFetchNearbyRestaurants.mockResolvedValue([])
+    mockFetchNearbyPlaces.mockResolvedValue([])
     mockFetchPredictions.mockResolvedValue([])
-    mockSearchRestaurantsByText.mockResolvedValue([])
+    mockSearchPlacesByText.mockResolvedValue([])
   })
 
   afterEach(() => {
     jest.useRealTimers()
   })
 
-  it('passes user coordinates to searchRestaurantsByText', async () => {
+  it('passes user coordinates to searchPlacesByText', async () => {
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('beef'))
     await act(async () => {
@@ -141,7 +141,7 @@ describe('useRestaurantSearch', () => {
       await Promise.resolve()
     })
 
-    expect(mockSearchRestaurantsByText).toHaveBeenCalledWith(
+    expect(mockSearchPlacesByText).toHaveBeenCalledWith(
       'beef',
       12,
       { lat: -33.87, lng: 151.21 }
@@ -150,7 +150,7 @@ describe('useRestaurantSearch', () => {
 
   it('passes user coordinates to fetchFoodCategoryPredictions for food terms', async () => {
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('beef'))
     await act(async () => {
@@ -165,7 +165,7 @@ describe('useRestaurantSearch', () => {
   it('suppresses unbounded Google fallback for ambiguous food queries without location', async () => {
     mockUseUserLocation.mockReturnValue({ ...mockBaseLocation, coords: null, status: 'idle' as const })
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('pork'))
     await act(async () => {
@@ -173,9 +173,9 @@ describe('useRestaurantSearch', () => {
       await Promise.resolve()
     })
 
-    expect(mockSearchRestaurantsByText).toHaveBeenCalledWith('pork', 12, null)
+    expect(mockSearchPlacesByText).toHaveBeenCalledWith('pork', 12, null)
     expect(mockFetchPredictions).not.toHaveBeenCalled()
-    expect(analytics.restaurantTaggingGoogleFallbackSuppressed).toHaveBeenCalledWith(
+    expect(analytics.placeTaggingGoogleFallbackSuppressed).toHaveBeenCalledWith(
       'user-1',
       'pork',
       'dish_or_menu_item',
@@ -187,7 +187,7 @@ describe('useRestaurantSearch', () => {
   it('classifies cafe as a venue category and suppresses Google without location', async () => {
     mockUseUserLocation.mockReturnValue({ ...mockBaseLocation, coords: null, status: 'idle' as const })
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Cafe', userId: 'user-1', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Cafe', userId: 'user-1', onPlaceSelected: jest.fn() })
     )
 
     act(() => result.current.handleSearchChange('cafe'))
@@ -197,9 +197,9 @@ describe('useRestaurantSearch', () => {
     })
 
     expect(classifyRestaurantTagIntent('cafe').kind).toBe('venue_category')
-    expect(result.current.restaurantTagIntent.kind).toBe('venue_category')
+    expect(result.current.placeTagIntent.kind).toBe('venue_category')
     expect(mockFetchPredictions).not.toHaveBeenCalled()
-    expect(analytics.restaurantTaggingGoogleFallbackSuppressed).toHaveBeenCalledWith(
+    expect(analytics.placeTaggingGoogleFallbackSuppressed).toHaveBeenCalledWith(
       'user-1',
       'cafe',
       'venue_category',
@@ -210,7 +210,7 @@ describe('useRestaurantSearch', () => {
 
   it('uses Text Search (not Autocomplete) for food_dish intent when coordinates are available', async () => {
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Cafe', userId: 'user-1', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Cafe', userId: 'user-1', onPlaceSelected: jest.fn() })
     )
 
     act(() => result.current.handleSearchChange('cafe'))
@@ -222,7 +222,7 @@ describe('useRestaurantSearch', () => {
     expect(classifyRestaurantTagIntent('cafe').kind).toBe('venue_category')
     expect(mockFetchPredictions).not.toHaveBeenCalled()
     expect(mockFetchFoodCategoryPredictions).toHaveBeenCalledWith('cafe', { lat: -33.87, lng: 151.21 })
-    expect(analytics.restaurantTaggingGoogleFallbackUsed).toHaveBeenCalledWith(
+    expect(analytics.placeTaggingGoogleFallbackUsed).toHaveBeenCalledWith(
       'user-1',
       'cafe',
       'venue_category',
@@ -245,7 +245,7 @@ describe('useRestaurantSearch', () => {
     }
     mockFetchFoodCategoryPredictions.mockResolvedValueOnce([noodlePlace])
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: '', userId: 'user-1', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: '', userId: 'user-1', onPlaceSelected: jest.fn() })
     )
 
     act(() => result.current.handleSearchChange('Noodles'))
@@ -263,7 +263,7 @@ describe('useRestaurantSearch', () => {
   it('classifies omelette as dish intent and suppresses unbounded Google fallback', async () => {
     mockUseUserLocation.mockReturnValue({ ...mockBaseLocation, coords: null, status: 'idle' as const })
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: '', userId: 'user-1', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: '', userId: 'user-1', onPlaceSelected: jest.fn() })
     )
 
     act(() => result.current.handleSearchChange('omelette'))
@@ -273,9 +273,9 @@ describe('useRestaurantSearch', () => {
     })
 
     expect(classifyRestaurantTagIntent('omelette').kind).toBe('dish_or_menu_item')
-    expect(result.current.restaurantTagIntent.kind).toBe('dish_or_menu_item')
+    expect(result.current.placeTagIntent.kind).toBe('dish_or_menu_item')
     expect(mockFetchPredictions).not.toHaveBeenCalled()
-    expect(analytics.restaurantTaggingGoogleFallbackSuppressed).toHaveBeenCalledWith(
+    expect(analytics.placeTaggingGoogleFallbackSuppressed).toHaveBeenCalledWith(
       'user-1',
       'omelette',
       'dish_or_menu_item',
@@ -287,7 +287,7 @@ describe('useRestaurantSearch', () => {
   it('allows unbounded Google fallback for strong restaurant-name queries without location', async () => {
     mockUseUserLocation.mockReturnValue({ ...mockBaseLocation, coords: null, status: 'idle' as const })
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('Din Tai Fung'))
     await act(async () => {
@@ -296,7 +296,7 @@ describe('useRestaurantSearch', () => {
     })
 
     expect(mockFetchPredictions).toHaveBeenCalledWith('Din Tai Fung', null)
-    expect(analytics.restaurantTaggingGoogleFallbackUsed).toHaveBeenCalledWith(
+    expect(analytics.placeTaggingGoogleFallbackUsed).toHaveBeenCalledWith(
       'user-1',
       'Din Tai Fung',
       'restaurant_name',
@@ -308,7 +308,7 @@ describe('useRestaurantSearch', () => {
 
   it('does not emit search term analytics for queries shorter than 2 chars', async () => {
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('r'))
     await act(async () => {
@@ -316,14 +316,14 @@ describe('useRestaurantSearch', () => {
       await Promise.resolve()
     })
 
-    expect(mockRestaurantSearchTermEntered).not.toHaveBeenCalled()
-    expect(mockSearchRestaurantsByText).not.toHaveBeenCalled()
+    expect(mockPlaceSearchTermEntered).not.toHaveBeenCalled()
+    expect(mockSearchPlacesByText).not.toHaveBeenCalled()
   })
 
   it('emits search term analytics after debounce for 2+ chars', async () => {
-    mockSearchRestaurantsByText.mockResolvedValueOnce([prediction()])
+    mockSearchPlacesByText.mockResolvedValueOnce([prediction()])
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange(' ramen '))
     await act(async () => {
@@ -331,8 +331,8 @@ describe('useRestaurantSearch', () => {
       await Promise.resolve()
     })
 
-    expect(mockRestaurantSearchTermEntered).toHaveBeenCalledWith('user-1', 'ramen')
-    expect(mockSearchRestaurantsByText).toHaveBeenCalledWith(
+    expect(mockPlaceSearchTermEntered).toHaveBeenCalledWith('user-1', 'ramen')
+    expect(mockSearchPlacesByText).toHaveBeenCalledWith(
       'ramen',
       12,
       { lat: -33.87, lng: 151.21 }
@@ -340,7 +340,7 @@ describe('useRestaurantSearch', () => {
   })
 
   it('tops up thin local results with bounded Google fallback', async () => {
-    mockSearchRestaurantsByText.mockResolvedValueOnce([localPrediction(1), localPrediction(2)])
+    mockSearchPlacesByText.mockResolvedValueOnce([localPrediction(1), localPrediction(2)])
     mockFetchFoodCategoryPredictions.mockResolvedValueOnce([
       prediction({
         place_id: 'google-1',
@@ -348,7 +348,7 @@ describe('useRestaurantSearch', () => {
       }),
     ])
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('ramen'))
     await act(async () => {
@@ -358,7 +358,7 @@ describe('useRestaurantSearch', () => {
 
     expect(mockFetchPredictions).not.toHaveBeenCalled()
     expect(mockFetchFoodCategoryPredictions).toHaveBeenCalledWith('ramen', { lat: -33.87, lng: 151.21 })
-    expect(analytics.restaurantTaggingGoogleFallbackUsed).toHaveBeenCalledWith(
+    expect(analytics.placeTaggingGoogleFallbackUsed).toHaveBeenCalledWith(
       'user-1',
       'ramen',
       'dish_or_menu_item',
@@ -374,11 +374,11 @@ describe('useRestaurantSearch', () => {
   })
 
   it('does not call Google when local results are already healthy', async () => {
-    mockSearchRestaurantsByText.mockResolvedValueOnce(
+    mockSearchPlacesByText.mockResolvedValueOnce(
       Array.from({ length: 6 }, (_, index) => localPrediction(index + 1))
     )
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('ramen'))
     await act(async () => {
@@ -391,7 +391,7 @@ describe('useRestaurantSearch', () => {
   })
 
   it('keeps local rows ahead of provider rows when topping up', async () => {
-    mockSearchRestaurantsByText.mockResolvedValueOnce([localPrediction(1, { score: 0 })])
+    mockSearchPlacesByText.mockResolvedValueOnce([localPrediction(1, { score: 0 })])
     mockFetchFoodCategoryPredictions.mockResolvedValueOnce([
       prediction({
         place_id: 'google-high',
@@ -400,7 +400,7 @@ describe('useRestaurantSearch', () => {
       }),
     ])
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('ramen'))
     await act(async () => {
@@ -414,8 +414,8 @@ describe('useRestaurantSearch', () => {
     ])
   })
 
-  it('caps merged restaurant tag results at 10', async () => {
-    mockSearchRestaurantsByText.mockResolvedValueOnce([localPrediction(1)])
+  it('caps merged place tag results at 10', async () => {
+    mockSearchPlacesByText.mockResolvedValueOnce([localPrediction(1)])
     mockFetchFoodCategoryPredictions.mockResolvedValueOnce(
       Array.from({ length: 12 }, (_, index) =>
         prediction({
@@ -428,7 +428,7 @@ describe('useRestaurantSearch', () => {
       )
     )
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('ramen'))
     await act(async () => {
@@ -442,7 +442,7 @@ describe('useRestaurantSearch', () => {
 
   it('emits zero-results analytics after an empty merged search', async () => {
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', userId: 'user-1', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('xyzzy'))
     await act(async () => {
@@ -450,20 +450,20 @@ describe('useRestaurantSearch', () => {
       await Promise.resolve()
     })
 
-    expect(mockRestaurantSearchZeroResults).toHaveBeenCalledWith('user-1', 'xyzzy')
+    expect(mockPlaceSearchZeroResults).toHaveBeenCalledWith('user-1', 'xyzzy')
   })
 
   it('ranks and deduplicates local matches ahead of provider predictions', async () => {
     const local = prediction({
       source: 'rekkus',
       score: 3,
-      dbDetails: { restaurantId: 'rest-1', lat: -33.87, lng: 151.21, address: '1 Food Street' },
+      dbDetails: { placeId: 'rest-1', lat: -33.87, lng: 151.21, address: '1 Food Street' },
     })
-    mockSearchRestaurantsByText.mockResolvedValueOnce([local])
+    mockSearchPlacesByText.mockResolvedValueOnce([local])
     mockFetchFoodCategoryPredictions.mockResolvedValueOnce([prediction({ place_id: 'google-duplicate' })])
 
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('ramen'))
     await act(async () => {
@@ -490,7 +490,7 @@ describe('useRestaurantSearch', () => {
       source: 'rekkus',
       score: 1,
       distanceKm: 20,
-      dbDetails: { restaurantId: 'city-rest', lat: -33.9, lng: 151.2, address: 'City St' },
+      dbDetails: { placeId: 'city-rest', lat: -33.9, lng: 151.2, address: 'City St' },
     })
     const nearby = prediction({
       place_id: 'nearby',
@@ -502,12 +502,12 @@ describe('useRestaurantSearch', () => {
       source: 'rekkus',
       score: 0.5,
       distanceKm: 1,
-      dbDetails: { restaurantId: 'near-rest', lat: -33.87, lng: 151.21, address: 'Near St' },
+      dbDetails: { placeId: 'near-rest', lat: -33.87, lng: 151.21, address: 'Near St' },
     })
-    mockSearchRestaurantsByText.mockResolvedValueOnce([city, nearby])
+    mockSearchPlacesByText.mockResolvedValueOnce([city, nearby])
 
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
     )
     act(() => result.current.handleSearchChange('ramen'))
     await act(async () => {
@@ -529,18 +529,18 @@ describe('useRestaurantSearch', () => {
     const onPlaceSelected = jest.fn()
     const local = prediction({
       source: 'rekkus',
-      dbDetails: { restaurantId: 'rest-1', lat: -33.87, lng: 151.21, address: '1 Food Street' },
+      dbDetails: { placeId: 'rest-1', lat: -33.87, lng: 151.21, address: '1 Food Street' },
     })
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected })
     )
 
     await act(async () => {
       await result.current.selectPrediction(local)
     })
 
-    expect(onPlaceSelected).toHaveBeenCalledWith(expect.objectContaining({ restaurantId: 'rest-1' }))
-    expect(mockRestaurantSelected).toHaveBeenCalledWith(
+    expect(onPlaceSelected).toHaveBeenCalledWith(expect.objectContaining({ placeId: 'rest-1' }))
+    expect(mockPlaceSelected).toHaveBeenCalledWith(
       null,
       'place-1',
       'prediction',
@@ -548,7 +548,7 @@ describe('useRestaurantSearch', () => {
       'Japanese'
     )
     expect(mockFetchPlaceDetails).not.toHaveBeenCalled()
-    expect(mockUpsertRestaurant).not.toHaveBeenCalled()
+    expect(mockUpsertPlace).not.toHaveBeenCalled()
   })
 
   it('upserts and returns a selected provider match', async () => {
@@ -558,18 +558,18 @@ describe('useRestaurantSearch', () => {
       formatted_address: '1 Food Street',
       geometry: { location: { lat: -33.87, lng: 151.21 } },
     } as never)
-    mockUpsertRestaurant.mockResolvedValueOnce('rest-1')
+    mockUpsertPlace.mockResolvedValueOnce('rest-1')
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected })
     )
 
     await act(async () => {
       await result.current.selectPrediction(prediction(), 'nearby')
     })
 
-    expect(mockUpsertRestaurant).toHaveBeenCalledWith(expect.anything(), 'place-1', 'Japanese')
-    expect(onPlaceSelected).toHaveBeenCalledWith(expect.objectContaining({ restaurantId: 'rest-1' }))
-    expect(mockRestaurantSelected).toHaveBeenCalledWith(
+    expect(mockUpsertPlace).toHaveBeenCalledWith(expect.anything(), 'place-1', 'Japanese')
+    expect(onPlaceSelected).toHaveBeenCalledWith(expect.objectContaining({ placeId: 'rest-1' }))
+    expect(mockPlaceSelected).toHaveBeenCalledWith(
       null,
       'place-1',
       'nearby',
@@ -581,11 +581,11 @@ describe('useRestaurantSearch', () => {
   it('drops pending prediction and nearby results when cleared', async () => {
     const predictionRequest = deferred<Prediction[]>()
     const nearbyRequest = deferred<Prediction[]>()
-    mockSearchRestaurantsByText.mockReturnValueOnce(predictionRequest.promise)
+    mockSearchPlacesByText.mockReturnValueOnce(predictionRequest.promise)
     mockFetchPredictions.mockResolvedValueOnce([])
-    mockFetchNearbyRestaurants.mockReturnValueOnce(nearbyRequest.promise)
+    mockFetchNearbyPlaces.mockReturnValueOnce(nearbyRequest.promise)
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: '', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: '', onPlaceSelected: jest.fn() })
     )
 
     act(() => {
@@ -608,7 +608,7 @@ describe('useRestaurantSearch', () => {
 
   it('exposes locationConstrained true when coords are available', () => {
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
     )
     expect(result.current.locationConstrained).toBe(true)
   })
@@ -616,7 +616,7 @@ describe('useRestaurantSearch', () => {
   it('exposes locationConstrained false when no coords', () => {
     mockUseUserLocation.mockReturnValue({ ...mockBaseLocation, coords: null, status: 'denied' as const })
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
     )
     expect(result.current.locationConstrained).toBe(false)
   })
@@ -626,7 +626,7 @@ describe('useRestaurantSearch', () => {
     const onPlaceSelected = jest.fn()
     mockFetchPlaceDetails.mockReturnValueOnce(pendingDetail.promise)
     const { result, unmount } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected })
     )
 
     let selection: Promise<void> | undefined
@@ -643,7 +643,7 @@ describe('useRestaurantSearch', () => {
       await selection
     })
 
-    expect(mockUpsertRestaurant).not.toHaveBeenCalled()
+    expect(mockUpsertPlace).not.toHaveBeenCalled()
     expect(onPlaceSelected).not.toHaveBeenCalled()
   })
 
@@ -658,7 +658,7 @@ describe('useRestaurantSearch', () => {
     })
 
     const { result } = renderHook(() =>
-      useRestaurantSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
+      usePlaceSearch({ cuisineType: 'Japanese', onPlaceSelected: jest.fn() })
     )
 
     // User types a query before tapping the button
@@ -668,7 +668,7 @@ describe('useRestaurantSearch', () => {
       await Promise.resolve()
     })
 
-    const callsBefore = mockSearchRestaurantsByText.mock.calls.length
+    const callsBefore = mockSearchPlacesByText.mock.calls.length
 
     // User taps "Use current location" — requestLocationAndSearch awaits GPS then re-searches
     await act(async () => {
@@ -677,8 +677,8 @@ describe('useRestaurantSearch', () => {
       await Promise.resolve()
     })
 
-    expect(mockSearchRestaurantsByText.mock.calls.length).toBeGreaterThan(callsBefore)
-    const lastCall = mockSearchRestaurantsByText.mock.calls[mockSearchRestaurantsByText.mock.calls.length - 1]!
+    expect(mockSearchPlacesByText.mock.calls.length).toBeGreaterThan(callsBefore)
+    const lastCall = mockSearchPlacesByText.mock.calls[mockSearchPlacesByText.mock.calls.length - 1]!
     expect(lastCall[0]).toBe('Cafe')
     expect(lastCall[2]).toEqual(freshCoords)
   })

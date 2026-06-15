@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import React from 'react'
 import { Modal, Text, TouchableOpacity, View } from 'react-native'
-import { BookmarkIcon } from '@/components/icons'
+import { SaveIcon } from '@/components/icons'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import type { ColorTokens } from '@/lib/contexts/ThemeContext'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
@@ -70,7 +70,7 @@ export function PlaceDetailSheets({
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <View style={styles.sheetIcon}>
-            <BookmarkIcon filled size={22} />
+            <SaveIcon filled size={22} />
           </View>
           <Text style={styles.sheetTitle}>Saved!</Text>
           <Text style={styles.sheetBody}>{name} has been added to your places.</Text>

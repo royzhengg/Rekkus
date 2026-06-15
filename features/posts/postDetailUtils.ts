@@ -112,7 +112,8 @@ export function usePostSafetyActions({
 }
 
 export type ResolvedPlace = {
-  placeId: string
+  googlePlaceId: string
+  placeId?: string | undefined
   name: string
   address: string
   lat: number
@@ -125,7 +126,7 @@ export async function geocodeLocation(query: string): Promise<ResolvedPlace | nu
     const place = json?.results?.[0]
     if (!place) return null
     return {
-      placeId: place.place_id,
+      googlePlaceId: place.place_id,
       name: place.name,
       address: place.formatted_address,
       lat: place.geometry.location.lat,

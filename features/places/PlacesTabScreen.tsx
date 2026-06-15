@@ -27,28 +27,28 @@ import { useThemeColors, useIsDarkMode } from '@/lib/contexts/ThemeContext'
 import { useCollections } from '@/lib/hooks/useCollections'
 import { usePostVisitPrompt } from '@/lib/hooks/usePostVisitPrompt'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
-import { useSavedLocations, type SavedLocation } from '@/lib/hooks/useSavedLocations'
+import { useSavedPlaces, type SavedPlace } from '@/lib/hooks/useSavedPlaces'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
 import { routes } from '@/lib/routes'
 import {
   fetchRestaurantProviderDetail,
   getRestaurantProviderPhotoUrl,
-} from '@/lib/services/restaurants'
-import { navigateToRestaurant } from '@/lib/utils/restaurantNavigation'
-import { makeStyles } from './RestaurantsTabScreen.styles'
-import { SelectedLocationCard } from './SelectedLocationCard'
-import type { PlaceDetail } from './restaurantTypes'
+} from '@/lib/services/places'
+import { navigateToPlace } from '@/lib/utils/placeNavigation'
+import { makeStyles } from './PlacesTabScreen.styles'
+import { SelectedPlaceCard } from './SelectedPlaceCard'
+import type { PlaceDetail } from './placeTypes'
 
 type PlaceFilter =
   | { type: 'all'; id: 'all'; label: string }
   | { type: 'collection'; id: string; label: string }
-function groupAlpha(locations: SavedLocation[]): { letter: string; items: SavedLocation[] }[] {
-  const sorted = [...locations].sort((a, b) =>
-    (a.restaurants?.name ?? '').localeCompare(b.restaurants?.name ?? '')
+function groupAlpha(savedPlaces: SavedPlace[]): { letter: string; items: SavedPlace[] }[] {
+  const sorted = [...savedPlaces].sort((a, b) =>
+    (a.places?.name ?? '').localeCompare(b.places?.name ?? '')
   )
-  const map: Record<string, SavedLocation[]> = {}
+  const map: Record<string, SavedPlace[]> = {}
   for (const loc of sorted) {
-    const first = ((loc.restaurants?.name ?? '#')[0] ?? '#').toUpperCase()
+    const first = ((loc.places?.name ?? '#')[0] ?? '#').toUpperCase()
     const key = /[A-Z]/.test(first) ? first : '#'
     if (!map[key]) map[key] = []
     map[key].push(loc)
@@ -57,20 +57,20 @@ function groupAlpha(locations: SavedLocation[]): { letter: string; items: SavedL
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([letter, items]) => ({ letter, items }))
 }
-const LocationRow = React.memo(function LocationRow({
+const PlaceRow = React.memo(function PlaceRow({
   loc,
   onPress,
 }: {
-  loc: SavedLocation
-  onPress: (loc: SavedLocation) => void
+  loc: SavedPlace
+  onPress: (loc: SavedPlace) => void
 }) {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  const r = loc.restaurants
+  const r = loc.places
   return (
     <TouchableOpacity
       style={styles.placeRow}
-      disabled={!loc.restaurant_id && !r?.google_place_id}
+      disabled={!loc.place_id && !r?.google_place_id}
       onPress={() => onPress(loc)}
     >
       <PinIcon />
@@ -86,25 +86,25 @@ type PlacesScreenProps = {
   onBackToSaved?: () => void
 }
 
-export default function PlacesScreen({ initialView = 'list', onBackToSaved }: PlacesScreenProps) {
+export default function PlacesTabScreen({ initialView = 'list', onBackToSaved }: PlacesScreenProps) {
   const router = useRouter()
   const { user } = useAuth()
   const colors = useThemeColors()
   const reduceMotion = useReducedMotion()
   const isDark = useIsDarkMode()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  const { savedLocations, error, refresh, refreshing } = useSavedLocations(user?.id)
-  const restaurantIds = useMemo(
-    () => savedLocations.map(loc => loc.restaurant_id).filter(Boolean),
-    [savedLocations]
+  const { savedPlaces, error, refresh, refreshing } = useSavedPlaces(user?.id)
+  const placeIds = useMemo(
+    () => savedPlaces.map(loc => loc.place_id).filter(Boolean),
+    [savedPlaces]
   )
   const { collections, items: collectionItems, refresh: refreshCollections } =
-    useCollections(user?.id, restaurantIds)
+    useCollections(user?.id, placeIds)
   const userLocation = useUserLocation()
   const gps = userLocation.coords
-  const visitPrompt = usePostVisitPrompt(savedLocations, gps)
+  const visitPrompt = usePostVisitPrompt(savedPlaces, gps)
   const [dismissedPromptId, setDismissedPromptId] = useState<string | null>(null)
-  const activePrompt = visitPrompt && visitPrompt.restaurant_id !== dismissedPromptId ? visitPrompt : null
+  const activePrompt = visitPrompt && visitPrompt.place_id !== dismissedPromptId ? visitPrompt : null
   const [placesView, setPlacesView] = useState<'list' | 'map'>(initialView)
   const [sortBy, setSortBy] = useState<'alpha' | 'recent' | 'oldest'>('alpha')
   const [activeFilter, setActiveFilter] = useState<PlaceFilter>({
@@ -113,8 +113,8 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
     label: 'All',
   })
   const [sortSheetVisible, setSortSheetVisible] = useState(false)
-  const [mapsSheetLocation, setMapsSheetLocation] = useState<SavedLocation | null>(null)
-  const [selectedLocation, setSelectedLocation] = useState<SavedLocation | null>(null)
+  const [mapsSheetPlace, setMapsSheetPlace] = useState<SavedPlace | null>(null)
+  const [selectedPlace, setSelectedPlace] = useState<SavedPlace | null>(null)
   const [pinDetail, setPinDetail] = useState<PlaceDetail | null>(null)
   const [pinPhoto, setPinPhoto] = useState('')
   const [pinLoading, setPinLoading] = useState(false)
@@ -130,12 +130,12 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
   const hasAnimatedToGps = useRef(false)
 
   useEffect(() => {
-    if (!selectedLocation) {
+    if (!selectedPlace) {
       setPinDetail(null)
       setPinPhoto('')
       return
     }
-    const pid = selectedLocation.restaurants?.google_place_id
+    const pid = selectedPlace.places?.google_place_id
     if (!pid) return
     setPinLoading(true)
     fetchRestaurantProviderDetail(
@@ -151,7 +151,7 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
       })
       .catch(() => {})
       .finally(() => setPinLoading(false))
-  }, [selectedLocation])
+  }, [selectedPlace])
 
   const filterOptions = useMemo<PlaceFilter[]>(
     () => [
@@ -161,15 +161,15 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
     [collections]
   )
 
-  const filteredLocations = useMemo(() => {
-    if (activeFilter.type === 'all') return savedLocations
-    const restaurantIdsInCollection = new Set(
+  const filteredPlaces = useMemo(() => {
+    if (activeFilter.type === 'all') return savedPlaces
+    const placeIdsInCollection = new Set(
       collectionItems
-        .filter(item => item.collection_id === activeFilter.id && item.target_type === 'restaurant')
+        .filter(item => item.collection_id === activeFilter.id && item.target_type === 'place')
         .map(item => item.target_id)
     )
-    return savedLocations.filter(loc => restaurantIdsInCollection.has(loc.restaurant_id))
-  }, [activeFilter, collectionItems, savedLocations])
+    return savedPlaces.filter(loc => placeIdsInCollection.has(loc.place_id))
+  }, [activeFilter, collectionItems, savedPlaces])
 
   useEffect(() => {
     if (activeFilter.type !== 'collection') return
@@ -177,12 +177,12 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
     setActiveFilter({ type: 'all', id: 'all', label: 'All' })
   }, [activeFilter, collections])
 
-  const validLocations = useMemo(
+  const validPlaces = useMemo(
     () =>
-      filteredLocations.filter(
-        l => l.restaurants?.latitude != null && l.restaurants?.longitude != null
+      filteredPlaces.filter(
+        l => l.places?.latitude != null && l.places?.longitude != null
       ),
-    [filteredLocations]
+    [filteredPlaces]
   )
 
   useEffect(() => {
@@ -220,9 +220,9 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
 
   useEffect(() => {
     slideY.value = reduceMotion
-      ? (selectedLocation ? 0 : 300)
-      : withSpring(selectedLocation ? 0 : 300, SPRING_CARD)
-  }, [reduceMotion, selectedLocation, slideY])
+      ? (selectedPlace ? 0 : 300)
+      : withSpring(selectedPlace ? 0 : 300, SPRING_CARD)
+  }, [reduceMotion, selectedPlace, slideY])
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: slideY.value }],
@@ -231,33 +231,33 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
   const defaultRegion = useMemo(() => {
     if (gps)
       return { latitude: gps.lat, longitude: gps.lng, latitudeDelta: 0.08, longitudeDelta: 0.08 }
-    if (validLocations.length > 0)
+    if (validPlaces.length > 0)
       return {
-        latitude: validLocations[0]?.restaurants?.latitude ?? -33.8688,
-        longitude: validLocations[0]?.restaurants?.longitude ?? 151.2093,
+        latitude: validPlaces[0]?.places?.latitude ?? -33.8688,
+        longitude: validPlaces[0]?.places?.longitude ?? 151.2093,
         latitudeDelta: 0.08,
         longitudeDelta: 0.08,
       }
     return { latitude: -33.8688, longitude: 151.2093, latitudeDelta: 0.1, longitudeDelta: 0.1 }
-  }, [gps, validLocations])
+  }, [gps, validPlaces])
 
-  const oldestLocations = useMemo(
+  const oldestPlaces = useMemo(
     () =>
-      [...filteredLocations].sort(
+      [...filteredPlaces].sort(
         (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       ),
-    [filteredLocations]
+    [filteredPlaces]
   )
 
-  const recentLocations = useMemo(
+  const recentPlaces = useMemo(
     () =>
-      [...filteredLocations].sort(
+      [...filteredPlaces].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       ),
-    [filteredLocations]
+    [filteredPlaces]
   )
 
-  const alphaGroups = useMemo(() => groupAlpha(filteredLocations), [filteredLocations])
+  const alphaGroups = useMemo(() => groupAlpha(filteredPlaces), [filteredPlaces])
 
   const refreshAll = useCallback(async () => {
     await refresh()
@@ -265,25 +265,25 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
   }, [refresh, refreshCollections])
 
   const navigateTo = useCallback(
-    (loc: SavedLocation) => { navigateToRestaurant(router, loc) },
+    (loc: SavedPlace) => { navigateToPlace(router, loc) },
     [router]
   )
 
-  const openInMaps = useCallback((loc: SavedLocation) => {
-    setMapsSheetLocation(loc)
+  const openInMaps = useCallback((loc: SavedPlace) => {
+    setMapsSheetPlace(loc)
   }, [])
 
-  const openSelectedLocationInMaps = useCallback((provider: string) => {
-    const loc = mapsSheetLocation
+  const openSelectedPlaceInMaps = useCallback((provider: string) => {
+    const loc = mapsSheetPlace
     if (!loc) return
-    const r = loc.restaurants
+    const r = loc.places
     if (!r?.latitude || !r?.longitude) return
     const { latitude: lat, longitude: lng, name } = r
     if (provider === 'apple')
       void Linking.openURL(`https://maps.apple.com/?q=${encodeURIComponent(name)}&ll=${lat},${lng}`)
     if (provider === 'google')
       void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`)
-  }, [mapsSheetLocation])
+  }, [mapsSheetPlace])
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -303,11 +303,11 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
         {onBackToSaved ? <View style={styles.backToSavedSpacer} /> : null}
       </View>
 
-      {error && savedLocations.length === 0 ? (
+      {error && savedPlaces.length === 0 ? (
         <View style={styles.content}>
           <ErrorMessage title="Could not load places" message={error} />
         </View>
-      ) : savedLocations.length === 0 ? (
+      ) : savedPlaces.length === 0 ? (
         <EmptyState
           title="No saved places yet"
           subtitle="Tap the pin icon on a post to save a location."
@@ -330,7 +330,7 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
               style={[styles.toggleBtn, placesView === 'map' && styles.toggleBtnActive]}
               onPress={() => {
                 setPlacesView('map')
-                setSelectedLocation(null)
+                setSelectedPlace(null)
               }}
               accessibilityRole="tab"
               accessibilityState={{ selected: placesView === 'map' }}
@@ -404,25 +404,25 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
                     accessibilityRole="button"
                     onPress={() =>
                       router.push(routes.createPost({
-                        prefillName: activePrompt.restaurants?.name ?? '',
-                        prefillAddress: activePrompt.restaurants?.address ?? '',
-                        prefillLat: String(activePrompt.restaurants?.latitude ?? ''),
-                        prefillLng: String(activePrompt.restaurants?.longitude ?? ''),
-                        prefillPlaceId: activePrompt.restaurants?.google_place_id ?? '',
-                        prefillRestaurantId: activePrompt.restaurant_id ?? undefined,
+                        prefillName: activePrompt.places?.name ?? '',
+                        prefillAddress: activePrompt.places?.address ?? '',
+                        prefillLat: String(activePrompt.places?.latitude ?? ''),
+                        prefillLng: String(activePrompt.places?.longitude ?? ''),
+                        prefillGooglePlaceId: activePrompt.places?.google_place_id ?? '',
+                        prefillPlaceId: activePrompt.place_id ?? undefined,
                       }))
                     }
                     activeOpacity={0.85}
                   >
                     <View style={styles.visitBannerText}>
                       <Text style={styles.visitBannerTitle}>
-                        Been to {activePrompt.restaurants?.name ?? 'this place'}?
+                        Been to {activePrompt.places?.name ?? 'this place'}?
                       </Text>
                       <Text style={styles.visitBannerSub}>Tap to leave a review</Text>
                     </View>
                     <TouchableOpacity
                       style={styles.visitBannerClose}
-                      onPress={() => setDismissedPromptId(activePrompt.restaurant_id)}
+                      onPress={() => setDismissedPromptId(activePrompt.place_id)}
                       hitSlop={8}
                       accessibilityRole="button"
                       accessibilityLabel="Dismiss"
@@ -431,7 +431,7 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
                     </TouchableOpacity>
                   </TouchableOpacity>
                 )}
-                {filteredLocations.length === 0 ? (
+                {filteredPlaces.length === 0 ? (
                   <EmptyState
                     title={`Nothing in ${activeFilter.label}`}
                     subtitle="Saved places appear here when they match this filter."
@@ -443,16 +443,16 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
                           <Text style={styles.letterText}>{letter}</Text>
                         </View>
                         {items.map(loc => (
-                          <LocationRow key={loc.id} loc={loc} onPress={navigateTo} />
+                          <PlaceRow key={loc.id} loc={loc} onPress={navigateTo} />
                         ))}
                       </View>
                     ))
                   : sortBy === 'oldest'
-                    ? oldestLocations.map(loc => (
-                        <LocationRow key={loc.id} loc={loc} onPress={navigateTo} />
+                    ? oldestPlaces.map(loc => (
+                        <PlaceRow key={loc.id} loc={loc} onPress={navigateTo} />
                       ))
-                    : recentLocations.map(loc => (
-                        <LocationRow key={loc.id} loc={loc} onPress={navigateTo} />
+                    : recentPlaces.map(loc => (
+                        <PlaceRow key={loc.id} loc={loc} onPress={navigateTo} />
                       ))}
               </ScrollView>
             </View>
@@ -474,28 +474,28 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
                   // PROVIDER_GOOGLE fires MapView.onPress even when a Marker is tapped.
                   // Ignore the map tap if it fired within 400ms of a marker press.
                   if (Date.now() - lastMarkerPress.current > 400) {
-                    setSelectedLocation(null)
+                    setSelectedPlace(null)
                   }
                 }}
               >
-                {validLocations.map(loc => {
-                  const restaurant = loc.restaurants
-                  if (restaurant?.latitude == null || restaurant.longitude == null) return null
+                {validPlaces.map(loc => {
+                  const place = loc.places
+                  if (place?.latitude == null || place.longitude == null) return null
                   return (
                     <Marker
                       key={loc.id}
                       coordinate={{
-                        latitude: restaurant.latitude,
-                        longitude: restaurant.longitude,
+                        latitude: place.latitude,
+                        longitude: place.longitude,
                       }}
                       tracksViewChanges={false}
                       anchor={{ x: 0.5, y: 1 }}
                       onPress={() => {
                         lastMarkerPress.current = Date.now()
-                        setSelectedLocation(loc)
+                        setSelectedPlace(loc)
                       }}
                     >
-                      <MapMarker name={restaurant.name ?? ''} />
+                      <MapMarker name={place.name ?? ''} />
                     </Marker>
                   )
                 })}
@@ -548,11 +548,11 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
                 </TouchableOpacity>
               </View>
 
-              <SelectedLocationCard
+              <SelectedPlaceCard
                 styles={styles}
                 colors={colors}
                 cardStyle={cardStyle}
-                selectedLocation={selectedLocation}
+                selectedPlace={selectedPlace}
                 pinLoading={pinLoading}
                 pinPhoto={pinPhoto}
                 pinDetail={pinDetail}
@@ -575,15 +575,15 @@ export default function PlacesScreen({ initialView = 'list', onBackToSaved }: Pl
         onDismiss={() => setSortSheetVisible(false)}
       />
       <RekkusActionSheet
-        visible={!!mapsSheetLocation}
+        visible={!!mapsSheetPlace}
         title="Open in Maps"
-        subtitle={mapsSheetLocation?.restaurants?.name}
+        subtitle={mapsSheetPlace?.places?.name}
         options={[
           { label: 'Apple Maps', value: 'apple' },
           { label: 'Google Maps', value: 'google' },
         ]}
-        onSelect={openSelectedLocationInMaps}
-        onDismiss={() => setMapsSheetLocation(null)}
+        onSelect={openSelectedPlaceInMaps}
+        onDismiss={() => setMapsSheetPlace(null)}
       />
     </SafeAreaView>
   )

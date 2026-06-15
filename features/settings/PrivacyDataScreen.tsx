@@ -107,7 +107,7 @@ export default function PrivacyDataScreen() {
           <Divider />
           <Row
             label="Correct data"
-            sublabel="Report inaccurate profile or restaurant data."
+            sublabel="Report inaccurate profile or place data."
             onPress={() => emailLink('Data correction request')}
           />
         </View>
@@ -115,8 +115,8 @@ export default function PrivacyDataScreen() {
         <Text style={styles.sectionHeader}>How Rekkus Uses Data</Text>
         <View style={styles.infoCard}>
           <Text style={styles.body}>
-            Rekkus uses your posts, saves, ratings, searches, and restaurant corrections to improve
-            dish-first discovery. Restaurant provider data is used as fallback or enrichment and is
+            Rekkus uses your posts, saves, ratings, searches, and place corrections to improve
+            dish-first discovery. Place provider data is used as fallback or enrichment and is
             kept source-attributed.
           </Text>
           <Text style={styles.body}>

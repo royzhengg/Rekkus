@@ -61,8 +61,8 @@ function searchIndexContractFailures({
     failures.push('lib/search/pipeline.ts must retain unified candidate retrieval and provider fallback ownership.')
   }
 
-  if (!/search_restaurants_full_text/.test(restaurantServiceSource) || !/near_lat/.test(restaurantServiceSource)) {
-    failures.push('lib/services/restaurants.ts must retain restaurant FTS and geo-ranked RPC ownership.')
+  if (!/search_places_full_text|search_restaurants_full_text/.test(restaurantServiceSource) || !/near_lat/.test(restaurantServiceSource)) {
+    failures.push('lib/services/places.ts must retain place FTS and geo-ranked RPC ownership.')
   }
 
   return failures

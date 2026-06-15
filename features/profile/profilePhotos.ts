@@ -1,10 +1,10 @@
 import {
   fetchRestaurantProviderDetail,
-  fetchRestaurantRow,
-  fetchRestaurantRowByPlaceId,
-  getRestaurantDisplayPhoto,
+  fetchPlaceRow,
+  fetchPlaceRowByGooglePlaceId,
+  getPlaceDisplayPhoto,
   getRestaurantProviderPhotoUrl,
-} from '@/lib/services/restaurants'
+} from '@/lib/services/places'
 import type { ProfileRestaurant } from './profileIdentity'
 
 export function profileRestaurantPhotoKey(restaurant: ProfileRestaurant): string {
@@ -16,12 +16,12 @@ export async function hydrateProfileRestaurantPhotos(
 ): Promise<ProfileRestaurant[]> {
   return Promise.all(restaurants.map(async restaurant => {
     if (restaurant.photoUrl) return restaurant
-    const directRow = await fetchRestaurantRow(restaurant.id).catch(() => null)
+    const directRow = await fetchPlaceRow(restaurant.id).catch(() => null)
     const placeRow = !directRow && restaurant.placeId
-      ? await fetchRestaurantRowByPlaceId(restaurant.placeId).catch(() => null)
+      ? await fetchPlaceRowByGooglePlaceId(restaurant.placeId).catch(() => null)
       : null
     const row = directRow ?? placeRow
-    const photoUrl = await getRestaurantDisplayPhoto(
+    const photoUrl = await getPlaceDisplayPhoto(
       row?.id ?? restaurant.id,
       row?.google_photo_refs ?? []
     ).catch(() => null)

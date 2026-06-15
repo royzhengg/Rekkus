@@ -7,7 +7,7 @@ import {
   fetchPredictions,
   fetchPlaceDetails,
   upsertPlaceStubs,
-  upsertRestaurant,
+  upsertPlace,
   searchPlacesByText,
   fetchNearbyPlaces,
 } from '@/lib/services/places'
@@ -280,7 +280,7 @@ export function usePlaceSearch({
       const detail = await fetchPlaceDetails(item.place_id)
       if (!mountedRef.current || selectionRequestRef.current !== requestId) return
       if (detail) {
-        const placeId = await upsertRestaurant(detail, item.place_id, cuisineType || undefined)
+        const placeId = await upsertPlace(detail, item.place_id, cuisineType || undefined)
         if (!mountedRef.current || selectionRequestRef.current !== requestId) return
         onPlaceSelected({
           googlePlaceId: item.place_id,

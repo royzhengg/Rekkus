@@ -218,7 +218,6 @@ export async function fetchNearbyPlaces(
   location: { lat: number; lng: number },
   radiusKm = 2
 ): Promise<Prediction[]> {
-  // @ts-expect-error -- places_within_radius not yet in generated database types
   const { data } = await supabase.rpc('places_within_radius', {
     p_lat: location.lat,
     p_lng: location.lng,
@@ -297,27 +296,6 @@ export async function upsertPlace(
         google_place_id: googlePlaceId,
         cuisine_type: cuisine ?? null,
         canonical_source: 'google_places',
-        google_details_fetched_at: now,
-        google_details_fields: [
-          'name',
-          'formatted_address',
-          'geometry',
-          'business_status',
-          'formatted_phone_number',
-          'website',
-          'price_level',
-          'types',
-          'opening_hours',
-          'photos',
-          'rating',
-          'user_ratings_total',
-        ],
-        google_business_status: detail.business_status ?? null,
-        google_phone: detail.formatted_phone_number ?? null,
-        google_website: detail.website ?? null,
-        google_price_level: detail.price_level ?? null,
-        google_types: detail.types ?? null,
-        google_opening_hours: (detail.opening_hours ?? null) as never,
         google_photo_refs: (detail.photos?.map(p => p.photo_reference).filter((r): r is string => r != null) ?? null),
         google_rating: detail.rating ?? null,
         google_review_count: detail.user_ratings_total ?? null,
@@ -328,7 +306,7 @@ export async function upsertPlace(
     .select('id')
     .single()
 
-  const placeId = data?.id
+  const placeId = (data as { id: string } | null)?.id
   if (!placeId) return undefined
 
   await recordRestaurantProviderCache(placeId, 'google_places', googlePlaceId, detail).catch(() => null)
@@ -357,7 +335,7 @@ export async function upsertResolvedPlace(place: ResolvedPlace): Promise<string 
     .select('id')
     .single()
   if (error) throw error
-  return data?.id ?? null
+  return (data as { id: string } | null)?.id ?? null
 }
 
 export async function savePlace(userId: string, placeId: string): Promise<void> {
@@ -619,5 +597,5 @@ export async function insertGooglePlace(input: {
     })
     .select('id')
     .single()
-  return data?.id ?? null
+  return (data as { id: string } | null)?.id ?? null
 }

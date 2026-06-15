@@ -662,7 +662,7 @@ export type Database = {
             foreignKeyName: "data_repair_events_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
           {
@@ -724,7 +724,7 @@ export type Database = {
           id: string
           name: string
           name_normalized: string | null
-          restaurant_id: string | null
+          place_id: string | null
           search_tsv: unknown
           updated_at: string
         }
@@ -735,7 +735,7 @@ export type Database = {
           id?: string
           name: string
           name_normalized?: string | null
-          restaurant_id?: string | null
+          place_id?: string | null
           search_tsv?: unknown
           updated_at?: string
         }
@@ -746,7 +746,7 @@ export type Database = {
           id?: string
           name?: string
           name_normalized?: string | null
-          restaurant_id?: string | null
+          place_id?: string | null
           search_tsv?: unknown
           updated_at?: string
         }
@@ -760,9 +760,9 @@ export type Database = {
           },
           {
             foreignKeyName: "dishes_restaurant_id_fkey"
-            columns: ["restaurant_id"]
+            columns: ["place_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
         ]
@@ -1178,6 +1178,169 @@ export type Database = {
           },
         ]
       }
+      place_popularity_cache: {
+        Row: {
+          avg_food_rating: number | null
+          food_rating_count: number
+          interaction_count_30d: number
+          place_id: string
+          post_count: number
+          updated_at: string
+        }
+        Insert: {
+          avg_food_rating?: number | null
+          food_rating_count?: number
+          interaction_count_30d?: number
+          place_id: string
+          post_count?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_food_rating?: number | null
+          food_rating_count?: number
+          interaction_count_30d?: number
+          place_id?: string
+          post_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_popularity_cache_restaurant_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: true
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_stubs: {
+        Row: {
+          created_at: string
+          expires_at: string
+          name: string
+          place_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          name: string
+          place_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          name?: string
+          place_id?: string
+        }
+        Relationships: []
+      }
+      places: {
+        Row: {
+          address: string | null
+          canonical_source: string
+          city: string | null
+          community_verification_score: number
+          community_verified_at: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          cuisine_type: string | null
+          embedding: string | null
+          embedding_hash: string | null
+          google_photo_refs: string[] | null
+          google_place_id: string | null
+          google_rating: number | null
+          google_review_count: number | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          metadata_confidence: number
+          metadata_source_priority: string
+          name: string
+          open_now: boolean | null
+          open_now_checked_at: string | null
+          owner_content_status: string
+          price_range: number | null
+          primary_photo_source: string
+          restaurant_geog: unknown
+          suburb: string | null
+          updated_at: string
+          verification_status: string
+        }
+        Insert: {
+          address?: string | null
+          canonical_source?: string
+          city?: string | null
+          community_verification_score?: number
+          community_verified_at?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          cuisine_type?: string | null
+          embedding?: string | null
+          embedding_hash?: string | null
+          google_photo_refs?: string[] | null
+          google_place_id?: string | null
+          google_rating?: number | null
+          google_review_count?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          metadata_confidence?: number
+          metadata_source_priority?: string
+          name: string
+          open_now?: boolean | null
+          open_now_checked_at?: string | null
+          owner_content_status?: string
+          price_range?: number | null
+          primary_photo_source?: string
+          restaurant_geog?: unknown
+          suburb?: string | null
+          updated_at?: string
+          verification_status?: string
+        }
+        Update: {
+          address?: string | null
+          canonical_source?: string
+          city?: string | null
+          community_verification_score?: number
+          community_verified_at?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          cuisine_type?: string | null
+          embedding?: string | null
+          embedding_hash?: string | null
+          google_photo_refs?: string[] | null
+          google_place_id?: string | null
+          google_rating?: number | null
+          google_review_count?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          metadata_confidence?: number
+          metadata_source_priority?: string
+          name?: string
+          open_now?: boolean | null
+          open_now_checked_at?: string | null
+          owner_content_status?: string
+          price_range?: number | null
+          primary_photo_source?: string
+          restaurant_geog?: unknown
+          suburb?: string | null
+          updated_at?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurants_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_draft_media: {
         Row: {
           created_at: string
@@ -1270,7 +1433,7 @@ export type Database = {
           last_saved_at: string | null
           must_order: string
           occasion_tags: string[]
-          restaurant_id: string | null
+          place_id: string | null
           selected_place: Json | null
           status: string
           taste_verdict: string | null
@@ -1293,7 +1456,7 @@ export type Database = {
           last_saved_at?: string | null
           must_order?: string
           occasion_tags?: string[]
-          restaurant_id?: string | null
+          place_id?: string | null
           selected_place?: Json | null
           status?: string
           taste_verdict?: string | null
@@ -1316,7 +1479,7 @@ export type Database = {
           last_saved_at?: string | null
           must_order?: string
           occasion_tags?: string[]
-          restaurant_id?: string | null
+          place_id?: string | null
           selected_place?: Json | null
           status?: string
           taste_verdict?: string | null
@@ -1329,9 +1492,9 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "post_drafts_restaurant_id_fkey"
-            columns: ["restaurant_id"]
+            columns: ["place_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
           {
@@ -1384,6 +1547,32 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_embeddings: {
+        Row: {
+          embedding: string
+          embedding_hash: string | null
+          post_id: string
+        }
+        Insert: {
+          embedding: string
+          embedding_hash?: string | null
+          post_id: string
+        }
+        Update: {
+          embedding?: string
+          embedding_hash?: string | null
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_embeddings_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: true
+            referencedRelation: "posts"
             referencedColumns: ["id"]
           },
         ]
@@ -1536,15 +1725,14 @@ export type Database = {
           dish_id: string | null
           dish_tags: Json | null
           edit_count: number
-          embedding: string | null
-          embedding_hash: string | null
           food_rating: number | null
           id: string
           last_edited_at: string | null
           must_order: string | null
           occasion_tags: string[]
+          place_id: string | null
           rating: number | null
-          restaurant_id: string | null
+          search_tsv: unknown
           taste_verdict: string | null
           updated_at: string
           user_id: string
@@ -1561,15 +1749,14 @@ export type Database = {
           dish_id?: string | null
           dish_tags?: Json | null
           edit_count?: number
-          embedding?: string | null
-          embedding_hash?: string | null
           food_rating?: number | null
           id?: string
           last_edited_at?: string | null
           must_order?: string | null
           occasion_tags?: string[]
+          place_id?: string | null
           rating?: number | null
-          restaurant_id?: string | null
+          search_tsv?: unknown
           taste_verdict?: string | null
           updated_at?: string
           user_id: string
@@ -1586,15 +1773,14 @@ export type Database = {
           dish_id?: string | null
           dish_tags?: Json | null
           edit_count?: number
-          embedding?: string | null
-          embedding_hash?: string | null
           food_rating?: number | null
           id?: string
           last_edited_at?: string | null
           must_order?: string | null
           occasion_tags?: string[]
+          place_id?: string | null
           rating?: number | null
-          restaurant_id?: string | null
+          search_tsv?: unknown
           taste_verdict?: string | null
           updated_at?: string
           user_id?: string
@@ -1611,9 +1797,9 @@ export type Database = {
           },
           {
             foreignKeyName: "posts_restaurant_id_fkey"
-            columns: ["restaurant_id"]
+            columns: ["place_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
           {
@@ -1751,7 +1937,7 @@ export type Database = {
             foreignKeyName: "restaurant_aliases_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
         ]
@@ -1816,7 +2002,7 @@ export type Database = {
             foreignKeyName: "restaurant_audit_events_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
         ]
@@ -1880,14 +2066,14 @@ export type Database = {
             foreignKeyName: "restaurant_merge_events_canonical_restaurant_id_fkey"
             columns: ["canonical_restaurant_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "restaurant_merge_events_merged_restaurant_id_fkey"
             columns: ["merged_restaurant_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
         ]
@@ -1946,7 +2132,7 @@ export type Database = {
             foreignKeyName: "restaurant_observations_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
           {
@@ -2041,63 +2227,7 @@ export type Database = {
             foreignKeyName: "restaurant_ownership_events_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      restaurant_place_stubs: {
-        Row: {
-          created_at: string
-          expires_at: string
-          name: string
-          place_id: string
-        }
-        Insert: {
-          created_at?: string
-          expires_at?: string
-          name: string
-          place_id: string
-        }
-        Update: {
-          created_at?: string
-          expires_at?: string
-          name?: string
-          place_id?: string
-        }
-        Relationships: []
-      }
-      restaurant_popularity_cache: {
-        Row: {
-          avg_food_rating: number | null
-          food_rating_count: number
-          interaction_count_30d: number
-          post_count: number
-          restaurant_id: string
-          updated_at: string
-        }
-        Insert: {
-          avg_food_rating?: number | null
-          food_rating_count?: number
-          interaction_count_30d?: number
-          post_count?: number
-          restaurant_id: string
-          updated_at?: string
-        }
-        Update: {
-          avg_food_rating?: number | null
-          food_rating_count?: number
-          interaction_count_30d?: number
-          post_count?: number
-          restaurant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "restaurant_popularity_cache_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: true
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
         ]
@@ -2168,7 +2298,7 @@ export type Database = {
             foreignKeyName: "restaurant_provider_cache_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
         ]
@@ -2231,138 +2361,7 @@ export type Database = {
             foreignKeyName: "restaurant_sources_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      restaurants: {
-        Row: {
-          address: string | null
-          canonical_source: string
-          city: string | null
-          community_verification_score: number
-          community_verified_at: string | null
-          country: string | null
-          created_at: string
-          created_by: string | null
-          cuisine_type: string | null
-          embedding: string | null
-          embedding_hash: string | null
-          google_business_status: string | null
-          google_details_fetched_at: string | null
-          google_details_fields: string[] | null
-          google_opening_hours: Json | null
-          google_phone: string | null
-          google_photo_refs: string[] | null
-          google_place_id: string | null
-          google_price_level: number | null
-          google_rating: number | null
-          google_review_count: number | null
-          google_types: string[] | null
-          google_website: string | null
-          id: string
-          latitude: number | null
-          longitude: number | null
-          metadata_confidence: number
-          metadata_source_priority: string
-          name: string
-          open_now: boolean | null
-          open_now_checked_at: string | null
-          owner_content_status: string
-          price_range: number | null
-          primary_photo_source: string
-          restaurant_geog: unknown
-          suburb: string | null
-          updated_at: string
-          verification_status: string
-        }
-        Insert: {
-          address?: string | null
-          canonical_source?: string
-          city?: string | null
-          community_verification_score?: number
-          community_verified_at?: string | null
-          country?: string | null
-          created_at?: string
-          created_by?: string | null
-          cuisine_type?: string | null
-          embedding?: string | null
-          embedding_hash?: string | null
-          google_business_status?: string | null
-          google_details_fetched_at?: string | null
-          google_details_fields?: string[] | null
-          google_opening_hours?: Json | null
-          google_phone?: string | null
-          google_photo_refs?: string[] | null
-          google_place_id?: string | null
-          google_price_level?: number | null
-          google_rating?: number | null
-          google_review_count?: number | null
-          google_types?: string[] | null
-          google_website?: string | null
-          id?: string
-          latitude?: number | null
-          longitude?: number | null
-          metadata_confidence?: number
-          metadata_source_priority?: string
-          name: string
-          open_now?: boolean | null
-          open_now_checked_at?: string | null
-          owner_content_status?: string
-          price_range?: number | null
-          primary_photo_source?: string
-          restaurant_geog?: unknown
-          suburb?: string | null
-          updated_at?: string
-          verification_status?: string
-        }
-        Update: {
-          address?: string | null
-          canonical_source?: string
-          city?: string | null
-          community_verification_score?: number
-          community_verified_at?: string | null
-          country?: string | null
-          created_at?: string
-          created_by?: string | null
-          cuisine_type?: string | null
-          embedding?: string | null
-          embedding_hash?: string | null
-          google_business_status?: string | null
-          google_details_fetched_at?: string | null
-          google_details_fields?: string[] | null
-          google_opening_hours?: Json | null
-          google_phone?: string | null
-          google_photo_refs?: string[] | null
-          google_place_id?: string | null
-          google_price_level?: number | null
-          google_rating?: number | null
-          google_review_count?: number | null
-          google_types?: string[] | null
-          google_website?: string | null
-          id?: string
-          latitude?: number | null
-          longitude?: number | null
-          metadata_confidence?: number
-          metadata_source_priority?: string
-          name?: string
-          open_now?: boolean | null
-          open_now_checked_at?: string | null
-          owner_content_status?: string
-          price_range?: number | null
-          primary_photo_source?: string
-          restaurant_geog?: unknown
-          suburb?: string | null
-          updated_at?: string
-          verification_status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "restaurants_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
         ]
@@ -2406,34 +2405,34 @@ export type Database = {
           },
         ]
       }
-      saved_locations: {
+      saved_places: {
         Row: {
           created_at: string
           id: string
-          restaurant_id: string
+          place_id: string
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          restaurant_id: string
+          place_id: string
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          restaurant_id?: string
+          place_id?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "saved_locations_restaurant_id_fkey"
-            columns: ["restaurant_id"]
+            columns: ["place_id"]
             isOneToOne: false
-            referencedRelation: "restaurants"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
           {
@@ -2784,6 +2783,41 @@ export type Database = {
         }
         Relationships: []
       }
+      user_top_spots: {
+        Row: {
+          created_at: string
+          id: string
+          place_id: string
+          position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          place_id: string
+          position: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          place_id?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_top_spots_restaurant_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_topic_follows: {
         Row: {
           created_at: string
@@ -2935,7 +2969,7 @@ export type Database = {
         Args: { p_avatar_url?: string; p_member_ids: string[]; p_name: string }
         Returns: string
       }
-      create_user_restaurant: {
+      create_user_place: {
         Args: {
           p_address?: string
           p_city?: string
@@ -2970,9 +3004,7 @@ export type Database = {
         Args: { limit_count?: number; lookback_days?: number }
         Returns: {
           cuisine_type: string
-          first_posted_at: string | null
           id: string
-          latest_posted_at: string | null
           name: string
           post_count: number
           save_count: number
@@ -3021,8 +3053,8 @@ export type Database = {
           query_count: number
           reformulation_count: number
           reformulation_rate: number
-          result_position: number | null
-          result_type: string | null
+          result_position: number
+          result_type: string
           search_sessions: number
           success_count: number
           success_rate: number
@@ -3044,6 +3076,50 @@ export type Database = {
         }[]
       }
       pin_message: { Args: { p_message_id: string }; Returns: undefined }
+      places_in_bounding_box: {
+        Args: {
+          max_lat: number
+          max_lng: number
+          max_results?: number
+          min_lat: number
+          min_lng: number
+        }
+        Returns: {
+          address: string
+          city: string
+          cuisine_type: string
+          google_place_id: string
+          google_rating: number
+          google_review_count: number
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          open_now: boolean
+        }[]
+      }
+      places_within_radius: {
+        Args: {
+          p_lat: number
+          p_lng: number
+          p_max_results?: number
+          p_radius_metres?: number
+        }
+        Returns: {
+          address: string
+          city: string
+          cuisine_type: string
+          distance_km: number
+          google_place_id: string
+          google_rating: number
+          google_review_count: number
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          open_now: boolean
+        }[]
+      }
       purge_soft_deleted_content: {
         Args: { batch_size?: number }
         Returns: number
@@ -3092,7 +3168,7 @@ export type Database = {
         }
         Returns: undefined
       }
-      refresh_restaurant_popularity_cache: { Args: never; Returns: undefined }
+      refresh_place_popularity_cache: { Args: never; Returns: undefined }
       refresh_trending_queries: { Args: never; Returns: undefined }
       resolve_suburb_query: {
         Args: { input_text: string }
@@ -3101,29 +3177,6 @@ export type Database = {
           confidence: number
           lat: number
           lng: number
-        }[]
-      }
-      restaurants_in_bounding_box: {
-        Args: {
-          max_lat: number
-          max_lng: number
-          max_results?: number
-          min_lat: number
-          min_lng: number
-        }
-        Returns: {
-          address: string
-          city: string
-          cuisine_type: string
-          google_place_id: string
-          google_rating: number
-          google_review_count: number
-          id: string
-          latitude: number
-          longitude: number
-          name: string
-          open_now: boolean
-          top_dishes: string[]
         }[]
       }
       restore_comment: { Args: { p_comment_id: string }; Returns: undefined }
@@ -3137,13 +3190,37 @@ export type Database = {
         }
         Returns: {
           cuisine_type: string
-          first_posted_at: string | null
+          first_posted_at: string
           id: string
-          latest_posted_at: string | null
+          latest_posted_at: string
           name: string
           post_count: number
           save_count: number
           top_photo_url: string
+        }[]
+      }
+      search_places_full_text: {
+        Args: {
+          max_results?: number
+          near_lat?: number
+          near_lng?: number
+          query_text: string
+          suburb_filter?: string
+        }
+        Returns: {
+          address: string
+          city: string
+          cuisine_type: string
+          google_place_id: string
+          google_rating: number
+          google_review_count: number
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          open_now: boolean
+          rank: number
+          suburb: string
         }[]
       }
       search_posts_by_dish: {
@@ -3170,35 +3247,6 @@ export type Database = {
         Returns: {
           id: string
           rank: number
-        }[]
-      }
-      search_restaurants_full_text: {
-        Args: {
-          max_results?: number
-          near_lat?: number
-          near_lng?: number
-          query_text: string
-          suburb_filter?: string
-        }
-        Returns: {
-          address: string
-          city: string
-          created_at: string
-          cuisine_type: string
-          first_posted_at: string | null
-          google_place_id: string
-          google_rating: number
-          google_review_count: number
-          id: string
-          latest_posted_at: string | null
-          latitude: number
-          longitude: number
-          name: string
-          open_now: boolean
-          post_count: number
-          rank: number
-          suburb: string
-          top_dishes: string[]
         }[]
       }
       send_direct_message: {

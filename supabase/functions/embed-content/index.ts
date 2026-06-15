@@ -3,9 +3,9 @@ import {
   embedTable,
   isPostTextRow,
   isRecord,
-  isRestaurantTextRow,
+  isPlaceTextRow,
   postToText,
-  restaurantToText,
+  placeToText,
   type EmbedTable,
 } from '../_shared/guards.ts'
 
@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
         if (!isPostTextRow(record)) return new Response('ok', { status: 200 })
         text = postToText(record)
       } else {
-        if (!isRestaurantTextRow(record)) return new Response('ok', { status: 200 })
-        text = restaurantToText(record)
+        if (!isPlaceTextRow(record)) return new Response('ok', { status: 200 })
+        text = placeToText(record)
       }
 
       if (!text) return new Response('no text', { status: 200 })
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     // Backfill path: embed all rows where embedding IS NULL
     if (isRecord(body) && body.type === 'backfill') {
       const entityType = isRecord(body) ? body.entity_type : null
-      const table: EmbedTable = entityType === 'restaurant' ? 'restaurants' : 'posts'
+      const table: EmbedTable = entityType === 'place' ? 'places' : 'posts'
 
       let processed = 0
       let from = 0
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
           const text =
             table === 'posts'
               ? isPostTextRow(row) ? postToText(row) : ''
-              : isRestaurantTextRow(row) ? restaurantToText(row) : ''
+              : isPlaceTextRow(row) ? placeToText(row) : ''
           if (!text) continue
           try {
             const embedding = await embedText(text)

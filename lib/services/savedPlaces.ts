@@ -75,5 +75,5 @@ export async function fetchSavedPlaceIds(userId: string): Promise<string[]> {
     .eq('user_id', userId)
     .limit(200)
   if (error) throw error
-  return (data ?? []).map(row => row.place_id)
+  return ((data ?? []) as Array<{ place_id: string }>).map(row => row.place_id)
 }

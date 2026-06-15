@@ -95,7 +95,7 @@ export const PlaceRow = React.memo(function PlaceRow({
       if (query && searchSessionId && position != null) {
         analytics.searchResultClick(
           user?.id ?? null,
-          'restaurant',
+          'place',
           place.id,
           query,
           position,
@@ -103,14 +103,14 @@ export const PlaceRow = React.memo(function PlaceRow({
         )
       }
     }
-    router.push(routes.restaurantDetail({
-      restaurantId: place.google_place_id ?? place.id ?? 'none',
-      ...(place.google_place_id ? { placeId: place.google_place_id } : {}),
+    router.push(routes.placeDetail({
+      placeId: place.id ?? 'none',
+      ...(place.google_place_id ? { googlePlaceId: place.google_place_id } : {}),
       name: place.name,
       address: place.address ?? '',
       lat: place.latitude ?? '',
       lng: place.longitude ?? '',
-      ...searchAttributionRouteParams(query, searchSessionId, 'restaurant', position),
+      ...searchAttributionRouteParams(query, searchSessionId, 'place', position),
     }))
   }
 

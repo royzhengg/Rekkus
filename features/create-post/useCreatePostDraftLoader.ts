@@ -70,7 +70,7 @@ export function useCreatePostDraftLoader({
       if (!mounted || !result) return
       applyDraftToForm(result.draft)
       if (result.restaurantCleared) {
-        showToast("The restaurant you tagged is no longer available — please re-select.")
+        showToast("The place you tagged is no longer available — please re-select.")
       }
       setEntryMode('editing')
     })

@@ -58,8 +58,8 @@ jest.mock('@/lib/services/collections', () => ({
   fetchTargetCollectionItems: jest.fn(() => Promise.resolve([])),
 }))
 
-jest.mock('@/lib/services/restaurants', () => ({
-  upsertResolvedRestaurant: jest.fn(),
+jest.mock('@/lib/services/places', () => ({
+  upsertResolvedPlace: jest.fn(),
 }))
 
 jest.mock('@/features/posts/postDetailUtils', () => ({
@@ -105,7 +105,7 @@ const resolvedPost = {
   food: 4,
   vibe: 4,
   cost: 2,
-  restaurantId: 'rest-1',
+  placeId: 'rest-1',
 }
 
 function defaults() {

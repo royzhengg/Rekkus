@@ -11,14 +11,14 @@ export default function LegacyRestaurantMapRedirect() {
     phone?: string
     photo?: string
   }>()
-  const restaurantId = routeParamString(params.placeId) ?? 'none'
+  const placeId = routeParamString(params.placeId) ?? 'none'
   const forwarded = routeParamsObject(params, ['placeId', 'name', 'address', 'lat', 'lng', 'phone', 'photo'])
 
   return (
     <Redirect
       href={{
-        pathname: '/restaurants/[restaurantId]/map',
-        params: { ...forwarded, restaurantId },
+        pathname: '/places/[placeId]/map',
+        params: { ...forwarded, placeId },
       }}
     />
   )

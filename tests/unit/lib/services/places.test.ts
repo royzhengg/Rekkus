@@ -1,10 +1,10 @@
 import {
-  mapRestaurantRpcRowToPrediction,
+  mapPlaceRpcRowToPrediction,
   distanceGroupForPrediction,
-  searchRestaurantsByText,
-  fetchNearbyRestaurants,
+  searchPlacesByText,
+  fetchNearbyPlaces,
   recordRestaurantProviderCache,
-} from '@/lib/services/restaurants'
+} from '@/lib/services/places'
 
 // ── module mocks ──────────────────────────────────────────────────────────────
 
@@ -45,44 +45,44 @@ const baseRow = {
   rank: 5,
 }
 
-// ── mapRestaurantRpcRowToPrediction ───────────────────────────────────────────
+// ── mapPlaceRpcRowToPrediction ───────────────────────────────────────────────
 
-describe('mapRestaurantRpcRowToPrediction', () => {
+describe('mapPlaceRpcRowToPrediction', () => {
   it('maps basic fields to Prediction shape', () => {
-    const result = mapRestaurantRpcRowToPrediction(baseRow)
+    const result = mapPlaceRpcRowToPrediction(baseRow)
     expect(result.place_id).toBe('ChIJxxx')
     expect(result.description).toBe('Golden Dumpling')
     expect(result.source).toBe('rekkus')
     expect(result.structured_formatting.main_text).toBe('Golden Dumpling')
-    expect(result.dbDetails?.restaurantId).toBe('restaurant-1')
+    expect(result.dbDetails?.placeId).toBe('restaurant-1')
     expect(result.dbDetails?.lat).toBe(-33.8688)
     expect(result.dbDetails?.lng).toBe(151.2093)
   })
 
   it('falls back to row id when google_place_id is null', () => {
-    const result = mapRestaurantRpcRowToPrediction({ ...baseRow, google_place_id: null })
+    const result = mapPlaceRpcRowToPrediction({ ...baseRow, google_place_id: null })
     expect(result.place_id).toBe('restaurant-1')
   })
 
   it('includes distance in secondary text when user location is provided', () => {
     const userLocation = { lat: -33.87, lng: 151.21 }
-    const result = mapRestaurantRpcRowToPrediction(baseRow, userLocation)
+    const result = mapPlaceRpcRowToPrediction(baseRow, userLocation)
     expect(result.distanceKm).toBeDefined()
     expect(result.structured_formatting.secondary_text).toMatch(/m$|km$/)
   })
 
   it('omits distanceKm when user location is not provided', () => {
-    const result = mapRestaurantRpcRowToPrediction(baseRow)
+    const result = mapPlaceRpcRowToPrediction(baseRow)
     expect(result.distanceKm).toBeUndefined()
   })
 
   it('adds rank offset to score', () => {
-    const result = mapRestaurantRpcRowToPrediction({ ...baseRow, rank: 3 })
+    const result = mapPlaceRpcRowToPrediction({ ...baseRow, rank: 3 })
     expect(result.score).toBe(13)
   })
 
   it('handles null latitude/longitude gracefully', () => {
-    const result = mapRestaurantRpcRowToPrediction({ ...baseRow, latitude: null, longitude: null })
+    const result = mapPlaceRpcRowToPrediction({ ...baseRow, latitude: null, longitude: null })
     expect(result.dbDetails?.lat).toBe(0)
     expect(result.dbDetails?.lng).toBe(0)
   })
@@ -121,15 +121,15 @@ describe('distanceGroupForPrediction', () => {
   })
 })
 
-// ── searchRestaurantsByText ───────────────────────────────────────────────────
+// ── searchPlacesByText ───────────────────────────────────────────────────────
 
-describe('searchRestaurantsByText', () => {
-  it('calls search_restaurants_full_text RPC and maps results', async () => {
+describe('searchPlacesByText', () => {
+  it('calls search_places_full_text RPC and maps results', async () => {
     mockRpc.mockResolvedValue({ data: [baseRow], error: null })
-    const results = await searchRestaurantsByText('dumpling', 8)
+    const results = await searchPlacesByText('dumpling', 8)
     expect(results).toHaveLength(1)
     expect(results[0]?.description).toBe('Golden Dumpling')
-    expect(mockRpc).toHaveBeenCalledWith('search_restaurants_full_text', expect.objectContaining({
+    expect(mockRpc).toHaveBeenCalledWith('search_places_full_text', expect.objectContaining({
       query_text: 'dumpling',
       max_results: 8,
     }))
@@ -138,8 +138,8 @@ describe('searchRestaurantsByText', () => {
   it('includes location params when user location is provided', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
     const location = { lat: -33.87, lng: 151.21 }
-    await searchRestaurantsByText('ramen', 5, location)
-    expect(mockRpc).toHaveBeenCalledWith('search_restaurants_full_text', expect.objectContaining({
+    await searchPlacesByText('ramen', 5, location)
+    expect(mockRpc).toHaveBeenCalledWith('search_places_full_text', expect.objectContaining({
       near_lat: location.lat,
       near_lng: location.lng,
     }))
@@ -147,20 +147,20 @@ describe('searchRestaurantsByText', () => {
 
   it('returns empty array when RPC returns no data', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
-    const results = await searchRestaurantsByText('xyz')
+    const results = await searchPlacesByText('xyz')
     expect(results).toHaveLength(0)
   })
 })
 
-// ── fetchNearbyRestaurants ────────────────────────────────────────────────────
+// ── fetchNearbyPlaces ────────────────────────────────────────────────────────
 
-describe('fetchNearbyRestaurants', () => {
-  it('calls restaurants_within_radius with correct params', async () => {
+describe('fetchNearbyPlaces', () => {
+  it('calls places_within_radius with correct params', async () => {
     mockRpc.mockResolvedValue({ data: [baseRow], error: null })
     const location = { lat: -33.87, lng: 151.21 }
-    const results = await fetchNearbyRestaurants(location, 1)
+    const results = await fetchNearbyPlaces(location, 1)
     expect(results).toHaveLength(1)
-    expect(mockRpc).toHaveBeenCalledWith('restaurants_within_radius', expect.objectContaining({
+    expect(mockRpc).toHaveBeenCalledWith('places_within_radius', expect.objectContaining({
       p_lat: -33.87,
       p_lng: 151.21,
       p_radius_metres: 1000,

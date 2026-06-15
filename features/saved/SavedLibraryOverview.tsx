@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import {
-  BookmarkIcon,
+  SaveIcon,
   ChevronRight,
   ImagePlaceholder,
   ListIcon,
@@ -106,7 +106,7 @@ export function SavedLibraryOverview({
       return
     }
     if (item.type === 'dish') router.push(routes.dishDetail(item.routeId))
-    else if (item.type === 'restaurant') router.push(routes.restaurantDetail({ restaurantId: item.routeId }))
+    else if (item.type === 'place') router.push(routes.placeDetail({ placeId: item.routeId }))
     else if (item.type === 'post') router.push(routes.postDetail(item.routeId))
     else router.push(routes.collectionDetail(item.routeId))
   }
@@ -245,7 +245,7 @@ export function SavedLibraryOverview({
           <EmptyState
             title={query.trim() ? 'No saved matches' : 'No saved items yet'}
             subtitle={query.trim() ? 'Try another saved dish, place, post, or collection.' : 'Bookmark dishes, places, or posts to build your library.'}
-            icon={<BookmarkIcon size={24} />}
+            icon={<SaveIcon size={24} />}
           />
         ) : (
           <View style={styles.results}>
@@ -309,7 +309,7 @@ export function SavedLibraryOverview({
 function ScopeIcon({ color, scope }: { color: string; scope: SavedLibraryScope }) {
   if (scope === 'places') return <PinIcon size={14} color={color} />
   if (scope === 'collections') return <ListIcon size={14} color={color} />
-  return <BookmarkIcon size={14} inactiveColor={color} />
+  return <SaveIcon size={14} inactiveColor={color} />
 }
 
 function SavedLibrarySkeletonRows({ styles }: { styles: ReturnType<typeof makeStyles> }) {
@@ -372,7 +372,7 @@ function SavedLibraryRow({
   styles: ReturnType<typeof makeStyles>
 }) {
   const selectable = isSelectableSavedLibraryItem(item)
-  const itemKind = item.type === 'restaurant' ? 'place' : item.type === 'collection' ? 'list' : item.type
+  const itemKind = item.type === 'place' ? 'place' : item.type === 'collection' ? 'list' : item.type
   const itemLabel = savedLibraryItemKindLabel(item)
   const itemMetadata = savedLibraryItemMetadata(item)
   const itemDetail = itemMetadata.startsWith(`${itemLabel} · `) ? itemMetadata.slice(itemLabel.length + 3) : item.subtitle

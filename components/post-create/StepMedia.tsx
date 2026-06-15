@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as ImagePicker from 'expo-image-picker'
-import * as MediaLibrary from 'expo-media-library'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -13,12 +12,12 @@ import {
   Modal,
   useWindowDimensions,
 } from 'react-native'
-import Animated, { FadeIn } from 'react-native-reanimated'
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
 import DishTagOverlay from '@/components/DishTagOverlay'
 import {
   CameraIcon,
   CloseIcon,
-  PinIcon,
+  TagIcon,
   ImagePlaceholder,
   PlusIcon,
 } from '@/components/icons'
@@ -27,16 +26,15 @@ import { RestaurantPicker } from '@/components/RestaurantPicker'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { analytics } from '@/lib/analytics'
+import { SPRING_SNAPPY } from '@/lib/animations'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useUserLocationContext } from '@/lib/contexts/UserLocationContext'
 import { isEnabled } from '@/lib/featureFlags'
 import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
-import type { RecentPhoto } from '@/lib/hooks/useRecentPhotos'
-import { useRecentPhotos } from '@/lib/hooks/useRecentPhotos'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { MEDIA_LIMITS, validatePickedPostMedia } from '@/lib/services/media'
+import type { SelectedPlace } from '@/lib/services/places'
 import { preparePostMedia } from '@/lib/services/postMediaProcessing'
-import type { SelectedPlace } from '@/lib/services/restaurants'
 import type { DishTag, PostMedia } from '@/types/domain'
 import { makeStyles } from './StepMedia.styles'
 
@@ -53,54 +51,6 @@ type Props = {
   setDishTags: (tags: DishTag[]) => void
 }
 
-type RecentPhotoPickedAsset = {
-  uri: string
-  type: 'image'
-  width: number
-  height: number
-  mimeType: string | null
-}
-
-function inferImageMimeTypeFromSources(...sources: Array<string | null | undefined>): string | null {
-  for (const source of sources) {
-    const extension = source?.split('?')[0]?.split('.').pop()?.toLowerCase()
-    switch (extension) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg'
-      case 'png':
-        return 'image/png'
-      case 'webp':
-        return 'image/webp'
-      case 'heic':
-        return 'image/heic'
-      case 'heif':
-        return 'image/heif'
-      default:
-        break
-    }
-  }
-  return null
-}
-
-async function resolveRecentPhotoAsset(photo: RecentPhoto): Promise<RecentPhotoPickedAsset | null> {
-  try {
-    const info = await MediaLibrary.getAssetInfoAsync(photo.id)
-    const uri = info.localUri ?? info.uri ?? photo.uri
-    const mimeType = inferImageMimeTypeFromSources(info.filename, info.localUri, info.uri, photo.filename, photo.uri)
-    if (!uri || !mimeType) return null
-    return {
-      uri,
-      type: 'image',
-      width: info.width || photo.width,
-      height: info.height || photo.height,
-      mimeType,
-    }
-  } catch {
-    return null
-  }
-}
-
 const NATIVE_PICKER_PRESENTATION_DELAY_MS = 350
 const PHOTO_LIBRARY_DENIED_MESSAGE =
   'Photo library access is needed to add photos. Enable it in Settings.'
@@ -110,8 +60,6 @@ const PHOTO_LIBRARY_OPEN_ERROR =
   'Could not open your photo library. Please try again.'
 const CAMERA_OPEN_ERROR =
   'Could not open your camera. Please try again.'
-const RECENT_PHOTO_READ_ERROR =
-  'Could not read this photo. Try Add media instead.'
 
 function waitForNativePickerPresentationWindow(): Promise<void> {
   return new Promise(resolve => {
@@ -149,18 +97,14 @@ export default function StepMedia({
 
   const photos = useMemo(() => media.filter(item => item.type === 'image').map(item => item.uri), [media])
   const videoCount = media.filter(item => item.type === 'video').length
-  const recentPhotoStripShownRef = useRef(false)
-  const recentPhotos = useRecentPhotos({
-    enabled: media.length === 0,
-  })
 
+  const preparingCount = media.filter(item => item.processingStatus === 'preparing').length
+  const progressValue = useSharedValue(1)
   useEffect(() => {
-    if (media.length > 0 || recentPhotos.photos.length === 0 || recentPhotoStripShownRef.current) return
-    recentPhotoStripShownRef.current = true
-    analytics.mediaEvent(null, 'recent_photo_strip_shown', 'post_create', {
-      photo_count: recentPhotos.photos.length,
-    })
-  }, [media.length, recentPhotos.photos.length])
+    const ratio = media.length === 0 ? 1 : (media.length - preparingCount) / media.length
+    progressValue.value = withSpring(ratio, SPRING_SNAPPY)
+  }, [preparingCount, media.length, progressValue])
+  const progressBarStyle = useAnimatedStyle(() => ({ width: `${progressValue.value * 100}%` as `${number}%` }), [])
 
   function showMediaError(message: string) {
     setMediaError(message)
@@ -291,52 +235,6 @@ export default function StepMedia({
         media_type: 'image',
       })
     }
-  }
-
-  async function addRecentPhoto(photo: RecentPhoto) {
-    setMediaError(null)
-    analytics.mediaEvent(null, 'recent_photo_selected', 'post_create')
-    analytics.mediaEvent(null, 'media_selected', 'post_create', {
-      media_count: 1,
-      media_type: 'image',
-      source: 'recent_photo_strip',
-    })
-    analytics.mediaEvent(null, 'media_prepare_started', 'post_create', {
-      media_count: 1,
-      media_type: 'image',
-      source: 'recent_photo_strip',
-    })
-    const asset = await resolveRecentPhotoAsset(photo)
-    if (!asset) {
-      showMediaError(RECENT_PHOTO_READ_ERROR)
-      analytics.uploadFailure(null, 'post_recent_photo_strip', 'metadata_unavailable')
-      analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
-        reason: 'metadata_unavailable',
-        media_type: 'image',
-        source: 'recent_photo_strip',
-      })
-      return
-    }
-
-    const { media: nextMedia, rejectedCount, error } = await preparePostMedia([asset], media)
-    if (error) showMediaError(error)
-    else if (rejectedCount > 0 && nextMedia.length === media.length) {
-      showMediaError(RECENT_PHOTO_READ_ERROR)
-    }
-    if (rejectedCount > 0) {
-      analytics.uploadFailure(null, 'post_recent_photo_strip', 'validation_rejected', rejectedCount)
-      analytics.mediaEvent(null, 'media_prepare_failed', 'post_create', {
-        reason: error ?? 'validation_rejected',
-        media_type: 'image',
-        source: 'recent_photo_strip',
-      })
-    }
-    setMedia(nextMedia)
-    analytics.mediaEvent(null, 'media_prepare_completed', 'post_create', {
-      media_count: nextMedia.length,
-      media_type: 'image',
-      source: 'recent_photo_strip',
-    })
   }
 
   async function replaceCoverWithCrop() {
@@ -498,10 +396,10 @@ export default function StepMedia({
       {mediaError ? <ErrorMessage title="Could not add media" message={mediaError} /> : null}
       {media.length === 0 ? (
         <View style={styles.mediaSection}>
-          <Text style={styles.sectionLabel}>MEDIA</Text>
           <View style={styles.photoEmpty}>
-            <ImagePlaceholder size={36} color={c.text3} />
-            <Text style={styles.photoEmptySub}>Tap your media to tag dishes</Text>
+            <CameraIcon size={40} color={c.text3} />
+            <Text style={styles.photoEmptyTitle}>Add your photos</Text>
+            <Text style={styles.photoEmptySub}>Tag dishes to help friends discover what to order</Text>
           </View>
           <TouchableOpacity
             style={styles.mediaAddBtn}
@@ -511,35 +409,8 @@ export default function StepMedia({
             accessibilityHint="Opens a menu to take a photo or choose from your library"
           >
             <PlusIcon size={16} color="#fff" /* check:tokens-ignore */ />
-            <Text style={styles.mediaAddBtnText}>Add media</Text>
+            <Text style={styles.mediaAddBtnText}>Add photos</Text>
           </TouchableOpacity>
-          {(recentPhotos.loading || recentPhotos.photos.length > 0) && !recentPhotos.denied && !recentPhotos.error && (
-            <View style={styles.recentPhotosWrap}>
-              <Text style={styles.recentPhotosTitle}>RECENTS</Text>
-              <View style={styles.recentPhotosGrid}>
-                {recentPhotos.loading
-                  ? Array.from({ length: 5 }).map((_, index) => (
-                    <View
-                      key={`recent-photo-loading-${index}`}
-                      style={styles.recentPhotoSkeleton}
-                      accessibilityElementsHidden
-                      importantForAccessibility="no"
-                    />
-                  ))
-                  : recentPhotos.photos.slice(0, 5).map((photo, index) => (
-                    <TouchableOpacity
-                      key={photo.id}
-                      style={styles.recentPhotoButton}
-                      onPress={() => { void addRecentPhoto(photo) }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Add recent photo ${index + 1}`}
-                    >
-                      <Image source={{ uri: photo.uri }} style={styles.recentPhotoImage} resizeMode="cover" />
-                    </TouchableOpacity>
-                  ))}
-              </View>
-            </View>
-          )}
         </View>
       ) : (
         <View style={styles.photosSection}>
@@ -550,13 +421,22 @@ export default function StepMedia({
             onAdd={media.length < MEDIA_LIMITS.maxPostMedia ? addMedia : undefined}
           />
 
+          {/* Compression progress bar */}
+          {preparingCount > 0 && (
+            <View style={styles.progressTrack}>
+              <Animated.View style={[styles.progressFill, progressBarStyle]} />
+            </View>
+          )}
+
+          {/* Dish tag hint — shown once on first photo */}
           {showDishTagTooltip && (
             <Animated.View
               {...(!reduceMotion ? { entering: FadeIn.duration(200) } : {})}
               style={styles.dishTagTooltip}
             >
+              <TagIcon size={14} color={c.accent} />
               <Text style={styles.dishTagTooltipText}>
-                Tag the dishes in your photos — it helps friends discover what to order
+                Tap "Tag dishes" to pin dish names to your photos
               </Text>
               <TouchableOpacity
                 onPress={dismissDishTagTooltip}
@@ -565,27 +445,33 @@ export default function StepMedia({
                 accessibilityLabel="Dismiss tip"
                 style={styles.dishTagTooltipDismiss}
               >
-                <CloseIcon size={12} color={c.accent} />
+                <CloseIcon size={12} color={c.text3} />
               </TouchableOpacity>
             </Animated.View>
           )}
 
-          {/* Photo action row */}
+          {/* Actions */}
           {photos.length > 0 && (
             <View style={styles.photoActions}>
-              <TouchableOpacity style={styles.photoActionBtn} onPress={replaceCoverWithCrop} accessibilityRole="button" accessibilityLabel="Replace cover photo" accessibilityHint="Opens photo library to pick a 3 by 4 cropped cover image">
+              <TouchableOpacity
+                style={styles.photoActionBtn}
+                onPress={replaceCoverWithCrop}
+                accessibilityRole="button"
+                accessibilityLabel="Replace cover photo"
+                accessibilityHint="Opens photo library to pick a 3 by 4 cropped cover image"
+              >
                 <ImagePlaceholder size={13} color={c.accent} />
                 <Text style={styles.photoActionText}>3:4 cover</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.photoActionBtn}
+                style={styles.dishTagBtn}
                 onPress={openDishTagModal}
                 accessibilityRole="button"
                 accessibilityLabel="Tag dishes in photo"
                 accessibilityHint={dishTags.length > 0 ? `${dishTags.length} dish${dishTags.length !== 1 ? 'es' : ''} tagged. Tap to add more.` : 'Opens a photo view where you can pin dish names'}
               >
-                <PinIcon size={13} color={c.accent} />
-                <Text style={styles.photoActionText}>
+                <TagIcon size={14} color={c.accent} />
+                <Text style={styles.dishTagBtnText}>
                   Tag dishes{dishTags.length > 0 ? ` · ${dishTags.length}` : ''}
                 </Text>
               </TouchableOpacity>
@@ -596,10 +482,10 @@ export default function StepMedia({
           )}
           {photos.length > 0 && dishTags.length > 0 && (
             <View style={styles.dishTagChips}>
-              {dishTags.slice(0, 6).map((tag, index) => (
-                <Text key={`${tag.name}-${index}`} style={styles.dishTagChip}>
-                  {tag.name}
-                </Text>
+              {[...new Set(dishTags.map(t => t.name))].slice(0, 8).map((name) => (
+                <View key={name} style={styles.dishTagChipPill}>
+                  <Text style={styles.dishTagChip}>{name}</Text>
+                </View>
               ))}
             </View>
           )}

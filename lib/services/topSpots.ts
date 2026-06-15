@@ -21,7 +21,7 @@ export async function fetchTopSpotsWithDetails(userId: string): Promise<ProfileR
   try {
     const { data, error } = await supabase
       .from('user_top_spots')
-      .select('position, restaurant_id, restaurants(id, name, address, latitude, longitude, google_place_id, google_photo_refs)')
+      .select('position, place_id, places(id, name, address, latitude, longitude, google_place_id, google_photo_refs)')
       .eq('user_id', userId)
       .order('position', { ascending: true })
 
@@ -29,8 +29,8 @@ export async function fetchTopSpotsWithDetails(userId: string): Promise<ProfileR
 
     const results: ProfileRestaurant[] = []
     for (const row of data) {
-      const rawRestaurants: unknown = row.restaurants
-      const r: unknown = Array.isArray(rawRestaurants) ? rawRestaurants[0] : rawRestaurants
+      const rawPlaces: unknown = row.places
+      const r: unknown = Array.isArray(rawPlaces) ? rawPlaces[0] : rawPlaces
       if (!isRestaurantRow(r)) continue
       results.push({
         id: r.id,
@@ -65,7 +65,7 @@ export async function saveTopSpots(userId: string, spots: TopSpot[]): Promise<vo
 
   const { error: insertError } = await supabase
     .from('user_top_spots')
-    .insert(spots.map(s => ({ user_id: userId, position: s.position, restaurant_id: s.restaurantId })))
+    .insert(spots.map(s => ({ user_id: userId, position: s.position, place_id: s.placeId })))
 
   if (insertError) throw insertError
 }
