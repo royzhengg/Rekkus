@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as ImagePicker from 'expo-image-picker'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -53,11 +53,11 @@ type Props = {
 
 const NATIVE_PICKER_PRESENTATION_DELAY_MS = 350
 const PHOTO_LIBRARY_DENIED_MESSAGE =
-  'Photo library access is needed to add photos. Enable it in Settings.'
+  'Media library access is needed to add media. Enable it in Settings.'
 const CAMERA_DENIED_MESSAGE =
   'Camera access is needed to take a food photo. Enable it in Settings.'
 const PHOTO_LIBRARY_OPEN_ERROR =
-  'Could not open your photo library. Please try again.'
+  'Could not open your media library. Please try again.'
 const CAMERA_OPEN_ERROR =
   'Could not open your camera. Please try again.'
 
@@ -84,6 +84,7 @@ export default function StepMedia({
   const styles = useMemo(() => makeStyles(c), [c])
   const { width: screenWidth } = useWindowDimensions()
 
+  const pendingPickerRef = useRef<'camera' | 'library' | null>(null)
   const [_titleFocused, setTitleFocused] = useState(false)
   const [mediaPickerVisible, setMediaPickerVisible] = useState(false)
   const [dishTagModal, setDishTagModal] = useState(false)
@@ -108,6 +109,13 @@ export default function StepMedia({
 
   function showMediaError(message: string) {
     setMediaError(message)
+  }
+
+  function firePendingPicker() {
+    const pending = pendingPickerRef.current
+    pendingPickerRef.current = null
+    if (pending === 'camera') void takePhoto()
+    else if (pending === 'library') void addMedia()
   }
 
   async function addMedia() {
@@ -238,6 +246,18 @@ export default function StepMedia({
   }
 
   async function replaceCoverWithCrop() {
+    const currentPermission = await ImagePicker.getMediaLibraryPermissionsAsync()
+    if (!currentPermission.granted && !currentPermission.canAskAgain) {
+      await requestPermission(() => Promise.resolve(currentPermission), PHOTO_LIBRARY_DENIED_MESSAGE)
+      return
+    }
+    if (!currentPermission.granted) {
+      const requestedResult = await requestPermission(
+        () => ImagePicker.requestMediaLibraryPermissionsAsync(),
+        PHOTO_LIBRARY_DENIED_MESSAGE
+      )
+      if (!requestedResult.granted) return
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -398,7 +418,7 @@ export default function StepMedia({
         <View style={styles.mediaSection}>
           <View style={styles.photoEmpty}>
             <CameraIcon size={40} color={c.text3} />
-            <Text style={styles.photoEmptyTitle}>Add your photos</Text>
+            <Text style={styles.photoEmptyTitle}>Add your photos or videos</Text>
             <Text style={styles.photoEmptySub}>Tag dishes to help friends discover what to order</Text>
           </View>
           <TouchableOpacity
@@ -409,7 +429,7 @@ export default function StepMedia({
             accessibilityHint="Opens a menu to take a photo or choose from your library"
           >
             <PlusIcon size={16} color="#fff" /* check:tokens-ignore */ />
-            <Text style={styles.mediaAddBtnText}>Add photos</Text>
+            <Text style={styles.mediaAddBtnText}>Add media</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -593,18 +613,16 @@ export default function StepMedia({
         title="Add media"
         options={[
           { label: 'Camera', value: 'camera', icon: <CameraIcon size={16} color={c.accent} /> },
-          { label: 'Photo library', value: 'library', icon: <ImagePlaceholder size={16} color={c.accent} /> },
+          { label: 'Media library', value: 'library', icon: <ImagePlaceholder size={16} color={c.accent} /> },
         ]}
         onSelect={v => {
+          pendingPickerRef.current = v === 'camera' ? 'camera' : 'library'
           setMediaPickerVisible(false)
-          // Defer past the sheet's ~300ms slide-out animation. iOS silently
-          // drops a native picker presentation while a modal VC is still
-          // dismissing; Android can also fail on some versions for the same reason.
-          setTimeout(() => {
-            if (v === 'camera') void takePhoto()
-            else void addMedia()
-          }, NATIVE_PICKER_PRESENTATION_DELAY_MS)
+          // Android fallback — onAfterDismiss (iOS Modal.onDismiss) is not available on Android.
+          // 500ms gives comfortable buffer for the ~300ms sheet animation plus bridge latency.
+          setTimeout(firePendingPicker, 500)
         }}
+        onAfterDismiss={firePendingPicker}
         onDismiss={() => setMediaPickerVisible(false)}
       />
       <RekkusActionSheet

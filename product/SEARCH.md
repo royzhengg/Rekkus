@@ -11,8 +11,8 @@ Event tracking, trending data, and the `analytics_events` table are documented i
 Search is local-first. Supabase and Google should enrich discovery, not become an opaque ranking system.
 
 Search should optimize for helping users discover food, not merely helping users find database records.
-It is content-first, not restaurant-first: dishes, posts, and restaurants are equal search citizens, and
-food intent should resolve through dish -> posts -> restaurants rather than defaulting to restaurant names.
+It is content-first, not place-first: dishes, posts, and places are equal search citizens, and
+food intent should resolve through dish -> posts -> places rather than defaulting to place names.
 Every searchable object should eventually be retrievable through one query. Manual area intent beats GPS
 because explicit user intent wins over physical location. Search and Discovery can share entities and
 signals, but Search is intent-led retrieval while Discovery is inspiration-led exploration.
@@ -31,7 +31,7 @@ signals, but Search is intent-led retrieval while Discovery is inspiration-led e
 | Experiments     | Meaningful ranking changes require a named metric, rollback path, owner, review date, tuning-log entry, and test coverage before shipping. |
 
 Update this section whenever search adds a new indexed field, external provider dependency, ranking signal, cache, or fairness rule.
-Any ranking or scoring change must keep a timestamped tuning-log entry so restaurant/user disputes can be investigated later.
+Any ranking or scoring change must keep a timestamped tuning-log entry so place/user disputes can be investigated later.
 
 ### Searchable Field Contract
 
@@ -39,22 +39,22 @@ Search has a live deterministic index, not a separate materialized index. The co
 
 | Entity | Current searchable fields | Index/RPC owner |
 | --- | --- | --- |
-| Restaurants / places | `restaurants.name`, `cuisine_type`, `suburb`, `city`, `address`, geo distance, top dish names from linked posts, cuisine aliases, provider fallback rows with source attribution | `restaurants_search_tsv_idx`, `search_restaurants_full_text`, `restaurants_in_bounding_box`, `lib/services/restaurants.ts`, `lib/services/googlePlaces.ts` |
+| Places | `places.name`, `cuisine_type`, `suburb`, `city`, `address`, geo distance, top dish names from linked posts, cuisine aliases, provider fallback rows with source attribution | `restaurants_search_tsv_idx`, `search_restaurants_full_text`, `restaurants_in_bounding_box`, `lib/services/restaurants.ts`, `lib/services/googlePlaces.ts` |
 | Dishes | `dishes.name`, `name_normalized`, save/post counts, top photo | `dishes.search_tsv`, `dishes_search_tsv_idx`, `search_dishes_full_text`, `search_posts_by_dish` |
-| Posts | `posts.must_order`, `dish_tags.name`, `cuisine_type`, linked `hashtags.name`, `caption`, `occasion_tags`, linked restaurant evidence | `posts_search_tsv_idx`, `search_posts_full_text`, `search_posts_by_dish`, `PostsContext` |
+| Posts | `posts.must_order`, `dish_tags.name`, `cuisine_type`, linked `hashtags.name`, `caption`, `occasion_tags`, linked place evidence | `posts_search_tsv_idx`, `search_posts_full_text`, `search_posts_by_dish`, `PostsContext` |
 | People / users | `users.username`, `full_name`, follower/post counts for tie-breaking only | `users_search_tsv_idx`, user service reads, people scoring in search ranking utilities |
 | Hashtags / tags | `hashtags.name`, `post_hashtags`, `posts.dish_tags`, dietary/occasion tag routing | `suggest_searches`, `search_posts_full_text`, `search_posts_by_dish` |
 | Areas / suburbs | `suburb_aliases.alias`, `suburb_lookups`, `restaurants.suburb`, manual area filter, around-me bounds | `resolve_suburb_query`, alias cache in `lib/search/context.ts`, `restaurants_in_bounding_box` |
 
 Owner process:
 
-- Tokenization: full search uses Postgres FTS with `simple` config for restaurants/posts/users and `english` config for canonical dishes. New token rules require a migration/RPC update, this table update, and a `check:search` guardrail update.
+- Tokenization: full search uses Postgres FTS with `simple` config for places/posts/users and `english` config for canonical dishes. New token rules require a migration/RPC update, this table update, and a `check:search` guardrail update.
 - Prefix handling: main post/place RPCs and `suggest_searches` use the `word:*` prefix pattern. Autocomplete remains a compact suggestion surface, not a separate ranking system until B-578.
 - Hashtag handling: hashtags are searchable through `post_hashtags -> hashtags.name`; user-entered hash text must be normalized at write/service boundaries before it becomes searchable.
-- Dish tag handling: post `dish_tags` and canonical `dishes` are first-party food evidence. Dish matches can increase recall, but restaurant metadata remains the primary restaurant FTS branch unless B-573 changes ranking.
+- Dish tag handling: post `dish_tags` and canonical `dishes` are first-party food evidence. Dish matches can increase recall, but place metadata remains the primary place FTS branch unless B-573 changes ranking.
 - Alias ownership: cuisine/search aliases live in `CUISINE_SYNONYMS`, `CUISINE_ALIASES`, `cuisine_aliases`, `search_synonyms`, and `expand_search_cuisines`; area aliases live in `suburb_aliases` and `resolve_suburb_query`. Add aliases only when backed by product need or Rekkus evidence.
 - Re-indexing: expression indexes and stored/generated `search_tsv` columns refresh through normal Postgres writes. Any future materialized index must document owner, source tables, retry policy, max staleness, rebuild command, rollback path, and operational monitor before shipping.
-- Provider fallback: Google remains enrichment/fallback only after local evidence and the shared intent/locality gate. Ambiguous food or dish queries without GPS/manual locality must not call unbounded Google fallback. Create-post restaurant tagging may top up thin local result sets, but selected Google rows must be promoted through the restaurant graph flywheel instead of becoming a parallel provider-only result system.
+- Provider fallback: Google remains enrichment/fallback only after local evidence and the shared intent/locality gate. Ambiguous food or dish queries without GPS/manual locality must not call unbounded Google fallback. Create-post place tagging may top up thin local result sets, but selected Google rows must be promoted through the place graph flywheel instead of becoming a parallel provider-only result system.
 
 ---
 
@@ -98,15 +98,15 @@ Provider fallback/cache/error spikes are investigated through existing analytics
 | --- | --- | --- |
 | **Posts** | `PostsContext` + Supabase FTS (`search_posts_full_text`) + dish RPC | must_order + dish_tags.name (A), cuisine_type + hashtags (B), caption (C), occasion_tags (D) |
 | **People** | Demo users + Supabase `users` table | username, full_name |
-| **Places** | Demo restaurants + Supabase `restaurants` + Google Places fallback | name (FTS), cuisine_type, suburb (FTS + B-tree filter), city, address, linked top dish names |
+| **Places** | Demo places + Supabase `places` + Google Places fallback | name (FTS), cuisine_type, suburb (FTS + B-tree filter), city, address, linked top dish names |
 
 ### Autocomplete
 
-Autocomplete V2 builds a shared `SearchContext`, fires at 100ms debounce, and routes through a separate prefix path instead of full-search ranking. It returns compact suggestions typed as `restaurant`, `dish`, `post`, `area`, or `tag` (legacy `hashtag` rows normalize to `tag`). Prefix responses use a bounded in-memory cache: 60s TTL, 50 entries, normalized query + coarse location key. The Search screen renders these as compact one-line chips mixed with recent/cuisine suggestions; suggestions must never reserve card-like vertical space or obscure the live results list.
+Autocomplete V2 builds a shared `SearchContext`, fires at 100ms debounce, and routes through a separate prefix path instead of full-search ranking. It returns compact suggestions typed as `place`, `dish`, `post`, `area`, or `tag` (legacy `hashtag` rows normalize to `tag`). Prefix responses use a bounded in-memory cache: 60s TTL, 50 entries, normalized query + coarse location key. The Search screen renders these as compact one-line chips mixed with recent/cuisine suggestions; suggestions must never reserve card-like vertical space or obscure the live results list.
 
 ### Semantic search (pgvector)
 
-Posts and restaurants each have an `embedding extensions.vector(384)` column populated by the `embed-content` Edge Function using Supabase's built-in free `gte-small` model. Called as a fallback when FTS returns < 5 results via `match_embeddings()` DB function.
+Posts and places each have an `embedding extensions.vector(384)` column populated by the `embed-content` Edge Function using Supabase's built-in free `gte-small` model. Called as a fallback when FTS returns < 5 results via `match_embeddings()` DB function.
 
 ---
 
@@ -121,7 +121,7 @@ Place result rows show useful context in a stable order: cuisine when known, the
 
 Nearby controls stay quiet until the user asks for them. Tapping the Nearby quick start switches search into around-me mode, shows a single area/radius token, and opens a filter sheet for current location, manual suburb/postcode, and 2 km / 5 km / 10 km / 25 km radius choices. Search still never requests GPS on mount.
 
-The same sheet also owns scalable result filters: cuisine, occasion, value, media type, open now, and sort. Active filters render as compact tokens under the input only when set. Cuisine choices come from `lib/dataSources/cuisines.ts`, remain alphabetical/searchable, and exclude restaurant types such as cafe, bakery, bar, food truck, and fine dining.
+The same sheet also owns scalable result filters: cuisine, occasion, value, media type, open now, and sort. Active filters render as compact tokens under the input only when set. Cuisine choices come from `lib/dataSources/cuisines.ts`, remain alphabetical/searchable, and exclude place types such as cafe, bakery, bar, food truck, and fine dining.
 
 ---
 
@@ -129,7 +129,7 @@ The same sheet also owns scalable result filters: cuisine, occasion, value, medi
 
 ### Layer 1 — Query Understanding (`lib/utils/queryParser.ts`)
 
-`parseSearchQuery()` classifies every query before any DB call fires. Intent types: `cuisine`, `dish`, `restaurant`, `location`, `occasion`, `dietary`, `mixed`, `general`. Phrase detection runs bigrams/trigrams against known terms (e.g. "pad thai", "date night") before word-level splitting. Returns `ParsedQuery` with classified term lists, cleaned `searchWords` (noise-free FTS text), `isPrefix` flag for autocomplete routing, and `resolvedSuburb` from the sync alias cache.
+`parseSearchQuery()` classifies every query before any DB call fires. Intent types: `cuisine`, `dish`, `place`, `location`, `occasion`, `dietary`, `mixed`, `general`. Phrase detection runs bigrams/trigrams against known terms (e.g. "pad thai", "date night") before word-level splitting. Returns `ParsedQuery` with classified term lists, cleaned `searchWords` (noise-free FTS text), `isPrefix` flag for autocomplete routing, and `resolvedSuburb` from the sync alias cache.
 
 ### Layer 2 — Query Context (`lib/search/context.ts`)
 
@@ -145,7 +145,7 @@ Cross-entity candidate ranking now lives in `lib/search/ranking.ts`. Existing ta
 
 Intent drives which RPCs fire in parallel:
 
-1. Always: `search_restaurants_full_text` (with optional `suburb_filter` for location queries)
+1. Always: `search_restaurants_full_text` (places RPC; with optional `suburb_filter` for location queries)
 2. `dish` or `mixed` intent: also fires `search_posts_by_dish` AND `search_dishes_full_text` in parallel
 3. `dietary` intent: also queries `hashtags` for dietary tag IDs
 4. `occasion` intent: auto-applies occasion filter without touching user-visible filter state
@@ -155,14 +155,14 @@ Intent drives which RPCs fire in parallel:
 
 | RPC | Purpose |
 | --- | --- |
-| `search_restaurants_full_text` | Weighted FTS + geo multiplier. Includes `suburb` in FTS vector + optional `suburb_filter`. Supports prefix matching (`tonkat:*` matches "tonkatsu") and lower-priority tagged dish-name matches through `posts.dish_id -> dishes.name`; returns restaurant/post freshness metadata for bounded cold-start exposure. |
+| `search_restaurants_full_text` | Places full-text search: weighted FTS + geo multiplier. Includes `suburb` in FTS vector + optional `suburb_filter`. Supports prefix matching (`tonkat:*` matches "tonkatsu") and lower-priority tagged dish-name matches through `posts.dish_id -> dishes.name`; returns place/post freshness metadata for bounded cold-start exposure. |
 | `search_posts_full_text` | Weighted FTS (A=dish/tags, B=cuisine/hashtags, C=caption, D=occasion). `ts_rank_cd` for phrase queries. Also supports prefix matching for as-you-type results. |
 | `search_posts_by_dish` | Targets `must_order` + `dish_tags.name` at weight A. Falls back to pg_trgm when FTS returns 0 (returns `match_source`) |
 | `search_dishes_full_text` | FTS on `dishes.search_tsv` (`to_tsvector('english', name)`) + trigram fallback. Returns canonical `Dish` rows with `save_count`, `post_count`, `top_photo_url`, `first_posted_at`, and `latest_posted_at`. `security definer` to aggregate `saved_dishes` counts without exposing individual savers. |
-| `suggest_searches` | Prefix FTS across restaurant names, dish names, hashtags; app wrapper normalizes compact autocomplete types and area suggestions. Returns in < 50ms where feasible |
+| `suggest_searches` | Prefix FTS across place names, dish names, hashtags; app wrapper normalizes compact autocomplete types and area suggestions. Returns in < 50ms where feasible |
 | `match_embeddings` | pgvector cosine similarity. Called when FTS returns < 5 results |
 | `resolve_suburb_query` | 3-tier: exact alias → pg_trgm on `suburb_lookups` → pg_trgm on `restaurants.suburb` |
-| `refresh_restaurant_popularity_cache` | Pre-aggregates post counts, interaction counts, avg food rating. Replaces per-search analytics fetch |
+| `refresh_restaurant_popularity_cache` | Pre-aggregates place post counts, interaction counts, avg food rating. Replaces per-search analytics fetch. (RPC retains historical naming.) |
 | `refresh_trending_queries` | Aggregates `analytics_events` from last 24h with 6h recency weighting |
 
 ### Layer 5b — Typo Tolerance (trigram fallback)
@@ -171,7 +171,7 @@ All three main search RPCs use a two-phase retrieval pattern: FTS primary, trigr
 
 | RPC | Trigram field | Function | Threshold | Rationale |
 | --- | --- | --- | --- | --- |
-| `search_restaurants_full_text` | `restaurants.name` | `extensions.word_similarity(query, name)` | > 0.35 | Asymmetric — handles short query ("rmen") against longer name ("Ramen Bar"); higher threshold reduces false positives from common English words |
+| `search_restaurants_full_text` | `places.name` | `extensions.word_similarity(query, name)` | > 0.35 | Asymmetric — handles short query ("rmen") against longer name ("Ramen Bar"); higher threshold reduces false positives from common English words |
 | `search_posts_full_text` | `posts.must_order` | `extensions.similarity(must_order, query)` | > 0.30 | Symmetric, mirrors `search_posts_by_dish` existing threshold |
 | `search_dishes_full_text` | `dishes.name_normalized` | `extensions.similarity(name_normalized, query)` | > 0.30 | Pre-existing since B-544 |
 | `search_posts_by_dish` | `posts.must_order` | `extensions.similarity(must_order, query)` | > 0.25 | Pre-existing since dish-intent search shipping |
@@ -187,7 +187,7 @@ Shipped: migration `20260602000001_search_typo_tolerance.sql` (B-577). Multiling
 
 ### Layer 6 — Cross-Entity Fusion
 
-SearchCandidate fusion is deterministic and additive: each candidate keeps its source rank, receives an intent-specific entity weight, then receives a bounded source-trust adjustment. Food/dish and mixed queries favor dish → post → place, restaurant-name and location queries favor places, and people stay low unless source rank is strong. Broad food queries apply a diversity prelude so the first available dish, post, and place can appear before the normal ranked remainder.
+SearchCandidate fusion is deterministic and additive: each candidate keeps its source rank, receives an intent-specific entity weight, then receives a bounded source-trust adjustment. Food/dish and mixed queries favor dish → post → place, place-name and location queries favor places, and people stay low unless source rank is strong. Broad food queries apply a diversity prelude so the first available dish, post, and place can appear before the normal ranked remainder.
 
 Current B-573 weights:
 
@@ -195,7 +195,7 @@ Current B-573 weights:
 | --- | ---: | ---: | ---: | ---: |
 | `food_dish` | +8 | +7 | +5 | +0.5 |
 | `mixed` | +7 | +6 | +6 | +0.5 |
-| `restaurant_name` | +4 | +4 | +8 | +1 |
+| `place_name` | +4 | +4 | +8 | +1 |
 | `location` | +3 | +4 | +8 | +0.5 |
 | `general` | +4 | +5 | +5 | +2 |
 
@@ -216,7 +216,7 @@ Graph, personalization, and trending V1 metadata are additive and bounded:
 
 | Signal | Source | Max impact | Rule |
 | --- | --- | ---: | --- |
-| Dish graph evidence | Existing `posts.dish_id -> posts.restaurant_id` links | metadata only | Dish candidates expose serving restaurant IDs/count and up to 5 supporting post IDs; place candidates expose top-dish presence metadata from existing result rows |
+| Dish graph evidence | Existing `posts.dish_id -> posts.place_id` links | metadata only | Dish candidates expose serving place IDs/count and up to 5 supporting post IDs; place candidates expose top-dish presence metadata from existing result rows |
 | Personalization | Recent search terms/areas/cuisines, saved posts, saved dishes, saved restaurants | +1.2 | Adds transparent `personalizationReasons`; anonymous users receive no boost |
 | Trending entities | 7-day de-identified post/place/dish aggregates | +0.8 | Uses existing aggregate/trending readers and falls back from sparse city data to global where available |
 
@@ -266,10 +266,10 @@ When a query contains location terms (words after `near`, `in`, `around`, `at`):
 The rest of the pipeline remains unchanged:
 
 1. All non-stop words must match at least one field (OR across fields) — posts/places that fail this are excluded (score = 0)
-2. If strict post/place matching returns no local evidence, Supabase RPC `expand_search_cuisines` infers likely cuisines from existing Rekkus content and restaurant metadata
+2. If strict post/place matching returns no local evidence, Supabase RPC `expand_search_cuisines` infers likely cuisines from existing Rekkus content and place metadata
 3. Expanded cuisine results are used only as a fallback; direct lexical matches always win
-4. Supabase/local restaurant data is queried first
-5. Google Autocomplete is fallback/enrichment only after local miss, explicit outside-Rekkus behavior, or create-post identification need. Ambiguous food/dish queries without GPS or manual locality suppress unbounded Google fallback; strong restaurant-name or explicit-location queries may use fallback with analytics. Create-post tagging asks the DB for 12 candidates, tops up eligible lists with fewer than 6 local rows, and renders at most 10 merged rows.
+4. Supabase/local place data is queried first
+5. Google Autocomplete is fallback/enrichment only after local miss, explicit outside-Rekkus behavior, or create-post identification need. Ambiguous food/dish queries without GPS or manual locality suppress unbounded Google fallback; strong place-name or explicit-location queries may use fallback with analytics. Create-post tagging asks the DB for 12 candidates, tops up eligible lists with fewer than 6 local rows, and renders at most 10 merged rows.
 6. Google Autocomplete uses the centralized Places service for minimum query length, session-token-aware calls, request dedupe, stale-safe caching, and consistent key handling
 7. Provider results merge into the scored pool only with source attribution, deduplicated by source ID and name
 8. Search analytics attach a session id, query sequence, previous query, result count, selected radius, mode, and clicked result position so query chains can be reviewed without storing private payloads beyond the sanitized query string.
@@ -278,7 +278,7 @@ The rest of the pipeline remains unchanged:
 11. Filters run after broad candidate retrieval: cuisine, Rekkus Picks occasion/value, media type, and open-now narrow the ranked set without requiring a separate index.
 12. Sort modes are presentation-level: Best match keeps deterministic score order; Nearby uses distance; Newest uses post creation time; Most saved uses the existing post save/like display signal; Highest Picks prioritizes posts/places with stronger Rekkus-owned quality evidence.
 
-Create-post restaurant tagging uses the same local-first principle: every typed change updates the candidate list through a debounced DB-first search, local Rekkus matches rank ahead of provider fallback, and the UI stays one unified restaurant list rather than visible "relevant/popular/closest" sections. Thin local lists are topped up only when the intent/locality gate allows it; selected Google rows immediately create/update `restaurants`, `restaurant_sources`, `restaurant_provider_cache`, and `restaurant_audit_events`, so future searches can resolve from Supabase first.
+Create-post place tagging uses the same local-first principle: every typed change updates the candidate list through a debounced DB-first search, local Rekkus matches rank ahead of provider fallback, and the UI stays one unified place list rather than visible "relevant/popular/closest" sections. Thin local lists are topped up only when the intent/locality gate allows it; selected Google rows immediately create/update `places`, `restaurant_sources`, `restaurant_provider_cache`, and `restaurant_audit_events`, so future searches can resolve from Supabase first. Note: `restaurant_sources`, `restaurant_provider_cache`, and `restaurant_audit_events` retain historical naming.
 
 ---
 
@@ -321,7 +321,7 @@ All signals are **additive** — text score is primary, everything else is a boo
 | address                    | Strong token match                 | +1             |
 | address                    | Weak token match                   | +0.33          |
 
-The tiered token scoring prevents "indian" from matching "Indianapolis" at full strength — "indianapolis" is only 50% covered by "indian" (< 80%), so it scores at 33% weight. The restaurant still appears, just ranked below actual Indian restaurants.
+The tiered token scoring prevents "indian" from matching "Indianapolis" at full strength — "indianapolis" is only 50% covered by "indian" (< 80%), so it scores at 33% weight. The place still appears, just ranked below actual Indian places.
 
 ### Rekkus Picks boost (posts)
 
@@ -346,7 +346,7 @@ Legacy `food_rating` remains a fallback quality signal for older posts.
 
 ### Popularity boost (places)
 
-Measured by number of Rekkus posts linked to that restaurant (`post.restaurantId`).
+Measured by number of Rekkus posts linked to that place (`post.placeId`).
 
 | Post count | Boost |
 | ---------- | ----- |
@@ -356,7 +356,7 @@ Measured by number of Rekkus posts linked to that restaurant (`post.restaurantId
 
 ### Rekkus avg food rating boost (places)
 
-Average `food_rating` across all linked posts for this restaurant.
+Average `food_rating` across all linked posts for this place.
 
 | Avg food rating | Boost |
 | --------------- | ----- |
@@ -366,11 +366,11 @@ Average `food_rating` across all linked posts for this restaurant.
 
 ### Google rating boost (places)
 
-Cached from Google Places Details API when a user first views a location detail page and local/cache data is missing or stale. Provider snapshots belong in `restaurant_provider_cache`; canonical restaurant ranking prefers Rekkus-owned signals first. Existing `restaurants.google_rating` and `restaurants.google_review_count` remain compatibility fields until the provider-independent cache fully owns this path.
+Cached from Google Places Details API when a user first views a place detail page and local/cache data is missing or stale. Provider snapshots belong in `restaurant_provider_cache` (historical name retained); canonical place ranking prefers Rekkus-owned signals first. Existing `places.google_rating` and `places.google_review_count` remain compatibility fields until the provider-independent cache fully owns this path.
 
-Google rating only contributes when the restaurant has no linked Rekkus food-rating evidence. It is a provider fallback, not a primary ranking signal.
+Google rating only contributes when the place has no linked Rekkus food-rating evidence. It is a provider fallback, not a primary ranking signal.
 
-Google Place IDs are durable provider identifiers and can be retained in `restaurant_sources`; broader Google content stays field-mask limited, source-attributed, and governed by provider-cache freshness/retention. Raw autocomplete prediction payloads must not be persisted as a search index.
+Google Place IDs are durable provider identifiers and can be retained in `restaurant_sources` (historical name retained); broader Google content stays field-mask limited, source-attributed, and governed by provider-cache freshness/retention. Raw autocomplete prediction payloads must not be persisted as a search index.
 
 | Google star rating | Boost |
 | ------------------ | ----- |
@@ -385,7 +385,7 @@ Google Place IDs are durable provider identifiers and can be retained in `restau
 
 ### Personalisation boost (places)
 
-Saved restaurants get a bounded +1.25 boost for the signed-in user. Restaurants sharing a cuisine with saved places get a small +0.4 boost. This is intentionally weaker than exact text, distance, and first-party quality signals.
+Saved places get a bounded +1.25 boost for the signed-in user. Places sharing a cuisine with saved places get a small +0.4 boost. This is intentionally weaker than exact text, distance, and first-party quality signals.
 
 ### In-app interaction boost (places)
 
@@ -400,7 +400,7 @@ Saved restaurants get a bounded +1.25 boost for the signed-in user. Restaurants 
 
 ### Google Autocomplete food-type boost
 
-Google Autocomplete returns a `types` array per prediction. Food establishments (`restaurant`, `food`, `cafe`, `meal_takeaway`, `bakery`, `bar`) get +2.0. Non-food places (churches, laundries, consulates) get no boost and naturally rank below restaurants.
+Google Autocomplete returns a `types` array per prediction. Food establishments (`restaurant`, `food`, `cafe`, `meal_takeaway`, `bakery`, `bar`) get +2.0. Non-food places (churches, laundries, consulates) get no boost and naturally rank below food places.
 
 ### Distance boost (posts + places)
 
@@ -414,9 +414,9 @@ Requires an explicit user action in `lib/hooks/useUserLocation.ts`: either "Use 
 | < 15 km  | +0.5  |
 | ≥ 15 km  | 0     |
 
-Google Autocomplete receives `location={lat},{lng}&radius=50000&strictbounds=true` when user coordinates are available. `strictbounds=true` hard-restricts results to the 50 km metro area; the earlier `radius=10000` with no strictbounds was a soft bias that Google routinely overrode with globally-popular text matches. For create-post restaurant tagging, `searchRestaurantsByText` also passes `near_lat`/`near_lng` to the DB RPC so the PostgreSQL distance multipliers activate.
+Google Autocomplete receives `location={lat},{lng}&radius=50000&strictbounds=true` when user coordinates are available. `strictbounds=true` hard-restricts results to the 50 km metro area; the earlier `radius=10000` with no strictbounds was a soft bias that Google routinely overrode with globally-popular text matches. For create-post place tagging, `searchRestaurantsByText` also passes `near_lat`/`near_lng` to the DB RPC so the PostgreSQL distance multipliers activate.
 
-Create-post restaurant tagging uses a tag-specific intent layer before provider fallback. Strong restaurant names can use the existing fallback path, venue categories such as cafe, bakery, brunch, bar, and coffee require local DB matches or user locality before Google, and dish/menu terms such as omelette stay restaurant-first so the user can tag dishes after selecting a venue. The empty state must expose the correct next action instead of presenting every broad query as “no results.”
+Create-post place tagging uses a tag-specific intent layer before provider fallback. Strong place names can use the existing fallback path, venue categories such as cafe, bakery, brunch, bar, and coffee require local DB matches or user locality before Google, and dish/menu terms such as omelette stay place-first so the user can tag dishes after selecting a venue. The empty state must expose the correct next action instead of presenting every broad query as “no results.”
 
 ### Radius, near-you, open/closed, and time-of-day hints
 
@@ -434,11 +434,11 @@ Canonical cuisine options live in `lib/dataSources/cuisines.ts`. Operator-manage
 
 When a search word has no direct text match, we check if the word maps to a cuisine and score against `cuisine_type`.
 
-Cuisine is not restaurant type. Values such as cafe, bakery, bar, food truck, and fine dining belong to a future restaurant-type filter, not the cuisine picker.
+Cuisine is not place type. Values such as cafe, bakery, bar, food truck, and fine dining belong to a future place-type filter, not the cuisine picker.
 
 Examples:
 
-- `ramen` → `['japanese']` — a Japanese restaurant scores +2 even if "ramen" isn't in its name
+- `ramen` → `['japanese']` — a Japanese place scores +2 even if "ramen" isn't in its name
 - `curry` → `['indian']`
 - `dumpling` → `['chinese', 'asian']`
 - `taco` → `['mexican']`
@@ -457,9 +457,9 @@ The function searches existing Rekkus evidence:
 - `posts.must_order`
 - `posts.cuisine_type`
 - linked `hashtags.name`
-- linked restaurant `name`, `cuisine_type`, `city`, and `address`
+- linked place `name`, `cuisine_type`, `city`, and `address`
 
-It returns up to 3 cuisine candidates with weighted match counts. Post evidence counts more than restaurant metadata because a review saying "tiramisu" on an Italian post is stronger than a broad restaurant text match.
+It returns up to 3 cuisine candidates with weighted match counts. Post evidence counts more than place metadata because a post saying "tiramisu" on an Italian post is stronger than a broad place text match.
 
 Client behavior:
 
@@ -527,7 +527,7 @@ Search quality is measured via `search_session_end` events (fired on `SearchScre
 | 2026-05-08 | Cuisine synonym map (`CUISINE_SYNONYMS`)                                                                                                                                                                                              | "ramen" now surfaces Japanese restaurants even without "ramen" in the name — mirrors Uber Eats knowledge graph approach at our scale                                                 |
 | 2026-05-08 | Quality boost for posts (food rating)                                                                                                                                                                                                 | Higher-rated posts float above equal-scored ones — mirrors Yelp/Google quality signal                                                                                                |
 | 2026-05-08 | Popularity boost for places (Rekkus post count)                                                                                                                                                                                       | Places with more community activity rank higher — mirrors Google prominence signal                                                                                                   |
-| 2026-05-08 | Rekkus avg food rating boost per restaurant                                                                                                                                                                                           | Community-rated places surface above unrated ones                                                                                                                                    |
+| 2026-05-08 | Rekkus avg food rating boost per place                                                                                                                                                                                                | Community-rated places surface above unrated ones                                                                                                                                    |
 | 2026-05-08 | Google rating + review count boost (cached lazily)                                                                                                                                                                                    | Industry-standard quality signal; populates on first location detail view                                                                                                            |
 | 2026-05-08 | 30-day in-app interaction boost (place_click + place_view)                                                                                                                                                                            | Trending and popular places rank higher — data from analytics_events                                                                                                                 |
 | 2026-05-08 | Google Autocomplete food-type boost (+2.0)                                                                                                                                                                                            | Churches, laundries, consulates rank below food establishments without hard-excluding them                                                                                           |
@@ -538,24 +538,24 @@ Search quality is measured via `search_session_end` events (fired on `SearchScre
 | 2026-05-12 | Around-me mode, radius filtering, near-you labels, cached open-now signal, time-of-day hints, saved-place personalization, bounded popularity boosts, full-text indexes, cuisine aliases, and PostGIS-backed bounding-box RPC shipped | Completes the V1 local discovery utility pass while keeping ranking explainable                                                                                                      |
 | 2026-05-18 | Search screen redesigned around discovery/results states, compact filters, result tabs, and a Nearby filter sheet                                                                                                                     | Reduces visual clutter while preserving deterministic ranking, provider fallback, and opt-in location behavior                                                                       |
 | 2026-05-31 | Search session observability shipped: `search_session_end` + `search_abandon` events, zero-result / abandonment / P95 SQL queries documented (B-538, B-539)                                                                           | Enables data-driven search quality monitoring; zero-result rate and abandonment now measurable                                                                                           |
-| 2026-05-31 | Added `top_dishes` pill row to restaurant search cards (B-545): `search_restaurants_full_text` and `restaurants_in_bounding_box` now return the 3 most-posted dish names per restaurant                                                | Post-aggregated dish names are the highest-value missing signal when evaluating restaurants for a dish-specific query (e.g. "ramen") — surfaces without any new user input              |
+| 2026-05-31 | Added `top_dishes` pill row to place search cards (B-545): `search_restaurants_full_text` and `restaurants_in_bounding_box` now return the 3 most-posted dish names per place                                                          | Post-aggregated dish names are the highest-value missing signal when evaluating places for a dish-specific query (e.g. "ramen") — surfaces without any new user input                  |
 | 2026-06-01 | People results ranking: added log-scaled follower-count tie-breaker in `scorePerson()` — `Math.log1p(followerCount) * 0.1` (B-546). `follower_count` and `post_count` cached on `users` table via triggers; DB extras now scored and sorted. | Two accounts with identical text-match scores were ordered by DB insertion time; active creators now surface above zero-activity accounts without overriding any text-match tier. |
 | 2026-06-01 | Location-aware trending shipped (B-550): `trending_searches` stores `near_city`, search analytics records DB-resolved city from existing coordinates, and discovery trending/popular places read city rows before global fallback. | Melbourne and Sydney users no longer share one global trending surface; sparse city data still falls back to global after fewer than 4 local rows. |
 | 2026-05-31 | Regression test coverage for search ranking (B-547): `scorePost`, `scorePlace`, `scorePerson`, `scoreExpandedPost/Place`, dish-intent boost, distance ordering, and place expansion invariants added to `tests/unit/lib/utils/searchScoring.test.ts`. Coverage raised from 48% → 68%; ratchet locked in `jest.config.js`. | Scoring logic had zero tests — any weight or synonym change was a manual QA exercise. Invariants now fail loudly. |
 | 2026-06-01 | DB-backed search synonym store shipped (B-551): `search_synonyms` owns cuisine, occasion, and dietary query vocabulary with a 24h app cache and local fallback constants. | Operators can add vocabulary like `boba` or `bbq` without an app deploy while search remains usable offline. |
-| 2026-06-01 | Fixed create-post restaurant search location bias (root cause fix): (1) Google Autocomplete upgraded from soft 10km bias to hard `strictbounds=true` with 50km radius — prevents globally-popular text matches (Beef & Boards USA, Beefbar Paris) from appearing for Sydney users; (2) `searchRestaurantsByText` now passes `near_lat`/`near_lng` to the `search_restaurants_full_text` RPC so DB distance multipliers activate; (3) migration `20260601000006` adds distance penalty tiers (5–50km ×0.7, > 50km ×0.15) to the RPC so cross-continental results are structurally suppressed when user coordinates are provided; (4) haversine `distanceKm` computed and appended to Rekkus search result secondary text as a trust signal. | Sydney user searching "Beef" received USA/Paris/Bangkok results first because the DB search used no coordinates and the Google fallback had only a soft location bias. |
-| 2026-06-01 | Dish-name matching added to restaurant FTS (B-563): `search_restaurants_full_text` now matches restaurants whose tagged posts point to canonical dishes containing the query, with dish matches ranked below direct restaurant metadata matches and below exact metadata prefix tiers. | Dish-intent create-post searches like "Beef" can surface local Rekkus restaurants serving Beef Tataki or Beef Brisket even when the restaurant name/cuisine/address does not contain the dish term. |
+| 2026-06-01 | Fixed create-post place search location bias (root cause fix): (1) Google Autocomplete upgraded from soft 10km bias to hard `strictbounds=true` with 50km radius — prevents globally-popular text matches (Beef & Boards USA, Beefbar Paris) from appearing for Sydney users; (2) `searchRestaurantsByText` now passes `near_lat`/`near_lng` to the `search_restaurants_full_text` RPC so DB distance multipliers activate; (3) migration `20260601000006` adds distance penalty tiers (5–50km ×0.7, > 50km ×0.15) to the RPC so cross-continental results are structurally suppressed when user coordinates are provided; (4) haversine `distanceKm` computed and appended to Rekkus search result secondary text as a trust signal. | Sydney user searching "Beef" received USA/Paris/Bangkok results first because the DB search used no coordinates and the Google fallback had only a soft location bias. |
+| 2026-06-01 | Dish-name matching added to place FTS (B-563): `search_restaurants_full_text` now matches places whose tagged posts point to canonical dishes containing the query, with dish matches ranked below direct place metadata matches and below exact metadata prefix tiers. | Dish-intent create-post searches like "Beef" can surface local Rekkus places serving Beef Tataki or Beef Brisket even when the place name/cuisine/address does not contain the dish term. |
 | 2026-06-01 | Dish-first Top tab ordering shipped (B-558): dish or mixed query intent renders dish posts above places in the Top tab while non-dish intents keep the existing places-first order. | Dish-intent searches like "matcha" and "carbonara" now lead with the content unit Rekkus differentiates on: specific dishes people recommend. |
 | 2026-06-01 | Engagement-derived no-results suggestions shipped (B-560): B-555 cuisine metadata from post/place views and saves now feeds `UserTasteContext` after search text affinities and before recent/trending fallbacks. | Users who browse or save cuisine-heavy content get relevant recovery chips even if they have sparse search history. |
 | 2026-06-01 | Server-side personalized suggestions RPC shipped (B-557): `get_personalized_suggestions` combines own search, engagement, saves, topics, and trending signals; the client renders local chips immediately and swaps in server chips when available. | No-results recovery can use full account history without shipping broad interaction history to the device, while preserving a zero-latency fallback. |
-| 2026-06-01 | Location permission nudge shipped in create-post restaurant search (B-565): `useRestaurantSearch` now exposes `locationStatus` and `requestLocation`; `StepMedia` renders a dismissible accent-tinted nudge below the search field when `status` is `idle` or `denied`; tapping requests GPS and collapses the nudge on grant; dismiss closes without requesting; 4 regression tests added to `tests/unit/features/StepMedia.test.tsx`. | Users with GPS off received zero or globally-degraded results with no explanation; the nudge surfaces the problem and provides a one-tap fix without blocking search. |
+| 2026-06-01 | Location permission nudge shipped in create-post place search (B-565): `useRestaurantSearch` now exposes `locationStatus` and `requestLocation`; `StepMedia` renders a dismissible accent-tinted nudge below the search field when `status` is `idle` or `denied`; tapping requests GPS and collapses the nudge on grant; dismiss closes without requesting; 4 regression tests added to `tests/unit/features/StepMedia.test.tsx`. | Users with GPS off received zero or globally-degraded results with no explanation; the nudge surfaces the problem and provides a one-tap fix without blocking search. |
 | 2026-06-02 | Trigram typo tolerance added to `search_restaurants_full_text` and `search_posts_full_text` (B-577 partial): `trgm_ranked`/`trgm_results` CTE gated by `not exists` on FTS zero-result path. `word_similarity > 0.35` on `restaurants.name`; `similarity > 0.30` on `posts.must_order`. Distance multiplier tiers preserved in trigram branch. No new indexes. | "japaneze", "rmen", "brgr" returned zero results; trigram fallback provides typo recovery without degrading FTS precision for normal queries. |
 | 2026-06-02 | Search quality test suite shipped (B-586): `tests/unit/lib/search/quality.test.ts` (ranking principle tests) and `tests/unit/lib/search/generated.test.ts` (deterministic generated scenarios) added to `check:search`. | Scoring weight changes were invisible regressions; ordering invariants now fail loudly. |
-| 2026-06-02 | Cross-entity candidate ranking shipped (B-573): `rankSearchCandidates()` applies deterministic source rank, intent/entity weights, source-trust adjustments, and a food-query diversity prelude for top dish/top post/top place candidates. | Universal search can rank dishes, posts, places, and people in one candidate stream without turning Top into a restaurant-heavy append-only list; rollback is bypassing `rankSearchCandidates()` and returning raw candidates. |
+| 2026-06-02 | Cross-entity candidate ranking shipped (B-573): `rankSearchCandidates()` applies deterministic source rank, intent/entity weights, source-trust adjustments, and a food-query diversity prelude for top dish/top post/top place candidates. | Universal search can rank dishes, posts, places, and people in one candidate stream without turning Top into a place-heavy append-only list; rollback is bypassing `rankSearchCandidates()` and returning raw candidates. |
 | 2026-06-02 | Search Freshness V1 shipped (B-574): unified search candidates receive bounded `freshness_boost` (+0.9 max), `cold_start_exposure` (+0.6 max), and stale `popularity_decay` (-0.6 max). Freshness decays over 30 days and is zero after 90 days; provider fallback rows receive no freshness. | Popular results should not dominate forever; new quality posts, dishes, and restaurants need measured exposure without beating strong text/source relevance. |
 | 2026-06-03 | Safe B-560-B-580 search pass shipped: B-577 closed, autocomplete V2 uses SearchContext with 60s/50-entry in-memory cache, full search uses 30s/50-entry in-memory cache, dish candidates expose graph evidence, candidate ranking applies bounded personalization (+1.2 max) and trending (+0.8 max) metadata. | Search gets faster and more evidence-rich without a new index, AI system, persisted query cache, or raw provider payload storage. Rollback: clear/bypass `createSearchMemoryCache`, omit metadata from `buildSearchCandidates()`, or set personalization/trending max boosts to 0. |
 | 2026-06-03 | Search governance pass shipped (B-581-B-584): `lib/search/health.ts` summarizes aggregate health thresholds; `rankSearchCandidates()` adds exact/nearby/popular/trending explanation badges, keyword-stuffing penalty, and provider-ID duplicate suppression; ranking governance now requires metric, rollback, owner, review date, tests, and tuning-log evidence. | Search ranking changes need operational visibility and trust controls without a new dashboard dependency, ML system, or parallel experiment framework. Rollback: bypass `buildSearchHealthReport()`, remove trust adjustments from `trustSignal()`, or return raw candidates before `rankSearchCandidates()`. |
-| 2026-06-12 | Create-post restaurant tagging now requests 12 DB rows, tops up eligible thin local lists with Google when fewer than 6 local rows exist, caps the merged list at 10, and records top-up fallback as `thin_local_results`. | Location tagging felt sparse when 1-2 local DB rows blocked provider fallback entirely. The fix gives users more options while keeping DB-first ranking, no-location food-query suppression, strictbounded locality, and selected-result provider-cache flywheel behavior. |
+| 2026-06-12 | Create-post place tagging now requests 12 DB rows, tops up eligible thin local lists with Google when fewer than 6 local rows exist, caps the merged list at 10, and records top-up fallback as `thin_local_results`. | Location tagging felt sparse when 1-2 local DB rows blocked provider fallback entirely. The fix gives users more options while keeping DB-first ranking, no-location food-query suppression, strictbounded locality, and selected-result provider-cache flywheel behavior. |
 
 ---
 
@@ -592,7 +592,7 @@ Search quality is validated at two levels (B-586):
 
 - Beef post ranks above chicken post for "beef" query (text relevance)
 - Nearby place (<500m) ranks above far place (Melbourne) at equal quality (distance)
-- Restaurant with 5 Rekkus posts ranks above 0-post restaurant at equal text score (popularity)
+- Place with 5 Rekkus posts ranks above 0-post place at equal text score (popularity)
 - Rekkus pick post (`worth_a_trip`) ranks above standard post at same FTS rank (quality signal)
 - Cuisine keyword routes through `cuisine_type` only, not name (entity intent routing)
 - Dish-matched post with `dishPostIds` entry ranks above same-FTS-rank post without one
@@ -610,7 +610,7 @@ Governance: `check:search` fails if either file is absent.
 - Google Autocomplete bias radius is fixed at 10 km even when the local radius control is wider or narrower
 - Data-driven expansion only works when Rekkus already has content evidence for the query
 - People results have no quality or distance signal (no location data on users)
-- Popularity boost uses `post.restaurantId` linkage — posts without a linked restaurant don't contribute
+- Popularity boost uses `post.placeId` linkage — posts without a linked place don't contribute
 
 ---
 

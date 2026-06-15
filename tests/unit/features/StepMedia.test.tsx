@@ -262,7 +262,7 @@ describe('StepMedia — empty state and media present', () => {
 
   it('shows clean empty state with camera icon and Add photos button when no media', () => {
     render(<StepMedia {...defaultProps} />)
-    expect(screen.getByText('Add your photos')).toBeTruthy()
+    expect(screen.getByText('Add your photos or videos')).toBeTruthy()
     expect(screen.getByLabelText('Add photos or video')).toBeTruthy()
     // Recent photos strip is gone
     expect(screen.queryByText('RECENTS')).toBeNull()
@@ -344,7 +344,7 @@ describe('StepMedia picker deferral', () => {
     expect(mockLaunchCamera).not.toHaveBeenCalled()
 
     await act(async () => {
-      jest.advanceTimersByTime(350)
+      jest.advanceTimersByTime(500)
       await null
     })
     expect(mockLaunchCamera).toHaveBeenCalledTimes(1)
@@ -362,7 +362,7 @@ describe('StepMedia picker deferral', () => {
     expect(mockLaunchLibrary).not.toHaveBeenCalled()
 
     await act(async () => {
-      jest.advanceTimersByTime(350)
+      jest.advanceTimersByTime(500)
       await null
     })
     expect(mockLaunchLibrary).toHaveBeenCalledTimes(1)
@@ -382,14 +382,14 @@ describe('StepMedia picker deferral', () => {
     act(() => { capturedMediaOnSelect!('library') })
 
     await act(async () => {
-      jest.advanceTimersByTime(350)
+      jest.advanceTimersByTime(500)
       await null
     })
 
     await waitFor(() => {
       expect(screen.getByText('Could not add media')).toBeTruthy()
     })
-    expect(screen.getByText('Could not open your photo library. Please try again.')).toBeTruthy()
+    expect(screen.getByText('Could not open your media library. Please try again.')).toBeTruthy()
     expect(mockUploadFailure).toHaveBeenCalledWith(null, 'post_media_picker', 'picker_unavailable')
     expect(mockMediaEvent).toHaveBeenCalledWith(null, 'media_prepare_failed', 'post_create', {
       reason: 'present failed',

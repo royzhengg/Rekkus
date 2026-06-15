@@ -10,6 +10,7 @@ describe('routes', () => {
     ['user following', routes.userFollows('roy', 'following'), { pathname: '/user/[username]/follows', params: { username: 'roy', listType: 'following' } }],
     ['conversation info', routes.conversationInfo('conv-1'), { pathname: '/messages/info', params: { conversationId: 'conv-1' } }],
     ['draft edit', routes.draftEdit('draft-1'), { pathname: '/create', params: { draftId: 'draft-1' } }],
+    ['manage top spots', routes.manageTopSpots(), { pathname: '/manage-top-spots' }],
   ])('builds the %s route contract', (_label, route, expected) => {
     expect(route).toEqual(expected)
   })

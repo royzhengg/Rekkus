@@ -29,8 +29,6 @@ const locAllowlist = new Set([
 const sharedLocAllowlist = new Map([
   // B-405: dish tag onboarding tooltip added first-time disclosure; extract tag modal to reduce — B-405
   ['components/post-create/StepMedia.tsx', 'B-405: dish tag onboarding tooltip added first-time disclosure; extract tag modal to reduce — B-405'],
-  // B-587/B-588: place stub cache + food category Text Search added; extract provider helpers to reduce — B-587
-  ['lib/services/places.ts', 'B-587/B-588: place stub cache + food category Text Search added; extract provider helpers to reduce — B-587'],
 ])
 const supabaseAllowlist = new Map()
 

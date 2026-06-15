@@ -74,6 +74,57 @@ DROP FUNCTION IF EXISTS public.refresh_restaurant_popularity_cache();
 -- 6. Recreate functions with updated table/column/string references
 -- ---------------------------------------------------------------------------
 
+-- find_or_create_dish: dishes.restaurant_id was renamed to place_id
+CREATE OR REPLACE FUNCTION public.find_or_create_dish(
+  p_name          text,
+  p_restaurant_id uuid,
+  p_cuisine_type  text    DEFAULT NULL,
+  p_created_by    uuid    DEFAULT NULL,
+  p_context       jsonb   DEFAULT NULL
+) RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_id         uuid;
+  v_normalized text    := lower(trim(p_name));
+  v_is_new     boolean := false;
+BEGIN
+  SELECT id INTO v_id
+  FROM public.dishes
+  WHERE name_normalized = v_normalized
+    AND place_id = p_restaurant_id
+  LIMIT 1;
+
+  IF v_id IS NOT NULL THEN
+    RETURN v_id;
+  END IF;
+
+  INSERT INTO public.dishes (name, place_id, cuisine_type, created_by)
+  VALUES (p_name, p_restaurant_id, p_cuisine_type, p_created_by)
+  ON CONFLICT (name_normalized, place_id) DO NOTHING
+  RETURNING id INTO v_id;
+
+  IF v_id IS NOT NULL THEN
+    v_is_new := true;
+  ELSE
+    SELECT id INTO v_id
+    FROM public.dishes
+    WHERE name_normalized = v_normalized
+      AND place_id = p_restaurant_id
+    LIMIT 1;
+  END IF;
+
+  IF v_is_new THEN
+    INSERT INTO public.dish_audit_events (dish_id, user_id, event_type, context)
+    VALUES (v_id, p_created_by, 'created', p_context);
+  END IF;
+
+  RETURN v_id;
+END;
+$$;
+
 -- add_saved_target_to_collection
 create or replace function public.add_saved_target_to_collection(
   p_collection_id uuid,

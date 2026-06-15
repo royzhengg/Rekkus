@@ -44,6 +44,7 @@ type Props = {
   options: RekkusActionSheetOption[]
   onSelect: (value: string) => void
   onDismiss: () => void
+  onAfterDismiss?: () => void
 }
 
 const DISMISS_THRESHOLD = 80
@@ -57,6 +58,7 @@ export function RekkusActionSheet({
   options,
   onSelect,
   onDismiss,
+  onAfterDismiss,
 }: Props) {
   const colors = useThemeColors()
   const insets = useSafeAreaInsets()
@@ -90,6 +92,7 @@ export function RekkusActionSheet({
       transparent
       animationType={reduceMotion ? 'none' : 'slide'}
       onRequestClose={onDismiss}
+      onDismiss={onAfterDismiss}
       accessibilityViewIsModal
     >
       <Pressable

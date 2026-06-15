@@ -40,17 +40,17 @@ Use this file to navigate Rekkus quickly.
 
 - **Routes**: `app/create/index.tsx` (modal), `app/create/drafts.tsx`
 - **Components**: `components/post-create/StepMedia.tsx`, `components/post-create/StepDetails.tsx`, `components/post-create/StepReview.tsx`
-- **Hooks**: `lib/hooks/useRestaurantSearch.ts` (debounced DB+Google autocomplete, nearby fetch, place details + upsert orchestration), `lib/hooks/useRecentPhotos.ts` (device media library, permission recovery)
-- **Services**: `lib/services/restaurants.ts`, `lib/services/media.ts`, `lib/services/postMediaProcessing.ts`
+- **Hooks**: `lib/hooks/usePlaceSearch.ts` (debounced DB+Google autocomplete, nearby fetch, place details + upsert orchestration), `lib/hooks/useRecentPhotos.ts` (device media library, permission recovery)
+- **Services**: `lib/services/places.ts` (barrel; sub-modules: `places/google.ts`, `places/cache.ts`, `places/analytics.ts`, `places/governance.ts`), `lib/services/media.ts`, `lib/services/postMediaProcessing.ts`
 
 ### Saved Library And Dish Details
 
 - **Screens**: `features/saved/SavedScreen.tsx`, `features/saved/CollectionDetailScreen.tsx`, `features/dishes/DishDetailScreen.tsx`
-- **Routes**: `app/(tabs)/saved.tsx`, `app/collections/[collectionId].tsx`, `app/dishes/[dishId].tsx`; legacy `app/(tabs)/restaurants.tsx` and `app/(tabs)/places.tsx` redirect to Saved places
+- **Routes**: `app/(tabs)/saved.tsx`, `app/collections/[collectionId].tsx`, `app/dishes/[dishId].tsx`
 - **Components**: `components/CollectionPickerSheet.tsx`, `components/SavedTargetCollectionSheets.tsx`
 - **Hooks**: `lib/hooks/useDishDetail.ts`, `lib/hooks/useSavedDishes.ts`, `lib/hooks/useCollectionPicker.ts`
 - **Services**: `lib/services/dishes.ts`, `lib/services/collections.ts`, `lib/services/posts.ts`
-- **Persistence**: `saved_dishes`, mixed `collection_items` targets (`dish`, `restaurant`, `post`), atomic collection/save RPCs in `supabase/migrations/20260526000003_dish_details_saved_library.sql`
+- **Persistence**: `saved_dishes`, mixed `collection_items` targets (`dish`, `place`, `post`), atomic collection/save RPCs in `supabase/migrations/20260526000003_dish_details_saved_library.sql`
 
 ### Direct Messaging
 

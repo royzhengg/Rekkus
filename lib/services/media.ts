@@ -20,6 +20,8 @@ type PickedAsset = {
   fileSize?: number | null
   type?: string | null
   duration?: number | null
+  width?: number | null
+  height?: number | null
 }
 
 export type MediaValidationResult = {
@@ -31,6 +33,10 @@ export type ValidatedPostMedia = {
   uri: string
   type: 'image' | 'video'
   mimeType: string | null
+  fileSize?: number | null
+  duration?: number | null
+  width?: number | null
+  height?: number | null
 }
 
 export type PostMediaValidationResult = {
@@ -84,11 +90,11 @@ export function validatePickedPostImages(
 
 export function validatePickedPostMedia(
   assets: PickedAsset[],
-  existingCount = 0
+  existingCount = 0,
+  existingVideoCount = 0
 ): PostMediaValidationResult {
   const acceptedMedia: ValidatedPostMedia[] = []
   const remaining = Math.max(0, MEDIA_LIMITS.maxPostMedia - existingCount)
-  const existingVideos = 0
 
   for (const asset of assets) {
     if (acceptedMedia.length >= remaining) break
@@ -100,7 +106,7 @@ export function validatePickedPostMedia(
 
     if (looksVideo) {
       const acceptedVideos = acceptedMedia.filter(item => item.type === 'video').length
-      if (existingVideos + acceptedVideos >= MEDIA_LIMITS.maxPostVideos) continue
+      if (existingVideoCount + acceptedVideos >= MEDIA_LIMITS.maxPostVideos) continue
       if (asset.fileSize && asset.fileSize > MEDIA_LIMITS.maxPostVideoBytes) {
         return { acceptedMedia, rejectedCount: assets.length, error: 'Video exceeds 100 MB limit.' }
       }
@@ -108,13 +114,21 @@ export function validatePickedPostMedia(
         return { acceptedMedia, rejectedCount: assets.length, error: 'Videos must be 60 seconds or less.' }
       }
       if (!isAllowedVideoExtension(extension) && !isAllowedVideoMimeType(mimeType)) continue
-      acceptedMedia.push({ uri: asset.uri, type: 'video', mimeType })
+      acceptedMedia.push({
+        uri: asset.uri, type: 'video', mimeType,
+        fileSize: asset.fileSize ?? null, duration: asset.duration ?? null,
+        width: asset.width ?? null, height: asset.height ?? null,
+      })
       continue
     }
 
     if (asset.fileSize && asset.fileSize > MEDIA_LIMITS.maxImageBytes) continue
     if (!isAllowedExtension(extension) || !isAllowedMimeType(mimeType)) continue
-    acceptedMedia.push({ uri: asset.uri, type: 'image', mimeType })
+    acceptedMedia.push({
+      uri: asset.uri, type: 'image', mimeType,
+      fileSize: asset.fileSize ?? null,
+      width: asset.width ?? null, height: asset.height ?? null,
+    })
   }
 
   return {

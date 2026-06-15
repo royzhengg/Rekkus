@@ -29,8 +29,8 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 
 | Screen        | File                         | Status  |
 | ------------- | ---------------------------- | ------- |
-| Restaurant info | `app/restaurants/[restaurantId]/index.tsx` | ✅ Done |
-| Restaurant map  | `app/restaurants/[restaurantId]/map.tsx`       | ✅ Done |
+| Place info | `app/restaurants/[restaurantId]/index.tsx` | ✅ Done |
+| Place map  | `app/restaurants/[restaurantId]/map.tsx`       | ✅ Done |
 
 ### Auth — `app/(auth)/`
 
@@ -108,15 +108,15 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 - Saved drafts sync through Supabase, include private draft media previews, show newest first, and can be resumed, duplicated with numbered names, saved as a new draft, or soft-discarded without creating a public post.
 - **Dish tagging** (Step 1): persistent "Tag dishes" pill button below media strip after photo is added; first-time discovery hint shown once via `AsyncStorage` flag; tap to enter full-screen overlay; placed tags render as pill labels on the photo; tagged dish names shown as de-duped chips below strip; tags carry `mediaLocalId`/`mediaId` so they survive reorder.
 - **3:4 cover crop**: "3:4 cover" button in Step 1 → `launchImageLibraryAsync({ allowsEditing: true, aspect: [3,4] })` → replaces cover photo with native-cropped version.
-- **Step 2 mandatory fields** (required to advance): body text review, taste verdict Rekkus Pick, and cuisine type.
+- **Step 2 mandatory fields** (required to advance): body text, taste verdict Rekkus Pick, and cuisine type.
 - **Rekkus Picks** (Step 2): Taste verdict (required) and Value verdict (optional) use direct inline chip rows — no tab switching. Numeric food/vibe/cost ratings removed entirely.
 - **Occasion tags** (Step 2, optional): multi-select up to 3 (quick_bite, solo, casual, date, group, special).
 - **Must order** (Step 2, optional): freetext or select from dish-tagged names.
 - **Community intel toggles** (Step 2, optional): "Cash discounts" (`cashDiscount` on the post) and "Google review freebie" (`googleReviewFreebie` on the post) — surface place-level intelligence not captured by any other app.
 - Cuisine picker uses a searchable alphabetical list from `lib/dataSources/cuisines.ts`; cuisine is separate from restaurant type.
 - Hashtag tokeniser (space/enter adds `#tag` pill, max 10 tags).
-- **Step 3 Preview** shows a real preview card matching feed render; "Save draft" secondary button and primary "Post review" CTA; "Edit media" and "Edit review" affordances to jump back.
-- Location picker — local-first restaurant lookup with Google Places Autocomplete fallback (REST, no library), updates while typing, shows cuisine/location context in one unified ranked list, links to canonical `places.id`, and records source/observation metadata.
+- **Step 3 Preview** shows a real preview card matching feed render; "Save draft" secondary button and primary "Post" CTA; "Edit media" and "Edit post" affordances to jump back.
+- Place picker — local-first place lookup with Google Places Autocomplete fallback (REST, no library), updates while typing, shows cuisine/location context in one unified ranked list, links to canonical `places.id`, and records source/observation metadata.
 - Auth gate on mount — guests are prompted before accessing.
 
 ### Alerts
@@ -150,8 +150,8 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 - Dedicated bottom nav tab (replaced Alerts tab)
 - **List view**: alphabetical with letter headers (A, B, C…) or sorted by "Last saved" / "Oldest saved"
 - Sort button → `RekkusActionSheet` with 3 options: A–Z, Last saved, Oldest saved
-- **Post-visit prompt**: after explicit location use, `usePostVisitPrompt` checks GPS against saved locations (200m radius); dismissible banner at top of list — "Been to [restaurant]? Tap to leave a review" → navigates to post creation with restaurant prefilled
-- **Map view**: Google Maps (`PROVIDER_GOOGLE`) with pins for all saved locations
+- **Post-visit prompt**: after explicit location use, `usePostVisitPrompt` checks GPS against saved places (200m radius); dismissible banner at top of list — "Been to [place]? Tap to post" → navigates to post creation with place prefilled
+- **Map view**: Google Maps (`PROVIDER_GOOGLE`) with pins for all saved places
 - Tapping a pin → bottom card slides up with name, address, "View detail" + "Open in Maps" buttons
 - "Open in Maps" → `RekkusActionSheet` to choose Apple Maps or Google Maps
 - Map stays live/pannable while card is open; tap map to dismiss card
@@ -162,67 +162,67 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 
 ### Profile
 
-- Large food identity header: avatar, display name, handle, location, and primary Reviews / Followers / Following stats
+- Large food identity header: avatar, display name, handle, location, and primary Posts / Followers / Following stats
 - Share and settings actions sit in the header; Edit profile remains the signed-in profile owner action
-- **Top Spots**: horizontal ranked photo cards; manual picks from `user_top_spots` table take precedence — if none are set, falls back to algorithmic derivation (reviewed restaurants ranked by count/rating/recency, enriched by saved restaurants). Cards prefer Rekkus review photos before cached/provider photo refs
-- **Manage Top Spots** (`app/manage-top-spots.tsx`): full screen for picking and ordering up to 3 restaurants (any restaurant via search — Rekkus DB + Google Places fallback). Picks saved to `user_top_spots` table in Supabase and reflected on both own and other user profiles
-- **Favourite Cuisines**: auto-generated from reviewed post cuisine data through the profile identity view-model
-- Text-label tabs: Reviews / Collections
-- Reviews render profile review cards using existing post media and ratings; Collections loads profile collections through the service layer
-- Empty own profile review state guides users to create their first review
+- **Top Spots**: horizontal ranked photo cards; manual picks from `user_top_spots` table take precedence — if none are set, falls back to algorithmic derivation (places ranked by post count/rating/recency, enriched by saved places). Cards prefer Rekkus post photos before cached/provider photo refs
+- **Manage Top Spots** (`app/manage-top-spots.tsx`): full screen for picking and ordering up to 3 places (any place via search — Rekkus DB + Google Places fallback). Picks saved to `user_top_spots` table in Supabase and reflected on both own and other user profiles
+- **Favourite Cuisines**: auto-generated from post cuisine data through the profile identity view-model
+- Text-label tabs: Posts / Collections
+- Posts tab renders profile post cards using existing post media and ratings; Collections loads profile collections through the service layer
+- Empty own profile post state guides users to create their first post
 - Auth gate on mount — guests are prompted before accessing
 
 ### Other user profiles (`app/user/[username].tsx`)
 
 - Accessible by tapping any creator name in feed, post detail, or search
-- Same food-first identity header, Top Spots, Favourite Cuisines, and Reviews / Collections tabs
+- Same food-first identity header, Top Spots, Favourite Cuisines, and Posts / Collections tabs
 - Follow + Message buttons (Follow auth-gated; Message is auth-gated and opens/reuses a direct thread behind `directMessages`)
 - Followers / Following stats open `app/user/[username]/follows.tsx`; counts and lists refresh on focus, follow/unfollow, offline sync, and realtime follow changes
-- Reviews are paginated (30/page, client-side) via `usePagedList`; public Top Spots load manual picks via `fetchTopSpotsWithDetails` first, falling back to post-derived spots; Collections shows only shareable collections
+- Posts are paginated (30/page, client-side) via `usePagedList`; public Top Spots load manual picks via `fetchTopSpotsWithDetails` first, falling back to post-derived spots; Collections shows only shareable collections
 
-### Restaurant feature
+### Place feature
 
-- Location pill on post detail → taps open Restaurant info screen
+- Location pill on post detail → taps open Place info screen
 - Geocode-on-tap for old posts with no coordinates (Places Text Search API)
-- Bookmark icon next to location pill on post detail to save/unsave
-- **Restaurant info screen** (`restaurants/[restaurantId].tsx`):
+- Save icon next to location pill on post detail to save/unsave the place
+- **Place info screen** (`restaurants/[restaurantId].tsx`):
   - Photo carousel (up to 6 photos, horizontal scroll, 220px) prefers Rekkus post photos before Google Places photos.
   - "No images available" placeholder when none exist
   - Name, category, price level, Open/Closed badge (from Google Places Details API)
   - Ratings card: Google ⭐ rating + review count; Rekkus 🍴/🎭/💰 averages in one surface block
-  - Rekkus ratings computed from PostsContext posts matched by placeId or restaurant name
+  - Rekkus ratings computed from PostsContext posts matched by placeId or place name
   - "Improve this place" action sheet lets authenticated users suggest metadata edits, report duplicates, submit community verification, or submit an ownership claim.
   - Contact rows: address (→ `RekkusActionSheet` Apple/Google Maps), phone (→ `tel:`), website (→ in-app browser), hours (collapsible — shows today by default, tap to expand all days)
   - **Popular dishes**: aggregated from `dish_tags` across all posts; horizontal chip row; shows name + count badge when tagged by multiple posts
   - Posts section: compact rows (60×60 thumbnail, creator, title, ratings, likes)
   - Post sort — `RekkusActionSheet`: Most liked (default), Newest, Oldest
-  - **Recency-weighted Rekkus ratings**: posts within last 90 days count 2×; shows "(based on recent reviews)" when recent posts exist
+  - **Recency-weighted Rekkus ratings**: posts within last 90 days count 2×; shows "(based on recent posts)" when recent posts exist
   - **Most mentioned dishes**: aggregated from `best_dish` on posts; mentions with canonical `dish_id` open dish detail, while unlinked legacy text stays display-only.
-  - Header: back button, navigation icon (→ full-screen map), bookmark icon (save/unsave)
-- **Restaurant map screen** (`restaurants/[restaurantId]/map.tsx`):
+  - Header: back button, navigation icon (→ full-screen map), save icon (save/unsave)
+- **Place map screen** (`restaurants/[restaurantId]/map.tsx`):
   - Full-screen Google Maps with single pin
   - Tap pin → Reanimated bottom card slides up: name, ⭐ Google rating, Open/Closed badge, Rekkus ratings, phone
   - "Open in Maps" → `RekkusActionSheet` (Apple Maps / Google Maps)
   - Tap map to dismiss card (debounced to avoid marker/map press conflict)
-- Canonical dish detail pages (`/dishes/[dishId]`) show first-party linked-post imagery/evidence, the canonical restaurant, bookmarking, and collection actions; no provider image lookup or free-text canonical guessing.
+- Canonical dish detail pages (`/dishes/[dishId]`) show first-party linked-post imagery/evidence, the canonical place, saving, and collection actions; no provider image lookup or free-text canonical guessing.
 - `Saved` is the visible tab destination: overview first, then Dishes, Places, Posts, and Collections drill-ins. `Saved > Places` retains list/map, collection filtering, permission, and post-visit prompt behaviour.
-- `saved_locations` stores private restaurant bookmarks; `saved_dishes` stores private canonical dish bookmarks; post bookmarks remain in `saves`.
-- Collections organise saved content and can contain canonical dishes, posts, and restaurants. Adding an item ensures its bookmark exists; confirmed unsave removes its collection memberships atomically.
+- `saved_places` stores private place saves; `saved_dishes` stores private canonical dish saves; post saves remain in `saves`.
+- Collections organise saved content and can contain canonical dishes, posts, and places. Adding an item ensures its save exists; confirmed unsave removes its collection memberships atomically.
 - Saves, follows, likes/reactions, reversible conversation preferences, and settings queue their latest desired state offline and replay for the signed-in user after reconnect.
 - Posts, edits, comments, messages/attachments, reports/blocks, collection lifecycle changes, account/profile changes, and publishing remain explicit retry-only when offline.
-- `restaurants` table with canonical Rekkus IDs plus first-party provenance, verification status, source/alias/cache/observation/audit tables, and user-created restaurant RPC for self-reliant restaurant identity.
+- `places` table with canonical Rekkus IDs plus first-party provenance, verification status, source/alias/cache/observation/audit tables, and user-created place RPC for self-reliant place identity.
 - `food_rating`, `vibe_rating`, `cost_rating` columns on `posts` table (migration `20240110000000_post_ratings.sql`)
 
 ### Post detail
 
 - Full-width `PostMediaCarousel` supports mixed photos/videos, native video controls, and compatibility fallback for old image/video fields. Feed and post detail may play the one visible active video muted when enabled; Reduce Motion always suppresses autoplay.
 - Supabase-first post lookup by UUID when opened from a deep link or refreshed live feed/search row
-- Post detail tracks post view, like/save/comment, dwell time, and restaurant revisit signals through privacy-safe analytics.
+- Post detail tracks post view, like/save/comment, dwell time, and place revisit signals through privacy-safe analytics.
 - Compact like / comment / save / share action bar with optimistic rollback and inline `ErrorMessage` feedback on write failures
 - Follow pill button
 - Rekkus Picks summary appears near the top when available. Post detail no longer shows legacy Food/Vibe/Cost cards; old numeric fields remain compatibility data for rendering/search fallbacks.
 - Owners can open **Edit post** from the post options sheet. Edits reuse the Create composer, save to the same post ID, and record privacy-minimized edit evidence.
-- Location pill with bookmark icon — save location directly from post; geocode failures show inline `ErrorMessage` feedback
+- Location pill with save icon — save place directly from post; geocode failures show inline `ErrorMessage` feedback
 - Tappable hashtag pills open Search with the tag prefilled
 - Shared post message cards route back to Post Detail
 - **Reactions row**: Helpful 👍 / Love This ❤️ / Thanks 🙏 / Oh No 😬 — stored in `post_reactions` table, toggleable, auth-gated

@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import {
   View,
   Text,
@@ -33,19 +33,12 @@ import { useCollectionPicker } from '@/lib/hooks/useCollectionPicker'
 import { routes } from '@/lib/routes'
 import { fetchTargetCollectionItems } from '@/lib/services/collections'
 import {
-  fetchPlaceIdByTextSearch,
-  fetchRestaurantProviderDetail,
+  fetchPlaceRowByGooglePlaceId,
   createUserPlace,
-  getPlaceDisplayPhotos,
   submitCommunityVerification,
   submitDuplicatePlaceSuggestion,
   submitPlaceEditSuggestion,
   submitPlaceClaim,
-  fetchPlaceRow,
-  fetchPlaceRowByGooglePlaceId,
-  cachePlaceGoogleData,
-  fetchPlacePostRatings,
-  fetchIsPlaceSaved,
   insertGooglePlace,
 } from '@/lib/services/places'
 import { parseLikes, todayHoursIndex } from '@/lib/utils/format'
@@ -54,25 +47,9 @@ import { PlaceDetailContent } from './PlaceDetailContent'
 import { makeStyles } from './PlaceDetailScreen.styles'
 import { PlaceDetailSheets } from './PlaceDetailSheets'
 import { PlacePhotoGallery } from './PlacePhotoGallery'
-import type { PlaceDetail, PostSort } from './placeTypes'
-
-type PlaceAction = 'suggest_edit' | 'report_duplicate' | 'verify_info' | 'claim_restaurant'
-
-type DbRatings = { food: number | null; vibe: number | null; cost: number | null }
-
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
-
-function weightedAvg(rows: Array<{ rating: number | null; created_at: string }>): number | null {
-  let sum = 0
-  let total = 0
-  for (const { rating, created_at } of rows) {
-    if (rating == null) continue
-    const w = Date.now() - new Date(created_at).getTime() <= NINETY_DAYS_MS ? 2 : 1
-    sum += rating * w
-    total += w
-  }
-  return total > 0 ? sum / total : null
-}
+import { usePlaceDetailLoader } from './usePlaceDetailLoader'
+import type { PlaceAction } from './placeDetailUtils'
+import type { PostSort } from './placeTypes'
 
 export default function PlaceDetailScreen() {
   const {
@@ -114,37 +91,9 @@ export default function PlaceDetailScreen() {
   const parsedLat = routeParamNumber(lat)
   const parsedLng = routeParamNumber(lng)
 
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [refreshTrigger, setRefreshTrigger] = useState(0)
-  const [detail, setDetail] = useState<PlaceDetail | null>(null)
-  const [photoUrls, setPhotoUrls] = useState<string[]>([])
-  const [placeId, setPlaceId] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
-  const [saveSheet, setSaveSheet] = useState(false)
-  const [dbRatings, setDbRatings] = useState<DbRatings>({ food: null, vibe: null, cost: null })
-  const [hasRecentReviews, setHasRecentReviews] = useState(false)
-  const [topDishes, setTopDishes] = useState<Array<{ name: string; dishId?: string | undefined }>>([])
-  const [hoursExpanded, setHoursExpanded] = useState(false)
-  const [sortPosts, setSortPosts] = useState<PostSort>('liked')
-  const [galleryVisible, setGalleryVisible] = useState(false)
-  const [galleryInitialIndex, setGalleryInitialIndex] = useState(0)
-  const [sortSheetVisible, setSortSheetVisible] = useState(false)
-  const [mapsSheetVisible, setMapsSheetVisible] = useState(false)
-  const [placeActionsSheetVisible, setPlaceActionsSheetVisible] = useState(false)
-  const [shareSheet, setShareSheet] = useState(false)
-  const [notice, setNotice] = useState<{ title: string; subtitle?: string } | null>(null)
-  const [operationError, setOperationError] = useState<{ title: string; message: string } | null>(null)
-  const [collectionPickerVisible, setCollectionPickerVisible] = useState(false)
-  const [confirmCollectionUnsave, setConfirmCollectionUnsave] = useState(false)
   const googlePlaceIdParam = routeParamString(googlePlaceId)
   const routeGooglePlaceId = googlePlaceIdParam && googlePlaceIdParam !== 'none' ? googlePlaceIdParam : null
-  const [resolvedGooglePlaceId, setResolvedGooglePlaceId] = useState<string | null>(
-    routeGooglePlaceId && routeGooglePlaceId !== 'none' ? routeGooglePlaceId : null
-  )
-  const collectionPicker = useCollectionPicker(user?.id, 'place', placeId ?? undefined)
 
-  // Filter PostsContext posts by placeId, fall back to name match
   const contextPosts = useMemo(() => {
     if (!displayName) return []
     const byPlaceId = posts.filter(p => routeGooglePlaceId && p.placeId && p.placeId === routeGooglePlaceId)
@@ -163,9 +112,8 @@ export default function PlaceDetailScreen() {
     [contextPosts]
   )
 
-  // Compute Rekkus averages from contextPosts (fall back to Supabase if empty)
-  const rekkusRatings = useMemo(() => {
-    if (contextPosts.length === 0) return dbRatings
+  const rekkusRatingsFromPosts = useMemo(() => {
+    if (contextPosts.length === 0) return null
     const avg = (vals: number[]) =>
       vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null
     return {
@@ -173,7 +121,59 @@ export default function PlaceDetailScreen() {
       vibe: avg(contextPosts.map(p => p.vibe).filter((v): v is number => v != null)),
       cost: avg(contextPosts.map(p => p.cost).filter((v): v is number => v != null)),
     }
-  }, [contextPosts, dbRatings])
+  }, [contextPosts])
+
+  const placeCuisineType = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const post of contextPosts) {
+      const cuisine = post.cuisine_type?.trim()
+      if (cuisine) counts[cuisine] = (counts[cuisine] ?? 0) + 1
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+  }, [contextPosts])
+
+  const searchAttribution = useMemo<SearchAttribution | null>(() => {
+    const sessionId = routeParamString(searchSessionId)
+    const query = routeParamString(searchQuery)
+    const resultType = routeParamString(searchResultType)
+    const position = routeParamNumber(searchResultPosition)
+    if (
+      !sessionId ||
+      !query ||
+      position == null ||
+      (resultType !== 'post' && resultType !== 'place' && resultType !== 'user' && resultType !== 'dish')
+    ) return null
+    return { searchSessionId: sessionId, query, resultType, resultPosition: position }
+  }, [searchQuery, searchResultPosition, searchResultType, searchSessionId])
+
+  const loader = usePlaceDetailLoader({
+    routePlaceId,
+    routeGooglePlaceId,
+    displayName,
+    displayAddress,
+    user,
+    contextPhotoUrls,
+    placeCuisineType,
+    searchAttribution,
+  })
+
+  const rekkusRatings = rekkusRatingsFromPosts ?? loader.dbRatings
+
+  const [hoursExpanded, setHoursExpanded] = useState(false)
+  const [sortPosts, setSortPosts] = useState<PostSort>('liked')
+  const [galleryVisible, setGalleryVisible] = useState(false)
+  const [galleryInitialIndex, setGalleryInitialIndex] = useState(0)
+  const [sortSheetVisible, setSortSheetVisible] = useState(false)
+  const [mapsSheetVisible, setMapsSheetVisible] = useState(false)
+  const [placeActionsSheetVisible, setPlaceActionsSheetVisible] = useState(false)
+  const [saveSheet, setSaveSheet] = useState(false)
+  const [shareSheet, setShareSheet] = useState(false)
+  const [notice, setNotice] = useState<{ title: string; subtitle?: string } | null>(null)
+  const [operationError, setOperationError] = useState<{ title: string; message: string } | null>(null)
+  const [collectionPickerVisible, setCollectionPickerVisible] = useState(false)
+  const [confirmCollectionUnsave, setConfirmCollectionUnsave] = useState(false)
+
+  const collectionPicker = useCollectionPicker(user?.id, 'place', loader.placeId ?? undefined)
 
   const sortedPosts = useMemo(() => {
     const arr = [...contextPosts]
@@ -200,160 +200,9 @@ export default function PlaceDetailScreen() {
       }))
   }, [contextPosts])
 
-  const placeCuisineType = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const post of contextPosts) {
-      const cuisine = post.cuisine_type?.trim()
-      if (cuisine) counts[cuisine] = (counts[cuisine] ?? 0) + 1
-    }
-    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
-  }, [contextPosts])
-  const searchAttribution = useMemo<SearchAttribution | null>(() => {
-    const sessionId = routeParamString(searchSessionId)
-    const query = routeParamString(searchQuery)
-    const resultType = routeParamString(searchResultType)
-    const position = routeParamNumber(searchResultPosition)
-    if (
-      !sessionId ||
-      !query ||
-      position == null ||
-      (resultType !== 'post' && resultType !== 'place' && resultType !== 'user' && resultType !== 'dish')
-    ) {
-      return null
-    }
-    return { searchSessionId: sessionId, query, resultType, resultPosition: position }
-  }, [searchQuery, searchResultPosition, searchResultType, searchSessionId])
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      if (refreshTrigger === 0) setLoading(true)
-      else setRefreshing(true)
-
-      let effectiveGooglePlaceId: string | null = routeGooglePlaceId && routeGooglePlaceId !== 'none' ? routeGooglePlaceId : null
-
-      // When only a Supabase UUID is available, resolve the canonical google_place_id from the
-      // places table before calling Google Places — avoids relying on the denormalised
-      // place_google_place_id field on the post row, which can be stale or mismatched.
-      let preloadedPlaceData: { id: string; google_place_id: string | null; google_photo_refs: string[] } | null = null
-      if (!effectiveGooglePlaceId && routePlaceId && routePlaceId !== 'none') {
-        preloadedPlaceData = await fetchPlaceRow(routePlaceId)
-        if (preloadedPlaceData?.google_place_id) {
-          effectiveGooglePlaceId = preloadedPlaceData.google_place_id
-          if (!cancelled) setResolvedGooglePlaceId(effectiveGooglePlaceId)
-        }
-      }
-
-      if (!effectiveGooglePlaceId && displayName) {
-        effectiveGooglePlaceId = await textSearchPlace(displayName)
-        if (!cancelled && effectiveGooglePlaceId) setResolvedGooglePlaceId(effectiveGooglePlaceId)
-      }
-
-      const [placeResult, placeRowResult] = await Promise.all([
-        effectiveGooglePlaceId ? fetchPlaceDetail(effectiveGooglePlaceId) : Promise.resolve(null),
-        preloadedPlaceData
-          ? Promise.resolve(preloadedPlaceData)
-          : effectiveGooglePlaceId
-            ? fetchPlaceRowByGooglePlaceId(effectiveGooglePlaceId)
-            : Promise.resolve(null),
-      ])
-
-      if (cancelled) return
-
-      const refs = (placeResult?.photos ?? [])
-        .slice(0, 6)
-        .map(p => p.photo_reference)
-        .filter((ref): ref is string => typeof ref === 'string')
-      const cachedRefs = placeRowResult?.google_photo_refs ?? []
-      const providerRefs = refs.length > 0 ? refs : cachedRefs
-
-      if (placeResult) {
-        setDetail(placeResult)
-      }
-
-      const pid: string | null = placeRowResult?.id ?? null
-      if (pid) setPlaceId(pid)
-
-      if (contextPhotoUrls.length > 0) {
-        setPhotoUrls(contextPhotoUrls)
-      } else {
-        const displayPhotos = await getPlaceDisplayPhotos(pid, providerRefs, 6)
-        if (!cancelled) setPhotoUrls(displayPhotos)
-      }
-
-      // Cache Google rating lazily and track detail view — both fire-and-forget
-      if (pid && (placeResult?.rating != null || placeResult?.opening_hours?.open_now != null)) {
-        cachePlaceGoogleData(pid, {
-          google_rating: placeResult.rating ?? null,
-          google_review_count: placeResult.user_ratings_total ?? null,
-          open_now: placeResult.opening_hours?.open_now ?? null,
-          open_now_checked_at:
-            placeResult.opening_hours?.open_now == null ? null : new Date().toISOString(),
-        })
-      }
-      if (pid && user) {
-        analytics.viewPlace(user.id, pid, undefined, placeCuisineType, searchAttribution)
-      }
-
-      if (pid) {
-        const [rows, placeSaved] = await Promise.all([
-          fetchPlacePostRatings(pid),
-          user ? fetchIsPlaceSaved(user.id, pid) : Promise.resolve(false),
-        ])
-
-        if (cancelled) return
-
-        if (rows.length > 0) {
-          setDbRatings({
-            food: weightedAvg(rows.map(r => ({ rating: r.food_rating, created_at: r.created_at }))),
-            vibe: weightedAvg(rows.map(r => ({ rating: r.vibe_rating, created_at: r.created_at }))),
-            cost: weightedAvg(rows.map(r => ({ rating: r.cost_rating, created_at: r.created_at }))),
-          })
-          setHasRecentReviews(
-            rows.some(r => Date.now() - new Date(r.created_at).getTime() <= NINETY_DAYS_MS)
-          )
-          const dishCounts: Record<string, { count: number; dishId?: string | undefined }> = {}
-          for (const r of rows) {
-            const d = r.must_order?.trim()
-            if (d) {
-              const key = d.toLowerCase()
-              const existing = dishCounts[key]
-              dishCounts[key] = {
-                count: (existing?.count ?? 0) + 1,
-                ...(existing?.dishId || r.dish_id ? { dishId: existing?.dishId ?? r.dish_id ?? undefined } : {}),
-              }
-            }
-          }
-          setTopDishes(
-            Object.entries(dishCounts)
-              .sort((a, b) => b[1].count - a[1].count)
-              .slice(0, 3)
-              .map(([name, metadata]) => ({
-                name: name.charAt(0).toUpperCase() + name.slice(1),
-                ...(metadata.dishId ? { dishId: metadata.dishId } : {}),
-              }))
-          )
-        }
-
-        if (placeSaved) setSaved(true)
-      }
-
-      if (!cancelled) {
-        setLoading(false)
-        setRefreshing(false)
-      }
-    }
-
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [routeGooglePlaceId, routePlaceId, user, displayName, refreshTrigger, contextPhotoUrls, placeCuisineType, searchAttribution])
-
   const findOrCreatePlace = useCallback(async (): Promise<string | null> => {
-    if (placeId) return placeId
-    const gid = resolvedGooglePlaceId
+    if (loader.placeId) return loader.placeId
+    const gid = loader.resolvedGooglePlaceId
     if (!gid) {
       const createdId = await createUserPlace({
         name: displayName,
@@ -361,17 +210,15 @@ export default function PlaceDetailScreen() {
         latitude: parsedLat,
         longitude: parsedLng,
       })
-      if (createdId) setPlaceId(createdId)
+      if (createdId) loader.setPlaceId(createdId)
       return createdId
     }
-
     const existing = await fetchPlaceRowByGooglePlaceId(gid)
     if (existing?.id) {
-      setPlaceId(existing.id)
+      loader.setPlaceId(existing.id)
       return existing.id
     }
     if (parsedLat == null || parsedLng == null) return null
-
     const createdId = await insertGooglePlace({
       name: displayName,
       address: displayAddress,
@@ -379,42 +226,32 @@ export default function PlaceDetailScreen() {
       longitude: parsedLng,
       google_place_id: gid,
     })
-    if (createdId) setPlaceId(createdId)
+    if (createdId) loader.setPlaceId(createdId)
     return createdId
-  }, [placeId, resolvedGooglePlaceId, displayName, displayAddress, parsedLat, parsedLng])
+  }, [loader, displayName, displayAddress, parsedLat, parsedLng])
 
   const toggleSave = useCallback(async () => {
     if (!user) return
-    const wasSaved = saved
+    const wasSaved = loader.saved
     const pid = await findOrCreatePlace()
-    if (!pid) {
-      setSaved(wasSaved)
-      return
-    }
+    if (!pid) { loader.setSaved(wasSaved); return }
     if (wasSaved) {
       try {
         const memberships = await fetchTargetCollectionItems(user.id, 'place', pid)
-        if (memberships.length > 0) {
-          setConfirmCollectionUnsave(true)
-          return
-        }
+        if (memberships.length > 0) { setConfirmCollectionUnsave(true); return }
         await runDeferredMutation({ kind: 'place_save', placeId: pid, targetState: false })
-        setSaved(false)
-      } catch {
-        setSaved(wasSaved)
-      }
+        loader.setSaved(false)
+      } catch { loader.setSaved(wasSaved) }
     } else {
       try {
-        setSaved(true)
+        loader.setSaved(true)
         await runDeferredMutation({ kind: 'place_save', placeId: pid, targetState: true })
         void haptic.confirmSave()
         analytics.savePlace(user.id, pid, placeCuisineType, searchAttribution)
         setSaveSheet(true)
-      } catch {
-        setSaved(wasSaved)
-      }
+      } catch { loader.setSaved(wasSaved) }
     }
-  }, [user, saved, findOrCreatePlace, runDeferredMutation, placeCuisineType, searchAttribution])
+  }, [user, loader, findOrCreatePlace, runDeferredMutation, placeCuisineType, searchAttribution])
 
   const openCollectionPicker = useCallback(async () => {
     const pid = await findOrCreatePlace()
@@ -437,22 +274,18 @@ export default function PlaceDetailScreen() {
         setOperationError({ title: 'Could not save that yet', message: 'Try again after the place details finish loading.' })
         return
       }
-
       try {
         if (action === 'suggest_edit') {
           await submitPlaceEditSuggestion({
-            placeId: pid,
-            field: 'other',
+            placeId: pid, field: 'other',
             currentValue: { name: displayName, address: displayAddress },
             issueSummary: 'User reported that place metadata needs review.',
           })
           setNotice({ title: 'Suggestion submitted', subtitle: 'Thanks. This will go into the place data review queue.' })
         } else if (action === 'report_duplicate') {
           await submitDuplicatePlaceSuggestion({
-            placeId: pid,
-            duplicateName: displayName,
-            duplicateAddress: displayAddress,
-            ...(resolvedGooglePlaceId ? { duplicateProvider: 'google_places', duplicateProviderPlaceId: resolvedGooglePlaceId } : {}),
+            placeId: pid, duplicateName: displayName, duplicateAddress: displayAddress,
+            ...(loader.resolvedGooglePlaceId ? { duplicateProvider: 'google_places', duplicateProviderPlaceId: loader.resolvedGooglePlaceId } : {}),
             reason: 'possible_duplicate_reported_from_place_detail',
           })
           setNotice({ title: 'Duplicate reported', subtitle: 'We saved this as duplicate evidence for manual review.' })
@@ -461,8 +294,7 @@ export default function PlaceDetailScreen() {
           setNotice({ title: 'Verification submitted', subtitle: 'Thanks. Your signal helps Rekkus trust first-party place data.' })
         } else {
           await submitPlaceClaim({
-            placeId: pid,
-            reason: 'claim_submitted_from_place_detail',
+            placeId: pid, reason: 'claim_submitted_from_place_detail',
             evidenceSummary: { source: 'place_detail_action', place_name: displayName },
           })
           setNotice({ title: 'Claim submitted', subtitle: 'Your claim is pending review before any owner tools are enabled.' })
@@ -471,78 +303,71 @@ export default function PlaceDetailScreen() {
         setOperationError({ title: 'Could not submit', message: 'Check your connection and try again.' })
       }
     },
-    [findOrCreatePlace, displayName, displayAddress, resolvedGooglePlaceId, requireOnline]
+    [findOrCreatePlace, displayName, displayAddress, loader.resolvedGooglePlaceId, requireOnline]
   )
 
   const handlePlaceAction = useCallback(
-    (value: string) => {
-      requireAuth(() => submitPlaceAction(value as PlaceAction))
-    },
+    (value: string) => requireAuth(() => submitPlaceAction(value as PlaceAction)),
     [requireAuth, submitPlaceAction]
   )
 
-  const openAddress = useCallback(() => {
-    if (!displayAddress) return
-    setMapsSheetVisible(true)
-  }, [displayAddress])
+  const openAddress = useCallback(() => { if (displayAddress) setMapsSheetVisible(true) }, [displayAddress])
+  const openPhone = useCallback((phone: string) => { void Linking.openURL(`tel:${phone.replace(/\s/g, '')}`) }, [])
+  const openWebsite = useCallback((url: string) => { void WebBrowser.openBrowserAsync(url) }, [])
+  const openSortSheet = useCallback(() => setSortSheetVisible(true), [])
+  const openGallery = useCallback((index: number) => { setGalleryInitialIndex(index); setGalleryVisible(true) }, [])
 
   const openSelectedMap = useCallback(
     (provider: string) => {
       if (parsedLat == null || parsedLng == null) return
       if (provider === 'apple')
-        void Linking.openURL(
-          `https://maps.apple.com/?q=${encodeURIComponent(displayName)}&ll=${parsedLat},${parsedLng}`
-        )
+        void Linking.openURL(`https://maps.apple.com/?q=${encodeURIComponent(displayName)}&ll=${parsedLat},${parsedLng}`)
       if (provider === 'google')
         void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${parsedLat},${parsedLng}`)
     },
     [displayName, parsedLat, parsedLng]
   )
 
-  const openPhone = useCallback((phone: string) => {
-    void Linking.openURL(`tel:${phone.replace(/\s/g, '')}`)
-  }, [])
-
-  const openWebsite = useCallback((url: string) => {
-    void WebBrowser.openBrowserAsync(url)
-  }, [])
-
-  const openSortSheet = useCallback(() => {
-    setSortSheetVisible(true)
-  }, [])
-
   const goToMap = useCallback(() => {
     router.push(routes.placeMap({
       placeId: routePlaceId ?? 'none',
-      googlePlaceId: resolvedGooglePlaceId ?? routeGooglePlaceId ?? 'none',
-      name: displayName,
-      lat: latParam,
-      lng: lngParam,
-      phone: detail?.formatted_phone_number ?? '',
-      openNow: detail?.opening_hours?.open_now != null ? String(detail.opening_hours.open_now) : '',
-      googleRating: detail?.rating != null ? String(detail.rating) : '',
+      googlePlaceId: loader.resolvedGooglePlaceId ?? routeGooglePlaceId ?? 'none',
+      name: displayName, lat: latParam, lng: lngParam,
+      phone: loader.detail?.formatted_phone_number ?? '',
+      openNow: loader.detail?.opening_hours?.open_now != null ? String(loader.detail.opening_hours.open_now) : '',
+      googleRating: loader.detail?.rating != null ? String(loader.detail.rating) : '',
       avgFood: rekkusRatings.food != null ? String(rekkusRatings.food.toFixed(1)) : '',
       avgVibe: rekkusRatings.vibe != null ? String(rekkusRatings.vibe.toFixed(1)) : '',
       avgCost: rekkusRatings.cost != null ? String(rekkusRatings.cost.toFixed(1)) : '',
-      photoUrl: photoUrls[0] ?? '',
-      todayHours: detail?.opening_hours?.weekday_text?.[todayHoursIndex()] ?? '',
+      photoUrl: loader.photoUrls[0] ?? '',
+      todayHours: loader.detail?.opening_hours?.weekday_text?.[todayHoursIndex()] ?? '',
     }))
-  }, [router, routePlaceId, resolvedGooglePlaceId, routeGooglePlaceId, displayName, latParam, lngParam, detail, rekkusRatings, photoUrls])
+  }, [router, routePlaceId, loader, routeGooglePlaceId, displayName, latParam, lngParam, rekkusRatings])
 
-  const openGallery = useCallback((index: number) => {
-    setGalleryInitialIndex(index)
-    setGalleryVisible(true)
-  }, [])
-
-  const openNow = detail?.opening_hours?.open_now
+  const openNow = loader.detail?.opening_hours?.open_now
   const todayIdx = todayHoursIndex()
-  const weekdayText = detail?.opening_hours?.weekday_text ?? []
+  const weekdayText = loader.detail?.opening_hours?.weekday_text ?? []
   const todayText = weekdayText[todayIdx]
-  const hasRekkusRatings =
-    rekkusRatings.food != null || rekkusRatings.vibe != null || rekkusRatings.cost != null
-  const hasGoogleRating = detail?.rating != null
-  const contentProps = { styles, colors, refreshing, refresh: () => setRefreshTrigger(t => t + 1), photoUrls, width, detail, name: displayName, address: displayAddress, openNow, hasGoogleRating, hasRekkusRatings, rekkusRatings, contextPosts, hasRecentReviews, topDishes, openAddress, openPhone, openWebsite, weekdayText, hoursExpanded, setHoursExpanded, todayIdx, todayText, popularDishes, sortedPosts, sortPosts, openSortSheet, openPlaceActions: () => setPlaceActionsSheetVisible(true), onPhotoPress: openGallery }
-  const sheetProps = { styles, colors, name: displayName, address: displayAddress, placeId, detail, saveSheet, setSaveSheet, sortSheetVisible, setSortSheetVisible, sortPosts, setSortPosts, mapsSheetVisible, setMapsSheetVisible, openSelectedMap, placeActionsSheetVisible, setPlaceActionsSheetVisible, handlePlaceAction, shareSheet, setShareSheet, notice, setNotice }
+  const hasRekkusRatings = rekkusRatings.food != null || rekkusRatings.vibe != null || rekkusRatings.cost != null
+  const hasGoogleRating = loader.detail?.rating != null
+
+  const contentProps = {
+    styles, colors, refreshing: loader.refreshing, refresh: loader.refresh,
+    photoUrls: loader.photoUrls, width, detail: loader.detail,
+    name: displayName, address: displayAddress, openNow, hasGoogleRating, hasRekkusRatings,
+    rekkusRatings, contextPosts, hasRecentReviews: loader.hasRecentReviews, topDishes: loader.topDishes,
+    openAddress, openPhone, openWebsite, weekdayText, hoursExpanded, setHoursExpanded,
+    todayIdx, todayText, popularDishes, sortedPosts, sortPosts, openSortSheet,
+    openPlaceActions: () => setPlaceActionsSheetVisible(true), onPhotoPress: openGallery,
+  }
+  const sheetProps = {
+    styles, colors, name: displayName, address: displayAddress,
+    placeId: loader.placeId, detail: loader.detail,
+    saveSheet, setSaveSheet, sortSheetVisible, setSortSheetVisible, sortPosts, setSortPosts,
+    mapsSheetVisible, setMapsSheetVisible, openSelectedMap,
+    placeActionsSheetVisible, setPlaceActionsSheetVisible, handlePlaceAction,
+    shareSheet, setShareSheet, notice, setNotice,
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -555,8 +380,8 @@ export default function PlaceDetailScreen() {
           <IconButton accessibilityLabel="Open map" onPress={goToMap}>
             <NavIcon />
           </IconButton>
-          <IconButton accessibilityLabel={saved ? 'Remove saved place' : 'Save place'} onPress={() => requireAuth(toggleSave)}>
-            <SaveIcon filled={saved} />
+          <IconButton accessibilityLabel={loader.saved ? 'Remove saved place' : 'Save place'} onPress={() => requireAuth(toggleSave)}>
+            <SaveIcon filled={loader.saved} />
           </IconButton>
           <IconButton accessibilityLabel="Add place to collection" onPress={() => requireAuth(() => { void openCollectionPicker() })}>
             <PlusIcon />
@@ -571,7 +396,7 @@ export default function PlaceDetailScreen() {
         <ErrorMessage title={operationError.title} message={operationError.message} style={{ marginHorizontal: spacing[4] }} />
       ) : null}
 
-      {loading ? (
+      {loader.loading ? (
         <View style={styles.loadingContainer}>
           <Skeleton width="100%" height={220} radius={0} />
           <View style={styles.infoSection}>
@@ -595,7 +420,7 @@ export default function PlaceDetailScreen() {
           void collectionPicker.add(collectionId).then(() => {
             analytics.collectionInteraction(user?.id ?? null, 'add_item', collectionId, { target_type: 'place' })
             setCollectionPickerVisible(false)
-            setSaved(true)
+            loader.setSaved(true)
           }).catch(() => setOperationError({ title: 'Could not add to collection', message: 'Check your connection and try again.' }))
         }}
         onCreateCollection={collectionName => {
@@ -603,33 +428,23 @@ export default function PlaceDetailScreen() {
             if (!collection) return
             analytics.collectionInteraction(user?.id ?? null, 'create_and_add', collection.id, { target_type: 'place' })
             setCollectionPickerVisible(false)
-            setSaved(true)
+            loader.setSaved(true)
           }).catch(() => setOperationError({ title: 'Could not create collection', message: 'Check your connection and try again.' }))
         }}
         onDismissConfirmUnsave={() => setConfirmCollectionUnsave(false)}
         onConfirmUnsave={() => {
-          if (!placeId) return
-          void runDeferredMutation({ kind: 'place_save', placeId: placeId, targetState: false, removeCollectionMemberships: true }).then(() => {
-            setSaved(false)
+          if (!loader.placeId) return
+          void runDeferredMutation({ kind: 'place_save', placeId: loader.placeId, targetState: false, removeCollectionMemberships: true }).then(() => {
+            loader.setSaved(false)
           }).catch(() => setOperationError({ title: 'Could not remove saved place', message: 'Check your connection and try again.' }))
         }}
       />
       <PlacePhotoGallery
         visible={galleryVisible}
-        photos={photoUrls}
+        photos={loader.photoUrls}
         initialIndex={galleryInitialIndex}
         onClose={() => setGalleryVisible(false)}
       />
     </SafeAreaView>
   )
-}
-
-async function textSearchPlace(query: string): Promise<string | null> {
-  return fetchPlaceIdByTextSearch(query)
-}
-
-async function fetchPlaceDetail(googlePlaceId: string): Promise<PlaceDetail | null> {
-  const fields =
-    'rating,user_ratings_total,formatted_phone_number,website,opening_hours,price_level,photos,types,business_status,geometry'
-  return fetchRestaurantProviderDetail(googlePlaceId, fields)
 }

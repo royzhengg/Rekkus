@@ -4,8 +4,8 @@ Social proof owns how Rekkus shows trusted food evidence without drifting into p
 
 ## Scope
 
-- Friends who have been to a restaurant or saved/reviewed a dish.
-- Taste compatibility between followed reviewers and the current user.
+- Friends who have been to a place or saved/posted about a dish.
+- Taste compatibility between followed creators and the current user.
 - Contributor reputation signals that help users identify useful local food evidence.
 
 Out of scope: follower-count ranking, influencer badges, vanity leaderboards, and broad social proof when the graph is too sparse to be honest.
@@ -14,7 +14,7 @@ Out of scope: follower-count ranking, influencer badges, vanity leaderboards, an
 
 | Signal | Owner | First Useful Step | Guardrail |
 | --- | --- | --- | --- |
-| Friends who've been here | Taste graph + posts | Count followed users with posts/reviews for a restaurant. | Show only aggregate labels until privacy rules for named disclosure are explicit. |
+| Friends who've been here | Taste graph + posts | Count followed users with posts for a place. | Show only aggregate labels until privacy rules for named disclosure are explicit. |
 | Follower/following taste scores | Taste graph | Compare overlap in saves, cuisines, dish tags, and high food ratings. | Keep scores explainable; never imply private activity. |
 | Taste compatibility labels | Taste graph + profile surfaces | Use coarse labels such as "similar spicy picks" or "often saves ramen" after enough shared signals exist. | Hide when confidence is low. |
 | Contributor reputation | Contribution systems | Weight dish specificity, helpful saves, moderation history, and freshness. | Reward usefulness, not follower count. |

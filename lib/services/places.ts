@@ -1,21 +1,17 @@
 import { reportInvalidBoundary } from '@/lib/services/boundaryTelemetry'
 import {
-  buildGooglePlacePhotoUrl,
   fetchPlaceAutocompleteJson,
-  fetchPlaceDetailsJson,
   fetchPlaceTextSearchJson,
 } from '@/lib/services/googlePlaces'
 import {
-  isGooglePlaceDetail,
-  isGooglePlaceIdResult,
-  isGooglePlaceMetadata,
   isGooglePrediction,
   isGoogleTextSearchPlace,
-  type GooglePlaceDetail,
-  type GooglePlaceMetadata,
 } from '@/lib/services/googlePlacesGuards'
 import { supabase } from '@/lib/supabase'
 import { isRecord } from '@/lib/utils/safeJson'
+import { recordRestaurantProviderCache } from './places/cache'
+import { getRestaurantProviderPhotoUrl } from './places/google'
+import type { FullPlaceDetail } from './places/google'
 
 export {
   recordPlaceAlias,
@@ -36,6 +32,26 @@ export {
   normalizeSavedPlaces,
 } from './savedPlaces'
 export type { SavedPlace, SavedPlaceWithPlace } from './savedPlaces'
+
+// Google API wrappers
+export {
+  fetchPlaceDetails,
+  fetchPlaceIdByTextSearch,
+  fetchRestaurantProviderDetail,
+  getRestaurantProviderPhotoUrl,
+} from './places/google'
+export type { PlaceDetail, FullPlaceDetail } from './places/google'
+
+// Provider cache recording
+export { recordRestaurantProviderCache, recordRestaurantSource } from './places/cache'
+
+// Ratings, save status, popularity
+export {
+  fetchIsPlaceSaved,
+  fetchPlacePopularityCache,
+  fetchPlacePostRatings,
+} from './places/analytics'
+export type { PopularityCacheRow, PostRatingRow } from './places/analytics'
 
 export type PredictionDistanceGroup = 'nearby' | 'city' | 'state' | 'country' | 'worldwide'
 
@@ -60,6 +76,33 @@ export type Prediction = {
     postCount?: number
     avgFoodRating?: number | null
   }
+}
+
+export type SelectedPlace = {
+  googlePlaceId: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+  placeId?: string | undefined
+}
+
+export type ResolvedPlace = {
+  googlePlaceId: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+}
+
+export type UserPlaceInput = {
+  name: string
+  address?: string | null
+  city?: string | null
+  country?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  cuisineType?: string | null
 }
 
 export function distanceGroupForPrediction(distanceKm: number | undefined, source?: Prediction['source']): PredictionDistanceGroup {
@@ -132,36 +175,6 @@ export function mapPlaceRpcRowToPrediction(
   }
 }
 
-export type PlaceDetail = GooglePlaceMetadata
-type FullPlaceDetail = GooglePlaceDetail
-
-export type SelectedPlace = {
-  googlePlaceId: string
-  name: string
-  address: string
-  lat: number
-  lng: number
-  placeId?: string | undefined
-}
-
-export type ResolvedPlace = {
-  googlePlaceId: string
-  name: string
-  address: string
-  lat: number
-  lng: number
-}
-
-export type UserPlaceInput = {
-  name: string
-  address?: string | null
-  city?: string | null
-  country?: string | null
-  latitude?: number | null
-  longitude?: number | null
-  cuisineType?: string | null
-}
-
 export async function fetchPredictions(
   input: string,
   userLocation?: { lat: number; lng: number } | null
@@ -227,40 +240,6 @@ export async function fetchNearbyPlaces(
   return ((data as PlaceRpcRow[] | null) ?? []).map((r) => mapPlaceRpcRowToPrediction(r, location))
 }
 
-export async function fetchPlaceDetails(googlePlaceId: string): Promise<FullPlaceDetail | null> {
-  const json = await fetchPlaceDetailsJson(
-    googlePlaceId,
-    'name,formatted_address,geometry,business_status,formatted_phone_number,website,price_level,types,opening_hours,photos,rating,user_ratings_total',
-    isGooglePlaceDetail
-  )
-  return json?.result ?? null
-}
-
-export async function fetchRestaurantProviderDetail(
-  googlePlaceId: string,
-  fields: string
-): Promise<PlaceDetail | null> {
-  try {
-    const json = await fetchPlaceDetailsJson(googlePlaceId, fields, isGooglePlaceMetadata)
-    return json?.result ?? null
-  } catch {
-    return null
-  }
-}
-
-export async function fetchPlaceIdByTextSearch(query: string): Promise<string | null> {
-  try {
-    const json = await fetchPlaceTextSearchJson(query, isGooglePlaceIdResult)
-    return json?.results?.[0]?.place_id ?? null
-  } catch {
-    return null
-  }
-}
-
-export function getRestaurantProviderPhotoUrl(photoReference: string, maxWidth = 800): string {
-  return buildGooglePlacePhotoUrl(photoReference, maxWidth)
-}
-
 export async function findPlaceByGooglePlaceId(googlePlaceId: string) {
   if (!googlePlaceId) return null
   const { data } = await supabase.from('places')
@@ -314,9 +293,10 @@ export async function upsertPlace(
   return placeId
 }
 
-// B-587: restore full upsert body once restaurant_place_stubs migration is deployed
+// B-587: migration 20260615000001 creates restaurant_place_stubs.
+// Restore body after `npm run check:supabase-types` regenerates types/database.ts.
 export async function upsertPlaceStubs(_predictions: Prediction[]): Promise<void> {
-  // stub — table pending migration (B-587)
+  // stub — run supabase gen types after deploying 20260615000001_restaurant_place_stubs.sql
 }
 
 export async function upsertResolvedPlace(place: ResolvedPlace): Promise<string | null> {
@@ -405,89 +385,6 @@ export async function getPlaceDisplayPhoto(
   return photos[0] ?? null
 }
 
-export async function recordRestaurantSource(
-  placeId: string,
-  sourceType: string,
-  sourceId: string,
-  options: {
-    source_rights?: string
-    attribution_required?: boolean
-    cacheability?: string
-    retention_policy?: string
-    confidence?: number
-  } = {}
-) {
-  if (!placeId || !sourceId) return
-  await supabase.from('restaurant_sources').upsert(
-    {
-      restaurant_id: placeId,
-      source_type: sourceType,
-      source_id: sourceId,
-      source_rights: options.source_rights ?? 'first_party',
-      attribution_required: options.attribution_required ?? false,
-      cacheability: options.cacheability ?? 'permanent_identifier',
-      retention_policy: options.retention_policy ?? 'retain_until_unlinked_or_restaurant_deleted',
-      confidence: options.confidence ?? 0.5,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'source_type,source_id' }
-  )
-}
-
-export async function recordRestaurantProviderCache(
-  placeId: string,
-  sourceType: string,
-  sourceId: string,
-  detail: FullPlaceDetail
-) {
-  if (!placeId || !sourceId) return
-  const now = new Date()
-  const staleAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
-  await supabase.rpc('record_restaurant_provider_snapshot', {
-    p_restaurant_id: placeId,
-    p_source_type: sourceType,
-    p_source_id: sourceId,
-    p_field_mask: [
-        'name',
-        'formatted_address',
-        'geometry',
-        'business_status',
-        'formatted_phone_number',
-        'website',
-        'price_level',
-        'types',
-        'opening_hours',
-        'photos',
-        'rating',
-        'user_ratings_total',
-      ],
-    p_normalized_payload: {
-        name: detail.name,
-        formatted_address: detail.formatted_address,
-        lat: detail.geometry.location.lat,
-        lng: detail.geometry.location.lng,
-        business_status: detail.business_status ?? null,
-        phone: detail.formatted_phone_number ?? null,
-        website: detail.website ?? null,
-        price_level: detail.price_level ?? null,
-        types: detail.types ?? [],
-        rating: detail.rating ?? null,
-        user_ratings_total: detail.user_ratings_total ?? null,
-      },
-    p_attribution_required: sourceType === 'google_places',
-    p_attribution_text: sourceType === 'google_places' ? 'Google' : '',
-    p_cacheability:
-        sourceType === 'google_places'
-          ? 'place_id_permanent_content_restricted'
-          : 'source_terms_defined',
-    p_retention_policy:
-        sourceType === 'google_places'
-          ? 'retain_place_id_refresh_content_by_terms'
-          : 'retain_until_source_or_restaurant_deleted',
-    p_stale_at: staleAt,
-  })
-}
-
 type PlaceRow = { id: string; google_place_id: string | null; google_photo_refs: string[] }
 
 function parsePlaceRow(value: unknown): PlaceRow | null {
@@ -527,56 +424,6 @@ export function cachePlaceGoogleData(
   }
 ): void {
   void supabase.from('places').update(data).eq('id', placeId)
-}
-
-type PostRatingRow = {
-  food_rating: number | null
-  vibe_rating: number | null
-  cost_rating: number | null
-  created_at: string
-  must_order: string | null
-  dish_id: string | null
-}
-
-export async function fetchPlacePostRatings(placeId: string): Promise<PostRatingRow[]> {
-  const { data } = await supabase.from('posts')
-    .select('food_rating, vibe_rating, cost_rating, created_at, must_order, dish_id')
-    .eq('place_id', placeId)
-    .limit(100)
-  return (data ?? []).filter((row): row is PostRatingRow =>
-    typeof row.created_at === 'string' &&
-    (row.food_rating === null || typeof row.food_rating === 'number') &&
-    (row.vibe_rating === null || typeof row.vibe_rating === 'number') &&
-    (row.cost_rating === null || typeof row.cost_rating === 'number') &&
-    (row.must_order === null || typeof row.must_order === 'string') &&
-    (row.dish_id === null || typeof row.dish_id === 'string')
-  )
-}
-
-export async function fetchIsPlaceSaved(userId: string, placeId: string): Promise<boolean> {
-  const { data } = await supabase.from('saved_places')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('place_id', placeId)
-    .maybeSingle()
-  return !!data
-}
-
-export type PopularityCacheRow = {
-  place_id: string
-  post_count: number
-  interaction_count_30d: number
-  avg_food_rating: number | null
-  food_rating_count: number
-}
-
-export async function fetchPlacePopularityCache(limit = 2000): Promise<PopularityCacheRow[]> {
-  const { data, error } = await supabase
-    .from('place_popularity_cache')
-    .select('place_id, post_count, interaction_count_30d, avg_food_rating, food_rating_count')
-    .limit(limit)
-  if (error) throw error
-  return data ?? []
 }
 
 export async function insertGooglePlace(input: {

@@ -47,13 +47,13 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | post_draft_media | Product | User-private draft media metadata | User/autosave | Follows draft lifecycle; cleanup job pending | Included for owner | Owner RLS plus private storage policies |
 | hashtags | Product | Public taxonomy | User/system | Retained while referenced | Not user-private | Public select, authenticated insert |
 | post_hashtags | Product | Public post metadata | User | Follows post lifetime | Included through posts | Public select, owner mutation |
-| restaurants | Product/Data | Canonical public restaurant data | Rekkus/user/provider/admin | Retained while restaurant exists | Not user-owned except submitted observations | Public select, controlled mutation |
-| dishes | Product/Data | Canonical public dish-at-restaurant identity | Rekkus/user/post backfill | Retained while referenced | Not user-private | Public select, authenticated creation through bounded workflow |
+| places | Product/Data | Canonical public place data | Rekkus/user/provider/admin | Retained while place exists | Not user-owned except submitted observations | Public select, controlled mutation |
+| dishes | Product/Data | Canonical public dish-at-place identity | Rekkus/user/post backfill | Retained while referenced | Not user-private | Public select, authenticated creation through bounded workflow |
 | dish_audit_events | Security | Dish canonicalisation audit evidence | System/user workflow | Compliance audit retention | Minimized; not normal public export | Direct client access denied; internal review |
 | cuisine_aliases | Product/Data | Public taxonomy | Rekkus/system | Retained while search taxonomy exists | Not user-owned | Public select, migration/admin write |
 | suburb_aliases | Product/Data | Public local discovery taxonomy | Rekkus/system | Retained while local search taxonomy exists | Not user-owned | Public select, migration/admin write |
 | suburb_lookups | Product/Data | Public locality lookup metadata | Public/open locality data and admin seed | Retained while local search taxonomy exists | Not user-owned | Public select, migration/admin seed |
-| restaurant_popularity_cache | Analytics/Data | Aggregate restaurant engagement signal | Derived from public posts and privacy-safe events | Refreshed aggregate cache | Aggregated/de-identified | Public select, service refresh |
+| restaurant_popularity_cache | Analytics/Data | Aggregate place engagement signal | Derived from public posts and privacy-safe events | Refreshed aggregate cache | Aggregated/de-identified | Public select, service refresh |
 | trending_searches | Analytics | Aggregate discovery signal, partitioned by coarse city | Derived from privacy-safe search events | Refreshed aggregate cache | Aggregated/de-identified | Public select, service refresh |
 | saved_searches | Product/Search | User-private saved query text | User | Account lifetime unless unsaved | Included in deletion/export | Owner RLS |
 | restaurant_sources | Data | Source/provenance | Provider/user/admin | Retain while linked | Source-attributed; unlink by review | Public select, limited insert |
@@ -70,10 +70,11 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | moderation_appeals | Trust/Safety | Appeal record | User/admin | Manual review/audit retention | Appellant-linked rows included | Appellant insert/select, admin/service review |
 | user_trust_profiles | Trust/Safety | Private trust/restriction state | System/admin | Account lifetime or review expiry | Included where user-linked | Owner select, admin/service write |
 | privacy_requests | Security | User-private legal request | User/support | Legal retention | User visible | Owner RLS |
-| analytics_events | Analytics | Internal telemetry, including coarse search `near_city`, search/provider fallback outcomes, create-post restaurant search queries, no-results recovery queries, optional cuisine metadata, and search-attribution metadata (`search_session_id`, capped query, result type/position) when available | User behavior/system | 90-day raw retention, aggregate later | De-identify or delete link when required | Insert own, aggregate/public read |
+| analytics_events | Analytics | Internal telemetry, including coarse search `near_city`, search/provider fallback outcomes, create-post place search queries, no-results recovery queries, optional cuisine metadata, and search-attribution metadata (`search_session_id`, capped query, result type/position) when available | User behavior/system | 90-day raw retention, aggregate later | De-identify or delete link when required | Insert own, aggregate/public read |
 | feature_flag_overrides | Operations | Emergency feature flag rollback state | Engineering/admin | Until flag retirement or incident closure | Internal only | Service-role only |
 | feature_flag_audit_events | Security/Operations | Feature flag change audit evidence | Database trigger on runtime overrides | Compliance audit retention | Minimized; not normal export | Service-role only |
 | saved_search_audit_events | Security/Search | Saved search mutation audit evidence without raw query text | Database trigger on saved_searches | Compliance audit retention | Minimized; not normal export | Service-role only |
+| user_top_spots_audit_events | Security | Top spot set/removed/reordered audit evidence | SECURITY DEFINER RPC `record_top_spot_audit_event` | Compliance audit retention | Minimized; not normal export | Service-role only; no direct client access |
 | Device-local pending intents (`rekkus:pending-mutations:v1`) | Product | User-private transient identifiers, target state, and optional cuisine label for post-save analytics replay | User action while offline/transport failure | 7-day TTL max; removed on sync completion, non-retryable failure (including after 5 retries), sign-out, or app-data removal | Cleared locally; server remains source of truth | Device `AsyncStorage` only; active-user scoped replay; Phase 2 mutations (message reactions, conversation prefs) deferred to B-239b |
 
 ### B-529 Compliance Impact Review
@@ -86,7 +87,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 ### B-550 Compliance Impact Review
 
 - Data added: optional coarse `near_city` in `search_query` analytics metadata and aggregate `trending_searches.near_city` partitions; no precise coordinates are written to analytics.
-- Collection/provider impact: city is resolved from existing restaurant rows near already-known user coordinates; no new external provider call, permission prompt, or location storage path is introduced.
+- Collection/provider impact: city is resolved from existing place rows near already-known user coordinates; no new external provider call, permission prompt, or location storage path is introduced.
 - Security/RLS: raw analytics retention remains 90 days; `trending_searches` stays aggregate/public-read and does not expose individual searchers.
 
 ### B-553 Compliance Impact Review
@@ -98,7 +99,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 
 ### B-575 Compliance Impact Review
 
-- Data added: downstream post/place/dish view and save analytics can include search-attribution metadata: `search_session_id`, capped query, result type, and result position.
+- Data added: downstream post/place/dish view and save analytics can include search-attribution metadata: `search_session_id`, capped query, result type, and result position. (`place_id` replaces `restaurant_id` in attribution metadata)
 - Aggregate surface: `get_search_quality_metrics` returns daily counts/rates only; no user IDs, raw result payloads, result names, provider payloads, addresses, exact coordinates, or per-session rows.
 - Collection/provider impact: no new provider call, permission, table with mutable user state, or persistent location store.
 - Security/RLS: raw analytics retention remains 90 days; the RPC is aggregate-only and bounded to a maximum 90-day lookback.
@@ -106,7 +107,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 
 ### B-572/B-576/B-578/B-579/B-580 Compliance Impact Review
 
-- Data added: none. Search reads existing saved restaurants/posts/dishes, recent search event metadata, dish/post/restaurant links, and de-identified trending aggregates.
+- Data added: none. Search reads existing saved places/posts/dishes, recent search event metadata, dish/post/place links, and de-identified trending aggregates.
 - Cache impact: autocomplete and full-search result caches are process-memory only, bounded to 50 entries, and expire after 60s/30s respectively; no AsyncStorage or server persistence is added.
 - Collection/provider impact: no new provider API call, location permission path, raw result payload storage, precise-coordinate storage, or new analytics event field.
 - Security/RLS: personalization reads owner-scoped rows through existing RLS/service boundaries; trending and dish graph evidence use aggregate/public content links only.
@@ -121,38 +122,38 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 
 ### B-411 Compliance Impact Review
 
-- Data added: create-post restaurant search query text, zero-result search query text, selected place ID/source, optional restaurant ID/cuisine, and a skipped-field event.
+- Data added: create-post place search query text, zero-result search query text, selected place ID/source, optional place ID/cuisine, and a skipped-field event.
 - Collection/provider impact: no new provider call, permission, table, or location metadata path; query text follows the existing analytics sanitizer and 90-day raw retention.
 - Security/RLS: events use the existing `analytics_events` insert-own policy and sanitized metadata allowlist; no precise coordinates, addresses, provider payloads, or media data are recorded.
 - Rollback: remove the four analytics helper calls and ignore any already-written event types until raw retention expires.
 
 ### B-569 Compliance Impact Review
 
-- Data added: search and restaurant-tagging provider fallback outcomes, query intent, fallback reason, location context boolean, coarse location source (`gps`, `manual`, `none`), and permission-result status.
+- Data added: search and place-tagging provider fallback outcomes, query intent, fallback reason, location context boolean, coarse location source (`gps`, `manual`, `none`), and permission-result status.
 - Collection/provider impact: no new provider integration, table, background location, or persistent location store. Provider calls are reduced for ambiguous food queries without locality.
 - Security/RLS: events use existing `analytics_events` insert-own policy and sanitized metadata allowlist; no precise coordinates, manual area labels, addresses, provider payloads, or raw result payloads are recorded.
 - Rollback: remove the fallback/nudge analytics helper calls and retain already-written event types until raw retention expires.
 
 ### 2026-06-12 Location Tagging Flywheel Compliance Impact Review
 
-- Data added: no new table. Create-post restaurant tagging requests more local DB candidates and may call Google only to top up eligible thin local result sets.
-- Provider impact: displayed autocomplete suggestions remain transient. A user-selected Google result is promoted through the existing compliant path: canonical `restaurants`, Google `place_id` in `restaurant_sources`, field-mask-limited `restaurant_provider_cache`, attribution/cacheability/retention metadata, and `restaurant_audit_events`.
+- Data added: no new table. Create-post place tagging requests more local DB candidates and may call Google only to top up eligible thin local result sets.
+- Provider impact: displayed autocomplete suggestions remain transient. A user-selected Google result is promoted through the existing compliant path: canonical `places`, Google `place_id` in `restaurant_sources`, field-mask-limited `restaurant_provider_cache`, attribution/cacheability/retention metadata, and `restaurant_audit_events`. Note: `restaurant_sources`, `restaurant_provider_cache`, and `restaurant_audit_events` retain historical naming.
 - Privacy impact: no raw provider payloads, precise coordinates, full addresses, or unrestricted result lists are added to analytics. The new fallback reason is bounded metadata: `thin_local_results`.
 - Retention/legal posture: Place IDs are durable provider identifiers; broader Google content remains provider-cache governed and stale/refresh controlled. Google stays fallback/enrichment, not primary Rekkus-owned truth.
-- Rollback: restore the previous local-result threshold and visible cap in `useRestaurantSearch`; already-selected restaurants remain source-attributed local graph records.
+- Rollback: restore the previous local-result threshold and visible cap in `useRestaurantSearch`; already-selected places remain source-attributed local graph records.
 
 ### 2026-06-12 Profile Food Identity Compliance Impact Review
 
-- Data added: no new table or new provider integration. Profile interactions add bounded analytics metadata for tab selection, top-spot taps, share taps, and empty-profile review CTAs.
-- Provider impact: Top Spots photo cards reuse existing restaurant photo helpers, preferring Rekkus post photos and then cached/provider photo refs already stored under the restaurant provider-cache governance path.
-- Privacy impact: analytics records action labels and optional profile tab only; restaurant names, collection names, profile text, cuisine labels, addresses, precise coordinates, and follower names are not recorded.
+- Data added: no new table or new provider integration. Profile interactions add bounded analytics metadata for tab selection, top-spot taps, share taps, and empty-profile post CTAs.
+- Provider impact: Top Spots photo cards reuse existing place photo helpers, preferring Rekkus post photos and then cached/provider photo refs already stored under the place provider-cache governance path.
+- Privacy impact: analytics records action labels and optional profile tab only; place names, collection names, profile text, cuisine labels, addresses, precise coordinates, and follower names are not recorded.
 - Security/RLS: profile lists use existing collection RLS through the service layer; public profiles request only `unlisted`/`public` collections, while private topic follows remain out of the public profile identity surface.
 - Rollback: remove `profile_interaction` calls and keep the food-first profile UI; already-written events expire under the existing analytics raw-retention policy.
 
-| saved_locations | Product | User-private saved restaurant intent | User | Account lifetime | Included | Owner RLS |
+| saved_places | Product | User-private saved place intent | User | Account lifetime | Included | Owner RLS |
 | saved_dishes | Product | User-private canonical dish intent | User | Account lifetime | Included | Owner RLS |
 | collections | Product | User-private/shareable collection metadata | User | Account lifetime unless deleted | Included | Owner RLS; unlisted/public select |
-| collection_items | Product | User-private/shareable dish/post/place organisation | User | Account lifetime unless deleted | Included | Owner RLS via collection; unlisted/public select; atomic add/confirmed unsave RPCs |
+| collection_items | Product | User-private/shareable dish/post/place organisation in Collections | User | Account lifetime unless deleted | Included | Owner RLS via collection; unlisted/public select; atomic add/confirmed unsave RPCs |
 | user_topic_follows | Product | User-private taste/interest preference | User | Account lifetime unless deleted | Included | Owner RLS |
 | conversations | Product/Messaging | Private conversation container | User | Account lifetime unless deleted | Included | Participant RLS |
 | conversation_participants | Product/Messaging | Private conversation membership and read state | User | Account lifetime unless deleted | Included | Participant RLS |
@@ -191,7 +192,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 - Audit/security records may be retained only when minimized and justified.
 - Precise location, raw free text, emails, phone numbers, secrets, tokens, reset links, private notes, and raw provider payloads must not enter analytics unless explicitly reviewed.
 - Analytics metadata is sanitized in `lib/analytics.ts` before insertion and checked by privacy/compliance automation; no-results suggestion lists are stored as compact query strings, not raw result payloads.
-- Post edit audit data is minimized to changed field names/count. Do not store raw captions, media URLs, restaurant names, addresses, report notes, or before/after content in `post_edit_events`.
+- Post edit audit data is minimized to changed field names/count. Do not store raw captions, media URLs, place names, addresses, report notes, or before/after content in `post_edit_events`.
 
 ## Location Minimization
 
@@ -207,7 +208,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | Data | Retention rule | Deletion/export |
 | --- | --- | --- |
 | Auth identities and profile data | Account lifetime unless deleted | Included in account deletion/export where user-owned |
-| Posts, comments, reactions, follows, saves, saved locations | Account lifetime unless deleted or moderated | Included where user-owned |
+| Posts, comments, reactions, follows, saves, saved places | Account lifetime unless deleted or moderated | Included where user-owned |
 | Public post media | Account lifetime unless post/media is deleted | URLs/metadata included; storage cleanup follows media lifecycle |
 | Offline saved cache | Device-local best-effort cache, overwritten on refresh | Cleared by app/device data removal; server deletion remains source of truth |
 | Offline pending intents | Device-local reversible mutation IDs/state only, until replay or session clearing | Cleared after sync, non-retryable rejection, sign-out/account removal, or app/device data removal |
@@ -235,8 +236,8 @@ Message deletion provides true erasure: `messages.body`, `attachment_url`, and `
 
 - Report and block flows are release-critical for posts, comments, profiles, and other user-generated content.
 - Moderation actions must be auditable, reversible where practical, and reviewable by a human for borderline or legally risky content.
-- Review incentives, paid placement, or restaurant-owner influence must be disclosed before the content or ranking surface is shown to users.
-- Restaurant and user disputes need an intake path, status trail, owner, and SLA; negative reviews must not be selectively removed for commercial reasons.
+- Review incentives, paid placement, or place-owner influence must be disclosed before the content or ranking surface is shown to users.
+- Place and user disputes need an intake path, status trail, owner, and SLA; negative posts must not be selectively removed for commercial reasons.
 - Takedown requests need a monitored contact path and documented response SLA before public launch.
 - Ranking documentation may explain main factors without exposing exact weights; ranking changes must keep timestamped evidence in product owner docs.
 
@@ -256,14 +257,14 @@ Use the DPIA/PIA checklist before enabling AI moderation, profiling, persistent 
 | --- | --- | --- |
 | Day 0 compliance stack | Docs/backlog | Covered by compliance/release gates; missing UGC, disclosure, scanning, and incident gaps are backlog items. |
 | UGC compliance | Backlog | Report/block, moderation, dispute, takedown, fake-review, and incentive disclosure work added. |
-| Restaurant data/ranking | Docs/backlog | Ranking transparency, provider attribution, owner correction/claim workflows, and change logs remain owner-doc/backlog work. |
+| Place data/ranking | Docs/backlog | Ranking transparency, provider attribution, owner correction/claim workflows, and change logs remain owner-doc/backlog work. |
 | Location/GPS privacy | Backlog | Contextual permission, manual fallback, and precise-location minimization added. |
 | Food safety/allergen data | Deferred | Explicitly deferred until Rekkus displays health, inspection, allergen, or safety claims. |
 | App-store compliance | Backlog/docs | UGC, privacy/data safety, age/alcohol, provider attribution, and support-link gates belong in release/store work. |
 | Payments/PCI/AFSL | Deferred | Explicitly deferred until billing, payouts, or marketplace payments become active. |
 | Privacy laws | Docs/backlog | Privacy rights are covered; NDB/OAIC runbook and DPIA checklist added. |
 | HIPAA/COPPA | Ignored | Not healthcare; not targeting children under 13. Revisit only if product scope changes. |
-| AI laws | Deferred/docs | AI-generated reviews/feeds remain deprioritized; future user-visible AI requires disclosure and risk review. |
+| AI laws | Deferred/docs | AI-generated post content/feeds remain deprioritized; future user-visible AI requires disclosure and risk review. |
 | Accessibility | Backlog | Moved to P1 release-readiness checklist. |
 | Web UI libraries/Next.js specifics | Ignored | Not applicable to the current Expo mobile app; reuse existing components. |
 | Legal docs | Docs/Roy actionables | Privacy, Terms, AUP/takedown/contact expectations are tracked through release and Roy-owned actions. |
@@ -279,7 +280,7 @@ Use the DPIA/PIA checklist before enabling AI moderation, profiling, persistent 
 
 Audit automatically or through controlled service paths:
 
-- canonical restaurant edits
+- canonical place edits
 - source links and unlinks
 - provider cache refreshes
 - alias and merge decisions
@@ -300,6 +301,7 @@ Audit automatically or through controlled service paths:
 - collection audit (collection create, rename, delete, item add/remove, visibility change via `collection_audit_events` — no FK on collection_id so records survive collection deletion; B-518)
 - feature flag audit (runtime override create/update/removal via `feature_flag_audit_events` — fail-closed database trigger prevents unaudited control changes; B-521)
 - saved search audit (saved search create/update/delete via `saved_search_audit_events` — context omits raw query text; B-553)
+- user top spots audit (top spot set/removed/reordered via `user_top_spots_audit_events` — user_id ON DELETE SET NULL, place_id no FK so records survive deletion; written via `record_top_spot_audit_event` SECURITY DEFINER RPC)
 
 Audit records should include actor type, actor ID where available, action, entity type, entity ID, before/after summary, source/provider, reason, request/job ID, timestamp, compliance category, and rollback reference. Do not store secrets, raw private exports, unnecessary PII, or restricted provider payloads in audit logs.
 
@@ -314,7 +316,7 @@ All domain audit tables are unified under `platform_audit_events_view` (see ADR 
 | Supplier management | Provider Register, COSTS.md, RELEASE.md |
 | Secure development | API_GOVERNANCE.md, check:hygiene, check:providers |
 | Incident response | SECURITY.md incident runbook, INCIDENTS.md |
-| Logging | analytics_events, restaurant_audit_events, ops summaries |
+| Logging | analytics_events, restaurant_audit_events (historical name retained), ops summaries |
 | Post editing | `posts.last_edited_at`, `posts.edit_count`, `post_edit_events`; owner-only updates, minimized audit rows, and same-post-ID saves |
 | Monitoring | OBSERVABILITY.md, check:ops, scheduled CI |
 | Vulnerability management | check:deps, dependency governance |

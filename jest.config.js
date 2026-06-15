@@ -52,9 +52,6 @@ const config = {
     './lib/hooks/useAutocomplete.ts': {
       statements: 94,
     },
-    './lib/hooks/useRestaurantSearch.ts': {
-      statements: 86,
-    },
   },
 }
 

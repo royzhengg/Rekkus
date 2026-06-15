@@ -153,8 +153,9 @@ async function uploadOneDraftMedia(
 
   const ext = extForMedia(media)
   const storagePath = `${userId}/${draftId}/${media.localId || `media-${index}`}.${ext}`
-  const fileContent = await FileSystem.readAsStringAsync(media.uri, { encoding: 'base64' as const })
-  const { error } = await supabase.storage.from(DRAFT_BUCKET).upload(storagePath, decode(fileContent), {
+  const response = await fetch(media.uri)
+  const blob = await response.blob()
+  const { error } = await supabase.storage.from(DRAFT_BUCKET).upload(storagePath, blob, {
     contentType: mimeForMedia(media),
     upsert: true,
   })
@@ -244,6 +245,7 @@ async function saveRemoteDraft(draft: CreatePostDraft, options: SaveOptions): Pr
         .single()
 
   if (result.error || !result.data) {
+    reportInvalidBoundary('post_draft_db_save_failed')
     return upsertLocalDraft({
       ...draft,
       status,
@@ -272,6 +274,7 @@ async function saveRemoteDraft(draft: CreatePostDraft, options: SaveOptions): Pr
     await upsertLocalDraft(synced)
     return synced
   } catch {
+    reportInvalidBoundary('post_draft_media_upload_failed')
     const failed = {
       ...draft,
       id: remoteId,
@@ -539,11 +542,3 @@ async function migrateLocalDraftsToRemote(userId: string): Promise<void> {
   if (allSynced) await AsyncStorage.setItem(migrationKey, 'true')
 }
 
-function decode(base64: string): Uint8Array {
-  const binaryStr = atob(base64)
-  const bytes = new Uint8Array(binaryStr.length)
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i)
-  }
-  return bytes
-}

@@ -343,6 +343,17 @@ When introducing a new term or acronym:
 
 > **Example:** *"You can manage this through the Content Management System (CMS). The CMS also allows you to..."*
 
+### 5.3a Rekkus canonical term list
+
+| Concept | Use | Do not use |
+| --- | --- | --- |
+| Food establishment | **place** | restaurant, location, venue, spot |
+| User-created save grouping | **collection** | list, folder |
+| Save action / saved tab | **save / saved** | bookmark, favourite |
+| User-generated content | **post** | review, entry |
+| Save a place | **Save** | Bookmark |
+| Remove saved place | **Unsave** | Unbookmark, remove bookmark |
+
 ### 5.4 Tips for maintaining consistency
 
 - Store your terminology guide somewhere the whole team can access and contribute to it.
@@ -376,5 +387,5 @@ Use this as a final review before any copy goes live.
 
 - **Location fields on creation flows use `"Where did you eat?"` not `"Search for a restaurant…"`** — directive copy signals the field's purpose; search-style copy undersells the metadata value.
 - **Single primary media CTA → action sheet is canonical for media source selection.** Do not render Camera and Library as two parallel buttons — use one "Add photos" button that opens a `RekkusActionSheet` with Camera and Photo library as options. Camera first (primary action), Photo library second.
-- **Nearby count sub-label gives passive location confidence.** When nearby places are loaded and the location field is unfocused and empty, show `"N restaurant(s) near you"` below the field. This signals platform context before the user types. Hide once focused or once a place is confirmed.
+- **Nearby count sub-label gives passive location confidence.** When nearby places are loaded and the location field is unfocused and empty, show `"N place(s) near you"` below the field. This signals platform context before the user types. Hide once focused or once a place is confirmed.
 - **Character counters appear only while focused.** A counter at rest (`0/100`) exposes implementation detail without value. Show it only when the user is actively typing. Apply `accessibilityLiveRegion="polite"` so screen readers announce the value on change.

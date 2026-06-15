@@ -6,7 +6,7 @@
 
 ### Root cause (B-505/B-512)
 
-`useSearch.ts` initially used only `clearTimeout`. A first guard then claimed ownership only after the replacement debounce fired, leaving an in-flight request able to publish after the query changed, cleared, or the component unmounted. `useAutocomplete.ts` and the extracted restaurant-search hook had the same bug class.
+`useSearch.ts` initially used only `clearTimeout`. A first guard then claimed ownership only after the replacement debounce fired, leaving an in-flight request able to publish after the query changed, cleared, or the component unmounted. `useAutocomplete.ts` and the extracted place-search hook had the same bug class.
 
 ### Fix: ref-based request ID guard
 
@@ -49,7 +49,7 @@ useEffect(() => {
 
 ### Guardrail
 
-`scripts/lib/async-safety-rules.js` enforces immediate invalidation and cleanup for the protected debounce hooks, including the promise-IIFE restaurant-search shape. `tests/type-safety/asyncSafetyRules.test.js` proves the stale-window forms fail, and behavioural hook tests prove stale/cleared/unmounted responses do not publish.
+`scripts/lib/async-safety-rules.js` enforces immediate invalidation and cleanup for the protected debounce hooks, including the promise-IIFE place-search shape. `tests/type-safety/asyncSafetyRules.test.js` proves the stale-window forms fail, and behavioural hook tests prove stale/cleared/unmounted responses do not publish.
 
 ## Fatal promise and dependency lint
 

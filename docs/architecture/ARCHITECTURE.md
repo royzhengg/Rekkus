@@ -37,18 +37,18 @@ app/                  Expo Router screens — orchestration only
   (auth)/             Auth flow screens
   (tabs)/             Tab bar screens
   create/             Create-post modal route group (root modal; index + drafts)
-  restaurants/        Restaurant detail + map routes
+  places/             Place detail + map routes
   posts/              Post detail routes
   settings/           Settings screens
   user/               Other user profiles
 
 features/             Product-area screen implementations
   auth/               Auth screens
-  create-post/        Create review flow
+  create-post/        Create post flow
   feed/               Feed and alerts
   posts/              Post detail
   profile/            Own and public profile screens
-  restaurants/        Places tab, restaurant detail, restaurant map
+  places/             Places tab, place detail, place map
   search/             Search screens
   settings/           Settings screens
 
@@ -61,14 +61,17 @@ lib/                  App logic layer
   contexts/           React providers
   hooks/              Custom React hooks
   search/             Neutral search context, candidates, and retrieval pipeline
-  services/           Supabase API wrappers (posts.ts, users.ts, comments.ts, restaurants.ts)
+  services/           Supabase API wrappers (posts.ts, users.ts, comments.ts, places.ts)
+    places/           Sub-modules: google.ts (API wrappers), cache.ts (provider cache), analytics.ts (ratings/popularity), governance.ts (audit/edit)
+    messaging/        Sub-modules: conversations, messages, participants, guards, types, activity
+    posts/            Sub-modules: queries, mutations, social, guards, types
   mocks/              Local/demo data only
   utils/              Pure helpers (format.ts, geo.ts)
   analytics.ts        Analytics abstraction (versioning, sampling, privacy-safe writes)
   featureFlags.ts     Feature flag checks (isEnabled) + override refresh
   config.ts           Env vars — single source of truth (never raw process.env in screens)
   supabase.ts         Typed Supabase client
-  routes/             Typed route builder functions (postDetail, restaurantDetail, userProfile, conversation, search, createPost, etc.)
+  routes/             Typed route builder functions (postDetail, placeDetail, userProfile, conversation, search, createPost, etc.)
 
 constants/
   Colors.ts           Colour tokens (lightColors, darkColors, imgColors)
@@ -128,10 +131,10 @@ Canonical routes use plural domain names:
 - Post detail: `/posts/[postId]`
 - Dish detail: `/dishes/[dishId]`
 - Collection detail: `/collections/[collectionId]`
-- Restaurant detail: `/restaurants/[restaurantId]`
-- Restaurant map: `/restaurants/[restaurantId]/map`
+- Place detail: `/places/[placeId]`
+- Place map: `/places/[placeId]/map`
 
-Legacy `/post/[id]`, `/location/[placeId]`, `/(tabs)/post`, `/(tabs)/places`, and `/(tabs)/restaurants` routes are redirect wrappers only.
+Legacy `/post/[id]`, `/location/[placeId]`, `/restaurants/[restaurantId]`, `/(tabs)/post`, `/(tabs)/places`, and `/(tabs)/restaurants` routes are redirect wrappers only.
 
 All dynamic route construction must go through typed helpers in `lib/routes/`. Never construct routes as raw strings or inline `{ pathname, params }` objects in `features/` or `components/` — a rename or param change silently breaks navigation otherwise. See B-504.
 
@@ -231,30 +234,32 @@ Mounted in `app/_layout.tsx` from outermost to innermost:
 
 ### Supabase tables
 
+The canonical food-establishment entity is `places` (renamed from `restaurants` in migration `20260614000001`). All `restaurant_*` prefixed infra tables (`restaurant_sources`, `restaurant_provider_cache`, `restaurant_observations`, `restaurant_aliases`, `restaurant_audit_events`, `restaurant_ownership_events`, `restaurant_merge_events`) retain their original names — they are immutable audit/compliance tables whose `restaurant_` prefix reflects historical naming.
+
 | Table                         | Purpose                                                                                        |
 | ----------------------------- | ---------------------------------------------------------------------------------------------- |
 | `users`                       | Profiles (username, bio, suburb, city, country)                                                |
-| `posts`                       | Reviews (caption, ratings, cuisine_type, best_dish)                                            |
+| `posts`                       | Posts (caption, ratings, cuisine_type, must_order)                                             |
 | `post_photos`                 | Photos linked to posts (url, order_index)                                                      |
-| `restaurants`                 | Canonical Rekkus restaurant identity and public metadata                                       |
+| `places`                      | Canonical Rekkus place identity and public metadata                                            |
 | `restaurant_sources`          | Source IDs and provenance for Google, OSM, owner/user/admin, and future providers              |
 | `restaurant_provider_cache`   | Provider snapshots with TTL/freshness, attribution, cacheability, and retention                |
 | `restaurant_observations`     | First-party user/system facts awaiting trust, moderation, or promotion                         |
 | `restaurant_aliases`          | Duplicate, old ID, alternate name, and merge hints                                             |
 | `cuisine_aliases`             | Deterministic cuisine/dish alias expansion for search                                          |
-| `restaurant_audit_events`     | Audit trail for restaurant canonical changes, provider refreshes, aliases, merges, and reviews |
-| `restaurant_ownership_events` | Claim, approval, rejection, transfer, and removal history for restaurant ownership             |
+| `restaurant_audit_events`     | Audit trail for place canonical changes, provider refreshes, aliases, merges, and posts        |
+| `restaurant_ownership_events` | Claim, approval, rejection, transfer, and removal history for place ownership                  |
 | `restaurant_merge_events`     | Merge history with before/after summaries and rollback references                              |
-| `data_repair_events`          | Repair reports and review status for malformed restaurant, post, dish, and user data           |
+| `data_repair_events`          | Repair reports and review status for malformed place, post, dish, and user data                |
 | `privacy_requests`            | User privacy export/deletion/access/correction request tracking                                |
 | `likes`                       | post_id + user_id junction                                                                     |
 | `saves`                       | post_id + user_id junction                                                                     |
 | `comments`                    | post_id + user_id + content                                                                    |
 | `post_reactions`              | post_id + user_id + reaction_type (helpful/love/thanks/oh_no)                                  |
-| `saved_locations`             | restaurant_id + user_id junction with saved intent status                                      |
-| `saved_dishes`                | dish_id + user_id private canonical-dish bookmark junction                                     |
+| `saved_places`                | place_id + user_id junction (renamed from `saved_locations`)                                   |
+| `saved_dishes`                | dish_id + user_id private canonical-dish save junction                                         |
 | `collections`                 | User-owned named boards with private/unlisted/public/staff-pick visibility metadata            |
-| `collection_items`            | Restaurant/post/dish membership rows for collections; RPC add ensures base bookmark            |
+| `collection_items`            | Place/post/dish membership rows for collections; RPC add ensures base save                     |
 | `user_topic_follows`          | User-owned cuisine/interest follows for onboarding and discovery                               |
 | `conversations`               | Private-message conversation containers                                                        |
 | `conversation_participants`   | Participant membership and read state for private conversations                                |
@@ -273,7 +278,7 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `20240101000000_initial_schema.sql`                  | Full schema + RLS + storage buckets                                                                               |
 | `20240102000000_seed_mock_data.sql`                  | Seed data                                                                                                         |
-| `20240103000000_saved_locations.sql`                 | `saved_locations` table + RLS                                                                                     |
+| `20240103000000_saved_locations.sql`                 | `saved_locations` table + RLS (renamed to `saved_places` in `20260614000001`)                                     |
 | `20240110000000_post_ratings.sql`                    | `food_rating`, `vibe_rating`, `cost_rating` on posts                                                              |
 | `20240115000000_user_location.sql`                   | `suburb`, `city`, `country` on users                                                                              |
 | `20240116000000_post_cuisine_type.sql`               | `cuisine_type` on posts                                                                                           |
@@ -339,7 +344,7 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 | `20260601000008_dish_fts_restaurant_search.sql`      | Dish-name FTS in `search_restaurants_full_text` via correlated `posts.dish_id → dishes.name` EXISTS clause (B-563) |
 | `20260601000009_fetch_trending_dishes.sql`           | `fetch_trending_dishes` RPC: ranks dishes by 7-day `saved_dishes` + `posts.dish_id` activity (saves ×3 weight); powers "Trending dishes" row on DiscoveryPage (B-549) |
 | `20260602000000_saved_searches.sql`                  | Owner-RLS `saved_searches` plus fail-closed `saved_search_audit_events`; powers persistent Discovery saved searches (B-553) |
-| `20260602000001_search_typo_tolerance.sql`           | Trigram fallback CTEs in `search_restaurants_full_text` and `search_posts_full_text`; word_similarity > 0.35 on restaurant names, similarity > 0.30 on must_order (B-577) |
+| `20260602000001_search_typo_tolerance.sql`           | Trigram fallback CTEs in `search_restaurants_full_text` and `search_posts_full_text`; word_similarity > 0.35 on place names, similarity > 0.30 on must_order (B-577)   |
 | `20260602000002_search_freshness_v1.sql`             | `search_freshness_scores` materialized view and `get_search_freshness` RPC; powers freshness signal in candidate ranking (B-574) |
 | `20260602000003_search_quality_metrics.sql`          | `search_quality_events` table and `log_search_quality_event` RPC; audit trail for quality governance and automated ratchets (B-585) |
 
@@ -351,8 +356,8 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 | --- | --- | --- |
 | `useSearch` | `lib/hooks/useSearch.ts` | BM25-style scoring; debounced Supabase + local merge; backend cuisine fallback |
 | `useDiscover` | `lib/hooks/useDiscover.ts` | Deterministic Discover ranking from quality, nearby, trending, topics, and diversity signals |
-| `useSavedLocations` | `lib/hooks/useSavedLocations.ts` | Restaurant join; refreshes on tab focus |
-| `useCollections` | `lib/hooks/useCollections.ts` | User collections plus restaurant collection membership for Places filters |
+| `useSavedPlaces` | `lib/hooks/useSavedPlaces.ts` | Saved places join; refreshes on tab focus |
+| `useCollections` | `lib/hooks/useCollections.ts` | User collections plus place membership for Places filters |
 | `useTopicFollows` | `lib/hooks/useTopicFollows.ts` | User cuisine/interest follows for onboarding seeded discovery |
 | `useSavedPosts` | `lib/hooks/useSavedPosts.ts` | Cursor-based Supabase pagination |
 | `useSavedDishes` | `lib/hooks/useSavedDishes.ts` | Private saved canonical dishes |
@@ -361,7 +366,7 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 | `useLikedPosts` | `lib/hooks/useLikedPosts.ts` | Cursor-based Supabase pagination |
 | `usePagedList` | `lib/hooks/usePagedList.ts` | Generic client-side slicer (`visible`, `hasMore`, `loadMore`) |
 | `useAlerts` | `lib/hooks/useAlerts.ts` | Likes + comments in parallel; pull-to-refresh |
-| `useRestaurantSearch` | `lib/hooks/useRestaurantSearch.ts` | Debounced DB+Google autocomplete, nearby fetch, place details + upsert; extracted from StepMedia (B-506) |
+| `usePlaceSearch` | `lib/hooks/usePlaceSearch.ts` | Debounced DB+Google autocomplete, nearby fetch, place details + upsert; extracted from StepMedia (B-506) |
 | `useFollowingFeed` | `lib/hooks/useFollowingFeed.ts` | Follows-based post feed |
 | `useDiscover` | `lib/hooks/useDiscover.ts` | Discover feed (trending, popular places) |
 
@@ -376,9 +381,9 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 - **Text Search** — geocode fallback for posts with no coordinates
 - **Photos** — up to 6 photos on location screen, 1 on map bottom card
 - Key stored in `.env` as `EXPO_PUBLIC_GOOGLE_PLACES_KEY`; accessed via `lib/config.ts`
-- Google is fallback/enrichment, not canonical restaurant truth.
+- Google is fallback/enrichment, not canonical place truth.
 - Place Details calls must use field masks; autocomplete flows should preserve session-token-aware behavior when a selection follows.
-- Provider-derived data should flow through restaurant source/cache/observation/audit tables before it affects canonical restaurant metadata.
+- Provider-derived data should flow through place source/cache/observation/audit tables before it affects canonical place metadata.
 
 ### Google Maps
 

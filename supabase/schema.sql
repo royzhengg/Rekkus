@@ -37,8 +37,8 @@ create table if not exists public.users (
   updated_at      timestamptz not null default now()
 );
 
--- restaurants
-create table if not exists public.restaurants (
+-- places
+create table if not exists public.places (
   id                          uuid          default gen_random_uuid() primary key,
   name                        text          not null,
   address                     text,
@@ -83,7 +83,7 @@ create table if not exists public.restaurants (
 create table if not exists public.posts (
   id              uuid        default gen_random_uuid() primary key,
   user_id         uuid        references public.users on delete cascade not null,
-  restaurant_id   uuid        references public.restaurants on delete set null,
+  place_id        uuid        references public.places on delete set null,
   caption         text,
   rating          integer     check (rating between 1 and 5),
   food_rating     integer     check (food_rating between 1 and 5),
@@ -104,10 +104,9 @@ create table if not exists public.posts (
   edit_count      integer     not null default 0,
   search_tsv      tsvector    generated always as (
     setweight(to_tsvector('simple', coalesce(must_order, '')), 'A') ||
-    setweight(jsonb_to_tsvector('simple', coalesce(dish_tags, '[]'::jsonb), '["string"]'), 'A') ||
+    setweight(to_tsvector('simple', coalesce(dish_tags::text, '')), 'A') ||
     setweight(to_tsvector('simple', coalesce(cuisine_type, '')), 'B') ||
-    setweight(to_tsvector('simple', coalesce(caption, '')), 'C') ||
-    setweight(to_tsvector('simple', coalesce(array_to_string(occasion_tags, ' '), '')), 'D')
+    setweight(to_tsvector('simple', coalesce(caption, '')), 'C')
   ) stored,
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
@@ -214,14 +213,14 @@ create table if not exists public.user_settings (
   updated_at           timestamptz not null default now()
 );
 
--- saved_locations
-create table if not exists public.saved_locations (
+-- saved_places
+create table if not exists public.saved_places (
   id            uuid        default gen_random_uuid() primary key,
   user_id       uuid        references public.users on delete cascade not null,
-  restaurant_id uuid        references public.restaurants on delete cascade not null,
+  place_id      uuid        references public.places on delete cascade not null,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
-  unique (user_id, restaurant_id)
+  unique (user_id, place_id)
 );
 
 -- push_tokens
@@ -273,7 +272,7 @@ create table if not exists public.collections (
 create table if not exists public.collection_items (
   id            uuid        default gen_random_uuid() primary key,
   collection_id uuid        references public.collections on delete cascade not null,
-  target_type   text        not null check (target_type in ('restaurant', 'post', 'dish')),
+  target_type   text        not null check (target_type in ('place', 'post', 'dish')),
   target_id     uuid        not null,
   created_at    timestamptz not null default now(),
   unique (collection_id, target_type, target_id)
@@ -335,7 +334,7 @@ create table if not exists public.post_drafts (
   title           text        not null default '',
   body            text        not null default '',
   selected_place  jsonb,
-  restaurant_id   uuid        references public.restaurants on delete set null,
+  place_id        uuid        references public.places on delete set null,
   dish_tags       jsonb       not null default '[]'::jsonb,
   food_rating     integer     not null default 0 check (food_rating between 0 and 5),
   vibe_rating     integer     not null default 0 check (vibe_rating between 0 and 5),
@@ -398,7 +397,7 @@ create table if not exists public.dishes (
   id              uuid        primary key default gen_random_uuid(),
   name            text        not null,
   name_normalized text        generated always as (lower(trim(name))) stored,
-  restaurant_id   uuid        references public.restaurants(id) on delete set null,
+  place_id        uuid        references public.places(id) on delete set null,
   cuisine_type    text,
   created_by      uuid        references public.users(id) on delete set null,
   search_tsv      tsvector    generated always as (
@@ -462,15 +461,15 @@ create table if not exists public.user_top_spots (
   id            uuid        primary key default gen_random_uuid(),
   user_id       uuid        not null references auth.users(id) on delete cascade,
   position      smallint    not null check (position between 1 and 3),
-  restaurant_id uuid        not null references public.restaurants(id),
+  place_id      uuid        not null references public.places(id),
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   unique (user_id, position),
-  unique (user_id, restaurant_id)
+  unique (user_id, place_id)
 );
 
--- restaurant_place_stubs (Google autocomplete cache, TTL 30 days)
-create table if not exists public.restaurant_place_stubs (
+-- place_stubs (Google autocomplete cache, TTL 30 days)
+create table if not exists public.place_stubs (
   place_id   text        primary key,
   name       text        not null,
   expires_at timestamptz not null default (now() + interval '30 days'),
@@ -502,7 +501,7 @@ create table if not exists public.user_blocks (
 create table if not exists public.content_reports (
   id             uuid        default gen_random_uuid() primary key,
   reporter_id    uuid        references public.users on delete set null,
-  target_type    text        not null check (target_type in ('post', 'comment', 'user', 'restaurant')),
+  target_type    text        not null check (target_type in ('post', 'comment', 'user', 'place')),
   target_id      uuid        not null,
   report_type    text        not null default 'content_report' check (report_type in (
                                'content_report', 'fake_review', 'incentive_disclosure', 'dispute', 'takedown')),
@@ -526,7 +525,7 @@ create table if not exists public.moderation_actions (
   action_type text        not null check (action_type in (
                             'triage', 'hide_content', 'restore_content', 'warn_user',
                             'restrict_user', 'dismiss_report', 'escalate', 'note')),
-  target_type text        not null check (target_type in ('post', 'comment', 'user', 'restaurant')),
+  target_type text        not null check (target_type in ('post', 'comment', 'user', 'place')),
   target_id   uuid        not null,
   reason      text        not null,
   reversible  boolean     not null default true,
@@ -561,7 +560,7 @@ create table if not exists public.user_trust_profiles (
 -- restaurant_sources
 create table if not exists public.restaurant_sources (
   id                    uuid          default gen_random_uuid() primary key,
-  restaurant_id         uuid          not null references public.restaurants(id) on delete cascade,
+  restaurant_id         uuid          not null references public.places(id) on delete cascade,
   source_type           text          not null check (source_type in (
                           'rekkus', 'google_places', 'osm', 'owner_submitted',
                           'user_created', 'admin_created', 'future_provider')),
@@ -580,7 +579,7 @@ create table if not exists public.restaurant_sources (
 -- restaurant_provider_cache
 create table if not exists public.restaurant_provider_cache (
   id                   uuid          default gen_random_uuid() primary key,
-  restaurant_id        uuid          references public.restaurants(id) on delete cascade,
+  restaurant_id        uuid          references public.places(id) on delete cascade,
   source_type          text          not null,
   source_id            text          not null,
   field_mask           text[],
@@ -600,7 +599,7 @@ create table if not exists public.restaurant_provider_cache (
 -- restaurant_observations
 create table if not exists public.restaurant_observations (
   id                  uuid          default gen_random_uuid() primary key,
-  restaurant_id       uuid          references public.restaurants(id) on delete cascade,
+  restaurant_id       uuid          references public.places(id) on delete cascade,
   user_id             uuid          references public.users(id) on delete set null,
   observation_type    text          not null,
   observed_value      jsonb         not null,
@@ -619,7 +618,7 @@ create table if not exists public.restaurant_observations (
 -- restaurant_aliases
 create table if not exists public.restaurant_aliases (
   id            uuid          default gen_random_uuid() primary key,
-  restaurant_id uuid          not null references public.restaurants(id) on delete cascade,
+  restaurant_id uuid          not null references public.places(id) on delete cascade,
   provider      text,
   provider_place_id text,
   alias_name    text,
@@ -640,7 +639,7 @@ create table if not exists public.restaurant_audit_events (
   action              text        not null,
   entity_type         text        not null,
   entity_id           uuid,
-  restaurant_id       uuid        references public.restaurants(id) on delete set null,
+  restaurant_id       uuid        references public.places(id) on delete set null,
   source_type         text,
   reason              text,
   before_summary      jsonb,
@@ -655,7 +654,7 @@ create table if not exists public.restaurant_audit_events (
 -- restaurant_ownership_events
 create table if not exists public.restaurant_ownership_events (
   id                uuid        default gen_random_uuid() primary key,
-  restaurant_id     uuid        not null references public.restaurants(id) on delete cascade,
+  restaurant_id     uuid        not null references public.places(id) on delete cascade,
   event_type        text        not null check (event_type in (
                       'claim_submitted', 'claim_approved', 'claim_rejected',
                       'ownership_transferred', 'ownership_removed')),
@@ -779,14 +778,14 @@ create index if not exists post_photos_processing_status_idx on public.post_phot
 create index if not exists comments_not_deleted_idx on public.comments (post_id, created_at) where deleted_at is null;
 create index if not exists comments_parent_id_idx on public.comments (parent_id);
 
--- restaurants
-create index if not exists idx_restaurants_google_place_id on public.restaurants (google_place_id);
-create index if not exists idx_restaurants_lower_name on public.restaurants (lower(name));
-create index if not exists idx_restaurants_city on public.restaurants (city);
-create index if not exists idx_restaurants_cuisine_type on public.restaurants (cuisine_type);
-create index if not exists restaurants_geog_idx on public.restaurants using gist (restaurant_geog)
+-- places
+create index if not exists idx_places_google_place_id on public.places (google_place_id);
+create index if not exists idx_places_lower_name on public.places (lower(name));
+create index if not exists idx_places_city on public.places (city);
+create index if not exists idx_places_cuisine_type on public.places (cuisine_type);
+create index if not exists places_geog_idx on public.places using gist (restaurant_geog)
   where restaurant_geog is not null;
-create index if not exists restaurants_search_tsv_idx on public.restaurants using gin (
+create index if not exists places_search_tsv_idx on public.places using gin (
   to_tsvector('simple',
     coalesce(name, '') || ' ' ||
     coalesce(cuisine_type, '') || ' ' ||
@@ -794,7 +793,7 @@ create index if not exists restaurants_search_tsv_idx on public.restaurants usin
     coalesce(address, '')
   )
 );
-create index if not exists restaurants_embedding_idx on public.restaurants using hnsw (embedding extensions.vector_cosine_ops)
+create index if not exists places_embedding_idx on public.places using hnsw (embedding extensions.vector_cosine_ops)
   where embedding is not null;
 
 -- analytics_events
@@ -820,10 +819,10 @@ create index if not exists post_edit_events_post_created_idx on public.post_edit
 create index if not exists post_edit_events_user_created_idx on public.post_edit_events (user_id, created_at desc);
 
 -- dishes
-create unique index if not exists dishes_name_restaurant_uniq on public.dishes (name_normalized, restaurant_id);
+create unique index if not exists dishes_name_place_uniq on public.dishes (name_normalized, place_id);
 create index if not exists dishes_name_trgm_idx on public.dishes using gin (name extensions.gin_trgm_ops);
 create index if not exists dishes_search_tsv_idx on public.dishes using gin (search_tsv);
-create index if not exists dishes_restaurant_id_idx on public.dishes (restaurant_id);
+create index if not exists dishes_place_id_idx on public.dishes (place_id);
 
 -- saved_dishes
 create index if not exists saved_dishes_user_created_idx on public.saved_dishes (user_id, created_at desc);
@@ -843,8 +842,8 @@ create index if not exists saved_searches_user_created_idx on public.saved_searc
 -- user_top_spots
 create index if not exists user_top_spots_user_position on public.user_top_spots (user_id, position asc);
 
--- restaurant_place_stubs
-create index if not exists restaurant_place_stubs_expires_at_idx on public.restaurant_place_stubs (expires_at);
+-- place_stubs
+create index if not exists place_stubs_expires_at_idx on public.place_stubs (expires_at);
 
 -- restaurant_sources
 create unique index if not exists idx_restaurant_sources_unique_source on public.restaurant_sources (source_type, source_id)
@@ -905,8 +904,8 @@ create index if not exists saved_search_audit_events_created_at_idx on public.sa
 
 create table if not exists public.restaurant_merge_events (
   id                      uuid          default gen_random_uuid() primary key,
-  canonical_restaurant_id uuid          not null references public.restaurants(id) on delete cascade,
-  merged_restaurant_id    uuid          references public.restaurants(id) on delete set null,
+  canonical_restaurant_id uuid          not null references public.places(id) on delete cascade,
+  merged_restaurant_id    uuid          references public.places(id) on delete set null,
   actor_id                uuid          references public.users(id) on delete set null,
   reason                  text          not null,
   confidence              numeric(3,2)  not null default 0.50,
@@ -1004,13 +1003,13 @@ begin
     insert into public.saves (user_id, post_id)
     values (current_user_id, p_target_id)
     on conflict (user_id, post_id) do nothing;
-  elsif p_target_type = 'restaurant' then
-    if not exists (select 1 from public.restaurants r where r.id = p_target_id) then
-      raise exception 'restaurant_not_found';
+  elsif p_target_type = 'place' then
+    if not exists (select 1 from public.places r where r.id = p_target_id) then
+      raise exception 'place_not_found';
     end if;
-    insert into public.saved_locations (user_id, restaurant_id)
+    insert into public.saved_places (user_id, place_id)
     values (current_user_id, p_target_id)
-    on conflict (user_id, restaurant_id) do nothing;
+    on conflict (user_id, place_id) do nothing;
   else
     raise exception 'invalid_target_type';
   end if;
@@ -1157,8 +1156,8 @@ begin
 end;
 $$;
 
--- create_user_restaurant
-create or replace function public.create_user_restaurant(
+-- create_user_place
+create or replace function public.create_user_place(
   p_name text,
   p_address text default null,
   p_city text default null,
@@ -1174,17 +1173,17 @@ set search_path = public
 as $$
 declare
   v_user_id uuid := auth.uid();
-  v_restaurant_id uuid;
+  v_place_id uuid;
 begin
   if v_user_id is null then
     raise exception 'authenticated user required';
   end if;
 
   if nullif(trim(p_name), '') is null then
-    raise exception 'restaurant name is required';
+    raise exception 'place name is required';
   end if;
 
-  insert into public.restaurants (
+  insert into public.places (
     name,
     address,
     city,
@@ -1214,7 +1213,7 @@ begin
     'rekkus_first',
     'rekkus_post'
   )
-  returning id into v_restaurant_id;
+  returning id into v_place_id;
 
   insert into public.restaurant_sources (
     restaurant_id,
@@ -1229,9 +1228,9 @@ begin
     created_by
   )
   values (
-    v_restaurant_id,
+    v_place_id,
     'user_created',
-    v_restaurant_id::text,
+    v_place_id::text,
     jsonb_build_object('name', trim(p_name), 'city', nullif(trim(coalesce(p_city, '')), '')),
     'first_party_user_submission',
     false,
@@ -1256,17 +1255,17 @@ begin
   values (
     'user',
     v_user_id,
-    'restaurant_created',
-    'restaurant',
-    v_restaurant_id,
-    v_restaurant_id,
+    'place_created',
+    'place',
+    v_place_id,
+    v_place_id,
     'user_created',
     'first_party_restaurant_submission',
     jsonb_build_object('name', trim(p_name), 'verification_status', 'community_pending'),
-    'restaurant_data_independence'
+    'place_data_independence'
   );
 
-  return v_restaurant_id;
+  return v_place_id;
 end;
 $$;
 
@@ -1439,7 +1438,7 @@ terms AS (
 post_matches AS (
   SELECT DISTINCT p.id, lower(p.cuisine_type) AS cuisine_type
   FROM public.posts p
-  LEFT JOIN public.restaurants r ON r.id = p.restaurant_id
+  LEFT JOIN public.places r ON r.id = p.place_id
   LEFT JOIN public.post_hashtags ph ON ph.post_id = p.id
   LEFT JOIN public.hashtags h ON h.id = ph.hashtag_id
   CROSS JOIN normalized n
@@ -1468,9 +1467,9 @@ post_matches AS (
       )
     )
 ),
-restaurant_matches AS (
+place_matches AS (
   SELECT DISTINCT r.id, lower(r.cuisine_type) AS cuisine_type
-  FROM public.restaurants r
+  FROM public.places r
   CROSS JOIN normalized n
   WHERE r.cuisine_type IS NOT NULL
     AND trim(r.cuisine_type) <> ''
@@ -1493,7 +1492,7 @@ restaurant_matches AS (
 signals AS (
   SELECT cuisine_type, 2 AS weight FROM post_matches
   UNION ALL
-  SELECT cuisine_type, 1 AS weight FROM restaurant_matches
+  SELECT cuisine_type, 1 AS weight FROM place_matches
 )
 SELECT
   initcap(cuisine_type) AS cuisine_type,
@@ -1655,7 +1654,7 @@ BEGIN
   SELECT id INTO v_id
   FROM public.dishes
   WHERE name_normalized = v_normalized
-    AND restaurant_id = p_restaurant_id
+    AND place_id = p_restaurant_id
   LIMIT 1;
 
   IF v_id IS NOT NULL THEN
@@ -1663,9 +1662,9 @@ BEGIN
   END IF;
 
   -- Insert, ignoring conflict from concurrent callers
-  INSERT INTO public.dishes (name, restaurant_id, cuisine_type, created_by)
+  INSERT INTO public.dishes (name, place_id, cuisine_type, created_by)
   VALUES (p_name, p_restaurant_id, p_cuisine_type, p_created_by)
-  ON CONFLICT (name_normalized, restaurant_id) DO NOTHING
+  ON CONFLICT (name_normalized, place_id) DO NOTHING
   RETURNING id INTO v_id;
 
   IF v_id IS NOT NULL THEN
@@ -1675,7 +1674,7 @@ BEGIN
     SELECT id INTO v_id
     FROM public.dishes
     WHERE name_normalized = v_normalized
-      AND restaurant_id = p_restaurant_id
+      AND place_id = p_restaurant_id
     LIMIT 1;
   END IF;
 
@@ -1888,8 +1887,8 @@ as $$
       lower(trim(r.cuisine_type)) as query,
       count(*)::numeric * 3.0 as score,
       'saved_place'::text as source
-    from public.saved_locations sl
-    join public.restaurants r on r.id = sl.restaurant_id
+    from public.saved_places sl
+    join public.places r on r.id = sl.place_id
     join params on true
     where auth.uid() = params.user_id
       and sl.user_id = params.user_id
@@ -2357,10 +2356,10 @@ begin
         and (1 - (pe.embedding <=> query_embedding)) > similarity_threshold
       order by similarity desc
       limit match_count;
-  elsif match_type = 'restaurant' then
+  elsif match_type = 'place' then
     return query
       select r.id, (1 - (r.embedding <=> query_embedding))::real as similarity
-      from public.restaurants r
+      from public.places r
       where r.embedding is not null
         and (1 - (r.embedding <=> query_embedding)) > similarity_threshold
       order by similarity desc
@@ -2679,10 +2678,10 @@ begin
 end;
 $$;
 
--- refresh_restaurant_popularity_cache
-create or replace function public.refresh_restaurant_popularity_cache()
+-- refresh_place_popularity_cache
+create or replace function public.refresh_place_popularity_cache()
 returns void language sql security definer set search_path = public as $$
-  insert into public.restaurant_popularity_cache (
+  insert into public.place_popularity_cache (
     restaurant_id, post_count, interaction_count_30d,
     avg_food_rating, food_rating_count, updated_at
   )
@@ -2696,11 +2695,11 @@ returns void language sql security definer set search_path = public as $$
     avg(p.food_rating) filter (where p.food_rating is not null),
     count(p.id) filter (where p.food_rating is not null)::integer,
     now()
-  from public.restaurants r
-  left join public.posts p on p.restaurant_id = r.id and p.deleted_at is null
+  from public.places r
+  left join public.posts p on p.place_id = r.id and p.deleted_at is null
   left join public.analytics_events ae on ae.entity_id = r.id
   group by r.id
-  on conflict (restaurant_id) do update set
+  on conflict (place_id) do update set
     post_count = excluded.post_count,
     interaction_count_30d = excluded.interaction_count_30d,
     avg_food_rating = excluded.avg_food_rating,
@@ -2769,7 +2768,7 @@ language sql stable as $$
   select distinct r.suburb::text,
     extensions.similarity(lower(r.suburb), lower(trim(input_text)))::real,
     null::double precision, null::double precision
-  from public.restaurants r
+  from public.places r
   where r.suburb is not null
     and extensions.similarity(lower(r.suburb), lower(trim(input_text))) > 0.45
 
@@ -2777,8 +2776,8 @@ language sql stable as $$
   limit 5;
 $$;
 
--- restaurants_in_bounding_box
-create or replace function public.restaurants_in_bounding_box(
+-- places_in_bounding_box
+create or replace function public.places_in_bounding_box(
   min_lat double precision,
   min_lng double precision,
   max_lat double precision,
@@ -2813,7 +2812,7 @@ select
   r.google_rating::double precision,
   r.google_review_count,
   r.open_now
-from public.restaurants r
+from public.places r
 where r.latitude between least(min_lat, max_lat) and greatest(min_lat, max_lat)
   and r.longitude between least(min_lng, max_lng) and greatest(min_lng, max_lng)
   and (
@@ -2833,10 +2832,10 @@ order by r.name asc
 limit greatest(1, least(coalesce(max_results, 50), 100));
 $$;
 
--- restaurants_within_radius — true circle search using PostGIS ST_DWithin
--- Replaces bounding-box queries for nearby restaurant fetching.
+-- places_within_radius — true circle search using PostGIS ST_DWithin
+-- Replaces bounding-box queries for nearby place fetching.
 -- distance_km is returned as the true great-circle distance.
-create or replace function public.restaurants_within_radius(
+create or replace function public.places_within_radius(
   p_lat double precision,
   p_lng double precision,
   p_radius_metres double precision default 2000,
@@ -2875,7 +2874,7 @@ select
     r.restaurant_geog,
     extensions.ST_SetSRID(extensions.ST_MakePoint(p_lng, p_lat), 4326)::extensions.geography
   ) / 1000.0) as distance_km
-from public.restaurants r
+from public.places r
 where r.restaurant_geog is not null
   and extensions.ST_DWithin(
     r.restaurant_geog,
@@ -3063,7 +3062,7 @@ fts_results as (
   from public.posts p
   cross join normalized
   left join dish_tag_text dt on dt.id = p.id
-  left join public.restaurants r on r.id = p.restaurant_id
+  left join public.places r on r.id = p.place_id
   where normalized.raw_query <> ''
     and p.deleted_at is null
     and p.search_tsv @@ normalized.query
@@ -3079,7 +3078,7 @@ trgm_results as (
     'trgm'::text as match_source
   from public.posts p
   cross join normalized
-  left join public.restaurants r on r.id = p.restaurant_id
+  left join public.places r on r.id = p.place_id
   where normalized.raw_query <> ''
     and p.deleted_at is null
     and p.must_order is not null
@@ -3170,7 +3169,7 @@ fts_results as (
   from weighted w
   cross join normalized
   left join public.posts p on p.id = w.id
-  left join public.restaurants r on r.id = p.restaurant_id
+  left join public.places r on r.id = p.place_id
   where normalized.raw_query <> ''
     and (
       w.search_tsv @@ normalized.query
@@ -3193,7 +3192,7 @@ trgm_results as (
     end as rank
   from public.posts p
   cross join normalized
-  left join public.restaurants r on r.id = p.restaurant_id
+  left join public.places r on r.id = p.place_id
   where normalized.raw_query <> ''
     and p.deleted_at is null
     and p.must_order is not null
@@ -3208,8 +3207,8 @@ limit greatest(1, least(coalesce(max_results, 20), 50))
 offset greatest(0, coalesce(offset_val, 0));
 $$;
 
--- search_restaurants_full_text
-create or replace function public.search_restaurants_full_text(
+-- search_places_full_text
+create or replace function public.search_places_full_text(
   query_text text,
   max_results integer default 20,
   near_lat double precision default null,
@@ -3287,7 +3286,7 @@ ranked as (
       when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 5000 then 1.1
       else 1.0
     end as rank
-  from public.restaurants r cross join normalized
+  from public.places r cross join normalized
   where normalized.raw_query <> ''
     and (suburb_filter is null or lower(r.suburb) = lower(suburb_filter))
     and (
@@ -3446,9 +3445,9 @@ with prefix as (
       else null
     end as ref_point
 ),
-restaurant_matches as (
+place_matches as (
   select
-    'restaurant'::text as suggestion_type,
+    'place'::text as suggestion_type,
     r.name as display_text,
     coalesce(r.cuisine_type, r.city, '') as secondary_text,
     r.id as entity_id,
@@ -3464,7 +3463,7 @@ restaurant_matches as (
       when extensions.ST_Distance(r.restaurant_geog, prefix.ref_point) < 5000 then 1.5
       else 1.0
     end as score
-  from public.restaurants r, prefix
+  from public.places r, prefix
   where prefix.raw <> ''
     and to_tsvector('simple',
       coalesce(r.name,'') || ' ' || coalesce(r.cuisine_type,'') || ' ' ||
@@ -3507,7 +3506,7 @@ hashtag_matches as (
   order by score desc
   limit limit_per_type
 )
-select * from restaurant_matches
+select * from place_matches
 union all
 select * from dish_matches
 union all
@@ -3632,9 +3631,9 @@ begin
   elsif p_target_type = 'post' then
     delete from public.saves
     where user_id = current_user_id and post_id = p_target_id;
-  elsif p_target_type = 'restaurant' then
-    delete from public.saved_locations
-    where user_id = current_user_id and restaurant_id = p_target_id;
+  elsif p_target_type = 'place' then
+    delete from public.saved_places
+    where user_id = current_user_id and place_id = p_target_id;
   else
     raise exception 'invalid_target_type';
   end if;
@@ -3682,7 +3681,7 @@ CREATE TRIGGER saved_searches_audit_trigger
 -- ---------------------------------------------------------------------------
 
 alter table public.users enable row level security;
-alter table public.restaurants enable row level security;
+alter table public.places enable row level security;
 alter table public.posts enable row level security;
 alter table public.post_embeddings enable row level security;
 alter table public.post_photos enable row level security;
@@ -3693,7 +3692,7 @@ alter table public.saves enable row level security;
 alter table public.follows enable row level security;
 alter table public.comments enable row level security;
 alter table public.user_settings enable row level security;
-alter table public.saved_locations enable row level security;
+alter table public.saved_places enable row level security;
 alter table public.push_tokens enable row level security;
 alter table public.analytics_events enable row level security;
 alter table public.post_reactions enable row level security;
@@ -3712,7 +3711,7 @@ alter table public.suburb_lookups enable row level security;
 alter table public.trending_searches enable row level security;
 alter table public.saved_searches enable row level security;
 alter table public.user_top_spots enable row level security;
-alter table public.restaurant_place_stubs enable row level security;
+alter table public.place_stubs enable row level security;
 alter table public.feature_flag_overrides enable row level security;
 alter table public.user_blocks enable row level security;
 alter table public.content_reports enable row level security;
@@ -4256,10 +4255,10 @@ create policy "Users can submit own restaurant claims"
   );
 
 
--- public.restaurant_popularity_cache
-drop policy if exists "anyone can view popularity cache" on public.restaurant_popularity_cache;
-create policy "Anyone can view popularity cache"
-  on public.restaurant_popularity_cache for select using (true);
+-- public.place_popularity_cache
+drop policy if exists "anyone can view place popularity cache" on public.place_popularity_cache;
+create policy "Anyone can view place popularity cache"
+  on public.place_popularity_cache for select using (true);
 
 
 -- public.restaurant_provider_cache
@@ -4282,21 +4281,21 @@ create policy "Authenticated users can propose restaurant sources"
   with check (created_by = auth.uid() and source_type in ('user_created', 'owner_submitted'));
 
 
--- public.restaurants
-drop policy if exists "anyone can view restaurants" on public.restaurants;
-create policy "Anyone can view restaurants" on public.restaurants for select using (true);
+-- public.places
+drop policy if exists "anyone can view places" on public.places;
+create policy "Anyone can view places" on public.places for select using (true);
 
-drop policy if exists "authenticated users can insert restaurants" on public.restaurants;
-create policy "Authenticated users can insert restaurants" on public.restaurants for insert with check (auth.role() = 'authenticated');
+drop policy if exists "authenticated users can insert places" on public.places;
+create policy "Authenticated users can insert places" on public.places for insert with check (auth.role() = 'authenticated');
 
-drop policy if exists "authenticated users can update restaurants" on public.restaurants;
-create policy "Authenticated users can update restaurants"
-  on public.restaurants for update
+drop policy if exists "authenticated users can update places" on public.places;
+create policy "Authenticated users can update places"
+  on public.places for update
   using (auth.role() = 'authenticated');
 
-drop policy if exists "users can view own created restaurant provenance" on public.restaurants;
-create policy "Users can view own created restaurant provenance"
-  on public.restaurants for select
+drop policy if exists "users can view own created place provenance" on public.places;
+create policy "Users can view own created place provenance"
+  on public.places for select
   to authenticated
   using (created_by = auth.uid());
 
@@ -4308,10 +4307,10 @@ create policy "Users manage own saved dishes"
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 
--- public.saved_locations
-drop policy if exists "users manage own saved locations" on public.saved_locations;
-create policy "Users manage own saved locations"
-  on public.saved_locations for all
+-- public.saved_places
+drop policy if exists "users manage own saved places" on public.saved_places;
+create policy "Users manage own saved places"
+  on public.saved_places for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 
@@ -4437,10 +4436,10 @@ create policy "Users manage own tokens"
   with check (auth.uid() = user_id);
 
 
--- restaurant_place_stubs
-drop policy if exists "place_stubs_select" on restaurant_place_stubs;
+-- place_stubs
+drop policy if exists "place_stubs_select" on place_stubs;
 create policy "place_stubs_select"
-  on restaurant_place_stubs for select
+  on place_stubs for select
   using (expires_at > now());
 
 
