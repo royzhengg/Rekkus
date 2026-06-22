@@ -1,0 +1,6211 @@
+{
+  "elements": [
+    {
+      "type": "node",
+      "id": 31439953,
+      "lat": -13.1366816,
+      "lon": 130.6544348,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Litchfield Cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 31562978,
+      "lat": -13.824406,
+      "lon": 131.8349781,
+      "tags": {
+        "addr:housenumber": "40",
+        "addr:street": "Moule Street",
+        "amenity": "cafe",
+        "contact:facebook": "https://www.facebook.com/Maysescafe/",
+        "email": "pinecreekhotel@bigpond.com",
+        "name": "Mayses Cafe",
+        "opening_hours": "07:00-15:00",
+        "phone": "+61 8 8976 1288"
+      }
+    },
+    {
+      "type": "node",
+      "id": 282609701,
+      "lat": -13.8216647,
+      "lon": 131.8349106,
+      "tags": {
+        "addr:housenumber": "299",
+        "addr:postcode": "0847",
+        "addr:street": "Millar Terrace",
+        "addr:suburb": "Pine Creek",
+        "amenity": "restaurant",
+        "name": "Lazy Lizard Tavern",
+        "website": "https://lazylizardpinecreek.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 306575136,
+      "lat": -25.3145324,
+      "lon": 131.7566221,
+      "tags": {
+        "amenity": "restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 322857369,
+      "lat": -23.7219655,
+      "lon": 133.4694354,
+      "tags": {
+        "amenity": "restaurant",
+        "email": "info@standleychasm.com.au",
+        "fax": "+61 8 8956 7325",
+        "name": "Standley Chasm Kiosk",
+        "phone": "+61 8 8956 7440",
+        "website": "https://www.standleychasm.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 322874782,
+      "lat": -23.7020907,
+      "lon": 133.8811421,
+      "tags": {
+        "alt_name": "Kentucky Fried Chicken",
+        "amenity": "fast_food",
+        "brand": "KFC",
+        "brand:wikidata": "Q524757",
+        "brand:wikipedia": "en:KFC",
+        "cuisine": "chicken",
+        "name": "KFC",
+        "opening_hours": "Mo-Su 10:00-22:00",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 323079320,
+      "lat": -23.7296869,
+      "lon": 133.8673779,
+      "tags": {
+        "amenity": "pub",
+        "name": "Heavitree Gap Tavern"
+      }
+    },
+    {
+      "type": "node",
+      "id": 325235226,
+      "lat": -23.6973974,
+      "lon": 133.8788343,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "McDonald's",
+        "brand:wikidata": "Q38076",
+        "brand:wikipedia": "en:McDonald's",
+        "cuisine": "burger",
+        "name": "McDonald's",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 331600954,
+      "lat": -12.4625638,
+      "lon": 130.8378453,
+      "tags": {
+        "amenity": "bar",
+        "contact:email": "reservations@novoteldarwinatrium.com.au",
+        "fax": "+61 8 8981 9025",
+        "internet_access": "yes",
+        "name": "Jabiru Bar",
+        "operator": "Accor Hotels",
+        "phone": "+61 8 8941 0755",
+        "rooms": "140",
+        "stars": "4"
+      }
+    },
+    {
+      "type": "node",
+      "id": 467703426,
+      "lat": -12.4775009,
+      "lon": 130.9843917,
+      "tags": {
+        "addr:housenumber": "11",
+        "addr:postcode": "0830",
+        "addr:street": "University Avenue",
+        "amenity": "bar",
+        "name": "Good Times Bar & Grill",
+        "opening_hours": "Fr-Sa 10:00-00:00; Su-Th 10:00-22:00",
+        "phone": "+61 8 8931 0728"
+      }
+    },
+    {
+      "type": "node",
+      "id": 681287384,
+      "lat": -19.4367646,
+      "lon": 134.2083072,
+      "tags": {
+        "amenity": "bar",
+        "name": "Threeways Roadhouse"
+      }
+    },
+    {
+      "type": "node",
+      "id": 681287390,
+      "lat": -19.4365048,
+      "lon": 134.2082855,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Threeways Roadhouse"
+      }
+    },
+    {
+      "type": "node",
+      "id": 681290143,
+      "lat": -19.7106727,
+      "lon": 135.8273326,
+      "tags": {
+        "amenity": "bar",
+        "name": "Saddle Tree Bar",
+        "website": "https://www.barklyhomestead.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 681290144,
+      "lat": -19.7109516,
+      "lon": 135.8273908,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "The Restaurant",
+        "website": "https://www.barklyhomestead.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 724423579,
+      "lat": -25.248417,
+      "lon": 130.9622683,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Sound of Silence Dinner"
+      }
+    },
+    {
+      "type": "node",
+      "id": 762070798,
+      "lat": -12.3767385,
+      "lon": 130.8586802,
+      "tags": {
+        "amenity": "pub",
+        "name": "The Beachfront Hotel"
+      }
+    },
+    {
+      "type": "node",
+      "id": 762101908,
+      "lat": -12.4323924,
+      "lon": 130.8448528,
+      "tags": {
+        "amenity": "bar",
+        "name": "Bogarts"
+      }
+    },
+    {
+      "type": "node",
+      "id": 762103017,
+      "lat": -12.4340792,
+      "lon": 130.8444558,
+      "tags": {
+        "addr:country": "AU",
+        "addr:housenumber": "17",
+        "addr:postcode": "0820",
+        "addr:state": "NT",
+        "addr:street": "Sommerville Gardens",
+        "addr:suburb": "Parap",
+        "amenity": "bar",
+        "description": "Live music venue/Bar",
+        "name": "Darwin Railway Club",
+        "outdoor_seating": "yes",
+        "smoking": "outside"
+      }
+    },
+    {
+      "type": "node",
+      "id": 762107620,
+      "lat": -12.4359792,
+      "lon": 130.8338636,
+      "tags": {
+        "alt_name": "Darwin Ski Club",
+        "amenity": "bar",
+        "name": "The Ski Club",
+        "website": "https://www.darwinskiclub.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 762109178,
+      "lat": -12.4278969,
+      "lon": 130.8357029,
+      "tags": {
+        "amenity": "bar",
+        "name": "The Trailer Boat Club"
+      }
+    },
+    {
+      "type": "node",
+      "id": 762115932,
+      "lat": -12.4651108,
+      "lon": 130.8444129,
+      "tags": {
+        "amenity": "bar",
+        "name": "Happy Yess"
+      }
+    },
+    {
+      "type": "node",
+      "id": 768744933,
+      "lat": -12.4807153,
+      "lon": 130.983729,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Palmerston Tavern"
+      }
+    },
+    {
+      "type": "node",
+      "id": 768744980,
+      "lat": -12.480953,
+      "lon": 130.9885588,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Madame Za by Rydges Palmerston"
+      }
+    },
+    {
+      "type": "node",
+      "id": 770032306,
+      "lat": -12.4799976,
+      "lon": 130.9703637,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Domino's",
+        "brand:wikidata": "Q839466",
+        "cuisine": "pizza",
+        "name": "Domino's",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 775709295,
+      "lat": -12.1831758,
+      "lon": 136.7878515,
+      "tags": {
+        "amenity": "pub",
+        "name": "The Arnhem Club",
+        "website": "https://www.goveonline.com/guide/arnhem-club"
+      }
+    },
+    {
+      "type": "node",
+      "id": 775709377,
+      "lat": -12.1849438,
+      "lon": 136.7879621,
+      "tags": {
+        "amenity": "pub",
+        "name": "Walkabout Hotel"
+      }
+    },
+    {
+      "type": "node",
+      "id": 775709547,
+      "lat": -12.1852636,
+      "lon": 136.7882598,
+      "tags": {
+        "amenity": "bar",
+        "name": "Walkabout Lodge",
+        "website": "https://www.goveonline.com/guide/walkabout-lodge"
+      }
+    },
+    {
+      "type": "node",
+      "id": 775710330,
+      "lat": -12.1851614,
+      "lon": 136.7882598,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Walkabout Lodge",
+        "website": "https://www.goveonline.com/guide/walkabout-lodge"
+      }
+    },
+    {
+      "type": "node",
+      "id": 775711447,
+      "lat": -12.183181,
+      "lon": 136.7877549,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Cools Take Away",
+        "website": "https://www.goveonline.com/guide/arnhem-club"
+      }
+    },
+    {
+      "type": "node",
+      "id": 775711564,
+      "lat": -12.1842924,
+      "lon": 136.7865232,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Gove Fast Food"
+      }
+    },
+    {
+      "type": "node",
+      "id": 776016516,
+      "lat": -12.1894656,
+      "lon": 136.7732947,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Captain Cook Take Away Shop"
+      }
+    },
+    {
+      "type": "node",
+      "id": 776166077,
+      "lat": -12.1847947,
+      "lon": 136.7879611,
+      "tags": {
+        "amenity": "pub",
+        "name": "The Jam"
+      }
+    },
+    {
+      "type": "node",
+      "id": 778143080,
+      "lat": -25.1976725,
+      "lon": 133.2007846,
+      "tags": {
+        "amenity": "cafe",
+        "internet_access": "wlan",
+        "name": "Erldunda Roadhouse",
+        "opening_hours": "Mo-Su,PH 07:00-21:00",
+        "toilets:wheelchair": "yes",
+        "wheelchair": "limited"
+      }
+    },
+    {
+      "type": "node",
+      "id": 835320667,
+      "lat": -12.4643506,
+      "lon": 130.842693,
+      "tags": {
+        "addr:housenumber": "27",
+        "addr:street": "Smith Street Mall",
+        "alt_name": "The Vic",
+        "amenity": "pub",
+        "contact:website": "http://www.thevichotel.com/",
+        "name": "Victoria Hotel",
+        "note": "Closed indefinitely?",
+        "phone": "+61 8 8981 4011",
+        "wikidata": "Q7926789",
+        "wikipedia": "en:Victoria Hotel, Darwin"
+      }
+    },
+    {
+      "type": "node",
+      "id": 868086627,
+      "lat": -23.6961896,
+      "lon": 133.8903035,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "fish_and_chips"
+      }
+    },
+    {
+      "type": "node",
+      "id": 892666292,
+      "lat": -12.4099709,
+      "lon": 130.8556935,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "McDonald's",
+        "brand:wikidata": "Q38076",
+        "brand:wikipedia": "en:McDonald's",
+        "cuisine": "burger",
+        "name": "McDonald's",
+        "opening_hours": "24/7",
+        "takeaway": "yes",
+        "website": "https://www.mcdonalds.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1272657645,
+      "lat": -12.3919899,
+      "lon": 130.8907792,
+      "tags": {
+        "amenity": "restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1422614542,
+      "lat": -14.4640448,
+      "lon": 132.262103,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Red Rooster",
+        "brand:wikidata": "Q376466",
+        "brand:wikipedia": "en:Red Rooster",
+        "cuisine": "chicken",
+        "name": "Red Rooster",
+        "takeaway": "yes",
+        "website": "https://www.redrooster.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1428879349,
+      "lat": -23.6934664,
+      "lon": 133.879639,
+      "tags": {
+        "addr:housenumber": "45",
+        "addr:postcode": "0870",
+        "addr:street": "Stuart Highway",
+        "amenity": "fast_food",
+        "brand": "Hungry Jack's",
+        "brand:wikidata": "Q3036373",
+        "brand:wikipedia": "en:Hungry Jack's",
+        "cuisine": "burger",
+        "int_name": "Burger King",
+        "name": "Hungry Jack's",
+        "takeaway": "yes",
+        "website": "https://www.hungryjacks.com.au"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1437514113,
+      "lat": -12.4496045,
+      "lon": 130.8406599,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "McDonald's",
+        "brand:wikidata": "Q38076",
+        "brand:wikipedia": "en:McDonald's",
+        "cuisine": "burger",
+        "name": "McDonald's",
+        "source": "local knowledge",
+        "takeaway": "yes",
+        "website": "https://www.mcdonalds.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1438363117,
+      "lat": -12.4707358,
+      "lon": 130.848332,
+      "tags": {
+        "amenity": "restaurant",
+        "indoor_seating": "yes",
+        "name": "Wharf Precinct Food Court",
+        "outdoor_seating": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1629223302,
+      "lat": -12.4300104,
+      "lon": 130.7388364,
+      "tags": {
+        "addr:country": "AU",
+        "addr:housenumber": "76",
+        "addr:postcode": "0822",
+        "addr:street": "Cox Drive",
+        "addr:suburb": "Wagait Beach",
+        "amenity": "bar",
+        "name": "Cox Country Club",
+        "wifi": "no"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1629548889,
+      "lat": -12.7810843,
+      "lon": 130.9624525,
+      "tags": {
+        "amenity": "pub",
+        "name": "Litchfield Tavern",
+        "wifi": "no"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1686542829,
+      "lat": -12.3726455,
+      "lon": 130.8828668,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Casuarina Club"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1890514135,
+      "lat": -12.4246497,
+      "lon": 132.9635622,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Border Store"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1892123875,
+      "lat": -14.4638555,
+      "lon": 132.2645571,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "McDonald's",
+        "brand:wikidata": "Q38076",
+        "brand:wikipedia": "en:McDonald's",
+        "cuisine": "burger",
+        "internet_access": "wlan",
+        "name": "McDonald's",
+        "name:zh": "麥當勞",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1915016816,
+      "lat": -12.4289888,
+      "lon": 130.8356821,
+      "tags": {
+        "addr:housenumber": "8",
+        "addr:street": "Atkins Drive",
+        "amenity": "bar",
+        "name": "The Darwin Sailing Club",
+        "opening_hours": "Mo-Su 10:00-00:00",
+        "phone": "+61 8 8981 1700",
+        "website": "https://www.darwinsailingclub.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1936192832,
+      "lat": -12.3769117,
+      "lon": 130.895767,
+      "tags": {
+        "amenity": "pub",
+        "name": "Dolly's Bar"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1936192834,
+      "lat": -12.3774986,
+      "lon": 130.8958421,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Hibiscus Chinese Cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1936192835,
+      "lat": -12.3777842,
+      "lon": 130.8962552,
+      "tags": {
+        "brand": "Brumby's Bakeries",
+        "brand:wikidata": "Q4978794",
+        "name": "Brumby's Bakeries",
+        "shop": "bakery"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1990760841,
+      "lat": -23.6972366,
+      "lon": 133.8841619,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "DJ's Bistro"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2001952956,
+      "lat": -15.6164729,
+      "lon": 131.1279735,
+      "tags": {
+        "addr:housenumber": "19405",
+        "addr:postcode": "0852",
+        "addr:state": "NT",
+        "addr:street": "Victoria Highway",
+        "addr:suburb": "Gregory",
+        "amenity": "pub",
+        "name": "Victoria River Roadhouse",
+        "phone": "+61 8 8975 0744"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2037694469,
+      "lat": -19.6473608,
+      "lon": 134.1980777,
+      "tags": {
+        "amenity": "public_building",
+        "name": "Barkly Shire Offices"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2037714261,
+      "lat": -19.6439269,
+      "lon": 134.1910717,
+      "tags": {
+        "amenity": "pub",
+        "name": "Goldfields Hotel"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2037714263,
+      "lat": -19.6427084,
+      "lon": 134.1917738,
+      "tags": {
+        "amenity": "pub",
+        "name": "Tennant Creek Hotel"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2037714629,
+      "lat": -19.6442121,
+      "lon": 134.1898177,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Fernandos's Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2037736991,
+      "lat": -19.6422588,
+      "lon": 134.1912949,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Rocky's Pizza & Fat Kebab"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2037736993,
+      "lat": -19.6418719,
+      "lon": 134.1913246,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Top of Town"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2037896973,
+      "lat": -19.6520526,
+      "lon": 134.1880162,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Nyinkka Nyunyu Coffee Shop"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2039456891,
+      "lat": -19.6369592,
+      "lon": 134.1925576,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Karen's Kitchen"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2039456892,
+      "lat": -19.6368419,
+      "lon": 134.1925735,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Red Rooster",
+        "brand:wikidata": "Q376466",
+        "brand:wikipedia": "en:Red Rooster",
+        "cuisine": "chicken",
+        "name": "Red Rooster",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2043102655,
+      "lat": -19.647122,
+      "lon": 134.1883978,
+      "tags": {
+        "amenity": "pub",
+        "name": "Memorial Club"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2044068172,
+      "lat": -19.6484013,
+      "lon": 134.1904405,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Mr Perry's"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2100741195,
+      "lat": -12.3866661,
+      "lon": 130.8623647,
+      "tags": {
+        "amenity": "cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2139838428,
+      "lat": -12.517867,
+      "lon": 131.028828,
+      "tags": {
+        "amenity": "pub",
+        "name": "Virginia Tavern"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2344472335,
+      "lat": -23.6967874,
+      "lon": 133.8790907,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Red Rooster",
+        "brand:wikidata": "Q376466",
+        "brand:wikipedia": "en:Red Rooster",
+        "cuisine": "chicken",
+        "name": "Red Rooster",
+        "opening_hours": "Mo-Su 10:00-22:00",
+        "source": "voice",
+        "takeaway": "yes",
+        "website": "https://redrooster.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2345479240,
+      "lat": -23.7028652,
+      "lon": 133.8866974,
+      "tags": {
+        "amenity": "restaurant",
+        "fixme": "location needs survey",
+        "name": "Barra On Todd Restaurant and Bar",
+        "opening_hours": "Mo-Su 06:00-10:00,11:30-17:30,18:00+",
+        "phone": "+61 8 8952 3523",
+        "source:name": "voice"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2345479382,
+      "lat": -23.6962632,
+      "lon": 133.8903202,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "thai",
+        "name": "Pad Thai Takeaway"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2347506170,
+      "lat": -23.7063298,
+      "lon": 133.8847603,
+      "tags": {
+        "addr:housenumber": "27",
+        "addr:street": "Tuncks Road",
+        "amenity": "cafe",
+        "email": "garden@opbg.com.au",
+        "name": "The Bean Tree Cafe",
+        "opening_hours": "Mo-Su 08:00-16:00; Dec 25 off; easter -2 days off"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2347506182,
+      "lat": -23.7067495,
+      "lon": 133.832318,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Coolamon Cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2347506190,
+      "lat": -23.6924184,
+      "lon": 133.8833872,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Gallipoli Bistro",
+        "opening_hours": "Mo-Su 12:00-14:00,18:00-21:00"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2347506268,
+      "lat": -23.7067297,
+      "lon": 133.8321228,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Madigans"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2353455946,
+      "lat": -21.5313252,
+      "lon": 133.889358,
+      "tags": {
+        "addr:housenumber": "22247",
+        "addr:street": "Stuart Highway",
+        "amenity": "pub",
+        "contact:facebook": "https://www.facebook.com/p/Barrow-Creek-Hotel-100091337844089/",
+        "email": "barrowcreekhotel@gmail.com",
+        "name": "Barrow Creek Hotel",
+        "phone": "+61 429 202 714",
+        "source": "voice",
+        "tourism": "hotel"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2353455950,
+      "lat": -22.6444242,
+      "lon": 133.3455415,
+      "tags": {
+        "amenity": "pub",
+        "name": "Glen Maggie Bar"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2360474839,
+      "lat": -25.2411594,
+      "lon": 130.9834827,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "asian",
+        "diet:kosher": "no",
+        "diet:vegan": "only",
+        "diet:vegetarian": "yes",
+        "drive_through": "no",
+        "name": "Ayers Wok",
+        "opening_hours": "Mo-Su 17:00-20:00",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "source": "survey",
+        "takeaway": "only",
+        "website": "https://www.ayersrockresort.com.au/dining/ayers-wok-noodle-bar",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2360474840,
+      "lat": -25.2432678,
+      "lon": 130.9902746,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Bough House",
+        "opening_hours": "Mo-Su 06:30-10:30,18:00-21:30",
+        "source": "survey"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2360474842,
+      "lat": -25.2411481,
+      "lon": 130.983637,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "restaurant",
+        "check_date": "2026-04-17",
+        "diet:vegetarian": "yes",
+        "name": "Geckos Cafe",
+        "opening_hours": "Mo-Su 07:00-10:00,11:00-20:30 \"last order\"",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "smoking": "no",
+        "source": "survey",
+        "website": "https://www.ayersrockresort.com.au/dining/geckos-cafe",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2360474852,
+      "lat": -25.2433129,
+      "lon": 130.9897935,
+      "tags": {
+        "amenity": "bar",
+        "name": "Outback Pioneer Bar",
+        "source": "survey"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2360474947,
+      "lat": -25.2432039,
+      "lon": 130.9900211,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Outback Pioneer Kitchen",
+        "opening_hours": "Mo-Su 11:30-15:00,18:00-21:00",
+        "source": "survey"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2360474948,
+      "lat": -25.2413625,
+      "lon": 130.9837363,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "cafe",
+        "check_date:opening_hours": "2024-08-23",
+        "diet:vegetarian": "yes",
+        "name": "Kuḻaṯa Academy Cafe",
+        "opening_hours": "Mo-Su 07:00-14:00",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "smoking": "no",
+        "source": "survey",
+        "website": "https://www.ayersrockresort.com.au/dining/kulata-academy-cafe",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2363015456,
+      "lat": -24.2510449,
+      "lon": 131.511341,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Desert Oaks Cafe",
+        "opening_hours": "Mo-Su 05:30-10:00,11:00-14:00,18:30-20:30",
+        "source": "survey"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2363015458,
+      "lat": -24.2513,
+      "lon": 131.511306,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Outback BBQ and Grill",
+        "opening_hours": "Mo-Su 18:30-20:30;Nov-Mar off",
+        "source": "survey"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2363015459,
+      "lat": -24.2511331,
+      "lon": 131.5113346,
+      "tags": {
+        "amenity": "bar",
+        "name": "Thirsty Dingo Bar",
+        "opening_hours": "14:00+",
+        "source": "survey"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2364191767,
+      "lat": -23.6971998,
+      "lon": 133.8794405,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Domino's",
+        "brand:wikidata": "Q839466",
+        "brand:wikipedia": "en:Domino's Pizza",
+        "cuisine": "pizza",
+        "name": "Domino's",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2365278671,
+      "lat": -23.9452046,
+      "lon": 132.7750413,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Kata Anga Tea Rooms",
+        "opening_hours": "Mo-Su 09:00-15:30",
+        "phone": "+61 8 8956 7402",
+        "source:name": "voice",
+        "website": "https://hermannsburg.com.au/tea-rooms"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2377985517,
+      "lat": -23.6861198,
+      "lon": 132.6731034,
+      "tags": {
+        "amenity": "restaurant",
+        "fixme": "check opening times in evening",
+        "name": "Namatjira Gallery Restaurant",
+        "opening_hours": "Mo-Su 07:00-09:30,11:00-14:30"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2384911178,
+      "lat": -12.7323337,
+      "lon": 130.9785115,
+      "tags": {
+        "addr:housenumber": "70",
+        "addr:postcode": "0838",
+        "addr:street": "Reedbeds Road",
+        "addr:suburb": "Berry Springs",
+        "amenity": "cafe",
+        "cuisine": "ice_cream",
+        "name": "Crazy Acres Mango Farm",
+        "phone": "+61 8 8988 6227",
+        "shop": "farm"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2386315553,
+      "lat": -14.4718533,
+      "lon": 132.2614165,
+      "tags": {
+        "amenity": "pub",
+        "phone": "+61 8 8972 1276",
+        "website": "https://www.katherinecountryclub.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2387020585,
+      "lat": -13.0466071,
+      "lon": 131.028389,
+      "tags": {
+        "amenity": "pub",
+        "name": "Rum Jungle Tavern"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408090025,
+      "lat": -14.4847632,
+      "lon": 132.2571618,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Barra Cafe",
+        "source": "http://www.visitkatherine.com.au/pages/eating-out/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408163340,
+      "lat": -14.4643969,
+      "lon": 132.2623599,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Coffee Club"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408163346,
+      "lat": -14.4610881,
+      "lon": 132.2622043,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Pedro's Bistro"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408163350,
+      "lat": -14.4640126,
+      "lon": 132.2627032,
+      "tags": {
+        "amenity": "restaurant",
+        "email": "catering@thestuarthotel.com",
+        "fax": "+61 8 8972 1591",
+        "name": "The Mahogany Bar & Grill",
+        "phone": "+61 8 8972 1022"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408163352,
+      "lat": -14.4631101,
+      "lon": 132.2629433,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "chinese",
+        "name": "Regent Food Court"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408163358,
+      "lat": -14.4655512,
+      "lon": 132.2605717,
+      "tags": {
+        "addr:country": "AU",
+        "addr:housenumber": "7",
+        "addr:street": "Victoria Highway",
+        "amenity": "fast_food",
+        "brand": "Domino's",
+        "brand:wikidata": "Q839466",
+        "brand:wikipedia": "en:Domino's Pizza",
+        "cuisine": "pizza",
+        "delivery": "yes",
+        "name": "Domino's",
+        "opening_hours": "Su-Th 09:00-21:00; Fr,Sa 09:00-22:00",
+        "phone": "+61 8 8973 1210",
+        "takeaway": "yes",
+        "website": "https://www.dominos.com.au/store/nt/katherine/98790"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408163396,
+      "lat": -14.4614881,
+      "lon": 132.2614855,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Stonegrill Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408163407,
+      "lat": -14.4609271,
+      "lon": 132.2621828,
+      "tags": {
+        "amenity": "pub",
+        "name": "Katherine Club Inc."
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209534,
+      "lat": -14.4632438,
+      "lon": 132.2649402,
+      "tags": {
+        "amenity": "restaurant",
+        "brand": "Bucking Bull",
+        "brand:wikidata": "Q18208286",
+        "brand:wikipedia": "en:Bucking Bull",
+        "cuisine": "steak_house",
+        "name": "Bucking Bull"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209542,
+      "lat": -14.456839,
+      "lon": 132.2677457,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Sport & Recreation Club Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209553,
+      "lat": -14.4655449,
+      "lon": 132.264216,
+      "tags": {
+        "amenity": "pub",
+        "name": "Kirbys Back Bar"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209582,
+      "lat": -14.4651761,
+      "lon": 132.2644144,
+      "tags": {
+        "amenity": "bar",
+        "name": "RJ's Bar"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209597,
+      "lat": -14.4569429,
+      "lon": 132.2676599,
+      "tags": {
+        "amenity": "pub",
+        "name": "Sport & Recreation Club"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209602,
+      "lat": -14.4665786,
+      "lon": 132.2645271,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Jade Cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209610,
+      "lat": -14.4460081,
+      "lon": 132.2696555,
+      "tags": {
+        "amenity": "restaurant",
+        "bar": "yes",
+        "cuisine": "regional",
+        "internet_access": "wlan",
+        "name": "Savannah Restaurant",
+        "outdoor_seating": "yes",
+        "phone": "+61 8 8972 2511",
+        "website": "https://knottscrossing.com.au/restaurant/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209632,
+      "lat": -14.4664227,
+      "lon": 132.265482,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "pizza",
+        "name": "Nino's Pizza"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209661,
+      "lat": -14.4618413,
+      "lon": 132.2671878,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Happy Corner Store"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209666,
+      "lat": -14.4656907,
+      "lon": 132.2640024,
+      "tags": {
+        "amenity": "pub",
+        "name": "Katherine Hotel"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209672,
+      "lat": -14.4650358,
+      "lon": 132.2644681,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "RJ's Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408209679,
+      "lat": -14.4559144,
+      "lon": 132.2688937,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "The Escarpment Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408230457,
+      "lat": -14.4650722,
+      "lon": 132.2818166,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Jen's Kitchen"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2408245785,
+      "lat": -14.4652657,
+      "lon": 132.2626804,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "chinese",
+        "name": "New Shanghai Restaurant & Takeaway"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2584030146,
+      "lat": -15.574199,
+      "lon": 133.2146918,
+      "tags": {
+        "addr:housenumber": "8",
+        "addr:postcode": "0852",
+        "addr:street": "Mahony Street",
+        "amenity": "pub",
+        "contact:email": "larrimahhotel@gmail.com",
+        "contact:phone": "+61 8 8975 9931",
+        "contact:website": "https://www.larrimahhotel.com.au",
+        "name": "Larrimah Hotel",
+        "tourism": "hotel"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2584121485,
+      "lat": -14.4642253,
+      "lon": 132.261364,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Subway",
+        "brand:wikidata": "Q244457",
+        "brand:wikipedia": "en:Subway (restaurant)",
+        "cuisine": "sandwich",
+        "name": "Subway",
+        "takeaway": "yes",
+        "website": "https://www.subway.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2595843263,
+      "lat": -14.4669277,
+      "lon": 132.2647732,
+      "tags": {
+        "amenity": "cafe",
+        "internet_access": "terminal",
+        "internet_access:fee": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2597845017,
+      "lat": -15.6626417,
+      "lon": 130.4809034,
+      "tags": {
+        "amenity": "cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2861658141,
+      "lat": -12.4239057,
+      "lon": 130.836524,
+      "tags": {
+        "addr:housenumber": "7",
+        "addr:street": "Fannie Bay Place",
+        "contact:facebook": "https://www.facebook.com/people/Outback-Bakery/61568874640165/",
+        "name": "Outback Bakery",
+        "opening_hours": "PH,Mo-Su 07:00-18:00",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "shop": "bakery",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2861664818,
+      "lat": -12.4242612,
+      "lon": 130.8363471,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Fannie Bay Cool Spot"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2864439978,
+      "lat": -12.4646556,
+      "lon": 130.8418069,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Outback Jacks",
+        "website": "https://www.outbackjacks.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2864447166,
+      "lat": -12.4636862,
+      "lon": 130.8405464,
+      "tags": {
+        "amenity": "fast_food"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2898701326,
+      "lat": -12.4628257,
+      "lon": 130.8392784,
+      "tags": {
+        "amenity": "fast_food",
+        "contact:phone": "+61 8 8941 7500",
+        "cuisine": "pizza",
+        "diet:vegan": "no",
+        "diet:vegetarian": "yes",
+        "indoor_seating": "yes",
+        "name": "Mitchellis Pizza Cafe",
+        "opening_hours": "Mo-Su 17:00+",
+        "outdoor_seating": "yes",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2905105738,
+      "lat": -23.6977532,
+      "lon": 133.8839503,
+      "tags": {
+        "amenity": "restaurant",
+        "facebook": "https://www.facebook.com/TheLocalsASP/",
+        "name": "The Locals",
+        "old_name": "Piccolo's Cafe",
+        "opening_hours": "Mo-Tu 07:30-14:30; We-Su 07:30-23:00",
+        "phone": "+61 478 513 012"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3230575925,
+      "lat": -12.4687852,
+      "lon": 130.8471832,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Il Lido"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3230575926,
+      "lat": -12.4634671,
+      "lon": 130.8403361,
+      "tags": {
+        "amenity": "bar",
+        "name": "Monsoons"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3230870934,
+      "lat": -12.4633733,
+      "lon": 130.8399384,
+      "tags": {
+        "addr:country": "AU",
+        "addr:state": "NT",
+        "amenity": "cafe",
+        "brand": "The Coffee Club",
+        "brand:wikidata": "Q7726599",
+        "brand:wikipedia": "en:The Coffee Club",
+        "cuisine": "coffee_shop",
+        "name": "The Coffee Club",
+        "takeaway": "yes",
+        "website": "https://www.coffeeclub.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3230870941,
+      "lat": -12.462982,
+      "lon": 130.8394516,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "kebab",
+        "indoor_seating": "no",
+        "name": "Istanbul",
+        "outdoor_seating": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3230980008,
+      "lat": -12.4636211,
+      "lon": 130.8424375,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "restaurant",
+        "name": "Flavour-E-Azam",
+        "opening_hours": "Mo-Su 11:00-14:30,18:00-22:00",
+        "smoking": "no",
+        "wheelchair": "limited"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3231716459,
+      "lat": -12.4647618,
+      "lon": 130.8419141,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "sushi",
+        "name": "Go Sushi"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3231716460,
+      "lat": -12.4673061,
+      "lon": 130.8457022,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "restaurant",
+        "cuisine": "asian",
+        "name": "CHOW!",
+        "opening_hours": "Mo-Su 11:30-14:30,17:30-18:00+",
+        "smoking": "no",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3231718861,
+      "lat": -12.4674477,
+      "lon": 130.8458452,
+      "tags": {
+        "amenity": "pub",
+        "name": "Fiddlers Green",
+        "opening_hours": "Mo-Th 11:00-18:00+; Sa,Su 08:00-18:00+"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3231718862,
+      "lat": -12.46862,
+      "lon": 130.8467776,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Hot Tamale",
+        "opening_hours": "Mo-Su 11:30-18:00+"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3273898088,
+      "lat": -21.0035928,
+      "lon": 134.4068072,
+      "tags": {
+        "contact:phone": "+61 8 8964 1518",
+        "name": "Warrabri Bakery",
+        "shop": "bakery"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3379321048,
+      "lat": -13.6058928,
+      "lon": 132.2200519,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "regional",
+        "name": "Mary River Roadhouse"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3408828683,
+      "lat": -12.4569672,
+      "lon": 130.8357516,
+      "tags": {
+        "addr:housenumber": "130",
+        "addr:postcode": "0800",
+        "addr:state": "NT",
+        "addr:street": "Smith Street",
+        "amenity": "restaurant",
+        "name": "Zhen's corner",
+        "phone": "+61 8 8941 0109",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3408847493,
+      "lat": -12.4564237,
+      "lon": 130.8353318,
+      "tags": {
+        "addr:housenumber": "6",
+        "addr:postcode": "0800",
+        "addr:street": "Dashwood Crescent",
+        "amenity": "restaurant",
+        "cuisine": "asian",
+        "name": "Nirvana",
+        "phone": "+61 8 8981 2025",
+        "website": "https://www.nirvanadarwin.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3408847494,
+      "lat": -12.4606977,
+      "lon": 130.8368772,
+      "tags": {
+        "addr:housenumber": "93",
+        "addr:street": "Mitchell Street",
+        "amenity": "restaurant",
+        "cuisine": "asian",
+        "name": "Hanuman Darwin",
+        "opening_hours": "12:00-14:30,18:00+",
+        "phone": "+61 8 8941 3500",
+        "website": "https://www.hanuman.com.au/darwin"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3580273493,
+      "lat": -12.3795265,
+      "lon": 130.8489492,
+      "tags": {
+        "addr:housenumber": "58",
+        "addr:postcode": "0810",
+        "addr:street": "Aralia Street",
+        "addr:suburb": "Nightcliff",
+        "amenity": "restaurant",
+        "cuisine": "thai",
+        "delivery": "no",
+        "name": "Asian Gateway Restaurant",
+        "phone": "+61 8 8985 1131",
+        "smoking": "outside",
+        "takeaway": "yes",
+        "website": "http://asiangateway.com.au/wp/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3747406168,
+      "lat": -12.7620404,
+      "lon": 131.5009167,
+      "tags": {
+        "amenity": "pub",
+        "name": "Corroboree Park Tavern",
+        "phone": "+61 8 8978 8920"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3749514155,
+      "lat": -12.7176402,
+      "lon": 130.3497598,
+      "tags": {
+        "amenity": "pub",
+        "name": "The Lodge of Dundee",
+        "website": "http://www.thelodgeofdundee.com.au"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3753111916,
+      "lat": -12.8998222,
+      "lon": 131.6756595,
+      "tags": {
+        "addr:country": "AU",
+        "addr:street": "Arnhem Highway",
+        "amenity": "pub",
+        "email": "admin@barkhutinn.com.au",
+        "fax": "+61 8 8978 8932",
+        "name": "Bark Hut Inn",
+        "operator": "Bark Hut Inn Pty Ltd",
+        "phone": "+61 8 8978 8988",
+        "website": "https://www.barkhutinn.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3763122562,
+      "lat": -16.3076423,
+      "lon": 133.3855848,
+      "tags": {
+        "amenity": "pub",
+        "name": "Daly Waters Hi-Way Inn"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3780769376,
+      "lat": -13.5827621,
+      "lon": 131.4581552,
+      "tags": {
+        "amenity": "pub",
+        "name": "Hayes Creek Wayside Inn",
+        "website": "https://northernterritory.com/katherine-and-surrounds/accommodation/hayes-creek-holiday-park"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3796152681,
+      "lat": -12.4636413,
+      "lon": 130.8402074,
+      "tags": {
+        "amenity": "cafe",
+        "brand": "Boost Juice",
+        "brand:wikidata": "Q4943789",
+        "cuisine": "juice",
+        "name": "Boost Juice",
+        "phone": "+61 8 8981 5555",
+        "source": "http://mitchellcentre.com.au/centre-directory.html",
+        "takeaway": "yes",
+        "website": "https://www.boostjuice.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3842678937,
+      "lat": -23.6322571,
+      "lon": 132.7267104,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Snack Kiosk"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4012035625,
+      "lat": -23.7015327,
+      "lon": 133.881759,
+      "tags": {
+        "addr:housenumber": "74",
+        "addr:postcode": "0870",
+        "addr:street": "Todd Street",
+        "addr:suburb": "Alice Springs",
+        "addr:unit": "10",
+        "amenity": "fast_food",
+        "cuisine": "mexican",
+        "delivery": "no",
+        "drive_through": "no",
+        "name": "Loco Burrito",
+        "opening_hours": "Mo-Sa 11:00-19:30",
+        "phone": "+61 8 8951 0518",
+        "takeaway": "yes",
+        "wheelchair": "limited"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4012035627,
+      "lat": -23.7007366,
+      "lon": 133.8826549,
+      "tags": {
+        "addr:housenumber": "3",
+        "addr:postcode": "0870",
+        "addr:street": "Fan Arcade",
+        "addr:suburb": "Alice Springs",
+        "amenity": "cafe",
+        "cuisine": "international",
+        "internet_access": "no",
+        "name": "Page 27",
+        "opening_hours": "Tu-Fr 07:00-14:00; Sa, Su 07:30-14:00; Mo 07:00-14:30",
+        "phone": "+61 8 8952 0191",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4012035628,
+      "lat": -23.7040324,
+      "lon": 133.8778518,
+      "tags": {
+        "amenity": "cafe",
+        "name": "RFDS Cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4084995518,
+      "lat": -12.4367471,
+      "lon": 130.9160862,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Hidden Delights Cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4223293611,
+      "lat": -12.461599,
+      "lon": 130.8419672,
+      "tags": {
+        "addr:housenumber": "35",
+        "addr:street": "Cavenagh Street",
+        "addr:unit": "1",
+        "amenity": "cafe",
+        "cuisine": "bakery;cake;coffee;meat_pies",
+        "name": "Kurt's Cakes",
+        "phone": "+61 8 8941 5033"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4286790192,
+      "lat": -12.4632054,
+      "lon": 130.8419974,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "restaurant",
+        "changing_table": "no",
+        "indoor_seating": "yes",
+        "name": "China Bar",
+        "opening_hours": "Mo-Th 11:00-21:00, Fr 11:00-22:00, Sa,Su 11:00-16:00, Sa 17:00-22:00, Su 17:00-21:00",
+        "outdoor_seating": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "smoking": "no",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4286846090,
+      "lat": -12.4624261,
+      "lon": 130.8389395,
+      "tags": {
+        "addr:housenumber": "69",
+        "addr:postcode": "0800",
+        "addr:street": "Mitchell Street",
+        "amenity": "pub",
+        "name": "Shenannigans",
+        "opening_hours": "10:00-02:00",
+        "outdoor_seating": "yes",
+        "smoking": "outside"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4395911690,
+      "lat": -22.1308572,
+      "lon": 133.4166212,
+      "tags": {
+        "addr:housenumber": "381",
+        "addr:postcode": "0872",
+        "addr:state": "NT",
+        "addr:street": "Stuart Highway",
+        "addr:suburb": "Ti Tree",
+        "amenity": "restaurant;fast_food;pub",
+        "name": "Ti Tree Roadhouse",
+        "phone": "+61 8 8956 9741",
+        "shop": "convenience",
+        "tourism": "hotel;motel",
+        "website": "https://www.titreeroadhouse.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4485930022,
+      "lat": -14.1800452,
+      "lon": 132.188191,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Jawoyn Leliyn Kiosk",
+        "opening_hours": "Mo-Su 09:00-17:00",
+        "phone": "+61 8 8972 2884",
+        "website": "https://jawoyn-leliynkiosk.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4493492991,
+      "lat": -12.4718675,
+      "lon": 130.8460013,
+      "tags": {
+        "amenity": "bar",
+        "name": "Cruise Port",
+        "name:en": "Cruise Port"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4550744295,
+      "lat": -23.699256,
+      "lon": 133.88128,
+      "tags": {
+        "amenity": "restaurant",
+        "old_name": "Hong Kong Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4556905192,
+      "lat": -23.7149599,
+      "lon": 133.8794173,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "asian",
+        "name": "Hanuman"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4618514348,
+      "lat": -11.7609546,
+      "lon": 130.6315553,
+      "tags": {
+        "amenity": "fast_food",
+        "source": "survey"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4639391689,
+      "lat": -12.4511925,
+      "lon": 130.8219384,
+      "tags": {
+        "addr:country": "AU",
+        "addr:housenumber": "62",
+        "addr:postcode": "0820",
+        "addr:state": "NT",
+        "addr:street": "Marina Boulevard",
+        "amenity": "restaurant",
+        "name": "Golden Orchid"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4641174708,
+      "lat": -12.4570427,
+      "lon": 130.8356506,
+      "tags": {
+        "addr:housenumber": "130",
+        "addr:postcode": "0800",
+        "addr:state": "NT",
+        "addr:street": "Smith Street",
+        "amenity": "fast_food",
+        "brand": "Domino's",
+        "brand:wikidata": "Q839466",
+        "brand:wikipedia": "en:Domino's Pizza",
+        "cuisine": "pizza",
+        "delivery": "yes",
+        "drive_through": "no",
+        "name": "Domino's",
+        "opening_hours": "Su-Th 10:00-23:00, Fr-Sa 10:00-01:00",
+        "outdoor_seating": "no",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4643660389,
+      "lat": -12.4509394,
+      "lon": 130.8223537,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Yots Greek Taverna",
+        "name:en": "Yots Greek Taverna"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4700359390,
+      "lat": -23.6999695,
+      "lon": 133.880921,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Subway",
+        "brand:wikidata": "Q244457",
+        "brand:wikipedia": "en:Subway (restaurant)",
+        "cuisine": "sandwich",
+        "name": "Subway",
+        "name:en": "Subway",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4704477992,
+      "lat": -12.4634201,
+      "lon": 130.8413365,
+      "tags": {
+        "addr:housenumber": "14",
+        "addr:street": "Knuckey Street",
+        "amenity": "fast_food",
+        "brand": "Subway",
+        "brand:wikidata": "Q244457",
+        "brand:wikipedia": "en:Subway (restaurant)",
+        "cuisine": "sandwich",
+        "name": "Subway",
+        "name:en": "Subway",
+        "opening_hours": "Mo-Fr 08:00-19:00; Sa 08:30-16:00; Su 08:00-16:00",
+        "phone": "+61 8 8942 2888",
+        "takeaway": "yes",
+        "website": "https://www.subway.com/en-AU/FindAStore?zip=Darwin"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4705993690,
+      "lat": -12.463019,
+      "lon": 130.8413922,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "fast_food",
+        "branch": "Darwin Central",
+        "brand": "McDonald's",
+        "brand:wikidata": "Q38076",
+        "brand:wikipedia": "en:McDonald's",
+        "changing_table": "no",
+        "cuisine": "burger",
+        "indoor_seating": "yes",
+        "name": "McDonald's",
+        "name:en": "McDonald's",
+        "opening_hours": "Mo-Th 06:00-00:00; Fr-Su 12:00-12:00",
+        "outdoor_seating": "yes",
+        "phone": "+61 8 8981 0702",
+        "takeaway": "yes",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4707949956,
+      "lat": -12.458371,
+      "lon": 130.8362491,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Hungry Jack's",
+        "brand:wikidata": "Q3036373",
+        "brand:wikipedia": "en:Hungry Jack's",
+        "cuisine": "burger",
+        "name": "Hungry Jack's",
+        "name:en": "Hungry Jack's",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4769361222,
+      "lat": -12.4618748,
+      "lon": 130.8412001,
+      "tags": {
+        "addr:housenumber": "3",
+        "addr:street": "Edmunds Street",
+        "amenity": "restaurant",
+        "contact:facebook": "https://www.facebook.com/wearemayberry/",
+        "indoor_seating": "yes",
+        "name": "Mayberry",
+        "outdoor_seating": "yes",
+        "phone": "+61 8 7924 7008",
+        "website": "https://mayberrydarwin.com/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4787722640,
+      "lat": -12.4623503,
+      "lon": 130.8441907,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Tim's Surf and Turf",
+        "name:en": "Tim's Surf and Turf",
+        "opening_hours": "Mo-Su 17:30-20:30"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4915873025,
+      "lat": -14.4820723,
+      "lon": 132.2552949,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Pop Up Cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4924063006,
+      "lat": -13.7656136,
+      "lon": 130.7090405,
+      "tags": {
+        "amenity": "pub",
+        "name": "Daly River Roadside Inn"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4959162299,
+      "lat": -12.4574764,
+      "lon": 130.8355439,
+      "tags": {
+        "addr:housenumber": "109",
+        "addr:street": "Smith Street",
+        "amenity": "cafe",
+        "name": "Cafe 21 Smith",
+        "opening_hours": "Mo-Fr 07:00-16:00; Sa,Su 07:00-13:00",
+        "phone": "+61 8 7917 8703",
+        "website": "https://www.cafe21.com.au/index.php?route=information/information&information_id=8"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4959816482,
+      "lat": -12.4567297,
+      "lon": 130.8359701,
+      "tags": {
+        "addr:housenumber": "2",
+        "addr:postcode": "0800",
+        "addr:state": "NT",
+        "addr:street": "Harriet Place",
+        "addr:unit": "1",
+        "amenity": "cafe",
+        "cuisine": "coffee_shop",
+        "name": "Kopi Stop",
+        "phone": "+61 8 8941 2414"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4959816491,
+      "lat": -12.4649173,
+      "lon": 130.8400948,
+      "tags": {
+        "addr:street": "Esplanade",
+        "amenity": "restaurant",
+        "cuisine": "steak_house",
+        "name": "Char Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4967274117,
+      "lat": -12.462926,
+      "lon": 130.8391934,
+      "tags": {
+        "addr:street": "Mitchell Street",
+        "amenity": "bar",
+        "indoor_seating": "yes",
+        "name": "The Loose Goose Bar",
+        "outdoor_seating": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4976900607,
+      "lat": -13.6312673,
+      "lon": 131.630874,
+      "tags": {
+        "amenity": "restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4984665221,
+      "lat": -12.4483972,
+      "lon": 130.8499225,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "fish_and_chips",
+        "name": "Frying Nemo",
+        "name:en": "Frying Nemo"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4986309205,
+      "lat": -12.3610951,
+      "lon": 130.8679641,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Cafe De La Plage"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4995946521,
+      "lat": -23.7004523,
+      "lon": 133.8814059,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Uncles Tavern"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5042030223,
+      "lat": -23.7005033,
+      "lon": 133.8821028,
+      "tags": {
+        "addr:housenumber": "58",
+        "addr:street": "Todd Mall",
+        "addr:unit": "1",
+        "amenity": "restaurant",
+        "name": "Epilogue Lounge",
+        "opening_hours": "We-Sa 15:00-23:30"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5042066821,
+      "lat": -23.7017795,
+      "lon": 133.8816083,
+      "tags": {
+        "addr:housenumber": "80",
+        "addr:postcode": "0870",
+        "addr:street": "Todd Street",
+        "amenity": "restaurant",
+        "name": "Bojangles Saloon and Restaurant",
+        "name:en": "Bojangles Saloon and Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5055207621,
+      "lat": -12.4967032,
+      "lon": 131.043459,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Howard Springs Tavern",
+        "name:en": "Howard Springs Tavern",
+        "opening_hours": "Mo-Su 10:00-00:00",
+        "phone": "+61 8 8983 1463"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5072588823,
+      "lat": -23.6993191,
+      "lon": 133.8827818,
+      "tags": {
+        "addr:street": "Todd Mall",
+        "amenity": "restaurant",
+        "name": "The Sports Cafe and Restaurant",
+        "name:en": "The Sports Cafe and Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5128349322,
+      "lat": -23.7016912,
+      "lon": 133.8816706,
+      "tags": {
+        "amenity": "bar",
+        "name": "The Rock Bar"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5140577322,
+      "lat": -12.4508676,
+      "lon": 130.8227403,
+      "tags": {
+        "addr:street": "Marina Boulevard",
+        "amenity": "restaurant",
+        "cuisine": "indian",
+        "name": "Exotic North Indian Cuisine"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5144361421,
+      "lat": -12.4506832,
+      "lon": 130.8232257,
+      "tags": {
+        "addr:street": "Marina Boulevard",
+        "amenity": "bar",
+        "cuisine": "local",
+        "name": "Lola’s Pergola"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5294887211,
+      "lat": -12.431169,
+      "lon": 130.8436912,
+      "tags": {
+        "addr:housenumber": "38",
+        "addr:street": "Parap Road",
+        "name": "Parap Bakery",
+        "opening_hours": "Mo-Fr 06:00-15:00; Sa 07:00-14:00",
+        "phone": "+61 8 8981 1451",
+        "shop": "bakery",
+        "website": "https://www.parapbakery.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5294887212,
+      "lat": -12.4317397,
+      "lon": 130.8436542,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Crust"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5294887213,
+      "lat": -12.4316191,
+      "lon": 130.8440788,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Happy Garden"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5294887215,
+      "lat": -12.4309334,
+      "lon": 130.8436528,
+      "tags": {
+        "name": "Parap Fine Foods",
+        "shop": "deli"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5300332781,
+      "lat": -12.4954257,
+      "lon": 130.9727635,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Canteen"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5318125021,
+      "lat": -12.4502495,
+      "lon": 130.8227361,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Seafood on Cullen"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5326762822,
+      "lat": -12.5008621,
+      "lon": 130.9788903,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "fish_and_chips",
+        "name": "Hungry Dolphin",
+        "phone": "+61 8 8931 0060",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5372361449,
+      "lat": -23.6997514,
+      "lon": 133.8810252,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "turkish",
+        "name": "Outback Turkish Pide & Kebabs",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5404976995,
+      "lat": -12.4010594,
+      "lon": 130.916082,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Domino's",
+        "brand:wikidata": "Q839466",
+        "cuisine": "pizza",
+        "delivery": "yes",
+        "name": "Domino's",
+        "old_name": "Eagle Boys",
+        "takeaway": "yes",
+        "website": "https://www.dominos.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5404976996,
+      "lat": -12.4012637,
+      "lon": 130.9157735,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "kebab",
+        "name": "Kebab Karama",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5441578723,
+      "lat": -12.5238032,
+      "lon": 131.0416161,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Chianti"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5441578730,
+      "lat": -12.5244735,
+      "lon": 131.042528,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Domino's",
+        "brand:wikidata": "Q839466",
+        "brand:wikipedia": "en:Domino's Pizza",
+        "cuisine": "pizza",
+        "delivery": "yes",
+        "name": "Domino's",
+        "outdoor_seating": "no",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5441578738,
+      "lat": -12.5252865,
+      "lon": 131.0429411,
+      "tags": {
+        "amenity": "cafe",
+        "delivery": "yes",
+        "name": "Coffee Cafe",
+        "old_name": "Murphy's Law",
+        "opening_hours": "06:00-21:00",
+        "outdoor_seating": "yes",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5441578747,
+      "lat": -12.5230426,
+      "lon": 131.043039,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "seafood",
+        "name": "Coolalinga Seafood"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5468457984,
+      "lat": -12.5062136,
+      "lon": 131.0090795,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Rainmaker Cafe",
+        "outdoor_seating": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5479235985,
+      "lat": -12.440474,
+      "lon": 130.8394647,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Fresh Point Co.",
+        "opening_hours": "Mo-Su 07:00-15:00",
+        "phone": "+61 8 8995 9580",
+        "website": "https://www.freshpointco.com/parap"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5479235986,
+      "lat": -12.4402042,
+      "lon": 130.8395565,
+      "tags": {
+        "name": "The Avenue Bakery",
+        "shop": "bakery"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5535416618,
+      "lat": -12.4629631,
+      "lon": 130.8422611,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "restaurant",
+        "indoor_seating": "yes",
+        "name": "Ichi",
+        "opening_hours": "Mo,We-Fr 11:30-14:30, Mo,We,Th 17:30-20:30, Fr,Sa 17:30-21:00, Su 17:30-20:30; Tu off",
+        "outdoor_seating": "yes",
+        "smoking": "no",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5566691021,
+      "lat": -12.474328,
+      "lon": 130.9579341,
+      "tags": {
+        "addr:housenumber": "7",
+        "addr:postcode": "0822",
+        "addr:state": "NT",
+        "addr:street": "Coffey Street",
+        "addr:suburb": "Tivendale",
+        "addr:unit": "6",
+        "amenity": "cafe",
+        "cuisine": "coffee_shop",
+        "name": "Mad Hatters Café",
+        "name:en": "Mad Hatterz Café",
+        "opening_hours": "Mo-Fr 05:00-14:00; Sa 05:00-12:00",
+        "phone": "+61 8 8932 1814"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5568679559,
+      "lat": -12.4398774,
+      "lon": 130.8396114,
+      "tags": {
+        "addr:street": "Salonika Street",
+        "amenity": "cafe",
+        "cuisine": "coffee_shop;cake",
+        "name": "Karma Café"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5573192221,
+      "lat": -12.4389263,
+      "lon": 130.8398941,
+      "tags": {
+        "addr:street": "Nylander Street",
+        "amenity": "cafe",
+        "cuisine": "greek;burger;coffee_shop",
+        "name": "MM’s Takeaway"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5623291926,
+      "lat": -23.7326839,
+      "lon": 133.8673485,
+      "tags": {
+        "addr:housenumber": "31",
+        "addr:street": "Palm Circuit",
+        "amenity": "cafe",
+        "name": "Star of Alice"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5623298221,
+      "lat": -12.4650961,
+      "lon": 130.8428893,
+      "tags": {
+        "addr:housenumber": "Shop 4-5",
+        "addr:street": "Smith Street Mall",
+        "amenity": "cafe",
+        "description": "A 100% not-for-profit organisation committed to selling ethically sourced and sustainable products that directly support local Indigenous communities.",
+        "name": "Aboriginal Bush Traders",
+        "name:en": "Aboriginal Bush Traders",
+        "outdoor_seating": "yes",
+        "phone": "+61 8 8931 6650",
+        "shop": "art",
+        "website": "https://aboriginalbushtraders.com/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5631819061,
+      "lat": -12.5134067,
+      "lon": 130.9793177,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "italian",
+        "name": "Riva",
+        "opening_hours": "Tu 07:00-13:30; We-Su 07:00-13:30,18:00-21:00"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5631819063,
+      "lat": -12.5129956,
+      "lon": 130.9790602,
+      "tags": {
+        "amenity": "bar",
+        "name": "The Bell",
+        "website": "https://www.thebell.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5631819064,
+      "lat": -12.5128293,
+      "lon": 130.9794103,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "coffee_shop",
+        "delivery": "yes",
+        "name": "Fresh Point",
+        "opening_hours": "Mo-Fr 07:00-13:30,17:00-21:00; Sa-Su 07:00-21:00"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5678752521,
+      "lat": -25.1904185,
+      "lon": 130.9763753,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Kulata Academy Cafe @AV8"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5720362543,
+      "lat": -12.4013842,
+      "lon": 130.9156072,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Jilvie's Bistro",
+        "opening_hours": "Mo-Su 11:30-14:00, 18:00-22:00",
+        "outdoor_seating": "yes",
+        "phone": "+61 8 8945 0138"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5720362544,
+      "lat": -12.4011301,
+      "lon": 130.9159827,
+      "tags": {
+        "amenity": "fast_food",
+        "contact:facebook": "pages/Panda-Foods/298688583497147",
+        "cuisine": "asian;chinese",
+        "level": "0",
+        "name": "Panda Food Centre",
+        "opening_hours": "Mo-Sa 08:30-20:00; Su 09:00-16:00",
+        "phone": "+61 8 8927 5666",
+        "self_service": "no",
+        "takeaway": "yes",
+        "website": "https://www.karamashoppingplaza.com.au/business-directory/panda-food-centre/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5720541554,
+      "lat": -12.3918133,
+      "lon": 130.8584909,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Fusion Cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5720541561,
+      "lat": -12.3914033,
+      "lon": 130.8574153,
+      "tags": {
+        "addr:housenumber": "356",
+        "addr:postcode": "0810",
+        "addr:state": "NT",
+        "addr:street": "Bagot Road",
+        "addr:suburb": "Millner",
+        "air_conditioning": "yes",
+        "amenity": "cafe",
+        "cuisine": "coffee_shop",
+        "name": "Mt. 8848 Cafe and Restaurant",
+        "opening_hours": "Mo-Su 08:00-15:00",
+        "outdoor_seating": "no",
+        "phone": "+61 400 646 484",
+        "smoking": "no",
+        "takeaway": "yes",
+        "toilets": "yes",
+        "website": "https://mt8848cafe.com",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5742355123,
+      "lat": -12.4670209,
+      "lon": 130.846334,
+      "tags": {
+        "addr:country": "AU",
+        "addr:state": "NT",
+        "amenity": "cafe",
+        "brand": "The Coffee Club",
+        "brand:wikidata": "Q7726599",
+        "brand:wikipedia": "en:The Coffee Club",
+        "cuisine": "coffee_shop",
+        "internet_access": "wlan",
+        "level": "0",
+        "name": "The Coffee Club",
+        "takeaway": "yes",
+        "website": "https://www.coffeeclub.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5742771761,
+      "lat": -12.4643302,
+      "lon": 130.8431412,
+      "tags": {
+        "addr:housenumber": "28",
+        "addr:street": "Smith Street Mall",
+        "air_conditioning": "yes",
+        "amenity": "cafe",
+        "check_date:opening_hours": "2025-10-18",
+        "cuisine": "coffee;breakfast;waffle;lunch;sandwich",
+        "name": "Café Twenty One",
+        "opening_hours:signed": "no",
+        "phone": "+61 8 7917 8703",
+        "smoking": "no",
+        "website": "https://www.cafe21.com.au/",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5744907175,
+      "lat": -12.4621411,
+      "lon": 130.8423045,
+      "tags": {
+        "addr:housenumber": "37",
+        "addr:street": "Knuckey Street",
+        "air_conditioning": "yes",
+        "amenity": "cafe",
+        "changing_table": "yes",
+        "email": "gertrude@moorishcafe.com.au",
+        "indoor_seating": "yes",
+        "name": "Moorish Cafe",
+        "opening_hours": "Tu-Fr 11:00-14:30,18:00-22:00; Sa 11:00-22:00",
+        "outdoor_seating": "no",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "phone": "+61 8 8981 0010",
+        "website": "https://www.moorishcafe.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5750396661,
+      "lat": -12.5206798,
+      "lon": 131.0410073,
+      "tags": {
+        "contact:facebook": "https://www.facebook.com/pg/CoolalingaBakery",
+        "email": "wilsonspastries@outlook.com",
+        "name": "Coolalinga Bakery",
+        "payment:credit_cards": "yes",
+        "payment:visa": "yes",
+        "phone": "+61 421 577 890",
+        "shop": "bakery"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5761097888,
+      "lat": -12.3997823,
+      "lon": 130.8524559,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Ruby G's Cafe and Bakery",
+        "outdoor_seating": "yes",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5923535896,
+      "lat": -12.4620547,
+      "lon": 130.8423947,
+      "tags": {
+        "addr:street": "Cavenagh Street",
+        "air_conditioning": "yes",
+        "amenity": "restaurant",
+        "changing_table": "no",
+        "cuisine": "pizza",
+        "indoor_seating": "yes",
+        "name": "City Pizza",
+        "opening_hours": "Mo-Su 17:00-00:00",
+        "outdoor_seating": "no",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "phone": "+61 8 8941 8333",
+        "website": "https://www.citypizza.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6052638215,
+      "lat": -12.3716305,
+      "lon": 130.8824083,
+      "tags": {
+        "addr:housenumber": "56",
+        "addr:street": "Bradshaw Terrace",
+        "addr:suburb": "Casuarina",
+        "amenity": "restaurant",
+        "cuisine": "indian",
+        "delivery": "yes",
+        "name": "Indian Curry Paradise",
+        "outdoor_seating": "no",
+        "phone": "+61 8 7915 0520",
+        "takeaway": "yes",
+        "website": "http://www.indiancurryparadise.com"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6094502985,
+      "lat": -14.4665211,
+      "lon": 132.2660196,
+      "tags": {
+        "addr:housenumber": "23",
+        "addr:postcode": "0850",
+        "addr:state": "NT",
+        "addr:street": "Lindsay Street",
+        "addr:suburb": "Katherine",
+        "amenity": "cafe",
+        "contact:facebook": "https://www.facebook.com/theblackrussiancaravanbar",
+        "description": "Coffee and cake kiosk.",
+        "name": "The Black Russian Caravan Bar",
+        "opening_hours": "Mo-Su 07:00-13:00",
+        "phone": "+61 409 475 115"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6176042771,
+      "lat": -12.4573274,
+      "lon": 130.8353951,
+      "tags": {
+        "addr:housenumber": "109",
+        "addr:postcode": "0800",
+        "addr:state": "NT",
+        "addr:street": "Smith Street",
+        "amenity": "fast_food",
+        "check_date": "2025-06-19",
+        "cuisine": "australian",
+        "name": "Uncle Sam's",
+        "opening_hours": "24/7",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267321162,
+      "lat": -12.4716878,
+      "lon": 130.9826233,
+      "tags": {
+        "amenity": "restaurant",
+        "brand": "Nando's",
+        "brand:wikidata": "Q3472954",
+        "brand:wikipedia": "en:Nando's",
+        "cuisine": "chicken;portuguese",
+        "name": "Nando's"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267321163,
+      "lat": -12.471702,
+      "lon": 130.9827309,
+      "tags": {
+        "amenity": "cafe",
+        "brand": "Chatime",
+        "brand:wikidata": "Q16829306",
+        "brand:wikipedia": "en:Chatime",
+        "cuisine": "bubble_tea",
+        "name": "Chatime",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267321164,
+      "lat": -12.4717901,
+      "lon": 130.9827716,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Origin Kebabs"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267321165,
+      "lat": -12.4718837,
+      "lon": 130.9829606,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Saigon Time"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267321166,
+      "lat": -12.4716659,
+      "lon": 130.9831827,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Subway",
+        "brand:wikidata": "Q244457",
+        "brand:wikipedia": "en:Subway (restaurant)",
+        "cuisine": "sandwich",
+        "name": "Subway",
+        "takeaway": "yes",
+        "website": "https://www.subway.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267321167,
+      "lat": -12.4717978,
+      "lon": 130.9832325,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Happy Garden"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267321175,
+      "lat": -12.4711649,
+      "lon": 130.9827439,
+      "tags": {
+        "addr:country": "AU",
+        "addr:state": "NT",
+        "amenity": "cafe",
+        "brand": "The Coffee Club",
+        "brand:wikidata": "Q7726599",
+        "brand:wikipedia": "en:The Coffee Club",
+        "cuisine": "coffee_shop",
+        "name": "The Coffee Club",
+        "takeaway": "yes",
+        "website": "https://www.coffeeclub.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267321176,
+      "lat": -12.471304,
+      "lon": 130.9828415,
+      "tags": {
+        "amenity": "cafe",
+        "brand": "Gloria Jean's",
+        "brand:wikidata": "Q2666365",
+        "brand:wikipedia": "en:Gloria Jean's Coffees",
+        "cuisine": "coffee_shop",
+        "name": "Gloria Jean's",
+        "official_name": "Gloria Jean's Coffees",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267321292,
+      "lat": -12.4708278,
+      "lon": 130.983906,
+      "tags": {
+        "amenity": "cafe",
+        "brand": "Boost Juice",
+        "brand:wikidata": "Q4943789",
+        "brand:wikipedia": "en:Boost Juice",
+        "cuisine": "juice",
+        "name": "Boost Juice",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267321303,
+      "lat": -12.4706789,
+      "lon": 130.9836576,
+      "tags": {
+        "brand": "The Cheesecake Shop",
+        "brand:wikidata": "Q117717103",
+        "name": "The Cheesecake Shop",
+        "shop": "bakery"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267321305,
+      "lat": -12.4715844,
+      "lon": 130.9829154,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "ice_cream",
+        "name": "New Zealand Natural"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6267324345,
+      "lat": -12.4707182,
+      "lon": 130.9843693,
+      "tags": {
+        "name": "Parap Bakery",
+        "shop": "bakery"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6444935585,
+      "lat": -12.4622749,
+      "lon": 130.8422086,
+      "tags": {
+        "addr:housenumber": "33",
+        "addr:street": "Knuckey Street",
+        "amenity": "restaurant",
+        "name": "Good Thanks",
+        "opening_hours": "We-Th 12:00-15:00,17:00-21:00; Fr-Sa 12:00-22:00; Su 12:00-21:00",
+        "phone": "+61 447 566 878",
+        "website": "https://www.goodthanksdarwin.com/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 7010811986,
+      "lat": -24.4051378,
+      "lon": 131.8179476,
+      "tags": {
+        "amenity": "cafe",
+        "cuisine": "breakfast"
+      }
+    },
+    {
+      "type": "node",
+      "id": 7078964185,
+      "lat": -12.4626471,
+      "lon": 130.8391362,
+      "tags": {
+        "amenity": "pub",
+        "email": "sixtanksbrew@gmail.com",
+        "level": "0",
+        "name": "Six Tanks Brew Co.",
+        "opening_hours": "Su-Mo 11:00-23:00; Tu-We 11:00-00:00; Th-Sa 11:00-02:00",
+        "outdoor_seating": "yes",
+        "phone": "+61 8 8981 1180",
+        "website": "https://www.sixtanksbrew.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 7079569986,
+      "lat": -12.4622633,
+      "lon": 130.8416285,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "korean",
+        "name": "Little Miss Korea",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 7081158586,
+      "lat": -12.4618269,
+      "lon": 130.8416055,
+      "tags": {
+        "amenity": "cafe",
+        "cuisine": "bagel",
+        "diet:vegan": "yes",
+        "name": "Mad Snake"
+      }
+    },
+    {
+      "type": "node",
+      "id": 7340294294,
+      "lat": -12.386966,
+      "lon": 130.8506046,
+      "tags": {
+        "addr:housenumber": "8",
+        "addr:street": "Pavonia Place",
+        "amenity": "restaurant",
+        "description": "Cafe by day, live music bar and pizzaria by night. Coffee, share plates, woodfired-pizza, beer and wine.",
+        "name": "Lucky Bat cafe and pizzeria",
+        "opening_hours": "Mo-Su 07:00-22:00",
+        "phone": "+61 490 815 510",
+        "website": "http://luckybat.space/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 7387787138,
+      "lat": -12.4319245,
+      "lon": 130.844701,
+      "tags": {
+        "addr:housenumber": "1",
+        "addr:postcode": "0820",
+        "addr:state": "NT",
+        "addr:street": "Vickers Street",
+        "addr:suburb": "Parap",
+        "addr:unit": "4",
+        "amenity": "cafe",
+        "description": "Serving brunch and campos coffee",
+        "name": "Laneway specialty coffee",
+        "opening_hours": "Mo-Sa 07:00-16:00; Su 08:00-14:30",
+        "phone": "+61 8 8941 4511",
+        "website": "https://www.lanewaycoffee.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 7387807923,
+      "lat": -12.4618262,
+      "lon": 130.8421963,
+      "tags": {
+        "addr:housenumber": "33",
+        "addr:street": "Cavenagh Street",
+        "amenity": "bar",
+        "description": "Wine bar and kitchen",
+        "name": "Stone House",
+        "opening_hours": "Mo-Th, Sa, Su 16:00-01:00; Fr 15:00-01:00",
+        "website": "http://www.stonehousedarwin.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 7676197657,
+      "lat": -12.423007,
+      "lon": 130.8434738,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "The Track"
+      }
+    },
+    {
+      "type": "node",
+      "id": 7874019770,
+      "lat": -12.5066666,
+      "lon": 131.0088776,
+      "tags": {
+        "amenity": "cafe",
+        "cuisine": "filipino",
+        "name": "Yams Foodhouse"
+      }
+    },
+    {
+      "type": "node",
+      "id": 8244581156,
+      "lat": -15.7204693,
+      "lon": 135.6404015,
+      "tags": {
+        "amenity": "restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 8378914019,
+      "lat": -23.7725585,
+      "lon": 133.9095722,
+      "tags": {
+        "addr:postcode": "0873",
+        "addr:state": "NT",
+        "addr:street": "Heffeman Road",
+        "addr:suburb": "Connellan",
+        "amenity": "restaurant",
+        "cuisine": "vietnamese",
+        "name": "Alice Vietnamese Restaurant",
+        "operator": "Thinh and Lan Nguyen",
+        "phone": "+61 8 8952 8396"
+      }
+    },
+    {
+      "type": "node",
+      "id": 8442099986,
+      "lat": -12.445271,
+      "lon": 130.8425692,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "indian",
+        "name": "Yogis Way",
+        "source": "survey"
+      }
+    },
+    {
+      "type": "node",
+      "id": 8594719344,
+      "lat": -12.6333632,
+      "lon": 131.0744193,
+      "tags": {
+        "amenity": "pub",
+        "food": "yes",
+        "name": "Noomah Tavern",
+        "source": "video",
+        "website": "http://www.facebook.com/noonamahtavern"
+      }
+    },
+    {
+      "type": "node",
+      "id": 8721274378,
+      "lat": -13.0214222,
+      "lon": 130.9383697,
+      "tags": {
+        "amenity": "cafe",
+        "cuisine": "fish_and_chips;coffee_shop",
+        "name": "Zebra Stone"
+      }
+    },
+    {
+      "type": "node",
+      "id": 8840899914,
+      "lat": -12.0244629,
+      "lon": 135.5665094,
+      "tags": {
+        "alt_name": "Takirrina Tucker Box",
+        "amenity": "restaurant",
+        "name": "Takirrina Tuckerbox",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 8883132148,
+      "lat": -14.4657609,
+      "lon": 132.2655225,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "168 Food Bar",
+        "phone": "+61 8 8971 2883"
+      }
+    },
+    {
+      "type": "node",
+      "id": 9553841165,
+      "lat": -12.4631496,
+      "lon": 130.8420973,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "cafe",
+        "cuisine": "coffee_shop",
+        "name": "The Rabbit Hole",
+        "opening_hours": "Mo-Fr 07:00-15:00; Sa,Su 08:00-14:00",
+        "smoking": "no",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 9869621726,
+      "lat": -25.2438145,
+      "lon": 130.9844491,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Mangaṯa Bistro and Bar",
+        "opening_hours": "Mo-Su 06:00-10:00,11:00-21:00",
+        "website": "https://www.ayersrockresort.com.au/dining/mangata-bistro-bar"
+      }
+    },
+    {
+      "type": "node",
+      "id": 9871300922,
+      "lat": -25.2395092,
+      "lon": 130.9831381,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Ilkaṟi Restaurant",
+        "opening_hours": "Mo-Su 06:30-10:30,18:00-21:30",
+        "website": "https://www.ayersrockresort.com.au/dining/ilkari"
+      }
+    },
+    {
+      "type": "node",
+      "id": 9943973195,
+      "lat": -23.6989289,
+      "lon": 133.8697797,
+      "tags": {
+        "addr:housenumber": "16B",
+        "addr:street": "Wilkinson Street",
+        "amenity": "cafe",
+        "name": "Watertank Café",
+        "opening_hours": "Tu-Sa 08:00-14:00",
+        "website": "https://www.watertankcafe.com/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 9994228608,
+      "lat": -23.707461,
+      "lon": 133.8754141,
+      "tags": {
+        "addr:housenumber": "4",
+        "addr:street": "Traeger Avenue",
+        "amenity": "restaurant",
+        "name": "Jump Inn"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10145653617,
+      "lat": -12.4509106,
+      "lon": 130.8225457,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Boat House"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10813076601,
+      "lat": -12.4627718,
+      "lon": 130.8392303,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "restaurant",
+        "check_date:opening_hours": "2025-02-21",
+        "cuisine": "thai",
+        "diet:vegetarian": "yes",
+        "indoor_seating": "yes",
+        "name": "Mellow Thai",
+        "opening_hours:signed": "no",
+        "outdoor_seating": "yes",
+        "website": "https://mellowthai.com.au"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10813150269,
+      "lat": -12.4630157,
+      "lon": 130.8392889,
+      "tags": {
+        "air_conditioning": "no",
+        "amenity": "restaurant",
+        "cuisine": "italian",
+        "name": "Alfonsino‘s",
+        "outdoor_seating": "yes",
+        "reservation": "recommended",
+        "takeaway": "yes",
+        "website": "https://alfonsinos.com/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10936374446,
+      "lat": -14.9193185,
+      "lon": 133.0672919,
+      "tags": {
+        "amenity": "cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10958632095,
+      "lat": -12.4643252,
+      "lon": 130.8426431,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Pokelicious"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10958687027,
+      "lat": -12.4643117,
+      "lon": 130.8425648,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "sri_lankan",
+        "name": "Curry14"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10958836833,
+      "lat": -12.4644685,
+      "lon": 130.8423883,
+      "tags": {
+        "amenity": "cafe",
+        "cuisine": "juice",
+        "name": "Fruillati"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10959254159,
+      "lat": -12.3869292,
+      "lon": 130.8513276,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "sri_lankan",
+        "name": "Spice Garden Eating House & Grill"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10961240774,
+      "lat": -12.4234262,
+      "lon": 130.8366545,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "thai",
+        "name": "Medee Eatery"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10961260543,
+      "lat": -12.4240376,
+      "lon": 130.8365323,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "restaurant",
+        "cuisine": "italian",
+        "diet:vegan": "yes",
+        "diet:vegetarian": "yes",
+        "name": "Fannie Bay Super Pizza Italian Restaurant",
+        "opening_hours": "PH,Mo-Su 11:00-21:00",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "smoking": "no",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10979823518,
+      "lat": -14.4639896,
+      "lon": 132.2635237,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "cafe",
+        "name": "Peakabrew",
+        "opening_hours": "Mo-Fr 06:00-14:00; Sa 07:00-13:00",
+        "smoking": "outside"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11006393462,
+      "lat": -25.2389274,
+      "lon": 130.9832978,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Walpa Lobby Bar",
+        "opening_hours": "Mo-Su 10:30-22:00"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11006424873,
+      "lat": -25.23873,
+      "lon": 130.98311,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Pira Pool Bar",
+        "opening_hours": "Tu-Sa 12:00-20:30; Mo, Su 12:00-17:00"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11013500347,
+      "lat": -25.8394559,
+      "lon": 133.2999254,
+      "tags": {
+        "amenity": "pub",
+        "name": "Kulgera Pub",
+        "phone": "+61 8 8956 0973",
+        "smoking": "outside"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11182471297,
+      "lat": -24.3399399,
+      "lon": 133.4587034,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Stuarts Well Roadhouse",
+        "website": "https://www.stuartswellroadhouse.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11270671023,
+      "lat": -12.4788499,
+      "lon": 130.9838645,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Lantern Chinese Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11270694782,
+      "lat": -12.4804847,
+      "lon": 130.9877668,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Hungry Jack's",
+        "brand:wikidata": "Q3036373",
+        "cuisine": "burger",
+        "name": "Hungry Jack's",
+        "takeaway": "yes",
+        "website": "https://www.hungryjacks.com.au/find-us/palmerston"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11270699176,
+      "lat": -12.4777287,
+      "lon": 130.9836307,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "K-Tong Chinese Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11270699204,
+      "lat": -12.4807328,
+      "lon": 130.9874155,
+      "tags": {
+        "alt_name": "Kentucky Fried Chicken",
+        "amenity": "fast_food",
+        "branch": "Palmerston",
+        "brand": "KFC",
+        "brand:wikidata": "Q524757",
+        "cuisine": "chicken",
+        "name": "KFC",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11270701770,
+      "lat": -12.480389,
+      "lon": 130.9842025,
+      "tags": {
+        "addr:postcode": "0830",
+        "addr:state": "NT",
+        "addr:street": "The Boulevard",
+        "addr:suburb": "Palmerston City",
+        "amenity": "restaurant",
+        "name": "Covai Cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11270709570,
+      "lat": -12.4795575,
+      "lon": 130.9847855,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "The Nook On Boulevard"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11276273062,
+      "lat": -12.4372308,
+      "lon": 130.8330557,
+      "tags": {
+        "addr:housenumber": "19",
+        "addr:street": "Conacher Street",
+        "amenity": "cafe",
+        "name": "Saltwater @ Bundilla",
+        "opening_hours": "Mo-Fr 08:30-15:00; Sa-Su 08:00-15:00",
+        "outdoor_seating": "yes",
+        "website": "https://saltwaterb.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11593222498,
+      "lat": -12.4269394,
+      "lon": 130.8730187,
+      "tags": {
+        "amenity": "bar",
+        "name": "Winellie Hotel Motel Sports Bar"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11655763341,
+      "lat": -12.3801077,
+      "lon": 130.8519448,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Siam Gateway",
+        "opening_hours": "PH,Mo-Su 04:30-21:00"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11895954869,
+      "lat": -12.4630054,
+      "lon": 130.8413836,
+      "tags": {
+        "air_conditioning": "no",
+        "amenity": "restaurant",
+        "changing_table": "no",
+        "check_date:opening_hours": "2025-10-18",
+        "name": "Poke Ola",
+        "opening_hours:signed": "no",
+        "smoking": "no",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11896004570,
+      "lat": -12.461172,
+      "lon": 130.8419583,
+      "tags": {
+        "addr:housenumber": "48",
+        "addr:postcode": "0800",
+        "addr:street": "Cavenagh Street",
+        "addr:unit": "9",
+        "amenity": "cafe",
+        "check_date:opening_hours": "2025-06-18",
+        "name": "Alberto's",
+        "opening_hours": "Mo-Fr 07:00-15:00; Sa 08:00-14:00",
+        "phone": "+61 426 241 971"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11905837869,
+      "lat": -12.4814025,
+      "lon": 130.9762862,
+      "tags": {
+        "addr:postcode": "0830",
+        "addr:street": "Dwyer Circuit",
+        "amenity": "restaurant",
+        "name": "Palmerston Golf and Country Club",
+        "name:en": "Palmerston Golf and Country Club (Caddies)",
+        "opening_hours": "Mo-Su 12:00-22:00",
+        "phone": "+61 8 8932 1324"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11911390220,
+      "lat": -12.389287,
+      "lon": 130.8754356,
+      "tags": {
+        "addr:housenumber": "18",
+        "addr:street": "Jingili Terrace",
+        "amenity": "restaurant",
+        "name": "Ming Court",
+        "opening_hours": "Mo-Su 11:00-15:00, 17:00-22:00",
+        "phone": "+61 8 8985 1755"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12008133793,
+      "lat": -12.4300319,
+      "lon": 130.9163519,
+      "tags": {
+        "addr:housenumber": "641",
+        "addr:postcode": "0828",
+        "addr:state": "NT",
+        "addr:street": "Stuart Highway",
+        "addr:suburb": "Berrimah",
+        "addr:unit": "2",
+        "air_conditioning": "yes",
+        "amenity": "cafe",
+        "bar": "no",
+        "cuisine": "coffee_shop",
+        "delivery": "no",
+        "diet:gluten_free": "yes",
+        "diet:vegan": "yes",
+        "diet:vegetarian": "yes",
+        "drive_through": "no",
+        "highchair": "yes",
+        "internet_access": "no",
+        "name": "Emilio’s Cafe",
+        "opening_hours": "Mo-Th 07:00-14:30; Fr 07:00-14:30,17:00-21:00; Sa,Su,PH closed",
+        "outdoor_seating": "yes",
+        "payment:cards": "yes",
+        "payment:cash": "yes",
+        "payment:contactless": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "payment:mastercard": "yes",
+        "payment:unionpay": "yes",
+        "payment:visa": "yes",
+        "payment:visa_debit": "yes",
+        "phone": "+61 8 7978 4803",
+        "reservation": "yes",
+        "smoking": "no",
+        "takeaway": "yes",
+        "toilets": "yes",
+        "website": "https://www.emilioscafe.com.au/",
+        "website:menu": "https://www.emilioscafe.com.au/menu",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12300531873,
+      "lat": -13.9814221,
+      "lon": 136.461493,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "chicken;fish_and_chips",
+        "name": "Chinese Take Away",
+        "opening_hours": "Mo-Su 09:00-21:00"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12466176112,
+      "lat": -12.4628882,
+      "lon": 130.8394285,
+      "tags": {
+        "addr:housenumber": "69",
+        "addr:street": "Mitchell St",
+        "addr:unit": "12",
+        "amenity": "ice_cream",
+        "name": "La Granita",
+        "website": "lagranita.com.au"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12482326436,
+      "lat": -12.376944,
+      "lon": 130.8957736,
+      "tags": {
+        "amenity": "bar",
+        "name": "Hibiscus Tavern",
+        "opening_hours": "Mo-Sa 10:00-00:00; Su 10:00-22:00",
+        "phone": "+61 8 8927 6388",
+        "website": "www.hibiscustavern.com.au"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12587827290,
+      "lat": -12.4058004,
+      "lon": 130.8800542,
+      "tags": {
+        "addr:housenumber": "2",
+        "addr:street": "Sir Norman Brearley Dr",
+        "amenity": "cafe",
+        "name": "Splash Cafe and Pool"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12606541949,
+      "lat": -12.4633836,
+      "lon": 130.8407762,
+      "tags": {
+        "amenity": "bar",
+        "indoor_seating": "no",
+        "name": "Bustard",
+        "outdoor_seating": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12608531707,
+      "lat": -12.4607079,
+      "lon": 130.8405799,
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "cafe",
+        "changing_table": "no",
+        "check_date:opening_hours": "2025-02-22",
+        "indoor_seating": "yes",
+        "name": "Passengers Cafe",
+        "opening_hours:signed": "no",
+        "outdoor_seating": "no",
+        "smoking": "no",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12608619288,
+      "lat": -12.7026199,
+      "lon": 131.0142611,
+      "tags": {
+        "amenity": "cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12609342434,
+      "lat": -12.4708809,
+      "lon": 130.8483789,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "fish_and_chips",
+        "indoor_seating": "yes",
+        "name": "Kim's Fish n Chips",
+        "outdoor_seating": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12609362085,
+      "lat": -12.4709333,
+      "lon": 130.8482572,
+      "tags": {
+        "amenity": "fast_food",
+        "indoor_seating": "yes",
+        "name": "Red Dragon",
+        "outdoor_seating": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12609367905,
+      "lat": -12.4707079,
+      "lon": 130.8482725,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "mexican"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12609371421,
+      "lat": -12.4708794,
+      "lon": 130.8481437,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "seafood",
+        "name": "Crustaceans"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12609371634,
+      "lat": -12.4708505,
+      "lon": 130.8482057,
+      "tags": {
+        "amenity": "bar"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12611275197,
+      "lat": -12.4083504,
+      "lon": 130.8773848,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Red Rooster",
+        "brand:wikidata": "Q376466",
+        "check_date:opening_hours": "2025-02-23",
+        "cuisine": "chicken",
+        "diet:vegetarian": "no",
+        "indoor_seating": "yes",
+        "level": "1",
+        "name": "Red Rooster",
+        "opening_hours:signed": "no",
+        "outdoor_seating": "no",
+        "takeaway": "yes",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12611279127,
+      "lat": -12.4082344,
+      "lon": 130.8770254,
+      "tags": {
+        "amenity": "restaurant",
+        "check_date:opening_hours": "2025-02-23",
+        "cuisine": "cafe",
+        "diet:vegan": "no",
+        "diet:vegetarian": "yes",
+        "indoor_seating": "yes",
+        "level": "1",
+        "name": "The Territory Bar & Café",
+        "name:en": "The Territory Bar & Café",
+        "opening_hours:signed": "no",
+        "outdoor_seating": "no",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12611283166,
+      "lat": -12.4084972,
+      "lon": 130.8778089,
+      "tags": {
+        "amenity": "restaurant",
+        "check_date:opening_hours": "2025-02-23",
+        "indoor_seating": "yes",
+        "level": "1",
+        "name": "Northern Common",
+        "name:en": "Northern Common",
+        "opening_hours:signed": "no",
+        "outdoor_seating": "no"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12611322193,
+      "lat": -12.4085237,
+      "lon": 130.8780935,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Roll'd",
+        "brand:wikidata": "Q113114631",
+        "check_date:opening_hours": "2025-02-23",
+        "cuisine": "vietnamese",
+        "diet:vegan": "yes",
+        "diet:vegetarian": "yes",
+        "indoor_seating": "yes",
+        "level": "1",
+        "name": "Roll'd",
+        "opening_hours:signed": "no",
+        "outdoor_seating": "no",
+        "takeaway": "yes",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12712104565,
+      "lat": -12.5207764,
+      "lon": 131.0407737,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Smokey J's",
+        "opening_hours": "Sa, Su 08:00-22:00; Tu 16:45-21:30; We-Fr 08:00-14:00, 16:30-21:30",
+        "phone": "+61 2 8945 7665"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12965866401,
+      "lat": -12.4804843,
+      "lon": 130.9885314,
+      "tags": {
+        "amenity": "bar",
+        "name": "Flynn Palmerston"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13015345385,
+      "lat": -12.6692443,
+      "lon": 132.8340987,
+      "tags": {
+        "amenity": "cafe"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13022421601,
+      "lat": -12.3743036,
+      "lon": 130.8835474,
+      "tags": {
+        "addr:housenumber": "266",
+        "addr:street": "Trower Road",
+        "addr:unit": "1",
+        "amenity": "restaurant",
+        "name": "Thai Thai",
+        "opening_hours": "Su 17:00-21:30; Mo, We-Sa 11:00-13:00, 17:00-21:30",
+        "phone": "+61 8 8927 9623"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13075895126,
+      "lat": -12.3805688,
+      "lon": 130.8866371,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "chinese",
+        "name": "Golden Star Kitchen",
+        "opening_hours": "Mo-Su 11:00-14:30, 16:30-22:00",
+        "phone": "+61 8 8928 1423",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13176381360,
+      "lat": -12.5027505,
+      "lon": 130.9929997,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "fish_and_chips",
+        "name": "Ballantynes Fish & Chips"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13186849801,
+      "lat": -12.396074,
+      "lon": 130.8957599,
+      "tags": {
+        "amenity": "fast_food",
+        "name": "Subway",
+        "opening_hours": "Mo-Sa 07:00-21:30; Su 09:00-21:00",
+        "phone": "+61 2 8927 2833"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13190282001,
+      "lat": -12.4643458,
+      "lon": 130.8416147,
+      "tags": {
+        "addr:housenumber": "32",
+        "addr:street": "Mitchell Street",
+        "amenity": "restaurant",
+        "name": "Le Petit Chef",
+        "phone": "+61 2 8982 0000",
+        "website": "https://lepetitchef.com/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13190282002,
+      "lat": -12.4479327,
+      "lon": 130.8298344,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "italian",
+        "name": "il Piatto Restaurant",
+        "opening_hours": "Fr-Su 12:00-14:00, 18:00-22:00; We-Th 18:00-21:00",
+        "phone": "+61 2 8943 8881",
+        "website": "http://mindilbeachcasinoresort.com"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13242234728,
+      "lat": -12.4079031,
+      "lon": 130.8773623,
+      "tags": {
+        "amenity": "fast_food",
+        "level": "0",
+        "name": "Charlie's NT Cafe & Bar",
+        "name:en": "Charlie's NT Cafe & Bar",
+        "note": "before security"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13269970375,
+      "lat": -12.4590112,
+      "lon": 130.8412229,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Treetops Restaurant"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13307534102,
+      "lat": -12.4514581,
+      "lon": 130.8496721,
+      "tags": {
+        "amenity": "bar",
+        "name": "Dinah Beach Cruising Yacht Association Inc"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13314170052,
+      "lat": -12.4989754,
+      "lon": 130.986415,
+      "tags": {
+        "addr:housenumber": "253",
+        "addr:postcode": "0832",
+        "addr:state": "NT",
+        "addr:street": "Chung Wah Terrace",
+        "addr:suburb": "Bakewell",
+        "addr:unit": "T3",
+        "amenity": "restaurant",
+        "cuisine": "asian;asian_fusion",
+        "name": "EC Eats",
+        "phone": "+61 8 8931 0976",
+        "website": "https://www.bakewellshoppingcentre.com.au/store/ec-eats"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13314170053,
+      "lat": -12.4989862,
+      "lon": 130.9864746,
+      "tags": {
+        "addr:housenumber": "253",
+        "addr:postcode": "0832",
+        "addr:state": "NT",
+        "addr:street": "Chung Wah Terrace",
+        "addr:suburb": "Bakewell",
+        "addr:unit": "T4",
+        "amenity": "fast_food",
+        "brand": "Subway",
+        "brand:wikidata": "Q244457",
+        "cuisine": "sandwich",
+        "drive_through": "no",
+        "name": "Subway",
+        "opening_hours": "Mo-Tu 07:00-21:00; We-Fr 07:00-21:30; Sa 08:00-21:30; Su 08:00-21:00",
+        "phone": "+61 8 8932 4886",
+        "takeaway": "yes",
+        "website": "https://www.subway.com/en-au"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13314170054,
+      "lat": -12.4990012,
+      "lon": 130.9865509,
+      "tags": {
+        "addr:housenumber": "253",
+        "addr:postcode": "0832",
+        "addr:state": "NT",
+        "addr:street": "Chung Wah Terrace",
+        "addr:suburb": "Bakewell",
+        "addr:unit": "T5",
+        "brand": "Brumby's Bakeries",
+        "brand:wikidata": "Q4978794",
+        "name": "Brumby's Bakeries",
+        "opening_hours": "Mo-Fr 06:00-19:00; Sa-Su 06:00-17:00",
+        "payment:cash": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "phone": "+61 8 8932 7377",
+        "shop": "bakery"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13314170055,
+      "lat": -12.4990727,
+      "lon": 130.9868623,
+      "tags": {
+        "addr:housenumber": "253",
+        "addr:postcode": "0832",
+        "addr:state": "NT",
+        "addr:street": "Chung Wah Terrace",
+        "addr:suburb": "Bakewell",
+        "addr:unit": "T6",
+        "amenity": "fast_food",
+        "cuisine": "kebab;pizza",
+        "drive_through": "no",
+        "name": "Supero Pizza and Kebab",
+        "opening_hours": "Su-Th 10:30-21:00; Fr-Sa 10:30-21:30",
+        "phone": "+61 8 8914 6969",
+        "website": "https://superopizza.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13319143793,
+      "lat": -12.4305988,
+      "lon": 130.8639455,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Lunch Heaven"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13327435890,
+      "lat": -12.4310696,
+      "lon": 130.8440838,
+      "tags": {
+        "amenity": "cafe",
+        "name": "Mad About Coffee"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13327435901,
+      "lat": -12.4320058,
+      "lon": 130.8438455,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Saffrron"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13359114501,
+      "lat": -12.3876419,
+      "lon": 130.8509286,
+      "tags": {
+        "addr:postcode": "0810",
+        "addr:street": "Progress Drive",
+        "amenity": "restaurant",
+        "cuisine": "burger",
+        "name": "Patty Shack Burger Bar",
+        "self_service": "no"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13390374346,
+      "lat": -12.4635109,
+      "lon": 130.8408988,
+      "tags": {
+        "addr:housenumber": "15",
+        "addr:street": "Knuckey Street",
+        "amenity": "cafe",
+        "indoor_seating": "no",
+        "name": "Bustard Town",
+        "outdoor_seating": "yes",
+        "website": "https://bustardtown.com/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13394657685,
+      "lat": -12.4235146,
+      "lon": 130.8366225,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "kebab;nepalese",
+        "drive_through": "no",
+        "name": "DADA DI"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13394701747,
+      "lat": -12.4499982,
+      "lon": 130.8226316,
+      "tags": {
+        "addr:housenumber": "51",
+        "addr:street": "Marina Boulevard",
+        "addr:unit": "6",
+        "amenity": "restaurant",
+        "cuisine": "fish_and_chips;seafood;fish;ice_cream",
+        "name": "Fin & Tonic",
+        "opening_hours": "We-Su 11:30-20:00",
+        "website": "https://www.finandtonic.com.au/"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13441838410,
+      "lat": -23.7004738,
+      "lon": 133.8820016,
+      "tags": {
+        "addr:housenumber": "58",
+        "addr:street": "Todd Mall",
+        "addr:unit": "1",
+        "amenity": "bar",
+        "name": "Epilogue Rooftop Bar",
+        "opening_hours": "Fr-Sa 17:00-02:00"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13441838411,
+      "lat": -23.700534,
+      "lon": 133.8821974,
+      "tags": {
+        "addr:housenumber": "58",
+        "addr:street": "Todd Mall",
+        "addr:unit": "1",
+        "amenity": "cafe",
+        "name": "Epilogue Cafe",
+        "opening_hours": "Tu-Su 07:00-15:00"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13460927302,
+      "lat": -12.4128282,
+      "lon": 130.8297081,
+      "tags": {
+        "amenity": "fast_food",
+        "opening_hours": "15:00-22:00",
+        "street_vendor": "yes",
+        "website": "https://www.darwin.nt.gov.au/community/things-to-do/street-food"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13516584550,
+      "lat": -12.4917871,
+      "lon": 131.0062102,
+      "tags": {
+        "amenity": "fast_food",
+        "cuisine": "burger",
+        "delivery": "yes",
+        "name": "LA Burgers & Shakes",
+        "takeaway": "yes",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13537080470,
+      "lat": -12.4358594,
+      "lon": 130.9779231,
+      "tags": {
+        "amenity": "cafe",
+        "cuisine": "coffee_shop",
+        "name": "8/12th Regiment Coffee shop"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13537080471,
+      "lat": -12.4372107,
+      "lon": 130.9762328,
+      "tags": {
+        "amenity": "cafe",
+        "cuisine": "coffee_shop",
+        "name": "AAFCANS Cafe Central Canteen"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13612359019,
+      "lat": -16.0280191,
+      "lon": 137.3041417,
+      "tags": {
+        "amenity": "bar",
+        "brewery": "various",
+        "min_age": "18",
+        "opening_hours": "24/7"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13673002401,
+      "lat": -12.4325434,
+      "lon": 130.8482915,
+      "tags": {
+        "addr:street": "Ross Smith Avenue",
+        "amenity": "restaurant",
+        "check_date": "2026-03-23",
+        "check_date:opening_hours": "2026-03-23",
+        "cuisine": "sandwich",
+        "level": "0",
+        "name": "Subway",
+        "opening_hours": "Mo-Su 07:00-21:30",
+        "self_service": "no"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13691308189,
+      "lat": -12.3875643,
+      "lon": 130.8509255,
+      "tags": {
+        "addr:housenumber": "38",
+        "addr:street": "Progress Drive",
+        "amenity": "fast_food",
+        "cuisine": "chicken",
+        "name": "Bruce's Charcoal Chicken & Chinese Takeaway",
+        "opening_hours": "Mo-Sa 08:30-20:30; Su 09:00-16:30",
+        "outdoor_seating": "yes",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13697627745,
+      "lat": -12.4448246,
+      "lon": 130.8421577,
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Yogi's Way"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13719943345,
+      "lat": -12.4628677,
+      "lon": 130.839323,
+      "tags": {
+        "addr:housenumber": "69",
+        "addr:street": "Mitchell Street",
+        "addr:unit": "17",
+        "amenity": "fast_food",
+        "cuisine": "thai",
+        "drive_through": "no",
+        "name": "Transit Take-Away Oriental Food"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13903181001,
+      "lat": -12.4639071,
+      "lon": 130.8429999,
+      "tags": {
+        "addr:housenumber": "2",
+        "addr:street": "Star Village",
+        "amenity": "cafe",
+        "check_date": "2026-06-02",
+        "check_date:opening_hours": "2026-06-02",
+        "cuisine": "breakfast;cake;coffee_shop",
+        "name": "Four Birds",
+        "opening_hours": "Mo-Fr 07:00-14:00; Sa 08:00-13:00"
+      }
+    },
+    {
+      "type": "way",
+      "id": 93247123,
+      "center": {
+        "lat": -24.1305535,
+        "lon": 134.3746104
+      },
+      "tags": {
+        "amenity": "public_building",
+        "building": "yes",
+        "name": "Community Hall"
+      }
+    },
+    {
+      "type": "way",
+      "id": 192960960,
+      "center": {
+        "lat": -19.647404,
+        "lon": 134.1979603
+      },
+      "tags": {
+        "amenity": "public_building",
+        "barrier": "fence"
+      }
+    },
+    {
+      "type": "way",
+      "id": 193173797,
+      "center": {
+        "lat": -19.6418477,
+        "lon": 134.1931205
+      },
+      "tags": {
+        "amenity": "pub",
+        "name": "Sporties Club"
+      }
+    },
+    {
+      "type": "way",
+      "id": 193194074,
+      "center": {
+        "lat": -19.642715,
+        "lon": 134.1918884
+      },
+      "tags": {
+        "addr:country": "AU",
+        "addr:postcode": "0860",
+        "addr:state": "NT",
+        "addr:street": "Paterson Street",
+        "addr:suburb": "Tennant Creek",
+        "amenity": "pub",
+        "source": "Bing, survey"
+      }
+    },
+    {
+      "type": "way",
+      "id": 225794487,
+      "center": {
+        "lat": -23.69733,
+        "lon": 133.8843902
+      },
+      "tags": {
+        "addr:housenumber": "1",
+        "addr:street": "Todd Mall",
+        "amenity": "pub",
+        "building": "yes",
+        "contact:email": "info@toddtavern.com.au",
+        "contact:fax": "+61 8 8952 3830",
+        "contact:phone": "+61 8 8952 1255",
+        "contact:website": "www.toddtavern.com.au",
+        "name": "Todd Tavern",
+        "name:en": "Todd Tavern",
+        "source": "www.tourism.thealice.com.au/accommodation.html",
+        "tourism": "hotel"
+      }
+    },
+    {
+      "type": "way",
+      "id": 225794490,
+      "center": {
+        "lat": -23.6725683,
+        "lon": 133.8871457
+      },
+      "tags": {
+        "amenity": "cafe",
+        "building": "yes",
+        "note": "entry to Telegraph Station"
+      }
+    },
+    {
+      "type": "way",
+      "id": 226560965,
+      "center": {
+        "lat": -20.640782,
+        "lon": 134.2226577
+      },
+      "tags": {
+        "addr:housenumber": "11275",
+        "addr:postcode": "0872",
+        "addr:state": "NT",
+        "addr:street": "Stuart Highway",
+        "addr:suburb": "Davenport",
+        "amenity": "pub",
+        "building": "yes",
+        "contact:facebook": "https://www.facebook.com/p/Devils-Marbles-Hotel-100040695475329/",
+        "email": "stay@devilsmarbleshotel.com.au",
+        "fax": "+61 8 8964 1567",
+        "internet_access": "no",
+        "name": "Devils Marbles Hotel",
+        "opening_hours": "Mo-Su 06:00-23:00",
+        "phone": "+61 8 8964 1963",
+        "tourism": "motel",
+        "website": "https://devilsmarbleshotel.com.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 227651549,
+      "center": {
+        "lat": -24.254743,
+        "lon": 131.5083395
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "yes",
+        "name": "Carmichael's Restaurant",
+        "source": "Bing"
+      }
+    },
+    {
+      "type": "way",
+      "id": 233929276,
+      "center": {
+        "lat": -12.3409649,
+        "lon": 130.8931366
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "hotel",
+        "name": "Sole Restaurant"
+      }
+    },
+    {
+      "type": "way",
+      "id": 233930097,
+      "center": {
+        "lat": -12.370444,
+        "lon": 130.8833394
+      },
+      "tags": {
+        "addr:housenumber": "62",
+        "addr:postcode": "0810",
+        "addr:state": "NT",
+        "addr:street": "Bradshaw Terrace",
+        "addr:suburb": "Casuarina",
+        "amenity": "fast_food",
+        "brand": "Hungry Jack's",
+        "brand:wikidata": "Q3036373",
+        "brand:wikipedia": "en:Hungry Jack's",
+        "building": "yes",
+        "cuisine": "burger",
+        "layer": "1",
+        "name": "Hungry Jack's",
+        "opening_hours": "06:00-22:00",
+        "opening_hours:drive_through": "00:00-24:00",
+        "opening_hours:url": "https://www.hungryjacks.com.au/find-us/casuarina",
+        "outdoor_seating": "yes",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 233930110,
+      "center": {
+        "lat": -12.3706637,
+        "lon": 130.8828312
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "McDonald's",
+        "brand:wikidata": "Q38076",
+        "brand:wikipedia": "en:McDonald's",
+        "building": "yes",
+        "cuisine": "burger",
+        "drive_through": "yes",
+        "name": "McDonald's",
+        "opening_hours": "24/7",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 233930115,
+      "center": {
+        "lat": -12.3714214,
+        "lon": 130.8837204
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Red Rooster",
+        "brand:wikidata": "Q376466",
+        "brand:wikipedia": "en:Red Rooster",
+        "building": "yes",
+        "cuisine": "chicken",
+        "name": "Red Rooster",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 241086169,
+      "center": {
+        "lat": -13.8510398,
+        "lon": 136.4165182
+      },
+      "tags": {
+        "addr:country": "AU",
+        "addr:place": "The ARC",
+        "addr:postcode": "0885",
+        "addr:state": "NT",
+        "addr:street": "Malarra Drive",
+        "addr:suburb": "Alyangula",
+        "amenity": "pub",
+        "building": "commercial",
+        "name": "The ARC",
+        "smoking": "separated",
+        "source": "Bing"
+      }
+    },
+    {
+      "type": "way",
+      "id": 246070490,
+      "center": {
+        "lat": -13.1631893,
+        "lon": 130.6819962
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "building": "yes",
+        "contact:facebook": "https://www.facebook.com/wangifallscafe/",
+        "name": "Wangi Falls Cafe",
+        "note": "might be closed",
+        "outdoor_seating": "yes",
+        "source": "Bing",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 252646356,
+      "center": {
+        "lat": -24.3400168,
+        "lon": 133.4587833
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "yes",
+        "email": "smurfy8@bigpond.com",
+        "fax": "+61 8 8956 0809",
+        "name": "Stuarts Well Roadhouse",
+        "operator": "Peter+Judy Murphy",
+        "phone": "+61 8 8956 0808",
+        "tourism": "motel",
+        "website": "https://www.stuartswellroadhouse.com.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 256315015,
+      "center": {
+        "lat": -13.0462332,
+        "lon": 131.0235581
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "area": "yes",
+        "building": "yes",
+        "name": "Butterfly Farm",
+        "phone": "+61 8 8976 0110",
+        "website": "https://www.butterflyfarm.net.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 257825078,
+      "center": {
+        "lat": -12.4600597,
+        "lon": 130.8369424
+      },
+      "tags": {
+        "addr:housenumber": "84",
+        "addr:street": "Mitchell Street",
+        "amenity": "restaurant",
+        "building": "retail",
+        "cuisine": "asian",
+        "name": "Noodle House",
+        "phone": "+61 8 8942 1888",
+        "source": "Bing",
+        "website": "https://www.noodlehouse-mitchell.com.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 265528978,
+      "center": {
+        "lat": -12.4325475,
+        "lon": 130.923194
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Subway",
+        "brand:wikidata": "Q244457",
+        "brand:wikipedia": "en:Subway (restaurant)",
+        "building": "yes",
+        "cuisine": "sandwich",
+        "name": "Subway",
+        "takeaway": "yes",
+        "website": "https://www.subway.com.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 275399164,
+      "center": {
+        "lat": -12.4461886,
+        "lon": 130.8359309
+      },
+      "tags": {
+        "amenity": "cafe",
+        "building": "yes",
+        "name": "Eva’s Café",
+        "name:en": "Eva’s Café",
+        "opening_hours": "Mo-Fr 08:00-15:00; PH off; Sa, Su 07:00-15:00",
+        "website": "https://www.botanicgardenscafe.com.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 279478682,
+      "center": {
+        "lat": -12.6626945,
+        "lon": 132.835628
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "yes",
+        "name": "Poolside Bar & Bistro"
+      }
+    },
+    {
+      "type": "way",
+      "id": 282003059,
+      "center": {
+        "lat": -12.3328078,
+        "lon": 130.8944995
+      },
+      "tags": {
+        "amenity": "public_building",
+        "building": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 282059975,
+      "center": {
+        "lat": -12.3770575,
+        "lon": 130.8958656
+      },
+      "tags": {
+        "amenity": "pub",
+        "building": "yes",
+        "name": "Irish Pub"
+      }
+    },
+    {
+      "type": "way",
+      "id": 290349423,
+      "center": {
+        "lat": -12.7811013,
+        "lon": 130.9626826
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "yes",
+        "name": "Litchfield Tavern"
+      }
+    },
+    {
+      "type": "way",
+      "id": 309998372,
+      "center": {
+        "lat": -23.7010774,
+        "lon": 133.8717939
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Subway",
+        "brand:wikidata": "Q244457",
+        "brand:wikipedia": "en:Subway (restaurant)",
+        "building": "yes",
+        "cuisine": "sandwich",
+        "name": "Subway",
+        "takeaway": "yes",
+        "website": "https://www.subway.com.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 311117644,
+      "center": {
+        "lat": -23.7196491,
+        "lon": 133.8777791
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "yes",
+        "name": "The Juicy Rump",
+        "opening_hours": "Mo-Su 10:00-22:00",
+        "phone": "+61 8 8950 7777"
+      }
+    },
+    {
+      "type": "way",
+      "id": 313850000,
+      "center": {
+        "lat": -23.6976174,
+        "lon": 133.8875669
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "yes",
+        "name": "Casa Nostra Pizza and Spaghetti House"
+      }
+    },
+    {
+      "type": "way",
+      "id": 313850736,
+      "center": {
+        "lat": -23.6971414,
+        "lon": 133.8898215
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "yes",
+        "name": "Flavours of India Restaurant"
+      }
+    },
+    {
+      "type": "way",
+      "id": 320750799,
+      "center": {
+        "lat": -21.0054209,
+        "lon": 134.4058462
+      },
+      "tags": {
+        "amenity": "public",
+        "building": "commercial",
+        "name": "Council Office",
+        "source": "MapBox"
+      }
+    },
+    {
+      "type": "way",
+      "id": 352281844,
+      "center": {
+        "lat": -12.3908123,
+        "lon": 130.855714
+      },
+      "tags": {
+        "addr:postcode": "0810",
+        "addr:street": "Bagot Road",
+        "addr:suburb": "Coconut Grove",
+        "alt_name": "Kentucky Fried Chicken",
+        "amenity": "fast_food",
+        "brand": "KFC",
+        "brand:wikidata": "Q524757",
+        "brand:wikipedia": "en:KFC",
+        "building": "yes",
+        "cuisine": "chicken",
+        "drive_through": "yes",
+        "name": "KFC",
+        "smoking": "outside",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 352284920,
+      "center": {
+        "lat": -12.399934,
+        "lon": 130.8517387
+      },
+      "tags": {
+        "addr:housenumber": "6",
+        "addr:street": "Caryota Crescent",
+        "amenity": "restaurant",
+        "building": "yes",
+        "diet:vegetarian": "yes",
+        "name": "Eat at Martin's",
+        "opening_hours": "Mo-Fr 08:00-15:30; Sa 08:00-12:00",
+        "phone": "+61 411 515 963",
+        "website": "http://www.eatatmartins.com.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 372311378,
+      "center": {
+        "lat": -12.4652847,
+        "lon": 130.8417657
+      },
+      "tags": {
+        "amenity": "pub",
+        "building": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 372438840,
+      "center": {
+        "lat": -12.463328,
+        "lon": 130.8404643
+      },
+      "tags": {
+        "addr:housenumber": "46",
+        "addr:street": "Mitchell Street",
+        "amenity": "bar",
+        "building": "yes",
+        "min_age": "18",
+        "name": "Monsoons",
+        "website": "https://monsoonsdarwin.com.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 372699336,
+      "center": {
+        "lat": -12.4611753,
+        "lon": 130.8383341
+      },
+      "tags": {
+        "addr:housenumber": "74",
+        "addr:street": "Mitchell Street",
+        "amenity": "pub",
+        "building": "retail",
+        "name": "Flick's"
+      }
+    },
+    {
+      "type": "way",
+      "id": 374753766,
+      "center": {
+        "lat": -13.8629076,
+        "lon": 131.8232761
+      },
+      "tags": {
+        "amenity": "public_building",
+        "building": "yes",
+        "name": "Community Centre"
+      }
+    },
+    {
+      "type": "way",
+      "id": 456356680,
+      "center": {
+        "lat": -12.3962042,
+        "lon": 130.8971159
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Red Rooster",
+        "brand:wikidata": "Q376466",
+        "brand:wikipedia": "en:Red Rooster",
+        "building": "yes",
+        "cuisine": "chicken",
+        "delivery": "no",
+        "layer": "1",
+        "name": "Red Rooster",
+        "outdoor_seating": "yes",
+        "takeaway": "yes",
+        "website": "https://www.redrooster.com.au/",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 456569300,
+      "center": {
+        "lat": -12.3946518,
+        "lon": 130.8773898
+      },
+      "tags": {
+        "amenity": "pub",
+        "building": "yes",
+        "cuisine": "pub",
+        "name": "Airport Tavern",
+        "opening_hours": "Su 10:00-22:00; Mo-Tu 10:00-23:30; We-Sa 10:00-01:30",
+        "phone": "+61 8 8985 4555",
+        "website": "https://www.airporthotel.net.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 468241601,
+      "center": {
+        "lat": -12.5001386,
+        "lon": 130.986755
+      },
+      "tags": {
+        "addr:housenumber": "9",
+        "addr:postcode": "0832",
+        "addr:state": "NT",
+        "addr:street": "Lambrick Avenue",
+        "addr:suburb": "Bakewell",
+        "addr:unit": "PAD 1",
+        "amenity": "fast_food",
+        "brand": "Guzman y Gomez",
+        "brand:wikidata": "Q23019759",
+        "building": "yes",
+        "cuisine": "mexican",
+        "delivery": "no",
+        "layer": "1",
+        "name": "Guzman y Gomez",
+        "opening_hours": "Mo-Fr 10:00-22:00",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 475409433,
+      "center": {
+        "lat": -12.4124485,
+        "lon": 130.8235457
+      },
+      "tags": {
+        "addr:postcode": "0820",
+        "addr:state": "NT",
+        "addr:street": "Alec Fong Lim Drive",
+        "addr:suburb": "East Point",
+        "amenity": "restaurant",
+        "building": "commercial",
+        "name": "Pee Wee's at the Point",
+        "outdoor_seating": "yes",
+        "website": "https://www.peewees.com.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 518464898,
+      "center": {
+        "lat": -12.461075,
+        "lon": 130.8380122
+      },
+      "tags": {
+        "addr:housenumber": "74",
+        "addr:street": "Mitchell Street",
+        "amenity": "pub",
+        "building": "retail",
+        "name": "Sweethearts"
+      }
+    },
+    {
+      "type": "way",
+      "id": 544652417,
+      "center": {
+        "lat": -12.4777883,
+        "lon": 130.9833135
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "McDonald's",
+        "brand:wikidata": "Q38076",
+        "brand:wikipedia": "en:McDonald's",
+        "building": "commercial",
+        "cuisine": "burger",
+        "full_name": "McDonald's Palmerston",
+        "name": "McDonald's",
+        "takeaway": "yes",
+        "website": "https://www.mcdonalds.com.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 544670361,
+      "center": {
+        "lat": -12.4789494,
+        "lon": 130.9854002
+      },
+      "tags": {
+        "addr:housenumber": "18",
+        "addr:postcode": "0830",
+        "addr:state": "NT",
+        "addr:street": "The Boulevard",
+        "addr:suburb": "Palmerston City",
+        "amenity": "restaurant",
+        "name": "Primal Bar & Grill",
+        "website": "https://www.primalbarandgrill.com.au/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 550414856,
+      "center": {
+        "lat": -12.3558771,
+        "lon": 130.8824171
+      },
+      "tags": {
+        "amenity": "food_court",
+        "smoking": "no"
+      }
+    },
+    {
+      "type": "way",
+      "id": 553675490,
+      "center": {
+        "lat": -12.4397331,
+        "lon": 130.8328207
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Canteen"
+      }
+    },
+    {
+      "type": "way",
+      "id": 558793566,
+      "center": {
+        "lat": -12.3407989,
+        "lon": 130.8931722
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "hotel",
+        "name": "Di Lusso"
+      }
+    },
+    {
+      "type": "way",
+      "id": 558793568,
+      "center": {
+        "lat": -12.3412207,
+        "lon": 130.8932565
+      },
+      "tags": {
+        "amenity": "bar",
+        "name": "Sole Poolside",
+        "outdoor_seating": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 564876185,
+      "center": {
+        "lat": -12.5218686,
+        "lon": 131.0411797
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "branch": "Coolalinga",
+        "brand": "McDonald's",
+        "brand:wikidata": "Q38076",
+        "brand:wikipedia": "en:McDonald's",
+        "building": "retail",
+        "cuisine": "burger",
+        "delivery": "no",
+        "name": "McDonald's",
+        "outdoor_seating": "yes",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 564876186,
+      "center": {
+        "lat": -12.5214342,
+        "lon": 131.0405219
+      },
+      "tags": {
+        "alt_name": "Kentucky Fried Chicken",
+        "amenity": "fast_food",
+        "brand": "KFC",
+        "brand:wikidata": "Q524757",
+        "brand:wikipedia": "en:KFC",
+        "building": "retail",
+        "cuisine": "chicken",
+        "layer": "-1",
+        "name": "KFC",
+        "outdoor_seating": "yes",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 564876187,
+      "center": {
+        "lat": -12.5209918,
+        "lon": 131.0398385
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Hungry Jack's",
+        "brand:wikidata": "Q3036373",
+        "brand:wikipedia": "en:Hungry Jack's",
+        "building": "retail",
+        "cuisine": "burger",
+        "name": "Hungry Jack's",
+        "outdoor_seating": "yes",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 568397707,
+      "center": {
+        "lat": -12.5221888,
+        "lon": 131.041562
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Subway",
+        "brand:wikidata": "Q244457",
+        "brand:wikipedia": "en:Subway (restaurant)",
+        "building": "yes",
+        "cuisine": "sandwich",
+        "name": "Subway",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 570240894,
+      "center": {
+        "lat": -12.3747535,
+        "lon": 130.8827718
+      },
+      "tags": {
+        "alt_name": "Kentucky Fried Chicken",
+        "amenity": "fast_food",
+        "brand": "KFC",
+        "brand:wikidata": "Q524757",
+        "brand:wikipedia": "en:KFC",
+        "building": "yes",
+        "cuisine": "chicken",
+        "name": "KFC",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 618118855,
+      "center": {
+        "lat": -12.3974243,
+        "lon": 130.8626797
+      },
+      "tags": {
+        "name": "Beanz",
+        "shop": "coffee"
+      }
+    },
+    {
+      "type": "way",
+      "id": 643764938,
+      "center": {
+        "lat": -12.5004998,
+        "lon": 131.0055812
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "branch": "Johnston",
+        "brand": "McDonald's",
+        "brand:wikidata": "Q38076",
+        "brand:wikipedia": "en:McDonald's",
+        "cuisine": "burger",
+        "delivery": "no",
+        "name": "McDonald's",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 729055630,
+      "center": {
+        "lat": -16.253737,
+        "lon": 133.3696373
+      },
+      "tags": {
+        "amenity": "pub",
+        "building": "yes",
+        "name": "The Daly Waters Pub",
+        "tourism": "attraction",
+        "website": "https://dalywaterspub.com/"
+      }
+    },
+    {
+      "type": "way",
+      "id": 764082387,
+      "center": {
+        "lat": -12.706074,
+        "lon": 130.6223946
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "yes",
+        "name": "Crab Claw Island Restaurant"
+      }
+    },
+    {
+      "type": "way",
+      "id": 776915305,
+      "center": {
+        "lat": -12.377215,
+        "lon": 130.8480593
+      },
+      "tags": {
+        "amenity": "cafe",
+        "building": "yes",
+        "cuisine": "ice_cream;beer;seafood;burger;chips;coffe",
+        "smoking": "no",
+        "toilets": "yes",
+        "toilets:access": "customers",
+        "toilets:wheelchair": "limited"
+      }
+    },
+    {
+      "type": "way",
+      "id": 852718023,
+      "center": {
+        "lat": -12.4321314,
+        "lon": 130.8568742
+      },
+      "tags": {
+        "amenity": "cafe",
+        "building": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 895090782,
+      "center": {
+        "lat": -12.6737177,
+        "lon": 132.8367813
+      },
+      "tags": {
+        "alt_name": "S.H.R.M.",
+        "amenity": "restaurant",
+        "building": "yes",
+        "cuisine": "buffet",
+        "name": "ERA Ranger Mess"
+      }
+    },
+    {
+      "type": "way",
+      "id": 984822693,
+      "center": {
+        "lat": -12.3610955,
+        "lon": 130.8679671
+      },
+      "tags": {
+        "amenity": "cafe",
+        "building": "yes",
+        "name": "Cafe De La Plage"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1025032068,
+      "center": {
+        "lat": -12.482472,
+        "lon": 130.9861639
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Red Rooster",
+        "brand:wikidata": "Q376466",
+        "brand:wikipedia": "en:Red Rooster",
+        "building": "yes",
+        "cuisine": "chicken",
+        "layer": "1",
+        "name": "Red Rooster",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1046491297,
+      "center": {
+        "lat": -13.8574121,
+        "lon": 136.4358678
+      },
+      "tags": {
+        "addr:housenumber": "Bakery",
+        "addr:street": "Rowell Highway",
+        "building": "commercial",
+        "operator": "Michelle",
+        "shop": "bakery",
+        "source": "Bing"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1046690047,
+      "center": {
+        "lat": -13.8484466,
+        "lon": 136.4176036
+      },
+      "tags": {
+        "addr:country": "AU",
+        "addr:housenumber": "15",
+        "addr:state": "NT",
+        "addr:street": "Bougainvillea Drive",
+        "addr:suburb": "Alyangula",
+        "amenity": "fast_food",
+        "building": "commercial",
+        "cuisine": "sandwich;burger;pizza;coffee_shop;chicken;kebab;ice_cream",
+        "source": "Bing"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385711,
+      "center": {
+        "lat": -12.3760945,
+        "lon": 130.8815666
+      },
+      "tags": {
+        "brand": "Breadtop",
+        "brand:wikidata": "Q4959217",
+        "check_date": "2024-02-12",
+        "cuisine": "chinese",
+        "indoor": "room",
+        "level": "1",
+        "name": "Breadtop",
+        "shop": "bakery"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385717,
+      "center": {
+        "lat": -12.3758702,
+        "lon": 130.8801744
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "cuisine": "chicken;korean",
+        "indoor": "room",
+        "level": "0",
+        "name": "NeNe Chicken",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385722,
+      "center": {
+        "lat": -12.3758138,
+        "lon": 130.8807066
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "indoor": "room",
+        "level": "0",
+        "name": "JK Doi",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385738,
+      "center": {
+        "lat": -12.375781,
+        "lon": 130.8815184
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Donut King",
+        "brand:wikidata": "Q5296921",
+        "check_date": "2024-02-12",
+        "cuisine": "donut;coffee_shop",
+        "indoor": "area",
+        "level": "1",
+        "name": "Donut King",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385759,
+      "center": {
+        "lat": -12.3761415,
+        "lon": 130.8815515
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "cuisine": "bubble_tea",
+        "indoor": "room",
+        "level": "1",
+        "name": "Bobar",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385760,
+      "center": {
+        "lat": -12.3759428,
+        "lon": 130.8814279
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "cuisine": "sushi",
+        "indoor": "room",
+        "level": "1",
+        "name": "Sushi Hub",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385763,
+      "center": {
+        "lat": -12.375798,
+        "lon": 130.8804334
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Subway",
+        "brand:wikidata": "Q244457",
+        "check_date": "2024-02-12",
+        "cuisine": "sandwich",
+        "indoor": "room",
+        "level": "0",
+        "name": "Subway",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385769,
+      "center": {
+        "lat": -12.3756703,
+        "lon": 130.880678
+      },
+      "tags": {
+        "addr:housenumber": "247",
+        "addr:postcode": "0810",
+        "addr:state": "NT",
+        "addr:street": "Trower Road",
+        "addr:suburb": "Casuarina",
+        "amenity": "cafe",
+        "brand": "Gloria Jean's",
+        "brand:wikidata": "Q2666365",
+        "check_date": "2024-02-12",
+        "cuisine": "coffee_shop",
+        "indoor": "room",
+        "level": "0",
+        "name": "Gloria Jean's",
+        "official_name": "Gloria Jean's Coffees",
+        "opening_hours": "Mo-Th 07:00-17:00; Fr 07:00-20:00; Sa 07:00-16:30; Su 08:00-15:15",
+        "phone": "+61 429 976 776",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385773,
+      "center": {
+        "lat": -12.375531,
+        "lon": 130.8803075
+      },
+      "tags": {
+        "alt_name": "Kentucky Fried Chicken",
+        "amenity": "fast_food",
+        "brand": "KFC",
+        "brand:wikidata": "Q524757",
+        "check_date": "2024-02-12",
+        "cuisine": "chicken",
+        "indoor": "room",
+        "level": "0",
+        "name": "KFC",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385792,
+      "center": {
+        "lat": -12.3759672,
+        "lon": 130.8802071
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "McDonald's",
+        "brand:wikidata": "Q38076",
+        "check_date": "2024-02-12",
+        "cuisine": "burger",
+        "indoor": "room",
+        "level": "0",
+        "name": "McDonald's",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385810,
+      "center": {
+        "lat": -12.375922,
+        "lon": 130.8805464
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "cuisine": "juice",
+        "indoor": "area",
+        "level": "0",
+        "name": "Medee Juice",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385815,
+      "center": {
+        "lat": -12.3738342,
+        "lon": 130.881182
+      },
+      "tags": {
+        "amenity": "cafe",
+        "check_date": "2024-02-12",
+        "cuisine": "coffee_shop;chinese",
+        "indoor": "room",
+        "level": "1",
+        "name": "Pinnacle Cafe",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385824,
+      "center": {
+        "lat": -12.3756641,
+        "lon": 130.8802395
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "indoor": "room",
+        "level": "0",
+        "name": "Osaka Ramen",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385838,
+      "center": {
+        "lat": -12.3758097,
+        "lon": 130.8801897
+      },
+      "tags": {
+        "amenity": "cafe",
+        "brand": "Gong Cha",
+        "brand:wikidata": "Q5581670",
+        "brand:zh": "貢茶",
+        "check_date": "2024-02-12",
+        "cuisine": "bubble_tea",
+        "indoor": "room",
+        "int_name": "Gong Cha",
+        "level": "0",
+        "name": "Gong Cha",
+        "name:zh": "貢茶",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385842,
+      "center": {
+        "lat": -12.375693,
+        "lon": 130.8807449
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "cuisine": "chicken",
+        "indoor": "room",
+        "level": "0",
+        "name": "OneWaffle + TwoPeck",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385848,
+      "center": {
+        "lat": -12.3751504,
+        "lon": 130.8816572
+      },
+      "tags": {
+        "amenity": "cafe",
+        "check_date": "2024-02-12",
+        "cuisine": "coffee_shop",
+        "indoor": "area",
+        "level": "1",
+        "name": "Mardy's Cafe",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385851,
+      "center": {
+        "lat": -12.3759891,
+        "lon": 130.8803324
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "cuisine": "malaysian;indonesian",
+        "indoor": "room",
+        "level": "0",
+        "name": "Borneo Intersection",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385868,
+      "center": {
+        "lat": -12.3756203,
+        "lon": 130.8820628
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Grill'd",
+        "brand:wikidata": "Q18165852",
+        "check_date": "2024-02-12",
+        "cuisine": "burger",
+        "indoor": "room",
+        "level": "1",
+        "name": "Grill'd",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385875,
+      "center": {
+        "lat": -12.3760189,
+        "lon": 130.880431
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "cuisine": "sushi",
+        "indoor": "room",
+        "level": "0",
+        "name": "Sushi Sushi"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385877,
+      "center": {
+        "lat": -12.3756389,
+        "lon": 130.8819855
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "brand": "Nando's",
+        "brand:wikidata": "Q3472954",
+        "check_date": "2024-02-12",
+        "cuisine": "chicken;portuguese",
+        "indoor": "room",
+        "level": "1",
+        "name": "Nando's"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385888,
+      "center": {
+        "lat": -12.3760802,
+        "lon": 130.8813687
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "cuisine": "chinese",
+        "indoor": "room",
+        "level": "1",
+        "name": "Dumpling Chef",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385890,
+      "center": {
+        "lat": -12.3760563,
+        "lon": 130.8805258
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "cuisine": "thai",
+        "indoor": "room",
+        "level": "0",
+        "name": "Amazing Thailand"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385891,
+      "center": {
+        "lat": -12.3758146,
+        "lon": 130.8804904
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Soul Origin",
+        "brand:wikidata": "Q110473093",
+        "check_date": "2024-02-12",
+        "cuisine": "coffee_shop;salad;sandwich",
+        "indoor": "room",
+        "level": "0",
+        "name": "Soul Origin",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385892,
+      "center": {
+        "lat": -12.3755366,
+        "lon": 130.8821346
+      },
+      "tags": {
+        "amenity": "cafe",
+        "check_date": "2024-02-12",
+        "cuisine": "thai",
+        "indoor": "room",
+        "level": "1",
+        "name": "Medee Eatery"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385897,
+      "center": {
+        "lat": -12.3749476,
+        "lon": 130.8807446
+      },
+      "tags": {
+        "amenity": "cafe",
+        "brand": "The Coffee Club",
+        "brand:wikidata": "Q7726599",
+        "check_date": "2024-02-12",
+        "cuisine": "coffee_shop",
+        "indoor": "room",
+        "level": "1",
+        "name": "The Coffee Club",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385898,
+      "center": {
+        "lat": -12.3751175,
+        "lon": 130.8816679
+      },
+      "tags": {
+        "amenity": "ice_cream",
+        "brand": "Baskin-Robbins",
+        "brand:wikidata": "Q584601",
+        "check_date": "2024-02-12",
+        "cuisine": "ice_cream",
+        "indoor": "area",
+        "level": "1",
+        "name": "Baskin-Robbins"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385899,
+      "center": {
+        "lat": -12.3754311,
+        "lon": 130.8821731
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "check_date": "2024-02-12",
+        "cuisine": "malaysian;indonesian",
+        "indoor": "room",
+        "level": "1",
+        "name": "Warong"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385904,
+      "center": {
+        "lat": -12.3760456,
+        "lon": 130.880633
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "cuisine": "chinese",
+        "indoor": "room",
+        "level": "0",
+        "name": "Happy Garden"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1250385925,
+      "center": {
+        "lat": -12.375968,
+        "lon": 130.8806576
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "check_date": "2024-02-12",
+        "cuisine": "vietnamese",
+        "indoor": "room",
+        "level": "0",
+        "name": "Taste of Viet"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1287475190,
+      "center": {
+        "lat": -12.4300223,
+        "lon": 130.7387673
+      },
+      "tags": {
+        "addr:country": "AU",
+        "addr:housenumber": "76",
+        "addr:postcode": "0822",
+        "addr:street": "Cox Drive",
+        "addr:suburb": "Wagait Beach",
+        "amenity": "restaurant",
+        "building": "yes",
+        "name": "Cox Country Club",
+        "source": "microsoft/BuildingFootprints"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1331141996,
+      "center": {
+        "lat": -12.4335291,
+        "lon": 130.8430055
+      },
+      "tags": {
+        "addr:housenumber": "15",
+        "addr:postcode": "0820",
+        "addr:state": "NT",
+        "addr:street": "Parap Road",
+        "addr:suburb": "Parap",
+        "air_conditioning": "yes",
+        "amenity": "pub",
+        "building": "yes",
+        "building:levels": "1",
+        "name": "The Parap Hotel",
+        "source": "microsoft/BuildingFootprints",
+        "toilets": "yes",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1340988590,
+      "center": {
+        "lat": -12.3800434,
+        "lon": 130.8596397
+      },
+      "tags": {
+        "amenity": "cafe",
+        "cuisine": "cakes;coffee;burger;soup;asian",
+        "image": "https://www.mapillary.com/app/?pKey=1147366027375813",
+        "name": "Central Darwin Cafe",
+        "toilets": "yes",
+        "toilets:access": "customers",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1342419953,
+      "center": {
+        "lat": -12.4381019,
+        "lon": 130.9338768
+      },
+      "tags": {
+        "air_conditioning": "yes",
+        "amenity": "fast_food",
+        "brand": "McDonald's",
+        "brand:wikidata": "Q38076",
+        "building": "yes",
+        "changing_table": "yes",
+        "cuisine": "burger",
+        "indoor_seating": "yes",
+        "layer": "1",
+        "name": "McDonald's",
+        "outdoor_seating": "no",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1342420604,
+      "center": {
+        "lat": -12.4483643,
+        "lon": 130.8406526
+      },
+      "tags": {
+        "alt_name": "Kentucky Fried Chicken",
+        "amenity": "fast_food",
+        "brand": "KFC",
+        "brand:wikidata": "Q524757",
+        "building": "yes",
+        "cuisine": "chicken",
+        "name": "KFC",
+        "opening_hours": "Mo-Su 10:00-22:00",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1430097344,
+      "center": {
+        "lat": -12.4691691,
+        "lon": 130.9859062
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "industrial",
+        "cuisine": "burger",
+        "delivery": "yes",
+        "name": "District North Kitchen Palmerston",
+        "opening_hours": "Tu-Su 11:00-21:00",
+        "outdoor_seating": "yes",
+        "reservation": "yes",
+        "takeaway": "yes",
+        "wheelchair": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1450841868,
+      "center": {
+        "lat": -12.9466222,
+        "lon": 132.555343
+      },
+      "tags": {
+        "amenity": "pub",
+        "building": "retail",
+        "ruins": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1458198941,
+      "center": {
+        "lat": -12.4536075,
+        "lon": 130.8297726
+      },
+      "tags": {
+        "amenity": "cafe",
+        "building": "yes",
+        "name": "The General"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1458273282,
+      "center": {
+        "lat": -12.4598939,
+        "lon": 130.8463832
+      },
+      "tags": {
+        "amenity": "bar",
+        "building": "yes",
+        "name": "Zen Rooftop Bar"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1464111957,
+      "center": {
+        "lat": -12.4807447,
+        "lon": 130.9875253
+      },
+      "tags": {
+        "alt_name": "Kentucky Fried Chicken",
+        "amenity": "fast_food",
+        "brand": "KFC",
+        "brand:wikidata": "Q524757",
+        "building": "yes",
+        "cuisine": "chicken",
+        "layer": "1",
+        "name": "KFC",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1464111962,
+      "center": {
+        "lat": -12.480465,
+        "lon": 130.9877404
+      },
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Hungry Jack's",
+        "brand:wikidata": "Q3036373",
+        "building": "yes",
+        "cuisine": "burger",
+        "name": "Hungry Jack's",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1476295701,
+      "center": {
+        "lat": -12.4433706,
+        "lon": 130.975907
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "yes",
+        "name": "South Mess Hall",
+        "source": "microsoft/BuildingFootprints"
+      }
+    },
+    {
+      "type": "way",
+      "id": 1477000653,
+      "center": {
+        "lat": -12.4440227,
+        "lon": 130.9765458
+      },
+      "tags": {
+        "amenity": "restaurant",
+        "building": "yes",
+        "name": "AAFCANS SHOUT VC CANTEEN"
+      }
+    }
+  ]
+}

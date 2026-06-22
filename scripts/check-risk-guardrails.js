@@ -26,17 +26,14 @@ if (
 }
 
 const useSearch = readText('lib/hooks/useSearch.ts')
-const searchPipeline = readText('lib/search/pipeline.ts')
+// B-509 refactor: pipeline.ts replaced by vector search (search_semantic RPC + HNSW indexes).
+// The suburb-resolution and provider-fallback guardrails below are preserved for usePlaceSearch.ts (place tagging flow).
 const searchContext = exists('lib/search/context.ts') ? readText('lib/search/context.ts') : ''
 if (/resolveSuburbQuery\([^)]*\)\.then/.test(useSearch) || /resolveSuburbQuery\([^)]*\)\.then/.test(searchContext)) {
   failures.push('search suburb DB resolution must be awaited before paid provider fallback.')
 }
-if (
-  !/runSearchPipeline/.test(useSearch) ||
-  !/decideSearchProviderFallback/.test(searchPipeline) ||
-  /fetchPlaceAutocompleteJson\(\s*(?:q|context\.query)\s*,\s*null\s*\)/.test(searchPipeline)
-) {
-  failures.push('main Search provider fallback must use the shared intent/locality gate and must not call Google fallback with null coordinates for ambiguous food queries.')
+if (!/embedQuery/.test(useSearch) || !/searchSemantic/.test(useSearch)) {
+  failures.push('main Search hook must use vector search (embedQuery + searchSemantic). The old FTS pipeline has been replaced.')
 }
 
 const useRestaurantSearch = readText('lib/hooks/usePlaceSearch.ts')

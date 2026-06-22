@@ -1,4 +1,4 @@
-import type { SearchSortMode, SearchFilters, PlaceResult } from '@/lib/hooks/useSearch'
+import type { SearchSortMode, PlaceResult } from '@/lib/hooks/useSearch'
 export { CHIPS, type SearchChip } from '@/lib/dataSources/searchQuickStarts'
 
 export const TRENDING = [
@@ -19,8 +19,6 @@ export const SEARCH_SORTS: Array<{ key: SearchSortMode; label: string }> = [
   { key: 'most_saved', label: 'Most saved' },
   { key: 'highest_rekkus_picks', label: 'Highest Picks' },
 ]
-
-export const MEDIA_FILTERS: NonNullable<SearchFilters['mediaTypes']> = ['image', 'video', 'mixed']
 
 export type ResultTab = 'top' | 'dishes' | 'people' | 'places'
 

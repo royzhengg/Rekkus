@@ -3,7 +3,9 @@ const { spawnSync } = require('child_process')
 const { readText, walkFiles } = require('./lib/scan-files')
 
 const hardFeatureLimit = 600
-const searchPerfTestPath = 'tests/unit/lib/utils/searchScoring.perf.test.ts'
+// B-509: searchScoring.perf.test.ts deleted (scoring pipeline replaced by vector search).
+// New perf test guards embedding pipeline and semantic search response time.
+const searchPerfTestPath = 'tests/unit/lib/search/semantic.perf.test.ts'
 const failures = []
 const warnings = []
 

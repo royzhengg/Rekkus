@@ -140,7 +140,7 @@ function savedPlaceWithPhoto(savedPlace: SavedPlace, photoUrl: string): SavedPla
 
 async function cacheSavedPlacePhotoRefs(placeId: string, googlePhotoRefs: string[]): Promise<void> {
   await supabase.from('places')
-    .update({ google_photo_refs: googlePhotoRefs })
+    .update({ google_photo_refs: googlePhotoRefs, updated_at: new Date().toISOString() })
     .eq('id', placeId)
 }
 

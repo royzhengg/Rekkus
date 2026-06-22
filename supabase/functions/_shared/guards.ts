@@ -9,9 +9,10 @@ export type NotifyPayload = {
   messageId?: string
 }
 
-export type EmbedTable = 'posts' | 'places'
+export type EmbedTable = 'posts' | 'places' | 'dishes'
 export type PostTextRow = { id: string; must_order?: string | null; caption?: string | null; cuisine_type?: string | null }
 export type PlaceTextRow = { id: string; name?: string | null; cuisine_type?: string | null; suburb?: string | null; city?: string | null }
+export type DishTextRow = { id: string; name?: string | null; cuisine_type?: string | null }
 
 export type ModerateContentPayload = {
   messageType: string
@@ -58,7 +59,7 @@ export function parseNotifyPayload(value: unknown): NotifyPayload | null {
 }
 
 export function embedTable(value: unknown): EmbedTable | null {
-  return value === 'posts' || value === 'places' ? value : null
+  return value === 'posts' || value === 'places' || value === 'dishes' ? value : null
 }
 
 export function isPostTextRow(value: unknown): value is PostTextRow {
@@ -66,6 +67,10 @@ export function isPostTextRow(value: unknown): value is PostTextRow {
 }
 
 export function isPlaceTextRow(value: unknown): value is PlaceTextRow {
+  return isRecord(value) && typeof value.id === 'string'
+}
+
+export function isDishTextRow(value: unknown): value is DishTextRow {
   return isRecord(value) && typeof value.id === 'string'
 }
 
@@ -78,6 +83,13 @@ export function postToText(post: PostTextRow): string {
 
 export function placeToText(r: PlaceTextRow): string {
   return [r.name, r.cuisine_type, r.suburb, r.city]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+}
+
+export function dishToText(d: DishTextRow): string {
+  return [d.name, d.cuisine_type]
     .filter(Boolean)
     .join(' ')
     .trim()

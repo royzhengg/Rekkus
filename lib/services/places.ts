@@ -348,7 +348,7 @@ export async function createUserPlace(input: UserPlaceInput): Promise<string | n
   return data ?? null
 }
 
-type PlaceRow = { id: string; google_place_id: string | null; google_photo_refs: string[] }
+type PlaceRow = { id: string; google_place_id: string | null; google_photo_refs: string[]; primary_photo_source: string }
 
 function parsePlaceRow(value: unknown): PlaceRow | null {
   if (!isRecord(value) || typeof value.id !== 'string') return null
@@ -358,20 +358,44 @@ function parsePlaceRow(value: unknown): PlaceRow | null {
     google_photo_refs: Array.isArray(value.google_photo_refs)
       ? value.google_photo_refs.filter((ref): ref is string => typeof ref === 'string')
       : [],
+    primary_photo_source: typeof value.primary_photo_source === 'string' ? value.primary_photo_source : 'rekkus_post',
   }
 }
 
 export async function fetchPlaceRow(id: string): Promise<PlaceRow | null> {
   const { data } = await supabase.from('places')
-    .select('id, google_place_id, google_photo_refs')
+    .select('id, google_place_id, google_photo_refs, primary_photo_source')
     .eq('id', id)
     .maybeSingle()
   return parsePlaceRow(data)
 }
 
+export type OsmPlaceDetail = {
+  phone?: string
+  website?: string
+  hoursText?: string
+}
+
+export async function fetchOsmPlaceDetail(placeId: string): Promise<OsmPlaceDetail> {
+  const [contactRes, hoursRes] = await Promise.all([
+    supabase.from('place_contact').select('phone, website').eq('place_id', placeId).maybeSingle(),
+    supabase.from('place_opening_hours')
+      .select('hours_text')
+      .eq('place_id', placeId)
+      .eq('is_current', true)
+      .eq('source', 'osm')
+      .maybeSingle(),
+  ])
+  const result: OsmPlaceDetail = {}
+  if (contactRes.data?.phone) result.phone = contactRes.data.phone
+  if (contactRes.data?.website) result.website = contactRes.data.website
+  if (hoursRes.data?.hours_text) result.hoursText = hoursRes.data.hours_text
+  return result
+}
+
 export async function fetchPlaceRowByGooglePlaceId(googlePlaceId: string): Promise<PlaceRow | null> {
   const { data } = await supabase.from('places')
-    .select('id, google_place_id, google_photo_refs')
+    .select('id, google_place_id, google_photo_refs, primary_photo_source')
     .eq('google_place_id', googlePlaceId)
     .maybeSingle()
   return parsePlaceRow(data)
@@ -408,4 +432,31 @@ export async function insertGooglePlace(input: {
     .select('id')
     .single()
   return (data as { id: string } | null)?.id ?? null
+}
+
+const PHOTO_PROMOTION_THRESHOLD = 3
+
+// Promotes primary_photo_source to 'rekkus_post' once the place has ≥3 user post photos.
+// Called after a post is published or deleted. No-op if already promoted.
+export async function maybePromotePlacePhotoSource(placeId: string): Promise<void> {
+  const { data: place } = await supabase
+    .from('places')
+    .select('id, primary_photo_source')
+    .eq('id', placeId)
+    .single()
+
+  if (!place || place.primary_photo_source === 'rekkus_post') return
+
+  const { count } = await supabase
+    .from('posts')
+    .select('id', { count: 'exact', head: true })
+    .eq('place_id', placeId)
+    .is('deleted_at', null)
+
+  if ((count ?? 0) >= PHOTO_PROMOTION_THRESHOLD) {
+    await supabase
+      .from('places')
+      .update({ primary_photo_source: 'rekkus_post' })
+      .eq('id', placeId)
+  }
 }

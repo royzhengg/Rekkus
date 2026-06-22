@@ -40,6 +40,8 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void (async () => {
+      // Load cached location immediately so UI is not blank on first render.
+      let hadCache = false
       const raw = await AsyncStorage.getItem(STORAGE_KEY)
       if (raw) {
         try {
@@ -48,40 +50,44 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
             parsed !== null && typeof parsed === 'object' &&
             'coords' in parsed && 'label' in parsed
           ) {
-            const p = parsed as { coords: Coords; label: string }
+            const p = parsed as { coords: Coords; label: string; source?: string }
             setCoords(p.coords)
             setLabel(p.label)
-            setStatus('granted')
-            return
+            setStatus(p.source === 'manual' ? 'manual' : 'granted')
+            hadCache = true
+            // Don't return — fall through to background GPS refresh below
+            // so the cache never grows stale (e.g. simulator GPS change).
+            if (p.source === 'manual') return
           }
         } catch {
           // stale or malformed — fall through to OS check
         }
       }
 
-      // No stored location — check OS permission so callers see 'denied' or
-      // silently acquire coords if already granted from a prior session.
+      // Check OS permission. If granted, get a fresh GPS fix.
+      // When a cache existed we do this silently in background; when there
+      // was no cache we block until we have coordinates.
       try {
         const perm = await Location.getForegroundPermissionsAsync()
         if (perm.status === 'denied') {
-          setStatus('denied')
+          if (!hadCache) setStatus('denied')
         } else if (perm.status === 'granted') {
           const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
           const next = { lat: pos.coords.latitude, lng: pos.coords.longitude }
           setCoords(next)
           setLabel('Current location')
           setStatus('granted')
-          persist(next, 'Current location')
+          persist(next, 'Current location', 'gps')
         }
         // undetermined → stay 'idle' (first-time user)
       } catch {
-        // ignore — degraded state, stay 'idle'
+        // ignore — degraded state, keep whatever was loaded from cache
       }
     })()
   }, [])
 
-  function persist(nextCoords: Coords, nextLabel: string) {
-    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ coords: nextCoords, label: nextLabel }))
+  function persist(nextCoords: Coords, nextLabel: string, source: 'gps' | 'manual' = 'gps') {
+    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ coords: nextCoords, label: nextLabel, source }))
   }
 
   const requestLocation = useCallback(async (): Promise<Coords | null> => {
@@ -99,7 +105,7 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
       setCoords(next)
       setLabel('Current location')
       setStatus('granted')
-      persist(next, 'Current location')
+      persist(next, 'Current location', 'gps')
       return next
     } catch {
       setStatus('error')
@@ -128,7 +134,7 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
       setCoords(next)
       setLabel(trimmed)
       setStatus('manual')
-      persist(next, trimmed)
+      persist(next, trimmed, 'manual')
       return next
     } catch {
       setStatus('error')

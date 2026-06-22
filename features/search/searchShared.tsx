@@ -79,8 +79,11 @@ export const PlaceRow = React.memo(function PlaceRow({
   const styles = useMemo(() => makeStyles(colors), [colors])
   const press = usePressScale()
   const locationLabel = shortPlaceLocation(place)
+  const cuisineDisplay = place.cuisine_type
+    ? place.cuisine_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    : null
   const meta = [
-    place.cuisine_type,
+    cuisineDisplay,
     locationLabel,
     distanceKm != null ? formatKm(distanceKm) : null,
   ]

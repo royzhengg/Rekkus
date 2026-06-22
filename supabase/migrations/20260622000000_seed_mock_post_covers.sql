@@ -1,3 +1,6 @@
+-- Ensure is_cover column exists (remote DBs set up via dump may be missing it).
+alter table public.post_photos add column if not exists is_cover boolean not null default false;
+
 -- Backfill cover media for fixed local seed posts.
 -- Existing databases already have the posts from 20240102000000_seed_mock_data.sql,
 -- but that seed did not create post_photos rows, so Saved/Profile/Feed thumbnails

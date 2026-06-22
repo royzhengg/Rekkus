@@ -17,6 +17,31 @@ create extension if not exists vector with schema extensions;
 create extension if not exists pg_trgm with schema extensions;
 
 -- ---------------------------------------------------------------------------
+-- ENUMS
+-- ---------------------------------------------------------------------------
+
+create type public.verification_level as enum (
+  'user_created',       -- user typed a new place; not yet confirmed
+  'osm_only',           -- OSM import; no further verification
+  'osm_google',         -- OSM + Google cache enrichment applied
+  'community_verified', -- ≥3 unique users, ≥7 days apart
+  'owner_verified'      -- owner claimed + verified
+);
+
+create type public.place_status as enum (
+  'active',
+  'temporarily_closed',
+  'permanently_closed',
+  'unverified'
+);
+
+create type public.place_trait_slug as enum (
+  'date_night', 'cheap_eats', 'study_spot', 'group_dining',
+  'late_night', 'hidden_gem', 'family_friendly', 'romantic',
+  'outdoor', 'fast_casual', 'special_occasion'
+);
+
+-- ---------------------------------------------------------------------------
 -- TABLES
 -- ---------------------------------------------------------------------------
 
@@ -76,7 +101,16 @@ create table if not exists public.places (
   embedding                   extensions.vector(384),
   embedding_hash              text,
   created_at                  timestamptz   not null default now(),
-  updated_at                  timestamptz   not null default now()
+  updated_at                  timestamptz   not null default now(),
+  -- Lifecycle + identity additions (OSM schema)
+  verification_level          public.verification_level not null default 'osm_only',
+  place_status                public.place_status not null default 'active',
+  created_source              text,
+  deleted_at                  timestamptz,
+  merged_into_place_id        uuid,
+  osm_id                      text unique,
+  slug                        text unique,
+  cuisine_slug                text
 );
 
 -- posts
@@ -774,6 +808,159 @@ create table if not exists public.saved_search_audit_events (
 );
 
 -- ---------------------------------------------------------------------------
+-- OSM IMPORT RUNS
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.osm_import_runs (
+  id           uuid        primary key default gen_random_uuid(),
+  state        text        not null,
+  started_at   timestamptz not null default now(),
+  completed_at timestamptz,
+  imported     integer     not null default 0,
+  updated      integer     not null default 0,
+  skipped      integer     not null default 0,
+  report       jsonb
+);
+
+-- ---------------------------------------------------------------------------
+-- PLACE DOMAIN TABLES
+-- ---------------------------------------------------------------------------
+
+-- place_contact: owned by contact enrichment features
+create table if not exists public.place_contact (
+  place_id                 uuid        primary key references public.places(id) on delete cascade,
+  phone                    text,
+  website                  text,
+  instagram_url            text,
+  facebook_url             text,
+  tiktok_url               text,
+  last_verified_at         timestamptz,
+  last_owner_update_at     timestamptz,
+  last_community_update_at timestamptz,
+  updated_at               timestamptz not null default now()
+);
+
+-- place_features: aggregation table for venue characteristics
+-- (accessibility, dietary, payments grouped for convenience; may split in a future migration)
+create table if not exists public.place_features (
+  place_id        uuid        primary key references public.places(id) on delete cascade,
+  wheelchair      text,
+  outdoor_seating boolean,
+  takeaway        boolean,
+  delivery        boolean,
+  dietary_flags   text[],
+  payment_methods text[],
+  smoking         text,
+  internet_access text,
+  capacity        integer,
+  updated_at      timestamptz not null default now()
+);
+
+-- place_provider_metadata: owned by import/enrichment pipelines only
+create table if not exists public.place_provider_metadata (
+  place_id            uuid        primary key references public.places(id) on delete cascade,
+  amenity_type        text,
+  brand               text,
+  brand_wikidata      text,
+  operator            text,
+  price_level         integer,
+  floor_level         text,
+  start_date          text,
+  wikidata_id         text,
+  wikipedia_url       text,
+  image_url           text,
+  description         text,
+  alt_names           jsonb,
+  state               text,
+  postcode            text,
+  osm_import_run_id   uuid        references public.osm_import_runs(id),
+  osm_imported_at     timestamptz,
+  osm_check_date      date,
+  last_osm_sync_at    timestamptz,
+  last_google_sync_at timestamptz,
+  raw_osm_tags        jsonb,      -- archive only; never use in WHERE/ORDER BY of search queries
+  updated_at          timestamptz not null default now()
+);
+
+-- place_stats: derived cache; events (posts, saves, etc.) are truth
+create table if not exists public.place_stats (
+  place_id         uuid          primary key references public.places(id) on delete cascade,
+  post_count       integer       not null default 0,
+  save_count       integer       not null default 0,
+  collection_count integer       not null default 0,
+  visit_count      integer       not null default 0,
+  trending_score   numeric(6,3)  not null default 0,
+  last_activity_at timestamptz,
+  updated_at       timestamptz   not null default now()
+);
+
+-- place_aliases: highest ROI for search quality; expand without code changes
+create table if not exists public.place_aliases (
+  id         uuid        primary key default gen_random_uuid(),
+  place_id   uuid        not null references public.places(id) on delete cascade,
+  alias      text        not null,
+  source     text        not null check (source in ('osm', 'community', 'admin', 'cuisine_taxonomy')),
+  created_at timestamptz not null default now()
+);
+
+-- place_traits: community-inferred vibes; controlled enum vocabulary
+create table if not exists public.place_traits (
+  id         uuid                    primary key default gen_random_uuid(),
+  place_id   uuid                    not null references public.places(id) on delete cascade,
+  trait_slug public.place_trait_slug not null,
+  confidence numeric(3,2)            not null default 0.50,
+  source     text                    not null check (source in ('community', 'admin', 'ai')),
+  created_at timestamptz             not null default now()
+);
+
+-- place_merge_log: safe deduplication history
+create table if not exists public.place_merge_log (
+  id             uuid        primary key default gen_random_uuid(),
+  old_place_id   uuid        not null,   -- intentionally not a FK; old place is soft-deleted
+  new_place_id   uuid        not null references public.places(id) on delete cascade,
+  merged_by      uuid        references public.users(id) on delete set null,
+  reason         text,
+  created_at     timestamptz not null default now()
+);
+
+-- place_sources: raw provider payloads (selective retention)
+create table if not exists public.place_sources (
+  id         uuid        primary key default gen_random_uuid(),
+  place_id   uuid        not null references public.places(id) on delete cascade,
+  source     text        not null check (source in ('osm', 'google', 'owner', 'user', 'admin')),
+  payload    jsonb       not null,
+  fetched_at timestamptz not null default now()
+);
+
+-- place_opening_hours: source priority owner > community > google > osm
+create table if not exists public.place_opening_hours (
+  id         uuid        primary key default gen_random_uuid(),
+  place_id   uuid        not null references public.places(id) on delete cascade,
+  source     text        not null check (source in ('osm', 'google', 'owner', 'community')),
+  hours_text text,
+  hours_json jsonb,
+  is_current boolean     not null default true,
+  confidence numeric(3,2) default 0.50,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- search_analytics: what users actually search for; feeds product roadmap
+create table if not exists public.search_analytics (
+  id               uuid             primary key default gen_random_uuid(),
+  user_id          uuid             references public.users(id) on delete set null,
+  query            text             not null,
+  results_count    integer          not null default 0,
+  clicked_place_id uuid             references public.places(id) on delete set null,
+  filters          jsonb,
+  session_id       text,
+  search_lat       double precision,
+  search_lng       double precision,
+  search_region    text,
+  created_at       timestamptz      not null default now()
+);
+
+-- ---------------------------------------------------------------------------
 -- INDEXES
 -- ---------------------------------------------------------------------------
 
@@ -809,6 +996,43 @@ create index if not exists places_search_tsv_idx on public.places using gin (
 );
 create index if not exists places_embedding_idx on public.places using hnsw (embedding extensions.vector_cosine_ops)
   where embedding is not null;
+-- OSM schema indexes on places
+create index if not exists idx_places_osm_id on public.places (osm_id) where osm_id is not null;
+create index if not exists idx_places_verification_level on public.places (verification_level);
+create index if not exists idx_places_status on public.places (place_status);
+create index if not exists idx_places_deleted_at on public.places (deleted_at) where deleted_at is not null;
+create index if not exists idx_places_cuisine_slug on public.places (cuisine_slug) where cuisine_slug is not null;
+create index if not exists idx_places_slug on public.places (slug) where slug is not null;
+create index if not exists idx_places_active on public.places (id) where place_status = 'active' and deleted_at is null;
+-- place_contact
+create index if not exists idx_place_contact_website on public.place_contact (lower(website)) where website is not null;
+-- place_features
+create index if not exists idx_place_features_wheelchair on public.place_features (wheelchair) where wheelchair is not null;
+create index if not exists idx_place_features_dietary on public.place_features using gin (dietary_flags) where dietary_flags is not null;
+create index if not exists idx_place_features_payment on public.place_features using gin (payment_methods) where payment_methods is not null;
+-- place_provider_metadata
+create index if not exists idx_ppm_amenity_type on public.place_provider_metadata (amenity_type) where amenity_type is not null;
+create index if not exists idx_ppm_wikidata_id on public.place_provider_metadata (wikidata_id) where wikidata_id is not null;
+create index if not exists idx_ppm_brand on public.place_provider_metadata (lower(brand)) where brand is not null;
+create index if not exists idx_ppm_state on public.place_provider_metadata (state) where state is not null;
+create index if not exists idx_ppm_alt_names on public.place_provider_metadata using gin (alt_names) where alt_names is not null;
+-- place_stats
+create index if not exists idx_place_stats_trending on public.place_stats (trending_score desc);
+create index if not exists idx_place_stats_post_count on public.place_stats (post_count desc);
+-- place_aliases
+create unique index if not exists place_aliases_uniq on public.place_aliases (place_id, lower(alias));
+create index if not exists idx_place_aliases_alias on public.place_aliases using gin (to_tsvector('simple', alias));
+-- place_traits
+create unique index if not exists place_traits_uniq on public.place_traits (place_id, trait_slug);
+create index if not exists idx_place_traits_slug on public.place_traits (trait_slug);
+-- place_sources
+create index if not exists idx_place_sources_place_id on public.place_sources (place_id);
+create index if not exists idx_place_sources_source on public.place_sources (source);
+-- place_opening_hours
+create unique index if not exists place_opening_hours_current_uniq on public.place_opening_hours (place_id, source) where is_current = true;
+-- search_analytics
+create index if not exists idx_search_analytics_query on public.search_analytics (lower(query));
+create index if not exists idx_search_analytics_created_at on public.search_analytics (created_at);
 
 -- analytics_events
 create index if not exists idx_analytics_entity on public.analytics_events (entity_type, entity_id, created_at desc);
@@ -3746,6 +3970,17 @@ alter table public.user_profile_audit_events enable row level security;
 alter table public.collection_audit_events enable row level security;
 alter table public.feature_flag_audit_events enable row level security;
 alter table public.saved_search_audit_events enable row level security;
+alter table public.osm_import_runs enable row level security;
+alter table public.place_contact enable row level security;
+alter table public.place_features enable row level security;
+alter table public.place_provider_metadata enable row level security;
+alter table public.place_stats enable row level security;
+alter table public.place_aliases enable row level security;
+alter table public.place_traits enable row level security;
+alter table public.place_merge_log enable row level security;
+alter table public.place_sources enable row level security;
+alter table public.place_opening_hours enable row level security;
+alter table public.search_analytics enable row level security;
 
 
 -- analytics_events
@@ -4313,6 +4548,64 @@ create policy "Users can view own created place provenance"
   to authenticated
   using (created_by = auth.uid());
 
+
+-- public.place_contact
+drop policy if exists "Public read place_contact" on public.place_contact;
+create policy "Public read place_contact" on public.place_contact for select using (true);
+drop policy if exists "Service role manages place_contact" on public.place_contact;
+create policy "Service role manages place_contact" on public.place_contact for all using (auth.role() = 'service_role');
+
+-- public.place_features
+drop policy if exists "Public read place_features" on public.place_features;
+create policy "Public read place_features" on public.place_features for select using (true);
+drop policy if exists "Service role manages place_features" on public.place_features;
+create policy "Service role manages place_features" on public.place_features for all using (auth.role() = 'service_role');
+
+-- public.place_provider_metadata
+drop policy if exists "Public read place_provider_metadata" on public.place_provider_metadata;
+create policy "Public read place_provider_metadata" on public.place_provider_metadata for select using (true);
+drop policy if exists "Service role manages place_provider_metadata" on public.place_provider_metadata;
+create policy "Service role manages place_provider_metadata" on public.place_provider_metadata for all using (auth.role() = 'service_role');
+
+-- public.place_stats
+drop policy if exists "Public read place_stats" on public.place_stats;
+create policy "Public read place_stats" on public.place_stats for select using (true);
+drop policy if exists "Service role manages place_stats" on public.place_stats;
+create policy "Service role manages place_stats" on public.place_stats for all using (auth.role() = 'service_role');
+
+-- public.place_aliases
+drop policy if exists "Public read place_aliases" on public.place_aliases;
+create policy "Public read place_aliases" on public.place_aliases for select using (true);
+drop policy if exists "Service role manages place_aliases" on public.place_aliases;
+create policy "Service role manages place_aliases" on public.place_aliases for all using (auth.role() = 'service_role');
+
+-- public.place_traits
+drop policy if exists "Public read place_traits" on public.place_traits;
+create policy "Public read place_traits" on public.place_traits for select using (true);
+drop policy if exists "Service role manages place_traits" on public.place_traits;
+create policy "Service role manages place_traits" on public.place_traits for all using (auth.role() = 'service_role');
+
+-- public.place_merge_log
+drop policy if exists "Service role manages place_merge_log" on public.place_merge_log;
+create policy "Service role manages place_merge_log" on public.place_merge_log for all using (auth.role() = 'service_role');
+
+-- public.place_sources
+drop policy if exists "Service role manages place_sources" on public.place_sources;
+create policy "Service role manages place_sources" on public.place_sources for all using (auth.role() = 'service_role');
+
+-- public.place_opening_hours
+drop policy if exists "Public read place_opening_hours" on public.place_opening_hours;
+create policy "Public read place_opening_hours" on public.place_opening_hours for select using (true);
+drop policy if exists "Service role manages place_opening_hours" on public.place_opening_hours;
+create policy "Service role manages place_opening_hours" on public.place_opening_hours for all using (auth.role() = 'service_role');
+
+-- public.search_analytics
+drop policy if exists "Users read own search_analytics" on public.search_analytics;
+create policy "Users read own search_analytics" on public.search_analytics for select using (auth.uid() = user_id);
+drop policy if exists "Service role manages search_analytics" on public.search_analytics;
+create policy "Service role manages search_analytics" on public.search_analytics for all using (auth.role() = 'service_role');
+drop policy if exists "Insert search_analytics" on public.search_analytics;
+create policy "Insert search_analytics" on public.search_analytics for insert with check (true);
 
 -- public.saved_dishes
 drop policy if exists "users manage own saved dishes" on public.saved_dishes;

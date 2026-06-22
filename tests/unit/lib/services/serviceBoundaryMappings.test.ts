@@ -117,7 +117,10 @@ describe('service-boundary normalisation', () => {
     expect(savedPlaces[11]?.places?.photoUrl).toBe('https://example.com/google-photo/fresh-google-12')
     expect(savedPlaces[12]?.places?.photoUrl).toBeNull()
     expect(mockFetchPlaceProviderDetail).toHaveBeenCalledTimes(12)
-    expect(mockUpdate).toHaveBeenCalledWith({ google_photo_refs: ['fresh-google-1'] })
+    expect(mockUpdate).toHaveBeenCalledWith({
+      google_photo_refs: ['fresh-google-1'],
+      updated_at: expect.any(String),
+    })
     expect(mockUpdateEq).toHaveBeenCalledWith('id', 'place-1')
   })
 

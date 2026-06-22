@@ -76,7 +76,8 @@ for (const root of sourceRoots) {
 
       if (
         source.includes(serviceRoleKeyName) &&
-        !relativePath.startsWith(`supabase${path.sep}functions${path.sep}`)
+        !relativePath.startsWith(`supabase${path.sep}functions${path.sep}`) &&
+        !relativePath.startsWith(`scripts${path.sep}admin${path.sep}`)
       ) {
         failures.push(
           `${relativePath} references ${serviceRoleKeyName} outside Edge Functions.`

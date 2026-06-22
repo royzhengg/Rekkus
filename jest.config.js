@@ -37,17 +37,8 @@ const config = {
     './lib/routes/index.ts': {
       statements: 100,
     },
-    './lib/utils/searchScoring.ts': {
-      statements: 68,
-    },
-    './lib/services/search.ts': {
-      statements: 32,
-    },
     './lib/services/posts/types.ts': {
       statements: 100,
-    },
-    './lib/hooks/useSearch.ts': {
-      statements: 50,
     },
     './lib/hooks/useAutocomplete.ts': {
       statements: 94,

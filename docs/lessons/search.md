@@ -245,6 +245,46 @@ Personalization and trending should attach explicit metadata (`personalizationRe
 
 ---
 
+## Vector search replaces FTS pipelines — delete the pipeline, update all governance scripts
+
+Replacing a multi-source FTS ranking pipeline with vector/semantic search (B-509) required deleting ~10 TS files (`pipeline.ts`, `ranking.ts`, `context.ts`, `searchIntent.ts`, `searchScoring.ts`, `searchPersonalization.ts`, etc.). Every governance script that guarded old patterns (`check-search-governance.js`, `check-risk-guardrails.js`, `check-google-costs.js`, `search-index-contract-rules.js`, `check-performance.js`) broke on deploy because they checked for deleted functions/imports.
+
+**Pattern:** when deleting a search pipeline, update governance scripts in the same PR. Identify every `readText(file)` and `requireTerms(file, terms)` call that references deleted/moved symbols. Replace with equivalent checks on the new architecture's canonical symbols (`embedQuery`, `searchSemantic`, HNSW index patterns).
+
+**Trap:** hard-coded `readText('lib/search/pipeline.ts')` in a script throws `ENOENT` at runtime and causes the whole check to fail, not just that assertion. Always guard with `exists(file) ? readText(file) : ''`.
+
+**Coverage thresholds:** `jest.config.js` `coverageThreshold` entries for deleted files cause "Coverage data for X was not found" errors and `check:coverage-chain` failures. Remove stale threshold entries immediately when files are deleted.
+
+**Type-safety fixtures:** `tests/type-safety/searchIndexContractRules.test.js` uses hardcoded schema fixtures that mirror the old FTS infrastructure. When switching from FTS to vector, update the fixture's `completeSchema` and `completeSources` to reference the new HNSW index names and RPC signatures — otherwise the acceptance test asserts against a schema that no longer exists.
+
+**Apply when:** replacing any multi-file search pipeline, search provider, or ranking system.
+
+---
+
+## Supabase RPC typing: add the RPC to `types/database.ts`, never cast
+
+When calling a new Supabase RPC (`search_semantic`) that isn't in the generated `types/database.ts`, the temptation is to cast: `supabase.rpc(...) as any` or `as unknown as RpcFn`. Both are flagged by `check:unsafe-any`.
+
+**Correct pattern:** manually add the RPC's `Args` and `Returns` type to the `Database['public']['Functions']` section of `types/database.ts`. Once the type is present, `supabase.rpc('search_semantic', args)` infers correctly without any cast.
+
+**Apply when:** adding any new Supabase RPC that isn't in the generated types yet.
+
+---
+
+## Vector search requires a text fallback — embeddings are not guaranteed at query time
+
+A fresh Supabase project can have the `search_semantic` RPC and HNSW indexes in place but zero embeddings: the backfill edge function has not run yet, the compute tier is too small to run the AI model, or the backfill simply takes time. In all these cases `searchSemantic()` returns 0 rows and the user sees "Nothing for X yet."
+
+**Pattern:** always pair vector search with a `search_text_fallback` RPC that shares the exact same return column shape (`entity_type, entity_id, semantic_similarity, final_score, display_data`). In `useSearch`, call `searchTextFallback` only when vector search returns 0 entity results. This degrades gracefully — text matching is not as smart as semantic, but it works immediately and requires no compute.
+
+**Graded scores:** assign 0.90/0.85 for exact name match, 0.80/0.75 for prefix, 0.70/0.65 for contains, 0.60/0.55 for cuisine match, 0.55 for suburb match. These slot below a typical 0.4-threshold semantic match so vector results are preferred once available.
+
+**Remote schema divergence:** if the remote DB was created from a dump rather than sequential migrations, it may be missing columns (`is_cover`, computed columns). Make all new migrations defensive (`ADD COLUMN IF NOT EXISTS`, replace column references with subqueries).
+
+**Apply when:** adding any new vector/embedding-based search, or debugging "no results" reports on a freshly migrated environment.
+
+---
+
 ## Pipeline faults should degrade gracefully, not crash the entire search
 
 A single `Promise.all` with no error handling means any service failure (personalization RPC, trending service, Google Autocomplete) throws and the user sees an error screen instead of degraded-but-working results.

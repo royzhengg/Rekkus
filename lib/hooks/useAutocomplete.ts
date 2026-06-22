@@ -4,7 +4,6 @@ import {
   createSearchMemoryCache,
   normalizedSearchCacheQuery,
 } from '../search/cache'
-import { buildSearchContext } from '../search/context'
 import { fetchSearchAutocomplete } from '../services/search'
 import type { SearchSuggestion, UserLocation } from './searchTypes'
 
@@ -35,7 +34,7 @@ export function useAutocomplete(query: string, userLocation: UserLocation): Sear
           setSuggestions(data)
           return
         }
-        const request = buildSearchContext({ query, userLocation }).then(fetchSearchAutocomplete)
+        const request = fetchSearchAutocomplete(query, userLocation)
         AUTOCOMPLETE_CACHE.set(cacheKey, request)
         const data = await request
         AUTOCOMPLETE_CACHE.set(cacheKey, data)

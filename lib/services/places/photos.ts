@@ -41,6 +41,6 @@ export async function getPlaceDisplayPhoto(
 export async function cachePlacePhotoRefs(placeId: string, googlePhotoRefs: string[]): Promise<void> {
   if (googlePhotoRefs.length === 0) return
   await supabase.from('places')
-    .update({ google_photo_refs: googlePhotoRefs })
+    .update({ google_photo_refs: googlePhotoRefs, updated_at: new Date().toISOString() })
     .eq('id', placeId)
 }

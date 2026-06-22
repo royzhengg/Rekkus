@@ -16,6 +16,7 @@ jest.mock('expo-sqlite', () => ({}))
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ query: 'pork' }),
   useFocusEffect: jest.fn(),
+  useRouter: () => ({ push: jest.fn() }),
 }))
 
 jest.mock('react-native-safe-area-context', () => {
@@ -24,12 +25,13 @@ jest.mock('react-native-safe-area-context', () => {
 })
 
 jest.mock('@/components/icons', () => {
-  const { Text } = jest.requireActual('react-native')
+  const { Text, View } = jest.requireActual('react-native')
   return {
     SearchIcon: () => <Text>search</Text>,
     CloseIcon: () => <Text>close</Text>,
     FilterIcon: () => <Text>filter</Text>,
     PinIcon: () => <Text>pin</Text>,
+    ImagePlaceholder: () => <View />,
   }
 })
 
@@ -138,14 +140,10 @@ function baseSearch(overrides: Partial<ReturnType<typeof useSearch>> = {}): Retu
     placeResults: [],
     placeDistances: new Map<string, number>(),
     dishEntityResults: [],
-    candidates: [],
     suggestions: [],
-    providerFallbackSuppressed: true,
-    providerFallbackReason: 'ambiguous_food_without_location',
-    queryIntent: 'food_dish',
     hasQuery: true,
-    expansionLabel: null,
     topFeed: [],
+    loading: false,
     ...overrides,
   } as ReturnType<typeof useSearch>
 }
@@ -185,13 +183,13 @@ describe('SearchScreen location nudge', () => {
     mockOpenSettings.mockRestore()
   })
 
-  it('shows the nudge for food queries without location after provider fallback is suppressed', () => {
+  it('shows the nudge for queries without location', () => {
     render(<SearchScreen />)
 
     expect(screen.getByText('Enable location for better results')).toBeTruthy()
     expect(analytics.searchLocationNudgeShown).toHaveBeenCalledWith(
       null,
-      'food_dish',
+      'general',
       'none',
       'search'
     )
@@ -207,14 +205,14 @@ describe('SearchScreen location nudge', () => {
     })
     expect(analytics.searchLocationNudgeClicked).toHaveBeenCalledWith(
       null,
-      'food_dish',
+      'general',
       'none',
       'search'
     )
     expect(analytics.searchLocationPermissionResult).toHaveBeenCalledWith(
       null,
       'granted',
-      'food_dish',
+      'general',
       'search'
     )
   })
@@ -233,7 +231,7 @@ describe('SearchScreen location nudge', () => {
     expect(analytics.searchLocationPermissionResult).toHaveBeenCalledWith(
       null,
       'settings_opened',
-      'food_dish',
+      'general',
       'search'
     )
   })

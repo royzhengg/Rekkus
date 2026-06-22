@@ -24,10 +24,12 @@ function requireTerms(file, terms, mode = 'warning') {
   }
 }
 
-// fetchPlaceAutocompleteJson and shouldUseProviderFallback remain in useSearch.ts
-// expand_search_cuisines moved to lib/services/search.ts in B-509
-requireTerms('lib/hooks/useSearch.ts', ['fetchPlaceAutocompleteJson', 'shouldUseProviderFallback'], 'failure')
-requireTerms('lib/services/search.ts', ['expand_search_cuisines'], 'failure')
+// B-509 refactor: main search moved to vector (search_semantic RPC + HNSW).
+// Google Places fallback now lives only in usePlaceSearch.ts (place tagging flow).
+// useSearch.ts no longer calls fetchPlaceAutocompleteJson — autocomplete is handled by useAutocomplete.ts.
+requireTerms('lib/hooks/usePlaceSearch.ts', ['decideSearchProviderFallback', 'fetchPredictions'], 'failure')
+requireTerms('lib/services/places.ts', ['fetchPlaceAutocompleteJson'], 'failure')
+requireTerms('lib/services/search.ts', ['searchSemantic', 'embedQuery'], 'failure')
 requireTerms('lib/services/googlePlaces.ts', ['CACHE_TTL_MS', 'MIN_AUTOCOMPLETE_LENGTH', 'inflight', 'cacheStatus', 'estimatedCostClass'], 'failure')
 requireTerms(
   'docs/security/MEDIA_PIPELINE.md',
