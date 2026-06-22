@@ -14,7 +14,7 @@ import type { RekkusOccasionTag } from '../../types/domain'
 export type QueryIntent =
   | 'cuisine'
   | 'dish'
-  | 'restaurant'
+  | 'place'
   | 'location'
   | 'occasion'
   | 'dietary'
@@ -174,10 +174,10 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     }
     remaining = remaining.filter((_, i) => !qualityRemoved.has(i))
 
-    // Step 6: Classify remaining words into cuisine / dish / restaurant tokens
+    // Step 6: Classify remaining words into cuisine / dish / place tokens
     const cuisineTerms: string[] = []
     const dishTerms: string[] = []
-    const restaurantTokens: string[] = []
+    const placeTokens: string[] = []
 
     for (const word of remaining) {
       if (Object.keys(CUISINE_ALIASES).includes(word)) {
@@ -185,7 +185,7 @@ export function parseSearchQuery(raw: string): ParsedQuery {
       } else if (hasCuisineSynonym(word)) {
         dishTerms.push(word)
       } else {
-        restaurantTokens.push(word)
+        placeTokens.push(word)
       }
     }
 
@@ -210,7 +210,7 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     const intentCounts = [
       cuisineTerms.length > 0,
       dishTerms.length > 0,
-      restaurantTokens.length > 0,
+      placeTokens.length > 0,
       locationTerms.length > 0,
       occasionTerms.length > 0,
       dietaryTerms.length > 0,
@@ -232,7 +232,7 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     } else if (dietaryTerms.length > 0) {
       intent = 'dietary'
     } else {
-      intent = 'restaurant'
+      intent = 'place'
     }
 
     // Step 8: isPrefix — partial word typed
@@ -246,7 +246,7 @@ export function parseSearchQuery(raw: string): ParsedQuery {
     const searchWords = [
       ...cuisineTerms,
       ...dishTerms,
-      ...restaurantTokens,
+      ...placeTokens,
     ].filter((w, i, arr) => arr.indexOf(w) === i) // dedupe
 
     // Step 10: Resolve suburb from location terms synchronously (alias cache)

@@ -53,7 +53,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | cuisine_aliases | Product/Data | Public taxonomy | Rekkus/system | Retained while search taxonomy exists | Not user-owned | Public select, migration/admin write |
 | suburb_aliases | Product/Data | Public local discovery taxonomy | Rekkus/system | Retained while local search taxonomy exists | Not user-owned | Public select, migration/admin write |
 | suburb_lookups | Product/Data | Public locality lookup metadata | Public/open locality data and admin seed | Retained while local search taxonomy exists | Not user-owned | Public select, migration/admin seed |
-| restaurant_popularity_cache | Analytics/Data | Aggregate place engagement signal | Derived from public posts and privacy-safe events | Refreshed aggregate cache | Aggregated/de-identified | Public select, service refresh |
+| place_popularity_cache | Analytics/Data | Aggregate place engagement signal | Derived from public posts and privacy-safe events | Refreshed aggregate cache | Aggregated/de-identified | Public select, service refresh |
 | trending_searches | Analytics | Aggregate discovery signal, partitioned by coarse city | Derived from privacy-safe search events | Refreshed aggregate cache | Aggregated/de-identified | Public select, service refresh |
 | saved_searches | Product/Search | User-private saved query text | User | Account lifetime unless unsaved | Included in deletion/export | Owner RLS |
 | restaurant_sources | Data | Source/provenance | Provider/user/admin | Retain while linked | Source-attributed; unlink by review | Public select, limited insert |

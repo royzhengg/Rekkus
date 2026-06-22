@@ -50,6 +50,10 @@ jest.mock('@/lib/services/trending', () => ({
     dishScores: new Map(),
   }),
 }))
+jest.mock('@/lib/services/posts', () => ({
+  fetchPostsByIds: jest.fn().mockResolvedValue([]),
+  mapRowToPost: jest.fn((row: { id: string }, i: number) => ({ id: i, dbId: row.id, title: '' })),
+}))
 jest.mock('@/lib/utils/locationResolver', () => ({
   resolveFromAliasCache: jest.fn(),
   resolveSuburbQuery: jest.fn().mockResolvedValue(null),
@@ -115,7 +119,7 @@ describe('runSearchPipeline', () => {
       recentQueries: [],
       recentCuisines: [],
       recentAreas: [],
-      savedRestaurantIds: [],
+      savedPlaceIds: [],
       savedDishIds: [],
       savedPostIds: [],
     })
@@ -296,8 +300,8 @@ describe('runSearchPipeline', () => {
     ])
     mockFetchDishGraphEvidence.mockResolvedValueOnce(new Map([
       ['dish-1', {
-        servingRestaurantIds: ['rest-1'],
-        servingRestaurantCount: 1,
+        servingPlaceIds: ['rest-1'],
+        servingPlaceCount: 1,
         supportingPostIds: ['post-1'],
       }],
     ]))
@@ -305,7 +309,7 @@ describe('runSearchPipeline', () => {
       recentQueries: ['ramen'],
       recentCuisines: ['japanese'],
       recentAreas: ['sydney'],
-      savedRestaurantIds: ['rest-1'],
+      savedPlaceIds: ['rest-1'],
       savedDishIds: ['dish-1'],
       savedPostIds: ['post-1'],
     })
@@ -325,8 +329,8 @@ describe('runSearchPipeline', () => {
         kind: 'dish',
         id: 'dish-1',
         graphEvidence: {
-          servingRestaurantIds: ['rest-1'],
-          servingRestaurantCount: 1,
+          servingPlaceIds: ['rest-1'],
+          servingPlaceCount: 1,
           supportingPostIds: ['post-1'],
         },
         personalizationReasons: expect.arrayContaining(['saved_dish', 'recent_cuisine', 'recent_search']),
@@ -336,7 +340,7 @@ describe('runSearchPipeline', () => {
       expect.objectContaining({
         kind: 'place',
         id: 'rest-1',
-        personalizationReasons: expect.arrayContaining(['saved_restaurant', 'recent_cuisine', 'recent_area']),
+        personalizationReasons: expect.arrayContaining(['saved_place', 'recent_cuisine', 'recent_area']),
         trendingScore: 4,
       }),
       expect.objectContaining({
@@ -346,5 +350,141 @@ describe('runSearchPipeline', () => {
         trendingScore: 5,
       }),
     ]))
+  })
+
+  // B-595: dish candidates must preserve DB FTS order, not be re-ranked by popularity
+  it('preserves DB FTS order for dish candidates (rank = position, not save_count + post_count)', async () => {
+    // dish-a is at FTS index 0 (most relevant) but has low save/post counts
+    // dish-b is at FTS index 1 (less relevant) but has very high save/post counts
+    // The candidate rank should reflect FTS position, NOT popularity
+    mockSearchDishes.mockResolvedValueOnce([
+      { id: 'dish-a', name: 'Ramen', cuisine_type: 'Japanese', top_photo_url: null, save_count: 1, post_count: 1 },
+      { id: 'dish-b', name: 'Noodles', cuisine_type: 'Japanese', top_photo_url: null, save_count: 99, post_count: 50 },
+    ])
+
+    const context = await buildSearchContext({ query: 'ramen', userLocation: null })
+    const result = await runSearchPipeline(context, { posts: [] })
+
+    const dishA = result.candidates.find(c => c.kind === 'dish' && c.id === 'dish-a')
+    const dishB = result.candidates.find(c => c.kind === 'dish' && c.id === 'dish-b')
+
+    expect(dishA).toBeDefined()
+    expect(dishB).toBeDefined()
+    // dish-a (FTS rank 0 = highest) must have higher rank than dish-b (FTS rank 1)
+    expect(dishA!.rank).toBeGreaterThan(dishB!.rank)
+  })
+
+  // B-595: pipeline must fetch and return posts missing from PostsContext
+  it('returns hydratedPosts for FTS post IDs not present in the posts context', async () => {
+    const { fetchPostsByIds, mapRowToPost } = jest.requireMock('@/lib/services/posts') as {
+      fetchPostsByIds: jest.Mock
+      mapRowToPost: jest.Mock
+    }
+    fetchPostsByIds.mockResolvedValueOnce([{ id: 'post-missing', title: 'Ramen' }])
+    mapRowToPost.mockImplementation((row: { id: string; title: string }, i: number) =>
+      makePost({ dbId: row.id, title: row.title, id: i })
+    )
+
+    mockSearchPostIds.mockResolvedValueOnce([{ id: 'post-missing', rank: 0.9 }])
+
+    const context = await buildSearchContext({ query: 'ramen', userLocation: null })
+    // posts context does NOT contain 'post-missing'
+    const result = await runSearchPipeline(context, { posts: [] })
+
+    expect(fetchPostsByIds).toHaveBeenCalledWith(['post-missing'])
+    // hydratedPosts is the new field added in B-595
+    expect(result.hydratedPosts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ dbId: 'post-missing' }),
+    ]))
+  })
+
+  it('does not call fetchPostsByIds when all FTS post IDs are already in context', async () => {
+    const { fetchPostsByIds } = jest.requireMock('@/lib/services/posts') as { fetchPostsByIds: jest.Mock }
+    fetchPostsByIds.mockResolvedValue([])
+
+    mockSearchPostIds.mockResolvedValueOnce([{ id: 'post-1', rank: 0.9 }])
+
+    const context = await buildSearchContext({ query: 'ramen', userLocation: null })
+    // post-1 IS in the posts context
+    await runSearchPipeline(context, { posts: [makePost({ dbId: 'post-1' })] })
+
+    expect(fetchPostsByIds).not.toHaveBeenCalled()
+  })
+
+  describe('Fix 6: distance guard — drop far-away candidates', () => {
+    const sydneyLocation = { lat: -33.87, lng: 151.21 }
+
+    const farPlace: PlaceResult = {
+      id: 'far-place',
+      name: 'French Colony Pondicherry',
+      address: 'Rock Beach, White Town',
+      city: 'Pondicherry',
+      cuisine_type: 'French',
+      google_place_id: null,
+      // Pondicherry, India — ~7550 km from Sydney
+      latitude: 11.93,
+      longitude: 79.83,
+      google_rating: null,
+      google_review_count: null,
+    }
+
+    const nearPlace: PlaceResult = {
+      ...place,
+      id: 'near-place',
+      name: 'French Brasserie Sydney',
+      latitude: -33.89,
+      longitude: 151.18,
+    }
+
+    it('drops a place 7550 km away when user location is Sydney', async () => {
+      mockSearchPlaces.mockResolvedValueOnce([farPlace])
+      const context = await buildSearchContext({ query: 'french', userLocation: sydneyLocation })
+      const result = await runSearchPipeline(context, { posts: [] })
+      const placeIds = result.candidates.filter(c => c.kind === 'place').map(c => c.id)
+      expect(placeIds).not.toContain('far-place')
+    })
+
+    it('keeps a place 2 km away when user location is Sydney', async () => {
+      mockSearchPlaces.mockResolvedValueOnce([nearPlace])
+      const context = await buildSearchContext({ query: 'french', userLocation: sydneyLocation })
+      const result = await runSearchPipeline(context, { posts: [] })
+      const placeIds = result.candidates.filter(c => c.kind === 'place').map(c => c.id)
+      expect(placeIds).toContain('near-place')
+    })
+
+    it('keeps a place with null coordinates (distance cannot be determined)', async () => {
+      const nullCoordPlace: PlaceResult = { ...farPlace, id: 'null-coord', latitude: null, longitude: null }
+      mockSearchPlaces.mockResolvedValueOnce([nullCoordPlace])
+      const context = await buildSearchContext({ query: 'french', userLocation: sydneyLocation })
+      const result = await runSearchPipeline(context, { posts: [] })
+      const placeIds = result.candidates.filter(c => c.kind === 'place').map(c => c.id)
+      expect(placeIds).toContain('null-coord')
+    })
+
+    it('keeps all places when there is no user location', async () => {
+      mockSearchPlaces.mockResolvedValueOnce([farPlace])
+      const context = await buildSearchContext({ query: 'french', userLocation: null })
+      const result = await runSearchPipeline(context, { posts: [] })
+      const placeIds = result.candidates.filter(c => c.kind === 'place').map(c => c.id)
+      expect(placeIds).toContain('far-place')
+    })
+
+    it('triggers Google fallback when the only matching place is too far away', async () => {
+      mockSearchPlaces.mockResolvedValueOnce([farPlace])
+      mockFetchPlaceAutocompleteJson.mockResolvedValue({
+        predictions: [
+          {
+            place_id: 'g-1',
+            description: 'Pastis, Sydney NSW',
+            structured_formatting: { main_text: 'Pastis', secondary_text: 'Sydney NSW' },
+            types: ['restaurant'],
+          },
+        ],
+      })
+      const context = await buildSearchContext({ query: 'french', userLocation: sydneyLocation })
+      const result = await runSearchPipeline(context, { posts: [] })
+      // Far place excluded → no local results → Google fallback fires
+      expect(result.providerFallbackDecision.shouldUseGoogleFallback).toBe(true)
+    })
   })
 })

@@ -1,7 +1,7 @@
 import {
   deriveProfileInterests,
-  deriveReviewedRestaurants,
-  deriveTopRestaurants,
+  derivePlacesWithPosts,
+  deriveTopPlaces,
   formatProfileCount,
   normalizeProfileTabParam,
   profileCollectionIsVisible,
@@ -43,6 +43,7 @@ function savedLocation(overrides: Partial<SavedPlace>): SavedPlace {
       latitude: -33.8,
       longitude: 151.2,
       google_place_id: 'place-1',
+      photoUrl: null,
     },
     ...overrides,
   }
@@ -74,7 +75,7 @@ describe('profile identity helpers', () => {
   })
 
   it('deduplicates reviewed restaurants by restaurant id and counts reviews', () => {
-    const restaurants = deriveReviewedRestaurants([
+    const restaurants = derivePlacesWithPosts([
       post({ placeId: 'restaurant-1', location: 'Henry Lees', createdAt: '2026-06-01T00:00:00Z', food: 4, imageUrl: 'https://example.com/first.jpg' }),
       post({ placeId: 'restaurant-1', location: 'Henry Lees', createdAt: '2026-06-02T00:00:00Z', food: 5 }),
       post({ placeId: 'place-2', location: 'Doodee King', food: 3 }),
@@ -84,20 +85,20 @@ describe('profile identity helpers', () => {
     expect(restaurants[0]).toMatchObject({
       id: 'restaurant-1',
       name: 'Henry Lees',
-      reviewCount: 2,
+      postCount: 2,
       avgFoodRating: 4.5,
-      lastReviewedAt: '2026-06-02T00:00:00Z',
+      lastPostedAt: '2026-06-02T00:00:00Z',
       photoUrl: 'https://example.com/first.jpg',
     })
   })
 
   it('uses reviewed restaurants before saved fallback restaurants', () => {
-    const reviewed = deriveReviewedRestaurants([
+    const reviewed = derivePlacesWithPosts([
       post({ placeId: 'restaurant-1', location: 'Reviewed Spot', food: 5 }),
     ])
-    const top = deriveTopRestaurants(reviewed, [
-      savedLocation({ place_id: 'restaurant-1', places: { name: 'Reviewed Spot', address: null, latitude: null, longitude: null, google_place_id: null } }),
-      savedLocation({ id: 'saved-2', place_id: 'restaurant-2', places: { name: 'Saved Fallback', address: 'King St', latitude: null, longitude: null, google_place_id: null } }),
+    const top = deriveTopPlaces(reviewed, [
+      savedLocation({ place_id: 'restaurant-1', places: { name: 'Reviewed Spot', address: null, latitude: null, longitude: null, google_place_id: null, photoUrl: null } }),
+      savedLocation({ id: 'saved-2', place_id: 'restaurant-2', places: { name: 'Saved Fallback', address: 'King St', latitude: null, longitude: null, google_place_id: null, photoUrl: null } }),
     ])
 
     expect(top.map(restaurant => restaurant.name)).toEqual(['Reviewed Spot', 'Saved Fallback'])
@@ -117,9 +118,9 @@ describe('profile identity helpers', () => {
   })
 
   it('maps legacy profile tabs into the two-tab model', () => {
-    expect(normalizeProfileTabParam('reviews')).toBe('reviews')
-    expect(normalizeProfileTabParam('restaurants')).toBe('reviews')
-    expect(normalizeProfileTabParam('liked')).toBe('reviews')
+    expect(normalizeProfileTabParam('reviews')).toBe('posts')
+    expect(normalizeProfileTabParam('restaurants')).toBe('posts')
+    expect(normalizeProfileTabParam('liked')).toBe('posts')
     expect(normalizeProfileTabParam('lists')).toBe('collections')
     expect(normalizeProfileTabParam('collections')).toBe('collections')
     expect(normalizeProfileTabParam('saved')).toBe('saved-legacy')

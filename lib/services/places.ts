@@ -9,8 +9,7 @@ import {
 } from '@/lib/services/googlePlacesGuards'
 import { supabase } from '@/lib/supabase'
 import { isRecord } from '@/lib/utils/safeJson'
-import { recordRestaurantProviderCache } from './places/cache'
-import { getRestaurantProviderPhotoUrl } from './places/google'
+import { recordPlaceProviderCache } from './places/cache'
 import type { FullPlaceDetail } from './places/google'
 
 export {
@@ -31,19 +30,20 @@ export {
   isSavedPlaceList,
   normalizeSavedPlaces,
 } from './savedPlaces'
-export type { SavedPlace, SavedPlaceWithPlace } from './savedPlaces'
+export type { FetchSavedPlacesOptions, SavedPlace, SavedPlaceWithPlace } from './savedPlaces'
 
 // Google API wrappers
 export {
   fetchPlaceDetails,
   fetchPlaceIdByTextSearch,
-  fetchRestaurantProviderDetail,
-  getRestaurantProviderPhotoUrl,
+  fetchPlaceProviderDetail,
+  getPlaceProviderPhotoUrl,
 } from './places/google'
 export type { PlaceDetail, FullPlaceDetail } from './places/google'
 
 // Provider cache recording
-export { recordRestaurantProviderCache, recordRestaurantSource } from './places/cache'
+export { recordPlaceProviderCache, recordPlaceSource } from './places/cache'
+export { cachePlacePhotoRefs, getPlaceDisplayPhoto, getPlaceDisplayPhotos } from './places/photos'
 
 // Ratings, save status, popularity
 export {
@@ -288,7 +288,7 @@ export async function upsertPlace(
   const placeId = (data as { id: string } | null)?.id
   if (!placeId) return undefined
 
-  await recordRestaurantProviderCache(placeId, 'google_places', googlePlaceId, detail).catch(() => null)
+  await recordPlaceProviderCache(placeId, 'google_places', googlePlaceId, detail).catch(() => null)
 
   return placeId
 }
@@ -346,43 +346,6 @@ export async function createUserPlace(input: UserPlaceInput): Promise<string | n
   })
   if (error) return null
   return data ?? null
-}
-
-export async function getPlaceDisplayPhotos(
-  placeId?: string | null,
-  providerPhotoRefs: string[] = [],
-  maxPhotos = 6
-): Promise<string[]> {
-  const providerUrls = providerPhotoRefs
-    .slice(0, maxPhotos)
-    .map(ref => getRestaurantProviderPhotoUrl(ref))
-    .filter(Boolean)
-
-  if (!placeId) return providerUrls
-
-  const { data } = await supabase.from('posts')
-    .select('post_photos ( url, order_index )')
-    .eq('place_id', placeId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-    .limit(24)
-
-  const firstPartyUrls = (data ?? [])
-    .flatMap((row) => row.post_photos ?? [])
-    .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-    .map(photo => photo.url)
-    .filter((url, index, arr): url is string => typeof url === 'string' && !!url && arr.indexOf(url) === index)
-    .slice(0, maxPhotos)
-
-  return firstPartyUrls.length > 0 ? firstPartyUrls : providerUrls
-}
-
-export async function getPlaceDisplayPhoto(
-  placeId?: string | null,
-  providerPhotoRefs: string[] = []
-): Promise<string | null> {
-  const photos = await getPlaceDisplayPhotos(placeId, providerPhotoRefs, 1)
-  return photos[0] ?? null
 }
 
 type PlaceRow = { id: string; google_place_id: string | null; google_photo_refs: string[] }

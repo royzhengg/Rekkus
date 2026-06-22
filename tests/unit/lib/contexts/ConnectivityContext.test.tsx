@@ -52,6 +52,10 @@ jest.mock('@/lib/services/deferredMutations', () => ({
   removeDeferredMutation: jest.fn(),
 }))
 
+jest.mock('@/lib/services/postDrafts', () => ({
+  syncUnsyncedDraftMedia: jest.fn(),
+}))
+
 jest.mock('@/lib/analytics', () => ({
   analytics: { actionError: jest.fn(), offlineMutation: jest.fn() },
 }))

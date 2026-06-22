@@ -36,7 +36,7 @@ type LoaderResult = {
   saved: boolean
   setSaved: (v: boolean) => void
   dbRatings: DbRatings
-  hasRecentReviews: boolean
+  hasRecentPosts: boolean
   topDishes: Array<{ name: string; dishId?: string }>
   resolvedGooglePlaceId: string | null
   setResolvedGooglePlaceId: (id: string | null) => void
@@ -62,7 +62,7 @@ export function usePlaceDetailLoader({
   const [placeId, setPlaceId] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [dbRatings, setDbRatings] = useState<DbRatings>({ food: null, vibe: null, cost: null })
-  const [hasRecentReviews, setHasRecentReviews] = useState(false)
+  const [hasRecentPosts, setHasRecentReviews] = useState(false)
   const [topDishes, setTopDishes] = useState<Array<{ name: string; dishId?: string }>>([])
   const [resolvedGooglePlaceId, setResolvedGooglePlaceId] = useState<string | null>(
     routeGooglePlaceId && routeGooglePlaceId !== 'none' ? routeGooglePlaceId : null
@@ -221,9 +221,9 @@ export function usePlaceDetailLoader({
     saved,
     setSaved,
     dbRatings,
-    hasRecentReviews,
+    hasRecentPosts,
     topDishes,
     resolvedGooglePlaceId,
     setResolvedGooglePlaceId,
-  }), [loading, refreshing, detail, photoUrls, placeId, saved, dbRatings, hasRecentReviews, topDishes, resolvedGooglePlaceId])
+  }), [loading, refreshing, detail, photoUrls, placeId, saved, dbRatings, hasRecentPosts, topDishes, resolvedGooglePlaceId])
 }

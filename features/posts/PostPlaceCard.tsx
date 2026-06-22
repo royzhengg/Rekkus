@@ -22,7 +22,7 @@ type Props = {
   onAddToCollection?: (() => void) | undefined
 }
 
-export function PostRestaurantCard({
+export function PostPlaceCard({
   post,
   locationSaved,
   locationLoading,

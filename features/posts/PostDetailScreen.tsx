@@ -48,8 +48,8 @@ import { PostActionsBar } from './PostActionsBar'
 import { PostComments } from './PostComments'
 import { PostDetailSheets } from './PostDetailSheets'
 import { geocodeLocation, usePostNavigation, usePostSafetyActions, useResolvedPost } from './postDetailUtils'
+import { PostPlaceCard } from './PostPlaceCard'
 import { PostReactionBar } from './PostReactionBar'
-import { PostRestaurantCard } from './PostRestaurantCard'
 import type { TextInput } from 'react-native'
 
 export default function PostDetailScreen() {
@@ -485,7 +485,7 @@ export default function PostDetailScreen() {
           <PostPicksSummary post={resolvedPost} />
         </View>
 
-        <PostRestaurantCard
+        <PostPlaceCard
           post={resolvedPost}
           locationSaved={locationSaved}
           locationLoading={locationLoading}

@@ -57,7 +57,7 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 ## Analytics
 
 - [ ] Add `post_view` event tracking in `app/posts/[postId].tsx` on screen load
-- [ ] Add `post_save` event in `toggleSave` handlers (`posts/[postId].tsx`, `restaurants/[restaurantId].tsx`)
+- [ ] Add `post_save` event in `toggleSave` handlers (`posts/[postId].tsx`, `places/[placeId].tsx`)
 - [ ] Add `post_like` event in `toggleLike` handler (`posts/[postId].tsx`)
 - [ ] Confirm `analytics_events` RLS allows insert for authenticated users only
 

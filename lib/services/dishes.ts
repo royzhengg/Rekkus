@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { isRecord } from '@/lib/utils/safeJson'
 import type { DishDetail, SavedDish } from '@/types/domain'
 
-type DishRestaurantRow = {
+type DishPlaceRow = {
   id: string
   name: string
   address: string | null
@@ -16,10 +16,10 @@ type DishRow = {
   name: string
   cuisine_type: string | null
   place_id: string | null
-  places: DishRestaurantRow | null
+  places: DishPlaceRow | null
 }
 
-function parseRestaurant(value: unknown): DishRestaurantRow | null {
+function parsePlace(value: unknown): DishPlaceRow | null {
   if (!isRecord(value) || typeof value.id !== 'string' || typeof value.name !== 'string') return null
   return {
     id: value.id,
@@ -38,7 +38,7 @@ function parseDishRow(value: unknown): DishRow | null {
     name: value.name,
     cuisine_type: typeof value.cuisine_type === 'string' ? value.cuisine_type : null,
     place_id: typeof value.place_id === 'string' ? value.place_id : null,
-    places: parseRestaurant(value.places),
+    places: parsePlace(value.places),
   }
 }
 
@@ -75,7 +75,7 @@ export async function findOrCreateDish(params: {
 }): Promise<string> {
   const { data, error } = await supabase.rpc('find_or_create_dish', {
     p_name:          params.name.trim(),
-    p_restaurant_id: params.placeId,
+    p_place_id:      params.placeId,
     p_context:       params.context ?? null,
     ...(params.cuisineType != null ? { p_cuisine_type: params.cuisineType } : {}),
     ...(params.userId != null ? { p_created_by: params.userId } : {}),

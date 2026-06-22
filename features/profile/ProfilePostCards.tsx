@@ -24,7 +24,7 @@ function relativeLabel(createdAt: string | undefined): string {
   return `${days}d ago`
 }
 
-export function ProfileReviewCards({ posts, onPressPost, hasMore, onLoadMore }: Props) {
+export function ProfilePostCards({ posts, onPressPost, hasMore, onLoadMore }: Props) {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   if (posts.length === 0) return null

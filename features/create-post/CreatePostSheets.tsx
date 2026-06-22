@@ -69,12 +69,12 @@ export function CreatePostSheets({
         title={draftNotice?.title}
         subtitle={draftNotice?.subtitle}
         options={[
-          ...(onRetryPost ? [{ label: 'Try again', value: 'try-again', accentColor: colors.accent }] : []),
+          ...(onRetryPost ? [{ label: 'Try again', value: 'try-again-post', accentColor: colors.accent }] : []),
           { label: 'Keep editing', value: 'keep' },
           { label: 'Done', value: 'done' },
         ]}
         onSelect={value => {
-          if (value === 'try-again' && onRetryPost) onRetryPost()
+          if (value === 'try-again-post' && onRetryPost) onRetryPost()
           if (value === 'done') onDraftDone()
         }}
         onDismiss={() => setDraftNotice(null)}

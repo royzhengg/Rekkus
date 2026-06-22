@@ -72,7 +72,7 @@ Avoid prioritizing complex algorithms, heavy AI, enterprise tooling, or advanced
 ## Core Loops
 
 - Create review → tag dish/place → improves discovery.
-- Search/discover → save restaurant/post → improves taste graph.
+- Search/discover → save place/post → improves taste graph.
 - Visit place → review/post → increases content density.
 - Follow useful reviewers → improves feed quality.
 - Collections → improve retention, identity, and shareability.

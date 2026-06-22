@@ -21,11 +21,11 @@ provider fallback
 `
 
 const completeSchema = `
-create index restaurants_search_tsv_idx on public.restaurants using gin (to_tsvector('simple', name));
+create index places_search_tsv_idx on public.places using gin (to_tsvector('simple', name));
 create index posts_search_tsv_idx on public.posts using gin (to_tsvector('simple', caption));
 create index users_search_tsv_idx on public.users using gin (to_tsvector('simple', username));
 create index dishes_search_tsv_idx on public.dishes using gin (search_tsv);
-create function public.search_restaurants_full_text() returns void language sql as $$ select 1 $$;
+create function public.search_places_full_text() returns void language sql as $$ select 1 $$;
 create function public.search_posts_full_text() returns void language sql as $$ select 1 $$;
 create function public.search_posts_by_dish() returns void language sql as $$ select 1 $$;
 create function public.search_dishes_full_text() returns void language sql as $$ select 1 $$;
@@ -43,7 +43,7 @@ const completeSources = {
   schemaSource: completeSchema,
   searchServiceSource: 'CUISINE_SYNONYMS search_synonyms',
   searchPipelineSource: 'SearchCandidate decideSearchProviderFallback',
-  restaurantServiceSource: 'search_restaurants_full_text near_lat',
+  restaurantServiceSource: 'search_places_full_text near_lat',
 }
 
 test('search index contract scanner rejects incomplete product contract docs', () => {

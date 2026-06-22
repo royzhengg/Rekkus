@@ -238,6 +238,22 @@ export function getDietaryTermKeys(): string[] {
   return Object.keys(runtimeDietaryTerms)
 }
 
+const _dynamicCuisines = new Set<string>()
+
+export function loadDynamicCuisines(cuisines: string[]): void {
+  for (const c of cuisines) {
+    const normalized = c.toLowerCase().trim()
+    if (normalized) _dynamicCuisines.add(normalized)
+    for (const word of normalized.split(/\s+/)) {
+      if (word.length >= 3) _dynamicCuisines.add(word)
+    }
+  }
+}
+
+export function isDynamicFoodToken(token: string): boolean {
+  return _dynamicCuisines.has(token.toLowerCase())
+}
+
 export function getSearchPhraseKeys(): string[] {
   return [
     ...getCuisineSynonymTerms(),

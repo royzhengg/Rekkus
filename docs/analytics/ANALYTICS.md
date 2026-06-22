@@ -79,7 +79,7 @@ Industry reference: Yelp, Google Maps, Xiaohongshu, and Zomato all use a two-tie
 | `search_unsaved`                   | null                           | null          | `{ query }`                                                                                         | User removes a saved search query                        |
 | `saved_search_selected`            | null                           | null          | `{ query }`                                                                                         | User taps a saved search to rerun it                     |
 | `place_click`                      | `restaurant`                   | restaurant.id | `{ query: string }`                                                                                  | User taps a place in search results                      |
-| `place_view`                       | `restaurant`                   | restaurant.id | `{ cuisine_type?, query?, search_session_id?, result_type?, result_position? }`                      | User opens a location detail page                        |
+| `place_view`                       | `restaurant`                   | restaurant.id | `{ cuisine_type?, query?, search_session_id?, result_type?, result_position? }`                      | User opens a location detail page or full-screen map     |
 | `place_save`                       | `restaurant`                   | restaurant.id | `{ cuisine_type?, query?, search_session_id?, result_type?, result_position? }`                      | User saves a location                                    |
 | `post_view`                        | `post`                         | post.id       | `{ cuisine_type?, query?, search_session_id?, result_type?, result_position? }`                      | User opens a post detail page                            |
 | `post_like`                        | `post`                         | post.id       | null                                                                                                 | User likes a post                                        |
@@ -109,6 +109,7 @@ Industry reference: Yelp, Google Maps, Xiaohongshu, and Zomato all use a two-tie
 | `message_reacted`                  | null                           | null          | `{ conversation_id, emoji }`                                                                         | User reacts to a message                                 |
 | `message_reaction_removed`         | null                           | null          | `{ conversation_id }`                                                                                | User removes their reaction                              |
 | `message_forwarded`                | null                           | null          | `{ source_conversation_id, target_conversation_id, message_type }`                                  | User forwards a message                                  |
+| `conversation_opened`              | null                           | null          | `{ conversation_id }` — never log participant identities                                             | User opens an existing conversation thread               |
 | `conversation_started`             | null                           | null          | `{ conversation_type }` — 'direct' or 'group'                                                       | User starts a new conversation                           |
 | `group_created`                    | null                           | null          | `{ member_count }`                                                                                   | User creates a group chat                                |
 | `group_member_added`               | null                           | null          | `{ conversation_id }`                                                                                | Admin adds a member to a group                           |
@@ -182,6 +183,8 @@ Events are **fire-and-forget** — tracked with `.then(() => {})` and never bloc
 | `features/settings/EditProfileScreen.tsx`       | `upload_failure`                                                                          | Avatar validation or storage upload fails                       |
 | `lib/services/moderation.ts`                    | `abuse_signal`                                                                            | User reports, blocks, or unblocks a target                      |
 | `lib/contexts/ConnectivityContext.tsx`          | `offline_mutation_sync`                                                                  | Reversible writes queue or replay without payload content       |
+| `features/places/PlaceMapScreen.tsx`            | `place_view`, `place_click`                                                              | Map opens for a known place; user taps the place marker         |
+| `features/messages/ConversationScreen.tsx`      | `conversation_opened`, `message_sent`                                                     | Thread opens; sent carries conversation_id only, no body        |
 
 ### Offline mutation telemetry ban list
 

@@ -13,7 +13,7 @@ export function resolveFromAliasCache(term: string): string | null {
   return cachedAliases?.get(term.toLowerCase().trim()) ?? null
 }
 
-/** Async DB lookup using pg_trgm on suburb_lookups + restaurants.suburb. */
+/** Async DB lookup using pg_trgm on suburb_lookups + places.suburb. */
 export async function resolveSuburbQuery(term: string): Promise<string | null> {
   return resolveSuburbRpc(term)
 }

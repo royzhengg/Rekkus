@@ -47,3 +47,4 @@ These are immutable append-only audit tables. Renaming them would break audit tr
 - `docs/analytics/ANALYTICS.md` owns event taxonomy.
 - `scripts/check-hygiene.js` blocks stale duplicate route files and direct mock imports.
 - `scripts/ops/check-operations.js` verifies this naming contract stays linked and present.
+- Domain term definitions, eliminated synonyms, and infra exceptions: `docs/GLOSSARY.md`

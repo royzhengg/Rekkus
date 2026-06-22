@@ -79,7 +79,12 @@ function directProviderAccessViolations() {
 
 function analyticsPrivacyViolations() {
   const violations = []
-  const analyticsSource = exists('lib/analytics.ts') ? readText('lib/analytics.ts') : ''
+  const analyticsSource = [
+    'lib/analytics.ts',
+    'lib/analytics/privacy.ts',
+    'lib/analytics/core.ts',
+    'lib/analytics/events.ts',
+  ].filter(exists).map(readText).join('\n')
   for (const token of ['sanitizeAnalyticsMetadata', 'SAFE_METADATA_KEYS', 'SENSITIVE_VALUE_PATTERN']) {
     if (!analyticsSource.includes(token)) {
       violations.push(`lib/analytics.ts must use ${token} before writing analytics metadata.`)

@@ -70,22 +70,32 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
       maxWidth: 240,
     },
 
-    // Solid accent CTA button (centered, wraps content)
+    // Two-button row: Camera (solid accent) + Library (surface)
+    mediaAddRow: {
+      flexDirection: 'row',
+      gap: spacing[3],
+      marginTop: spacing[5],
+      marginBottom: spacing[3],
+    },
     mediaAddBtn: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing[1],
       minHeight: 44,
-      paddingHorizontal: spacing[6],
+      paddingHorizontal: spacing[4],
       paddingVertical: spacing.px11,
       borderRadius: radius.md3,
       backgroundColor: c.accent,
-      alignSelf: 'center',
-      marginTop: spacing[5],
-      marginBottom: spacing[3],
+    },
+    mediaAddBtnSecondary: {
+      backgroundColor: c.surface,
+      borderWidth: 0.5,
+      borderColor: c.border,
     },
     mediaAddBtnText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: '#fff' }, // check:tokens-ignore
+    mediaAddBtnTextSecondary: { color: c.text },
 
     // ── Media populated (DraggableMediaStrip) ─────────────
     photosSection: { marginTop: spacing.px14 },

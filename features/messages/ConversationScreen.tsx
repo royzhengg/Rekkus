@@ -14,6 +14,7 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight } from '@/constants/Typography'
+import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
@@ -167,6 +168,10 @@ export default function ConversationScreen() {
 
   useEffect(() => { if (!user) requireAuth() }, [user, requireAuth])
 
+  useEffect(() => {
+    if (conversationId) analytics.messageEvent(user?.id ?? null, 'conversation_opened', { conversationId })
+  }, [conversationId, user?.id])
+
   useFocusEffect(
     useCallback(() => {
       if (isEnabled('directMessages')) void load()
@@ -295,7 +300,13 @@ export default function ConversationScreen() {
 
   const handleMessageSent = useCallback((msg: DirectMessage) => {
     setMessages(current => current.some(row => row.id === msg.id) ? current : [...current, msg])
-  }, [])
+    analytics.messageEvent(user?.id ?? null, 'message_sent', {
+      conversationId: msg.conversation_id,
+      messageType: msg.message_type,
+      hasAttachment: msg.attachment_url != null,
+      isGroup,
+    })
+  }, [isGroup, user?.id])
 
   const handleMessageDeleted = useCallback((msgId: string) => {
     setMessages(current =>

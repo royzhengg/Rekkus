@@ -16,6 +16,7 @@ import {
   type DeferredMutation,
   type DeferredMutationInput,
 } from '@/lib/services/deferredMutations'
+import { syncUnsyncedDraftMedia } from '@/lib/services/postDrafts'
 
 export type ConnectivityState = 'checking' | 'online' | 'offline' | 'degraded'
 export type ConnectivitySyncState = 'idle' | 'syncing' | 'synced' | 'failed'
@@ -158,8 +159,11 @@ export function ConnectivityProvider({ children }: { children: React.ReactNode }
   }, [refreshPendingCount, user?.id])
 
   useEffect(() => {
-    if (state === 'online') void flush()
-  }, [flush, state])
+    if (state === 'online') {
+      void flush()
+      if (user?.id) void syncUnsyncedDraftMedia(user.id)
+    }
+  }, [flush, state, user?.id])
 
   useEffect(() => {
     if (syncState !== 'synced') return

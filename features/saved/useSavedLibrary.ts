@@ -11,11 +11,12 @@ import {
 } from './savedLibrary'
 
 const SAVED_LIBRARY_PLACE_IDS: string[] = []
+const SAVED_LIBRARY_PROVIDER_PHOTO_FALLBACK_LIMIT = 12
 
 export function useSavedLibrary(userId: string | undefined, scope: SavedLibraryScope, query: string) {
   const dishes = useSavedDishes(userId)
   const posts = useSavedPosts(userId)
-  const locations = useSavedPlaces(userId)
+  const locations = useSavedPlaces(userId, { providerPhotoFallbackLimit: SAVED_LIBRARY_PROVIDER_PHOTO_FALLBACK_LIMIT })
   const collections = useCollections(userId, SAVED_LIBRARY_PLACE_IDS)
 
   const input = useMemo(() => ({

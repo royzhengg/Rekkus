@@ -3,7 +3,7 @@ import {
   distanceGroupForPrediction,
   searchPlacesByText,
   fetchNearbyPlaces,
-  recordRestaurantProviderCache,
+  recordPlaceProviderCache,
 } from '@/lib/services/places'
 
 // ── module mocks ──────────────────────────────────────────────────────────────
@@ -169,13 +169,13 @@ describe('fetchNearbyPlaces', () => {
   })
 })
 
-// ── recordRestaurantProviderCache (30-day TTL) ────────────────────────────────
+// ── recordPlaceProviderCache (30-day TTL) ────────────────────────────────
 
-describe('recordRestaurantProviderCache', () => {
+describe('recordPlaceProviderCache', () => {
   it('calls record_restaurant_provider_snapshot with stale_at ~30 days from now', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
     const before = Date.now()
-    await recordRestaurantProviderCache(
+    await recordPlaceProviderCache(
       'restaurant-1',
       'google_places',
       'ChIJxxx',

@@ -12,7 +12,7 @@ import {
   upsertPlaceStubs,
   upsertPlace,
 } from '@/lib/services/places'
-import { classifyRestaurantTagIntent } from '@/lib/utils/searchIntent'
+import { classifyPlaceTagIntent } from '@/lib/utils/searchIntent'
 
 const mockBaseLocation = {
   coords: { lat: -33.87, lng: 151.21 },
@@ -196,7 +196,7 @@ describe('usePlaceSearch', () => {
       await Promise.resolve()
     })
 
-    expect(classifyRestaurantTagIntent('cafe').kind).toBe('venue_category')
+    expect(classifyPlaceTagIntent('cafe').kind).toBe('venue_category')
     expect(result.current.placeTagIntent.kind).toBe('venue_category')
     expect(mockFetchPredictions).not.toHaveBeenCalled()
     expect(analytics.placeTaggingGoogleFallbackSuppressed).toHaveBeenCalledWith(
@@ -219,7 +219,7 @@ describe('usePlaceSearch', () => {
       await Promise.resolve()
     })
 
-    expect(classifyRestaurantTagIntent('cafe').kind).toBe('venue_category')
+    expect(classifyPlaceTagIntent('cafe').kind).toBe('venue_category')
     expect(mockFetchPredictions).not.toHaveBeenCalled()
     expect(mockFetchFoodCategoryPredictions).toHaveBeenCalledWith('cafe', { lat: -33.87, lng: 151.21 })
     expect(analytics.placeTaggingGoogleFallbackUsed).toHaveBeenCalledWith(
@@ -272,7 +272,7 @@ describe('usePlaceSearch', () => {
       await Promise.resolve()
     })
 
-    expect(classifyRestaurantTagIntent('omelette').kind).toBe('dish_or_menu_item')
+    expect(classifyPlaceTagIntent('omelette').kind).toBe('dish_or_menu_item')
     expect(result.current.placeTagIntent.kind).toBe('dish_or_menu_item')
     expect(mockFetchPredictions).not.toHaveBeenCalled()
     expect(analytics.placeTaggingGoogleFallbackSuppressed).toHaveBeenCalledWith(
@@ -299,8 +299,8 @@ describe('usePlaceSearch', () => {
     expect(analytics.placeTaggingGoogleFallbackUsed).toHaveBeenCalledWith(
       'user-1',
       'Din Tai Fung',
-      'restaurant_name',
-      'unbounded_restaurant_name',
+      'place_name',
+      'unbounded_place_name',
       false,
       'none'
     )

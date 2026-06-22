@@ -31,8 +31,8 @@ import { useSavedPlaces, type SavedPlace } from '@/lib/hooks/useSavedPlaces'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
 import { routes } from '@/lib/routes'
 import {
-  fetchRestaurantProviderDetail,
-  getRestaurantProviderPhotoUrl,
+  fetchPlaceProviderDetail,
+  getPlaceProviderPhotoUrl,
 } from '@/lib/services/places'
 import { navigateToPlace } from '@/lib/utils/placeNavigation'
 import { makeStyles } from './PlacesTabScreen.styles'
@@ -138,7 +138,7 @@ export default function PlacesTabScreen({ initialView = 'list', onBackToSaved }:
     const pid = selectedPlace.places?.google_place_id
     if (!pid) return
     setPinLoading(true)
-    fetchRestaurantProviderDetail(
+    fetchPlaceProviderDetail(
       pid,
       'rating,formatted_phone_number,opening_hours,photos'
     )
@@ -146,7 +146,7 @@ export default function PlacesTabScreen({ initialView = 'list', onBackToSaved }:
         if (!result) return
         setPinDetail(result)
         const ref = result.photos?.[0]?.photo_reference
-        if (ref) setPinPhoto(getRestaurantProviderPhotoUrl(ref))
+        if (ref) setPinPhoto(getPlaceProviderPhotoUrl(ref))
         else setPinPhoto('')
       })
       .catch(() => {})

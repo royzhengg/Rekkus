@@ -355,7 +355,7 @@ export default function PlaceDetailScreen() {
     styles, colors, refreshing: loader.refreshing, refresh: loader.refresh,
     photoUrls: loader.photoUrls, width, detail: loader.detail,
     name: displayName, address: displayAddress, openNow, hasGoogleRating, hasRekkusRatings,
-    rekkusRatings, contextPosts, hasRecentReviews: loader.hasRecentReviews, topDishes: loader.topDishes,
+    rekkusRatings, contextPosts, hasRecentPosts: loader.hasRecentPosts, topDishes: loader.topDishes,
     openAddress, openPhone, openWebsite, weekdayText, hoursExpanded, setHoursExpanded,
     todayIdx, todayText, popularDishes, sortedPosts, sortPosts, openSortSheet,
     openPlaceActions: () => setPlaceActionsSheetVisible(true), onPhotoPress: openGallery,

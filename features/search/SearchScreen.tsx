@@ -11,18 +11,17 @@ import { fontFamily, fontSize, fontWeight, letterSpacing, maxFontSizeMultiplier 
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { demoCurrentUser, demoRestaurants, demoUsers } from '@/lib/dataSources/demoData'
+import { demoCurrentUser, demoPlaces, demoUsers } from '@/lib/dataSources/demoData'
 import { occasionLabel, valueLabel } from '@/lib/dataSources/rekkusPicks'
 import { isEnabled } from '@/lib/featureFlags'
 import { useNoResultsSuggestions } from '@/lib/hooks/useNoResultsSuggestions'
 import { useSearch, type PlaceResult, type SearchFilters } from '@/lib/hooks/useSearch'
 import { useSearchHistory, loadPersistedSearchState, persistSearchState } from '@/lib/hooks/useSearchHistory'
+import { useSearchLocation } from '@/lib/hooks/useSearchLocation'
 import { useTrendingData } from '@/lib/hooks/useTrendingData'
-import { useUserLocation } from '@/lib/hooks/useUserLocation'
 import { fetchStaffPickCollections, type Collection } from '@/lib/services/collections'
 import { fetchUserEngagementCuisines } from '@/lib/services/searchPersonalization'
 import { resolveTrendingCityFromCoords } from '@/lib/services/trending'
-import { parseSearchQuery } from '@/lib/utils/queryParser'
 import { resolveLocationSource } from '@/lib/utils/searchIntent'
 import { DiscoveryPage } from './DiscoveryPage'
 import { NoResultsCard } from './NoResultsCard'
@@ -39,7 +38,7 @@ export default function SearchScreen() {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const { user } = useAuth()
-  const userLocation = useUserLocation()
+  const userLocation = useSearchLocation(user?.id)
   const [isFocused, setIsFocused] = useState(false)
   const [searchMode, setSearchMode] = useState<'search' | 'aroundMe'>('search')
   const [radiusKm, setRadiusKm] = useState(10)
@@ -80,6 +79,7 @@ export default function SearchScreen() {
     placeResults,
     placeDistances,
     dishEntityResults,
+    topFeed,
     suggestions,
     providerFallbackSuppressed,
     queryIntent,
@@ -105,16 +105,6 @@ export default function SearchScreen() {
     staticFallbacks: CHIPS,
   })
 
-  const dishFirstTopResults = useMemo(() => {
-    const trimmed = query.trim()
-    if (!trimmed) return false
-    try {
-      const intent = parseSearchQuery(trimmed).intent
-      return intent === 'dish' || intent === 'mixed'
-    } catch {
-      return false
-    }
-  }, [query])
 
   useEffect(() => {
     setVisiblePostCount(SEARCH_POST_LIMIT)
@@ -256,7 +246,7 @@ export default function SearchScreen() {
     ([u]) => u !== demoCurrentUser.username
   )
 
-  const demoPopularPlaces: PlaceResult[] = demoRestaurants.slice(0, 5).map(r => ({
+  const demoPopularPlaces: PlaceResult[] = demoPlaces.slice(0, 5).map(r => ({
     id: r.name,
     name: r.name,
     address: r.address ?? null,
@@ -282,9 +272,6 @@ export default function SearchScreen() {
     [isFocused, query, recentSearches, suggestions]
   )
 
-  const topPeople = useMemo(() => peopleResults.slice(0, 3), [peopleResults])
-  const topPosts = useMemo(() => postResults.slice(0, 5), [postResults])
-  const topPlaces = useMemo(() => placeResults.slice(0, 4), [placeResults])
 
   const nearbySummary = userLocation.label ? `${userLocation.label} · ${radiusKm} km` : `Nearby · ${radiusKm} km`
 
@@ -309,6 +296,7 @@ export default function SearchScreen() {
   }, [nearbySummary, searchFilters, searchMode])
 
   const activeTabEmpty =
+    (resultTab === 'top' && topFeed.length === 0) ||
     (resultTab === 'dishes' && postResults.length === 0 && dishEntityResults.length === 0) ||
     (resultTab === 'people' && peopleResults.length === 0) ||
     (resultTab === 'places' && placeResults.length === 0)
@@ -422,7 +410,7 @@ export default function SearchScreen() {
             style={styles.searchField}
             placeholder="Search dishes, people, places…"
             placeholderTextColor={colors.text3}
-            accessibilityLabel="Search for restaurants, dishes, or people"
+            accessibilityLabel="Search for places, dishes, or people"
             value={query}
             onChangeText={t => {
               setQuery(t)
@@ -606,10 +594,7 @@ export default function SearchScreen() {
           <SearchResultsTab
             resultTab={resultTab}
             onTabChange={setResultTab}
-            dishFirstTopResults={dishFirstTopResults}
-            topPlaces={topPlaces}
-            topPosts={topPosts}
-            topPeople={topPeople}
+            topFeed={topFeed}
             postResults={postResults}
             peopleResults={peopleResults}
             placeResults={placeResults}

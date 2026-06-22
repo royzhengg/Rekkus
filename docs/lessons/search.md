@@ -189,3 +189,66 @@ Personalization and trending should attach explicit metadata (`personalizationRe
 **Pattern:** calculate trust metadata in `lib/search/ranking.ts`, then copy place explanation badges in `runSearchPipeline()` before returning `places` / `expandedPlaces`. Keep provider fallback rows from receiving first-party badges.
 
 **Apply when:** adding search result explanations, trust badges, duplicate suppression, spam penalties, or migrating tabs to candidate-based rendering.
+
+---
+
+## The pipeline cache key must include userId — personalization leaks across users otherwise
+
+`runSearchPipeline` calls `fetchSearchPersonalizationSignals(context.userId)` and bakes the result into `candidates[]`. If the cache key omits `userId`, user B's identical query (same query, location, mode) within the 30-second TTL returns user A's personalised ranking — saved places, recent cuisines, and recent area boosts from another user. This is a data privacy bug, not just a ranking bug.
+
+**Fix (B-595):** include `context.userId ?? 'anon'` in the `pipelineCacheKey` array in `lib/hooks/useSearch.ts`.
+
+**Apply when:** adding any user-scoped signal to the pipeline cache, or changing what signals are baked into cached results.
+
+---
+
+## The intent 2-token fallback must be `general`, not `place_name`
+
+`classifySearchIntent` used to map any 2-token query to `place_name` at 0.72 confidence via a blunt `tokens.length >= 2` fallback. This caused "date night", "gluten free", "dim sum", "cozy vibes", etc. to be treated as restaurant names — raising place entity weights and suppressing food/dish candidates. Only possessive apostrophe (`totti's`) is a strong structural signal for a named restaurant.
+
+**Fix (B-595):** handle `parsedIntent === 'occasion'` and `parsedIntent === 'dietary'` explicitly before the multi-token fallback, and change the fallback from `place_name` to `general` at 0.5 confidence. The only high-confidence `place_name` path is `PLACE_NAME_TERMS.has(phrase)` + possessive apostrophe.
+
+**Apply when:** adding new intent classes, extending `FOOD_TERMS`, or changing the 2-token classification fallback.
+
+---
+
+## Dish FTS rank must come from DB position, not from save_count + post_count
+
+`searchDishes` returns dishes in FTS relevance order (most relevant first). If the pipeline overwrites `rank` with `dish.save_count + dish.post_count`, a popular dish that barely matches the query beats a niche dish that exactly matches it. Popularity is already handled by `popularityBoost` in `rankSearchCandidates` — it must not also control the pre-ranking input rank.
+
+**Fix (B-595):** `rank: dishEntities.length - index` — preserves DB FTS position as the initial rank signal.
+
+**Apply when:** adding new entity types to the pipeline that come from FTS-ranked DB queries.
+
+---
+
+## Dual result path: pipeline candidates must be the single ranking source
+
+`useSearchResults` previously had its own scoring path (`computePostResults`, `computePlaceResults`) that re-scored raw data independently of `runSearchPipeline` → `rankSearchCandidates`. This meant:
+
+- Top tab and per-type tabs (Dishes, Places) could disagree on ordering
+- All pipeline ranking signals (trust, personalization, trending, graph evidence) were silently discarded for per-type tab views
+
+**Fix (B-595):** replaced `computePostResults`/`computePlaceResults` in `useSearchResults` with `deriveFromCandidates` logic that filters `candidates[]` by kind, extracts items, and applies UI filters only. `rankSearchCandidates` is now the single ranking source.
+
+**Apply when:** adding new pipeline ranking signals (trust, quality, diversity), or adding new result kind to any search tab.
+
+---
+
+## `matchesRecentQuery` substring check causes spurious personalization boosts
+
+`query.includes(normalized) || normalized.includes(query)` means the dish "salmon" gets a personalization boost if any recent query was "s" (because `"salmon".includes("s")`). Similarly, "pho bo" boosts for recent query "ph". The `normalized.includes(query)` direction is the only problem — substring matching of the query within the entity name is too loose.
+
+**Fix (B-595):** whole-word overlap check — entity name words (filtered to length > 2) intersected with recent query words (also length > 2). This requires a real word match, not character coincidence.
+
+**Apply when:** changing personalization signal matching logic in the search pipeline.
+
+---
+
+## Pipeline faults should degrade gracefully, not crash the entire search
+
+A single `Promise.all` with no error handling means any service failure (personalization RPC, trending service, Google Autocomplete) throws and the user sees an error screen instead of degraded-but-working results.
+
+**Pattern (B-595):** wrap each source in `safeFetch(fn, fallback, label)` — logs `[search] <label> failed` to the console, returns the empty fallback, and lets other sources proceed. Each failure is independently observable in monitoring without affecting user experience.
+
+**Apply when:** adding new data sources to the pipeline, or debugging user-facing "search is broken" reports where the cause is a single downstream RPC.

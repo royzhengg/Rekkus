@@ -14,9 +14,7 @@
  * To add a new multi-step screen: either add funnel instrumentation (preferred) or
  * add it to funnelAllowlist with a B-### backlog ID explaining why it is deferred.
  */
-const { readText, walkFiles } = require('./lib/scan-files')
-const path = require('path')
-const fs = require('fs')
+const { readAnalyticsSources, readText, walkFiles } = require('./lib/scan-files')
 const { hasFlag, printHelp } = require('./lib/args')
 
 if (hasFlag('--help') || hasFlag('-h')) {
@@ -59,8 +57,7 @@ for (const file of walkFiles(['features'], { extensions: ['.ts', '.tsx'] })) {
 
 // ── Rule 2: analytics.ts must export the three UX quality methods ────────────
 
-const analyticsPath = path.join(process.cwd(), 'lib/analytics.ts')
-const analyticsSource = fs.existsSync(analyticsPath) ? fs.readFileSync(analyticsPath, 'utf8') : ''
+const analyticsSource = readAnalyticsSources()
 
 for (const method of ['createPostFunnel', 'rageTap', 'deadClick']) {
   if (!analyticsSource.includes(method)) {
@@ -74,8 +71,8 @@ if (!analyticsSource.includes('tap_count')) {
 
 // ── Rule 3: ANALYTICS.md must document the three event types ─────────────────
 
-const analyticsDocPath = path.join(process.cwd(), 'docs/analytics/ANALYTICS.md')
-const analyticsDoc = fs.existsSync(analyticsDocPath) ? fs.readFileSync(analyticsDocPath, 'utf8') : ''
+const analyticsDocPath = 'docs/analytics/ANALYTICS.md'
+const analyticsDoc = (() => { try { return readText(analyticsDocPath) } catch { return '' } })()
 
 for (const eventType of ['create_post_funnel', 'interaction_rage_tap', 'interaction_dead_click']) {
   if (!analyticsDoc.includes(eventType)) {

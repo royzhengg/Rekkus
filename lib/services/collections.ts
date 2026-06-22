@@ -23,7 +23,7 @@ export type CollectionItem = {
   created_at?: string
 }
 
-export type CollectionRestaurant = {
+export type CollectionPlace = {
   id: string
   name: string
   address: string | null
@@ -214,7 +214,7 @@ export async function fetchTargetCollectionItems(
   })
 }
 
-export async function fetchCollectionRestaurantsByIds(ids: string[]): Promise<CollectionRestaurant[]> {
+export async function fetchCollectionPlacesByIds(ids: string[]): Promise<CollectionPlace[]> {
   if (ids.length === 0) return []
   const { data, error } = await supabase.from('places')
     .select('id, name, address, google_place_id, latitude, longitude')

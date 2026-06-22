@@ -19,5 +19,6 @@ export type {
   SearchSortMode,
   SearchSuggestion,
   SearchUserResult,
+  TopFeedItem,
   UserLocation,
 } from '@/lib/search/types'

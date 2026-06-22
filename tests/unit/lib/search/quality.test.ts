@@ -75,7 +75,7 @@ const basePlaceArgs = {
   popularityCache: new Map(),
   searchAffinities: {},
   userLocation: null,
-  savedRestaurantIds: new Set<string>(),
+  savedPlaceIds: new Set<string>(),
   radiusKm: 1000,
   isAroundMe: false,
   words: ['ramen'],

@@ -10,7 +10,7 @@ export type ProfileInterest = {
   emoji: string
 }
 
-export type ProfileRestaurant = {
+export type ProfilePlace = {
   id: string
   name: string
   address: string | null
@@ -18,9 +18,9 @@ export type ProfileRestaurant = {
   lng: number | null
   placeId: string | null
   photoUrl?: string | null
-  reviewCount: number
+  postCount: number
   avgFoodRating: number | null
-  lastReviewedAt: string | null
+  lastPostedAt: string | null
 }
 
 type ProfilePost = Pick<
@@ -46,7 +46,7 @@ const CUISINE_EMOJI: Record<string, string> = {
   vietnamese: '🍲',
 }
 
-function keyForRestaurant(post: ProfilePost): string | null {
+function keyForPlace(post: ProfilePost): string | null {
   const id = post.placeId?.trim() || post.googlePlaceId?.trim()
   if (id) return id.toLowerCase()
   const name = post.location.trim().toLowerCase()
@@ -54,8 +54,8 @@ function keyForRestaurant(post: ProfilePost): string | null {
   return `${name}:${post.address?.trim().toLowerCase() ?? ''}`
 }
 
-function restaurantRouteId(restaurant: ProfileRestaurant): string {
-  return restaurant.placeId ?? restaurant.id
+function placeRouteId(place: ProfilePlace): string {
+  return place.placeId ?? place.id
 }
 
 function isNewer(a: string | null, b: string | null): boolean {
@@ -70,9 +70,9 @@ export function formatProfileCount(count: number): string {
   return `${count}`
 }
 
-export function normalizeProfileTabParam(value: string | undefined): 'reviews' | 'collections' | 'saved-legacy' | null {
+export function normalizeProfileTabParam(value: string | undefined): 'posts' | 'collections' | 'saved-legacy' | null {
   if (value === 'collections' || value === 'lists') return 'collections'
-  if (value === 'reviews' || value === 'restaurants' || value === 'liked') return 'reviews'
+  if (value === 'posts' || value === 'reviews' || value === 'restaurants' || value === 'liked') return 'posts'
   if (value === 'saved') return 'saved-legacy'
   return null
 }
@@ -103,18 +103,18 @@ export function deriveProfileInterests(posts: ProfilePost[], limit = 4): Profile
     .map(({ category, subcategory, label, emoji }) => ({ category, subcategory, label, emoji }))
 }
 
-export function deriveReviewedRestaurants(posts: ProfilePost[]): ProfileRestaurant[] {
-  const byRestaurant = new Map<string, ProfileRestaurant & { totalFood: number }>()
+export function derivePlacesWithPosts(posts: ProfilePost[]): ProfilePlace[] {
+  const byPlace = new Map<string, ProfilePlace & { totalFood: number }>()
 
   for (const post of posts) {
-    const key = keyForRestaurant(post)
+    const key = keyForPlace(post)
     if (!key) continue
-    const existing = byRestaurant.get(key)
+    const existing = byPlace.get(key)
     if (existing) {
-      existing.reviewCount += 1
+      existing.postCount += 1
       existing.totalFood += (post.food ?? 0) > 0 ? (post.food ?? 0) : 0
-      if (isNewer(post.createdAt ?? null, existing.lastReviewedAt)) {
-        existing.lastReviewedAt = post.createdAt ?? null
+      if (isNewer(post.createdAt ?? null, existing.lastPostedAt)) {
+        existing.lastPostedAt = post.createdAt ?? null
       }
       if (!existing.address && post.address) existing.address = post.address
       if (existing.lat == null && post.lat != null) existing.lat = post.lat
@@ -123,7 +123,7 @@ export function deriveReviewedRestaurants(posts: ProfilePost[]): ProfileRestaura
       continue
     }
 
-    byRestaurant.set(key, {
+    byPlace.set(key, {
       id: post.placeId ?? post.googlePlaceId ?? key,
       name: post.location,
       address: post.address ?? null,
@@ -131,38 +131,38 @@ export function deriveReviewedRestaurants(posts: ProfilePost[]): ProfileRestaura
       lng: post.lng ?? null,
       placeId: post.googlePlaceId ?? null,
       photoUrl: post.imageUrl ?? null,
-      reviewCount: 1,
+      postCount: 1,
       avgFoodRating: null,
-      lastReviewedAt: post.createdAt ?? null,
+      lastPostedAt: post.createdAt ?? null,
       totalFood: (post.food ?? 0) > 0 ? (post.food ?? 0) : 0,
     })
   }
 
-  return [...byRestaurant.values()]
-    .map(({ totalFood, ...restaurant }) => ({
-      ...restaurant,
-      avgFoodRating: restaurant.reviewCount > 0 && totalFood > 0 ? totalFood / restaurant.reviewCount : null,
+  return [...byPlace.values()]
+    .map(({ totalFood, ...place }) => ({
+      ...place,
+      avgFoodRating: place.postCount > 0 && totalFood > 0 ? totalFood / place.postCount : null,
     }))
     .sort((a, b) => {
-      const aTime = a.lastReviewedAt ? new Date(a.lastReviewedAt).getTime() : 0
-      const bTime = b.lastReviewedAt ? new Date(b.lastReviewedAt).getTime() : 0
+      const aTime = a.lastPostedAt ? new Date(a.lastPostedAt).getTime() : 0
+      const bTime = b.lastPostedAt ? new Date(b.lastPostedAt).getTime() : 0
       return bTime - aTime || a.name.localeCompare(b.name)
     })
 }
 
-export function deriveTopRestaurants(
-  reviewedRestaurants: ProfileRestaurant[],
+export function deriveTopPlaces(
+  placesWithPosts: ProfilePlace[],
   savedPlaces: SavedPlace[],
   limit = 3
-): ProfileRestaurant[] {
-  const reviewed = [...reviewedRestaurants].sort((a, b) =>
-    b.reviewCount - a.reviewCount ||
+): ProfilePlace[] {
+  const reviewed = [...placesWithPosts].sort((a, b) =>
+    b.postCount - a.postCount ||
     (b.avgFoodRating ?? 0) - (a.avgFoodRating ?? 0) ||
-    ((b.lastReviewedAt ? new Date(b.lastReviewedAt).getTime() : 0) -
-      (a.lastReviewedAt ? new Date(a.lastReviewedAt).getTime() : 0))
+    ((b.lastPostedAt ? new Date(b.lastPostedAt).getTime() : 0) -
+      (a.lastPostedAt ? new Date(a.lastPostedAt).getTime() : 0))
   )
   const selected = reviewed.slice(0, limit)
-  const seen = new Set(selected.map(restaurantRouteId))
+  const seen = new Set(selected.map(placeRouteId))
 
   for (const saved of savedPlaces) {
     if (selected.length >= limit) break
@@ -178,9 +178,9 @@ export function deriveTopRestaurants(
       lng: savedPlace.longitude,
       placeId: savedPlace.google_place_id,
       photoUrl: null,
-      reviewCount: 0,
+      postCount: 0,
       avgFoodRating: null,
-      lastReviewedAt: null,
+      lastPostedAt: null,
     })
     seen.add(id)
   }

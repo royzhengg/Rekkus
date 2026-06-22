@@ -64,8 +64,8 @@ export function PostCard({ post, compact, onPressPost, onPressCreator, onPressTa
   return (
     <Animated.View
       {...(!reduceMotion ? { entering: FadeInDown.duration(DUR_MID).springify() } : {})}
-      style={press.animatedStyle}
     >
+      <Animated.View style={press.animatedStyle}>
       <TouchableOpacity
         style={[styles.card, compact && styles.cardCompact]}
         activeOpacity={1}
@@ -138,6 +138,7 @@ export function PostCard({ post, compact, onPressPost, onPressCreator, onPressTa
         </View>
       </View>
       </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   )
 }

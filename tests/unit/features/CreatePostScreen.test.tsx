@@ -123,7 +123,7 @@ jest.mock('@/lib/analytics', () => ({
     deadClick: jest.fn(),
     postEdit: jest.fn(),
     rageTap: jest.fn(),
-    restaurantFieldSkipped: jest.fn(),
+    placeFieldSkipped: jest.fn(),
   },
 }))
 

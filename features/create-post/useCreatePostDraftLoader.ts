@@ -69,7 +69,7 @@ export function useCreatePostDraftLoader({
     void loadCreatePostDraft(draftId).then(result => {
       if (!mounted || !result) return
       applyDraftToForm(result.draft)
-      if (result.restaurantCleared) {
+      if (result.placeCleared) {
         showToast("The place you tagged is no longer available — please re-select.")
       }
       setEntryMode('editing')

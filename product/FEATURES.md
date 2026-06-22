@@ -25,12 +25,12 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 | ----------- | ------------------- | ------- |
 | Post detail | `app/posts/[postId].tsx` | ✅ Done |
 
-### Location — `app/restaurants/`
+### Place — `app/places/`
 
 | Screen        | File                         | Status  |
 | ------------- | ---------------------------- | ------- |
-| Place info | `app/restaurants/[restaurantId]/index.tsx` | ✅ Done |
-| Place map  | `app/restaurants/[restaurantId]/map.tsx`       | ✅ Done |
+| Place info | `app/places/[placeId]/index.tsx` | ✅ Done |
+| Place map  | `app/places/[placeId]/map.tsx`       | ✅ Done |
 
 ### Auth — `app/(auth)/`
 
@@ -89,12 +89,12 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 - BM25-style field-weighted scoring: title & cuisine_type(3) > tags/location(2) > creator(1.5) > body(1)
 - STOP_WORDS: optional filler words ("food", "restaurant", etc.) don't need to match
 - AND logic: all non-stop words must match somewhere — prevents irrelevant partial results
-- Debounced (300ms) Supabase search for real users + restaurants, merged with demo data only when `EXPO_PUBLIC_DATA_MODE` allows it
+- Debounced (300ms) Supabase search for real users + places, merged with demo data only when `EXPO_PUBLIC_DATA_MODE` allows it
 - Searching by cuisine type (e.g. "chinese") surfaces posts even if the word isn't in the title/body
 - Zero-result cuisine expansion: backend RPC infers likely cuisines from existing Rekkus content, so long-tail dish queries can fall back without a large synonym list, LLM, embeddings, or query cache
 - Location ranking is opt-in: users can tap Nearby, then use current location or enter a suburb/postcode fallback in the filter sheet; Search does not request GPS on mount.
 - Cuisine taxonomy lives in `lib/dataSources/cuisines.ts`, is searchable alphabetically, and excludes restaurant types such as cafe, bakery, bar, and fine dining.
-- Search uses live Supabase users/restaurants/posts where available and only merges demo data when data mode allows mock content.
+- Search uses live Supabase users/places/posts where available and only merges demo data when data mode allows mock content.
 - Search analytics include session query chains and result-click positions.
 - Search follow actions use the authenticated follow service; when offline, the shared connectivity notice provides reconnect guidance rather than a local-only toggle.
 
@@ -185,7 +185,7 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 - Location pill on post detail → taps open Place info screen
 - Geocode-on-tap for old posts with no coordinates (Places Text Search API)
 - Save icon next to location pill on post detail to save/unsave the place
-- **Place info screen** (`restaurants/[restaurantId].tsx`):
+- **Place info screen** (`places/[placeId].tsx`):
   - Photo carousel (up to 6 photos, horizontal scroll, 220px) prefers Rekkus post photos before Google Places photos.
   - "No images available" placeholder when none exist
   - Name, category, price level, Open/Closed badge (from Google Places Details API)
@@ -199,7 +199,7 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
   - **Recency-weighted Rekkus ratings**: posts within last 90 days count 2×; shows "(based on recent posts)" when recent posts exist
   - **Most mentioned dishes**: aggregated from `best_dish` on posts; mentions with canonical `dish_id` open dish detail, while unlinked legacy text stays display-only.
   - Header: back button, navigation icon (→ full-screen map), save icon (save/unsave)
-- **Place map screen** (`restaurants/[restaurantId]/map.tsx`):
+- **Place map screen** (`places/[placeId]/map.tsx`):
   - Full-screen Google Maps with single pin
   - Tap pin → Reanimated bottom card slides up: name, ⭐ Google rating, Open/Closed badge, Rekkus ratings, phone
   - "Open in Maps" → `RekkusActionSheet` (Apple Maps / Google Maps)

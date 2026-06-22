@@ -38,6 +38,7 @@ export type PlaceResult = {
   firstPostedAt?: string | null
   latestPostedAt?: string | null
   fromGoogle?: boolean
+  occasion_tags?: string[]
 }
 
 export type SearchMode = 'search' | 'aroundMe'
@@ -78,6 +79,12 @@ export type DishResult = {
   firstPostedAt?: string | null
   latestPostedAt?: string | null
 }
+
+export type TopFeedItem =
+  | { kind: 'post'; data: Post }
+  | { kind: 'place'; data: PlaceResult; distanceKm?: number }
+  | { kind: 'person'; data: PersonResult }
+  | { kind: 'dish'; data: DishResult }
 
 export type UserLocation = { lat: number; lng: number } | null
 
@@ -153,6 +160,8 @@ export type SearchRankingReason =
   | 'personalized_signal'
   | 'trending_signal'
   | 'diversity_prelude'
+  | 'occasion_match'
+  | 'content_score'
 
 export type SearchDiversitySlot = 'top_dish' | 'top_post' | 'top_place'
 
@@ -161,6 +170,7 @@ export type SearchExplanationBadge =
   | 'Near you'
   | 'Popular nearby'
   | 'Trending'
+  | 'Great for this'
 
 export type SearchPersonalizationReason =
   | 'recent_search'
@@ -171,8 +181,8 @@ export type SearchPersonalizationReason =
   | 'recent_cuisine'
 
 export type SearchGraphEvidence = {
-  servingRestaurantIds: string[]
-  servingRestaurantCount: number
+  servingPlaceIds: string[]
+  servingPlaceCount: number
   supportingPostIds: string[]
 }
 
@@ -236,4 +246,5 @@ export type SearchPipelineResult = {
   providerFallbackSuppressed: boolean
   providerFallbackReason: SearchFallbackReason
   candidates: SearchCandidate[]
+  hydratedPosts: Post[]
 }

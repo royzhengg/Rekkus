@@ -51,7 +51,7 @@ const SEARCH_RELEVANCE_V2_CONFIG = {
   entityWeights: {
     food_dish: { dish: 8, post: 7, place: 5, person: 0.5 },
     mixed: { dish: 7, post: 6, place: 6, person: 0.5 },
-    restaurant_name: { place: 8, dish: 4, post: 4, person: 1 },
+    place_name: { place: 8, dish: 4, post: 4, person: 1 },
     location: { place: 8, post: 4, dish: 3, person: 0.5 },
     general: { place: 5, post: 5, dish: 4, person: 2 },
   } satisfies EntityWeightConfig,
@@ -84,6 +84,10 @@ function rankCandidate(context: SearchContext, candidate: SearchCandidatePayload
   if (freshness.popularityDecay < 0) rankingReasons.push('popularity_decay')
   if (personalizationBoost > 0) rankingReasons.push('personalized_signal')
   if (trendingBoost > 0) rankingReasons.push('trending_signal')
+  const occasionBoost = occasionMatchBoost(context, candidate)
+  if (occasionBoost.value > 0) rankingReasons.push('occasion_match')
+  const contentScore = placeContentScore(candidate)
+  if (contentScore > 0) rankingReasons.push('content_score')
   return {
     ...candidate,
     rankingScore:
@@ -95,9 +99,11 @@ function rankCandidate(context: SearchContext, candidate: SearchCandidatePayload
       freshness.popularityDecay +
       personalizationBoost +
       trendingBoost +
-      trust.scoreAdjustment,
+      trust.scoreAdjustment +
+      occasionBoost.value +
+      contentScore,
     rankingReasons,
-    explanationBadges: explanationBadges(trust.badges, trendingBoost),
+    explanationBadges: explanationBadges(trust.badges, trendingBoost, occasionBoost.badge),
   }
 }
 
@@ -142,12 +148,32 @@ function trustSignal(
   return { scoreAdjustment, reasons, badges }
 }
 
+function occasionMatchBoost(
+  context: SearchContext,
+  candidate: SearchCandidatePayload
+): { value: number; badge: SearchExplanationBadge | null } {
+  if (candidate.kind !== 'place' || context.parsed.occasionTerms.length === 0) {
+    return { value: 0, badge: null }
+  }
+  const placeTags = candidate.item.occasion_tags ?? []
+  const hasMatch = context.parsed.occasionTerms.some(t => placeTags.includes(t as string))
+  return hasMatch ? { value: 0.8, badge: 'Great for this' } : { value: 0, badge: null }
+}
+
+function placeContentScore(candidate: SearchCandidatePayload): number {
+  if (candidate.kind !== 'place') return 0
+  const postCount = candidate.item.postCount ?? 0
+  return Math.min(postCount * 0.05, 0.5)
+}
+
 function explanationBadges(
   badges: SearchExplanationBadge[],
-  trendingBoost: number
+  trendingBoost: number,
+  occasionBadge: SearchExplanationBadge | null = null
 ): SearchExplanationBadge[] {
   const next = [...badges]
   if (trendingBoost > 0) next.push('Trending')
+  if (occasionBadge) next.push(occasionBadge)
   return [...new Set(next)]
 }
 

@@ -466,21 +466,21 @@ export async function fetchDishGraphEvidence(
     .limit(200)
   if (error) return new Map()
 
-  const byDish = new Map<string, { restaurants: Set<string>; posts: string[] }>()
+  const byDish = new Map<string, { places: Set<string>; posts: string[] }>()
   for (const row of data ?? []) {
     if (typeof row.dish_id !== 'string' || typeof row.id !== 'string') continue
-    const current = byDish.get(row.dish_id) ?? { restaurants: new Set<string>(), posts: [] }
-    if (typeof row.place_id === 'string') current.restaurants.add(row.place_id)
+    const current = byDish.get(row.dish_id) ?? { places: new Set<string>(), posts: [] }
+    if (typeof row.place_id === 'string') current.places.add(row.place_id)
     if (current.posts.length < 5) current.posts.push(row.id)
     byDish.set(row.dish_id, current)
   }
 
   const evidence = new Map<string, SearchGraphEvidence>()
   for (const [dishId, value] of byDish) {
-    const servingRestaurantIds = [...value.restaurants].slice(0, 5)
+    const servingPlaceIds = [...value.places].slice(0, 5)
     evidence.set(dishId, {
-      servingRestaurantIds,
-      servingRestaurantCount: value.restaurants.size,
+      servingPlaceIds,
+      servingPlaceCount: value.places.size,
       supportingPostIds: value.posts,
     })
   }
@@ -505,6 +505,14 @@ export async function fetchRecentSearchHistory(
   })
   if (error) throw error
   return data ?? []
+}
+
+export async function fetchDistinctCuisineTypes(): Promise<string[]> {
+  const { data } = await supabase
+    .from('places')
+    .select('cuisine_type')
+    .not('cuisine_type', 'is', null)
+  return [...new Set((data ?? []).map(r => r.cuisine_type as string).filter(Boolean))]
 }
 
 export async function fetchSearchQualityMetrics(

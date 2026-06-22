@@ -256,7 +256,7 @@ describe('computePlaceResults', () => {
     popularityCache: new Map(),
     searchAffinities: {},
     userLocation: null,
-    savedRestaurantIds: new Set<string>(),
+    savedPlaceIds: new Set<string>(),
     radiusKm: 10,
     isAroundMe: false,
     words: ['ramen'],
@@ -309,7 +309,7 @@ describe('computePlaceResults', () => {
     const result = computePlaceResults({
       ...baseArgs,
       dbPlaces: [unsaved, saved],
-      savedRestaurantIds: new Set(['saved']),
+      savedPlaceIds: new Set(['saved']),
     })
 
     expect(result.placeResults.map(place => place.id)).toEqual(['saved', 'unsaved'])

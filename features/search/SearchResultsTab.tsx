@@ -24,21 +24,17 @@ import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { usePressScale } from '@/lib/hooks/usePressScale'
-import type { DishResult, PersonResult, PlaceResult } from '@/lib/hooks/useSearch'
+import type { DishResult, PersonResult, PlaceResult, TopFeedItem } from '@/lib/hooks/useSearch'
 import { routes, searchAttributionRouteParams } from '@/lib/routes'
 import { fetchUserIdByUsername } from '@/lib/services/users'
 import type { Post } from '@/types/domain'
 import { RESULT_TABS, type ResultTab } from './searchConstants'
 import { PlaceRow, SectionHeader } from './searchShared'
-import { getTopResultSectionOrder, type TopResultSection } from './topResultOrder'
 
 interface SearchResultsTabProps {
   resultTab: ResultTab
   onTabChange: (tab: ResultTab) => void
-  dishFirstTopResults?: boolean
-  topPlaces: PlaceResult[]
-  topPosts: Post[]
-  topPeople: PersonResult[]
+  topFeed: TopFeedItem[]
   postResults: Post[]
   peopleResults: PersonResult[]
   placeResults: PlaceResult[]
@@ -60,10 +56,7 @@ interface SearchResultsTabProps {
 export function SearchResultsTab({
   resultTab,
   onTabChange,
-  dishFirstTopResults = false,
-  topPlaces,
-  topPosts,
-  topPeople,
+  topFeed,
   postResults,
   peopleResults,
   placeResults,
@@ -84,60 +77,6 @@ export function SearchResultsTab({
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const SEARCH_POST_LIMIT = 20
-  const topSectionOrder = useMemo(
-    () => getTopResultSectionOrder(dishFirstTopResults),
-    [dishFirstTopResults]
-  )
-
-  const topSections: Record<TopResultSection, React.ReactNode> = {
-    places: topPlaces.length > 0 ? (
-      <View>
-        <SectionHeader title="Places" count={placeResults.length} />
-        <View>
-          {topPlaces.map((p, index) => (
-            <PlaceRow
-              key={p.id}
-              place={p}
-              distanceKm={placeDistances.get(p.id)}
-              user={user}
-              query={query}
-              position={index + 1}
-              searchSessionId={searchSessionId}
-              onResultClick={onResultClick}
-            />
-          ))}
-        </View>
-      </View>
-    ) : null,
-    posts: topPosts.length > 0 ? (
-      <View>
-        <SectionHeader title="Dishes" count={postResults.length} />
-        <View>
-          {topPosts.map((p, index) => (
-            <PostCompactRow
-              key={p.id}
-              post={p}
-              position={index + 1}
-              query={query}
-              searchSessionId={searchSessionId}
-              user={user}
-              onResultClick={onResultClick}
-            />
-          ))}
-        </View>
-      </View>
-    ) : null,
-    people: topPeople.length > 0 ? (
-      <View>
-        <SectionHeader title="People" count={peopleResults.length} />
-        <View>
-          {topPeople.map(p => (
-            <PersonRow key={p.username} person={p} onResultClick={onResultClick} />
-          ))}
-        </View>
-      </View>
-    ) : null,
-  }
 
   return (
     <View style={styles.resultsPage}>
@@ -186,13 +125,52 @@ export function SearchResultsTab({
         <EmptyState title="No food finds in this tab yet" subtitle="Try Top, Nearby, or a more specific dish." />
       )}
 
-      {resultTab === 'top' && (
-        <>
-          {topSectionOrder.map(section => (
-            <React.Fragment key={section}>{topSections[section]}</React.Fragment>
-          ))}
-        </>
-      )}
+      {resultTab === 'top' && topFeed.map((item, index) => {
+        if (item.kind === 'post') {
+          return (
+            <PostCompactRow
+              key={item.data.dbId ?? item.data.id}
+              post={item.data}
+              position={index + 1}
+              query={query}
+              searchSessionId={searchSessionId}
+              user={user}
+              onResultClick={onResultClick}
+            />
+          )
+        }
+        if (item.kind === 'place') {
+          return (
+            <PlaceRow
+              key={item.data.id}
+              place={item.data}
+              distanceKm={item.distanceKm}
+              user={user}
+              query={query}
+              position={index + 1}
+              searchSessionId={searchSessionId}
+              onResultClick={onResultClick}
+            />
+          )
+        }
+        if (item.kind === 'person') {
+          return <PersonRow key={item.data.username} person={item.data} onResultClick={onResultClick} />
+        }
+        if (item.kind === 'dish') {
+          return (
+            <DishEntityRow
+              key={item.data.id}
+              dish={item.data}
+              position={index + 1}
+              query={query}
+              searchSessionId={searchSessionId}
+              user={user}
+              onResultClick={onResultClick}
+            />
+          )
+        }
+        return null
+      })}
 
       {resultTab === 'people' && peopleResults.length > 0 && (
         <View>

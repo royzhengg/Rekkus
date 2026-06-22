@@ -120,7 +120,7 @@ export function PlaceDetailSheets({
           { label: 'Suggest an edit', value: 'suggest_edit' },
           { label: 'Report duplicate', value: 'report_duplicate' },
           { label: 'Verify details look right', value: 'verify_info' },
-          { label: 'Claim this place', value: 'claim_restaurant' },
+          { label: 'Claim this place', value: 'claim_place' },
         ]}
         onSelect={handlePlaceAction}
         onDismiss={() => setPlaceActionsSheetVisible(false)}

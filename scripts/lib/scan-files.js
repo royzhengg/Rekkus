@@ -2,10 +2,12 @@ const fs = require('fs')
 const path = require('path')
 
 const DEFAULT_SLOW_READ_MS = 250
+const DEFAULT_SKIP_DIRS = ['.git', 'node_modules', '.expo', '.temp', 'coverage']
 
 function walkFiles(roots, options = {}) {
   const repoRoot = options.repoRoot ?? process.cwd()
   const extensions = options.extensions ?? null
+  const skipDirs = options.skipDirs ?? DEFAULT_SKIP_DIRS
   const files = []
 
   function visit(dir) {
@@ -13,6 +15,7 @@ function walkFiles(roots, options = {}) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name)
       if (entry.isDirectory()) {
+        if (skipDirs.includes(entry.name)) continue
         visit(full)
       } else if (!extensions || extensions.some(ext => entry.name.endsWith(ext))) {
         files.push(path.relative(repoRoot, full))
@@ -22,6 +25,19 @@ function walkFiles(roots, options = {}) {
 
   for (const root of roots) visit(path.join(repoRoot, root))
   return files
+}
+
+function readAnalyticsSources(repoRoot) {
+  const root = repoRoot ?? process.cwd()
+  return [
+    'lib/analytics.ts',
+    'lib/analytics/privacy.ts',
+    'lib/analytics/core.ts',
+    'lib/analytics/events.ts',
+  ]
+    .filter(p => fs.existsSync(path.join(root, p)))
+    .map(p => fs.readFileSync(path.join(root, p), 'utf8'))
+    .join('\n')
 }
 
 function readText(relativePath, options = {}) {
@@ -51,6 +67,7 @@ function lineFailures(relativePath, source, visit) {
 
 module.exports = {
   lineFailures,
+  readAnalyticsSources,
   readText,
   walkFiles,
 }

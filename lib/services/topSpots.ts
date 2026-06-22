@@ -1,9 +1,9 @@
-import type { ProfileRestaurant } from '@/features/profile/profileIdentity'
+import type { ProfilePlace } from '@/features/profile/profileIdentity'
 import { supabase } from '@/lib/supabase'
 import { isRecord } from '@/lib/utils/safeJson'
 import type { TopSpot } from '@/types/domain'
 
-function isRestaurantRow(value: unknown): value is {
+function isPlaceRow(value: unknown): value is {
   id: string
   name: string
   address: string | null
@@ -17,7 +17,7 @@ function isRestaurantRow(value: unknown): value is {
     typeof value['name'] === 'string'
 }
 
-export async function fetchTopSpotsWithDetails(userId: string): Promise<ProfileRestaurant[]> {
+export async function fetchTopSpotsWithDetails(userId: string): Promise<ProfilePlace[]> {
   try {
     const { data, error } = await supabase
       .from('user_top_spots')
@@ -27,11 +27,11 @@ export async function fetchTopSpotsWithDetails(userId: string): Promise<ProfileR
 
     if (error || !data) return []
 
-    const results: ProfileRestaurant[] = []
+    const results: ProfilePlace[] = []
     for (const row of data) {
       const rawPlaces: unknown = row.places
       const r: unknown = Array.isArray(rawPlaces) ? rawPlaces[0] : rawPlaces
-      if (!isRestaurantRow(r)) continue
+      if (!isPlaceRow(r)) continue
       results.push({
         id: r.id,
         name: r.name,
@@ -39,10 +39,10 @@ export async function fetchTopSpotsWithDetails(userId: string): Promise<ProfileR
         lat: r.latitude,
         lng: r.longitude,
         placeId: r.google_place_id,
-        photoUrl: r.google_photo_refs?.[0] ?? null,
-        reviewCount: 0,
+        photoUrl: null,
+        postCount: 0,
         avgFoodRating: null,
-        lastReviewedAt: null,
+        lastPostedAt: null,
       })
     }
     return results

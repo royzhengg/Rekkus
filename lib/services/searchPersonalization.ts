@@ -14,7 +14,7 @@ export type SearchPersonalizationSignals = {
   recentQueries: string[]
   recentCuisines: string[]
   recentAreas: string[]
-  savedRestaurantIds: string[]
+  savedPlaceIds: string[]
   savedDishIds: string[]
   savedPostIds: string[]
 }
@@ -180,16 +180,16 @@ export async function fetchSearchPersonalizationSignals(
     recentQueries: [],
     recentCuisines: [],
     recentAreas: [],
-    savedRestaurantIds: [],
+    savedPlaceIds: [],
     savedDishIds: [],
     savedPostIds: [],
   }
   if (!userId) return empty
 
-  const [recentCuisines, savedRestaurantIds, savedDishIds, savedPostIds, recentQueries] =
+  const [recentCuisines, savedPlaceIds, savedDishIds, savedPostIds, recentQueries] =
     await Promise.all([
       fetchUserEngagementCuisines(userId),
-      fetchSavedRestaurantIdsForSearch(userId),
+      fetchSavedPlaceIdsForSearch(userId),
       fetchSavedDishIdsForSearch(userId),
       fetchSavedPostIdsForSearch(userId),
       fetchRecentQueriesForSearch(userId),
@@ -199,13 +199,13 @@ export async function fetchSearchPersonalizationSignals(
     recentQueries,
     recentCuisines,
     recentAreas: recentQueries.flatMap(extractAreaTerms).slice(0, 10),
-    savedRestaurantIds,
+    savedPlaceIds,
     savedDishIds,
     savedPostIds,
   }
 }
 
-async function fetchSavedRestaurantIdsForSearch(userId: string): Promise<string[]> {
+async function fetchSavedPlaceIdsForSearch(userId: string): Promise<string[]> {
   try {
     const { data, error } = await supabase
       .from('saved_places')

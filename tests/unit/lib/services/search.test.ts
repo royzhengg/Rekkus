@@ -569,8 +569,8 @@ describe('B-572/B-576/B-578/B-579 search services', () => {
     const evidence = await fetchDishGraphEvidence(['dish-1'])
 
     expect(evidence.get('dish-1')).toEqual({
-      servingRestaurantIds: ['rest-1', 'rest-2'],
-      servingRestaurantCount: 2,
+      servingPlaceIds: ['rest-1', 'rest-2'],
+      servingPlaceCount: 2,
       supportingPostIds: ['post-1', 'post-2', 'post-3'],
     })
     expect(mockFrom).toHaveBeenCalledWith('posts')
@@ -581,7 +581,7 @@ describe('B-572/B-576/B-578/B-579 search services', () => {
       recentQueries: [],
       recentCuisines: [],
       recentAreas: [],
-      savedRestaurantIds: [],
+      savedPlaceIds: [],
       savedDishIds: [],
       savedPostIds: [],
     })

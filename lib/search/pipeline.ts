@@ -1,5 +1,7 @@
+import { ALLOW_MOCK_DATA } from '@/lib/config'
 import { isEnabled } from '@/lib/featureFlags'
 import { fetchPlaceAutocompleteJson } from '@/lib/services/googlePlaces'
+import { fetchPostsByIds, mapRowToPost } from '@/lib/services/posts'
 import {
   fetchDishGraphEvidence,
   resolveSearchExpansion,
@@ -17,6 +19,7 @@ import {
   fetchTrendingEntitySignals,
   type TrendingEntitySignals,
 } from '@/lib/services/trending'
+import { CUISINE_ALIASES } from '@/lib/utils/cuisineSynonyms'
 import { cacheResolvedSuburb } from '@/lib/utils/locationResolver'
 import { isRecord } from '@/lib/utils/safeJson'
 import {
@@ -46,6 +49,30 @@ type RunSearchPipelineArgs = {
   posts: Post[]
 }
 
+const MAX_SEARCH_RADIUS_KM = 100
+
+function withinSearchRadius(place: PlaceResult, userLocation: SearchContext['userLocation']): boolean {
+  if (!userLocation || place.latitude == null || place.longitude == null) return true
+  const R = 6371
+  const toRad = (v: number) => v * Math.PI / 180
+  const dLat = toRad(place.latitude - userLocation.lat)
+  const dLng = toRad(place.longitude - userLocation.lng)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(userLocation.lat)) * Math.cos(toRad(place.latitude)) * Math.sin(dLng / 2) ** 2
+  const km = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return km <= MAX_SEARCH_RADIUS_KM
+}
+
+async function safeFetch<T>(fn: () => Promise<T>, fallback: T, label: string): Promise<T> {
+  try {
+    return await fn()
+  } catch (err) {
+    console.warn(`[search] ${label} failed, using fallback`, err)
+    return fallback
+  }
+}
+
 export async function runSearchPipeline(
   context: SearchContext,
   { posts }: RunSearchPipelineArgs
@@ -61,18 +88,18 @@ export async function runSearchPipeline(
     : Promise.resolve({ predictions: [] as SearchProviderPrediction[] })
 
   const [users, places, postFts, dishPosts, geoResult, dishEntities, personalization, trending] = await Promise.all([
-    searchUsers(context.query),
-    searchPlaces(context.placeQuery, context.userLocation, context.bounds, context.suburbFilter),
-    context.isAroundMe ? Promise.resolve([]) : searchPostIds(context.placeQuery, context.userLocation),
+    safeFetch(() => searchUsers(context.query), [], 'users'),
+    safeFetch(() => searchPlaces(context.placeQuery, context.userLocation, context.bounds, context.suburbFilter), [], 'places'),
+    context.isAroundMe ? Promise.resolve([]) : safeFetch(() => searchPostIds(context.placeQuery, context.userLocation), [], 'postFts'),
     context.dishIntentActive
-      ? searchDishPostIds(context.dishQuery, context.userLocation)
+      ? safeFetch(() => searchDishPostIds(context.dishQuery, context.userLocation), [], 'dishPosts')
       : Promise.resolve([]),
     geoPromise,
     context.dishIntentActive
-      ? searchDishes(context.dishQuery, context.userLocation)
+      ? safeFetch(() => searchDishes(context.dishQuery, context.userLocation), [], 'dishEntities')
       : Promise.resolve([]),
-    fetchSearchPersonalizationSignals(context.userId),
-    fetchTrendingEntitySignals(context.suburbFilter),
+    safeFetch(() => fetchSearchPersonalizationSignals(context.userId), emptyPersonalization, 'personalization'),
+    safeFetch(() => fetchTrendingEntitySignals(context.suburbFilter), emptyTrending, 'trending'),
   ])
   const dishGraphEvidence = await fetchDishGraphEvidence(dishEntities.map(dish => dish.id))
 
@@ -83,12 +110,16 @@ export async function runSearchPipeline(
     }
   }
 
+  const nearbyPlaces = context.isAroundMe
+    ? places
+    : places.filter(p => withinSearchRadius(p, context.userLocation))
+
   const strictPostCount = context.isAroundMe
     ? 0
     : posts.filter(post => scorePost(post, context.words) > 0).length
   const strictPlaceCount = context.isAroundMe
-    ? places.length
-    : places.filter(place => scorePlace(place, context.words) > 0).length
+    ? nearbyPlaces.length
+    : nearbyPlaces.filter(place => scorePlace(place, context.words) > 0).length
 
   const expansion = await resolveSearchExpansion({
     isAroundMe: context.isAroundMe,
@@ -109,16 +140,23 @@ export async function runSearchPipeline(
         expandedPlaceCount: expandedPlaceMatchCount,
       })
 
+  const firstWord = context.words[0]
+  const isSingleCuisineTerm =
+    context.words.length === 1 &&
+    firstWord !== undefined &&
+    Object.prototype.hasOwnProperty.call(CUISINE_ALIASES, firstWord)
+  const googleQuery = isSingleCuisineTerm ? `${context.query} restaurant` : context.query
   const providerPredictions = providerFallbackDecision.shouldUseGoogleFallback
-    ? (await fetchPlaceAutocompleteJson(context.query, context.userLocation)).predictions?.filter(
+    ? (await fetchPlaceAutocompleteJson(googleQuery, context.userLocation)).predictions?.filter(
         isSearchProviderPrediction
       ) ?? []
     : []
 
   const rawCandidates = buildSearchCandidates({
     posts,
+    words: context.words,
     users,
-    places,
+    places: nearbyPlaces,
     postFts,
     dishPosts,
     dishEntities,
@@ -130,11 +168,17 @@ export async function runSearchPipeline(
   })
   const candidates = rankSearchCandidates(context, rawCandidates)
   const placeExplanationBadges = placeBadgeMap(candidates)
-  const placesWithTrustBadges = applyPlaceExplanationBadges(places, placeExplanationBadges)
+  const placesWithTrustBadges = applyPlaceExplanationBadges(nearbyPlaces, placeExplanationBadges)
   const expandedPlacesWithTrustBadges = applyPlaceExplanationBadges(
     expansion.expandedPlaces,
     placeExplanationBadges
   )
+
+  const contextIds = new Set(posts.map(p => p.dbId).filter(Boolean))
+  const missingFtsIds = postFts.map(r => r.id).filter(id => !contextIds.has(id))
+  const hydratedPosts = missingFtsIds.length > 0
+    ? (await safeFetch(() => fetchPostsByIds(missingFtsIds), [], 'hydratedPosts')).map(mapRowToPost)
+    : []
 
   return {
     context,
@@ -151,6 +195,7 @@ export async function runSearchPipeline(
     providerFallbackSuppressed: providerFallbackDecision.suppressed,
     providerFallbackReason: providerFallbackDecision.reason,
     candidates,
+    hydratedPosts,
   }
 }
 
@@ -179,6 +224,21 @@ function applyPlaceExplanationBadges(
   })
 }
 
+const emptyPersonalization: SearchPersonalizationSignals = {
+  recentQueries: [],
+  recentCuisines: [],
+  recentAreas: [],
+  savedPlaceIds: [],
+  savedDishIds: [],
+  savedPostIds: [],
+}
+
+const emptyTrending: TrendingEntitySignals = {
+  placeScores: new Map(),
+  postScores: new Map(),
+  dishScores: new Map(),
+}
+
 function emptyPipelineResult(context: SearchContext): SearchPipelineResult {
   const providerFallbackDecision = noProviderFallback('local_results_present')
   return {
@@ -196,6 +256,7 @@ function emptyPipelineResult(context: SearchContext): SearchPipelineResult {
     providerFallbackSuppressed: false,
     providerFallbackReason: providerFallbackDecision.reason,
     candidates: [],
+    hydratedPosts: [],
   }
 }
 
@@ -214,6 +275,7 @@ function shouldRunGeocodeFallback(context: SearchContext): boolean {
 
 function buildSearchCandidates({
   posts,
+  words,
   users,
   places,
   postFts,
@@ -226,6 +288,7 @@ function buildSearchCandidates({
   trending,
 }: {
   posts: Post[]
+  words: string[]
   users: SearchUserResult[]
   places: PlaceResult[]
   postFts: RankedPostCandidate[]
@@ -241,6 +304,20 @@ function buildSearchCandidates({
   for (const post of posts) {
     if (post.dbId) postCreatedAt.set(post.dbId, post.createdAt ?? null)
   }
+
+  const ftsIds = new Set([...postFts.map(p => p.id), ...dishPosts.map(p => p.id)])
+  const localPostCandidates: SearchCandidatePayload[] = ALLOW_MOCK_DATA
+    ? posts
+        .filter((p): p is typeof p & { dbId: string } => p.dbId != null && !ftsIds.has(p.dbId) && scorePost(p, words) > 0)
+        .map(p => ({
+          kind: 'post' as const,
+          id: p.dbId,
+          source: 'post_fts' as const,
+          rank: scorePost(p, words),
+          createdAt: p.createdAt ?? null,
+          ...postMetadata(p.dbId, personalization, trending),
+        }))
+    : []
 
   return [
     ...postFts.map(post => ({
@@ -264,7 +341,7 @@ function buildSearchCandidates({
       kind: 'dish' as const,
       id: dish.id,
       source: 'dish_fts' as const,
-      rank: dish.save_count + dish.post_count || dishEntities.length - index,
+      rank: dishEntities.length - index,
       item: dish,
       ...graphEvidenceMetadata(dishGraphEvidence.get(dish.id)),
       ...dishMetadata(dish, personalization, trending),
@@ -314,6 +391,7 @@ function buildSearchCandidates({
       rank: users.length - index,
       item: user,
     })),
+    ...localPostCandidates,
   ]
 }
 
@@ -362,8 +440,8 @@ function placeMetadata(
   trending: TrendingEntitySignals
 ) {
   const personalizationReasons: SearchPersonalizationReason[] = []
-  if (personalization.savedRestaurantIds.includes(place.id)) {
-    personalizationReasons.push('saved_restaurant')
+  if (personalization.savedPlaceIds.includes(place.id)) {
+    personalizationReasons.push('saved_place')
   }
   if (matchesRecentCuisine(place.cuisine_type, personalization)) {
     personalizationReasons.push('recent_cuisine')
@@ -384,8 +462,8 @@ function placeMetadata(
 function placeGraphEvidence(place: PlaceResult): SearchGraphEvidence | undefined {
   if (!place.top_dishes || place.top_dishes.length === 0) return undefined
   return {
-    servingRestaurantIds: [place.id],
-    servingRestaurantCount: 1,
+    servingPlaceIds: [place.id],
+    servingPlaceCount: 1,
     supportingPostIds: [],
   }
 }
@@ -403,8 +481,10 @@ function matchesRecentCuisine(
 }
 
 function matchesRecentQuery(value: string, personalization: SearchPersonalizationSignals): boolean {
-  const normalized = value.trim().toLowerCase()
-  return personalization.recentQueries.some(query => query.includes(normalized) || normalized.includes(query))
+  const entityWords = new Set(value.trim().toLowerCase().split(/\s+/).filter(w => w.length > 2))
+  return personalization.recentQueries.some(query =>
+    query.split(/\s+/).some(w => w.length > 2 && entityWords.has(w))
+  )
 }
 
 function matchesRecentArea(

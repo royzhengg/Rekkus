@@ -70,7 +70,7 @@ export function CreateLauncherProvider({ children }: { children: React.ReactNode
           {
             label: 'New post',
             value: 'new',
-            description: 'Start with a blank review.',
+            description: 'Start with a blank post.',
             variant: 'tile',
             accentColor: colors.accent,
             icon: <PlusIcon size={18} color={colors.accent} />,

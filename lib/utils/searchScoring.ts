@@ -33,7 +33,7 @@ export const STOP_WORDS = new Set([
 
 // When a query word is a known cuisine-type identifier (e.g. "chinese", "italian"),
 // skip name matching and score only against cuisine_type. This prevents "Chinese Tuxedo"
-// from outranking actual Chinese restaurants for the query "chinese".
+// from outranking actual Chinese places for the query "chinese".
 export const CUISINE_TYPE_WORDS = new Set(Object.keys(CUISINE_ALIASES))
 
 // Food-type identifiers returned by Google Places Autocomplete.
@@ -110,7 +110,7 @@ export function scorePerson(p: PersonResult, words: string[]): number {
 // Weak match (word covers 40-79% of token): reduced score — "indian" → "indianapolis"
 // This keeps loosely-relevant results visible but ranked well below direct matches.
 export function fieldScore(text: string, word: string, strong: number): number {
-  const tokens = text.split(/[\s,\-()\[\]/]+/).filter(Boolean)
+  const tokens = text.split(/[\s,\-()[\]/]+/).filter(Boolean)
   for (const t of tokens) {
     if (!t.startsWith(word)) continue
     const coverage = word.length / t.length
@@ -521,7 +521,7 @@ export function computePlaceResults({
   popularityCache,
   searchAffinities,
   userLocation,
-  savedRestaurantIds,
+  savedPlaceIds,
   radiusKm,
   isAroundMe,
   words,
@@ -536,7 +536,7 @@ export function computePlaceResults({
   popularityCache: Map<string, PopularityCacheRow>
   searchAffinities: CuisineAffinities
   userLocation: UserLocation
-  savedRestaurantIds: Set<string>
+  savedPlaceIds: Set<string>
   radiusKm: number
   isAroundMe: boolean
   words: string[]
@@ -547,17 +547,17 @@ export function computePlaceResults({
   if (isAroundMe && !userLocation)
     return { placeResults: [], placeDistances: new Map(), usedPlaceExpansion: false }
 
-  // Popularity signal: count Rekkus posts per restaurant
-  const postCountByRestaurant = new Map<string, number>()
-  // Rekkus avg food rating per restaurant
+  // Popularity signal: count Rekkus posts per place
+  const postCountByPlace = new Map<string, number>()
+  // Rekkus avg food rating per place
   const foodRatingSum = new Map<string, number>()
   const foodRatingCount = new Map<string, number>()
   const savedCuisineCounts = new Map<string, number>()
   for (const post of posts) {
     if (post.placeId) {
-      postCountByRestaurant.set(
+      postCountByPlace.set(
         post.placeId,
-        (postCountByRestaurant.get(post.placeId) ?? 0) + 1
+        (postCountByPlace.get(post.placeId) ?? 0) + 1
       )
       if (post.food != null) {
         foodRatingSum.set(
@@ -573,7 +573,7 @@ export function computePlaceResults({
   const expandedCuisines = expansionCuisines.map(c => c.cuisine_type.toLowerCase())
 
   const distances = new Map<string, number>()
-  const savedPlaces = combined.filter(p => savedRestaurantIds.has(p.id))
+  const savedPlaces = combined.filter(p => savedPlaceIds.has(p.id))
   for (const place of savedPlaces) {
     const cuisine = place.cuisine_type?.toLowerCase()
     if (cuisine) savedCuisineCounts.set(cuisine, (savedCuisineCounts.get(cuisine) ?? 0) + 1)
@@ -588,7 +588,7 @@ export function computePlaceResults({
       if (baseScore <= 0) return { place: p, score: 0 }
       let score = baseScore
 
-      const postCount = postCountByRestaurant.get(p.id) ?? popularityCache.get(p.id)?.post_count ?? 0
+      const postCount = postCountByPlace.get(p.id) ?? popularityCache.get(p.id)?.post_count ?? 0
       // Phase 3a: use pre-aggregated cache; fall back to live analytics counts while cache warms
       const cached = popularityCache.get(p.id)
       const interactions = cached?.interaction_count_30d ?? interactionCounts.get(p.id) ?? 0
@@ -600,7 +600,7 @@ export function computePlaceResults({
         avgFoodRating = (foodRatingSum.get(p.id) ?? 0) / ratingCount
       }
       score += qualityBoost(p, avgFoodRating)
-      if (savedRestaurantIds.has(p.id)) score += 1.25
+      if (savedPlaceIds.has(p.id)) score += 1.25
       const cuisine = p.cuisine_type?.toLowerCase()
       if (cuisine && savedCuisineCounts.has(cuisine)) score += 0.4
       if (cuisine) {
@@ -634,7 +634,7 @@ export function computePlaceResults({
         if (baseScore <= 0) return { place: p, score: 0 }
         let score = baseScore
 
-        const postCount = postCountByRestaurant.get(p.id) ?? popularityCache.get(p.id)?.post_count ?? 0
+        const postCount = postCountByPlace.get(p.id) ?? popularityCache.get(p.id)?.post_count ?? 0
         const cachedExp = popularityCache.get(p.id)
         const interactions = cachedExp?.interaction_count_30d ?? interactionCounts.get(p.id) ?? 0
         score += popularityBoost(postCount, interactions)
@@ -645,7 +645,7 @@ export function computePlaceResults({
           avgFoodRating = (foodRatingSum.get(p.id) ?? 0) / ratingCount
         }
         score += qualityBoost(p, avgFoodRating)
-        if (savedRestaurantIds.has(p.id)) score += 1.25
+        if (savedPlaceIds.has(p.id)) score += 1.25
         const cuisine = p.cuisine_type?.toLowerCase()
         if (cuisine && savedCuisineCounts.has(cuisine)) score += 0.4
         if (cuisine) {
@@ -706,8 +706,8 @@ export function computePlaceResults({
         return akm - bkm
       }
       if (sortMode === 'highest_rekkus_picks') {
-        const apostCount = postCountByRestaurant.get(a.place.id) ?? 0
-        const bpostCount = postCountByRestaurant.get(b.place.id) ?? 0
+        const apostCount = postCountByPlace.get(a.place.id) ?? 0
+        const bpostCount = postCountByPlace.get(b.place.id) ?? 0
         return bpostCount - apostCount || b.score - a.score
       }
       return b.score - a.score
@@ -719,7 +719,7 @@ export function computePlaceResults({
         hint: placeDaypartHint(x.place, words),
         badges: uniqueBadges(
           km != null && km <= 5 ? 'Near you' : null,
-          savedRestaurantIds.has(x.place.id) ? 'Saved' : null,
+          savedPlaceIds.has(x.place.id) ? 'Saved' : null,
           x.place.open_now === true ? 'Open now' : x.place.open_now === false ? 'Closed' : null
         ),
       }

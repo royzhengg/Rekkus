@@ -13,11 +13,11 @@ function requireTerms(file, terms, mode = 'warning', companion = null) {
     failures.push(`${file} is required for security foundation checks.`)
     return
   }
-  const source = readText(file)
-  const companionSource = companion && exists(companion) ? readText(companion) : ''
+  const companions = Array.isArray(companion) ? companion : (companion ? [companion] : [])
+  const source = readText(file) + companions.filter(exists).map(readText).join('\n')
   for (const term of terms) {
     const pattern = term instanceof RegExp ? term : new RegExp(term, 'i')
-    if (!pattern.test(source) && !pattern.test(companionSource)) {
+    if (!pattern.test(source)) {
       const label = term instanceof RegExp ? term.source : term
       const message = `${file} must include security foundation coverage for "${label}".`
       if (mode === 'failure') failures.push(message)
@@ -46,7 +46,7 @@ for (const token of ['deleted_at', 'deleted_reason']) {
 }
 
 requireTerms('lib/services/moderation.ts', ['submitContentReport', 'blockUser', 'unblockUser', 'fetchBlockedUserIds', 'abuseSignal'], 'failure')
-requireTerms('lib/analytics.ts', ['abuseSignal', 'abuse_signal', 'target_type'], 'failure')
+requireTerms('lib/analytics.ts', ['abuseSignal', 'abuse_signal', 'target_type'], 'failure', ['lib/analytics/events.ts', 'lib/analytics/privacy.ts', 'lib/analytics/core.ts'])
 requireTerms('features/posts/PostDetailScreen.tsx', ['Report post', 'Report creator', 'Block creator'], 'failure', 'features/posts/PostDetailSheets.tsx')
 requireTerms('features/posts/postDetailUtils.ts', ['submitContentReport', 'blockUser'], 'failure')
 requireTerms('features/profile/UserProfileScreen.tsx', ['submitContentReport', 'blockUser', 'Report profile', 'Block user'], 'failure')

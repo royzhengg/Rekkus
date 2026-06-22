@@ -33,19 +33,19 @@ import {
 import { CollectionList, FavouriteCuisines } from './ProfileFoodSections'
 import {
   deriveProfileInterests,
-  deriveReviewedRestaurants,
-  deriveTopRestaurants,
+  derivePlacesWithPosts,
+  deriveTopPlaces,
   formatProfileCount,
-  type ProfileRestaurant,
+  type ProfilePlace,
 } from './profileIdentity'
-import { hydrateProfileRestaurantPhotos } from './profilePhotos'
-import { ProfileReviewCards } from './ProfileReviewCards'
+import { hydrateProfilePlacePhotos } from './profilePhotos'
+import { ProfilePostCards } from './ProfilePostCards'
 import { TopSpotCards } from './TopSpotCards'
 
-type TabKey = 'reviews' | 'collections'
+type TabKey = 'posts' | 'collections'
 
 const TAB_LABELS: Record<TabKey, string> = {
-  reviews: 'Reviews',
+  posts: 'Posts',
   collections: 'Collections',
 }
 
@@ -59,14 +59,14 @@ export default function UserProfileScreen() {
   const { posts } = usePosts()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  const [activeTab, setActiveTab] = useState<TabKey>('reviews')
+  const [activeTab, setActiveTab] = useState<TabKey>('posts')
   const [following, setFollowing] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [targetUserId, setTargetUserId] = useState<string | null>(null)
   const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null)
   const [profileCollections, setProfileCollections] = useState<Collection[]>([])
-  const [hydratedTopRestaurants, setHydratedTopRestaurants] = useState<ProfileRestaurant[]>([])
-  const [manualTopSpots, setManualTopSpots] = useState<ProfileRestaurant[] | null>(null)
+  const [hydratedTopPlaces, setHydratedTopPlaces] = useState<ProfilePlace[]>([])
+  const [manualTopSpots, setManualTopSpots] = useState<ProfilePlace[] | null>(null)
   const [safetySheet, setSafetySheet] = useState(false)
   const [startingMessage, setStartingMessage] = useState(false)
   const [notice, setNotice] = useState<{ title: string; subtitle?: string } | null>(null)
@@ -126,35 +126,35 @@ export default function UserProfileScreen() {
     usePagedList(userPosts)
 
   const profileInterests = useMemo(() => deriveProfileInterests(userPosts), [userPosts])
-  const reviewedRestaurants = useMemo(() => deriveReviewedRestaurants(userPosts), [userPosts])
-  const topRestaurantsSource = useMemo(() => {
+  const placesWithPosts = useMemo(() => derivePlacesWithPosts(userPosts), [userPosts])
+  const topPlacesSource = useMemo(() => {
     if (manualTopSpots && manualTopSpots.length > 0) return manualTopSpots
-    return deriveTopRestaurants(reviewedRestaurants, [])
-  }, [manualTopSpots, reviewedRestaurants])
+    return deriveTopPlaces(placesWithPosts, [])
+  }, [manualTopSpots, placesWithPosts])
 
   useEffect(() => {
     let cancelled = false
-    void hydrateProfileRestaurantPhotos(topRestaurantsSource).then(restaurants => {
-      if (!cancelled) setHydratedTopRestaurants(restaurants)
+    void hydrateProfilePlacePhotos(topPlacesSource).then(places => {
+      if (!cancelled) setHydratedTopPlaces(places)
     })
     return () => {
       cancelled = true
     }
-  }, [topRestaurantsSource])
+  }, [topPlacesSource])
 
   const openPost = useCallback((post: { dbId?: string; id: string | number }) => {
     router.push(routes.postDetail(String(post.dbId || post.id)))
   }, [router])
 
-  const openRestaurant = useCallback((restaurant: ProfileRestaurant) => {
-    analytics.profileInteraction(user?.id ?? null, targetUserId, 'top_restaurant_tapped')
+  const openPlace = useCallback((place: ProfilePlace) => {
+    analytics.profileInteraction(user?.id ?? null, targetUserId, 'top_place_tapped')
     router.push(routes.placeDetail({
-      placeId: restaurant.id,
-      ...(restaurant.placeId ? { googlePlaceId: restaurant.placeId } : {}),
-      name: restaurant.name,
-      address: restaurant.address ?? '',
-      lat: restaurant.lat ?? '',
-      lng: restaurant.lng ?? '',
+      placeId: place.id,
+      ...(place.placeId ? { googlePlaceId: place.placeId } : {}),
+      name: place.name,
+      address: place.address ?? '',
+      lat: place.lat ?? '',
+      lng: place.lng ?? '',
     }))
   }, [router, targetUserId, user?.id])
 
@@ -292,7 +292,7 @@ export default function UserProfileScreen() {
           avatarColor={avatarColor}
           displayName={displayName}
           username={username ?? ''}
-          reviewCount={userPosts.length}
+          postCount={userPosts.length}
           followersLabel={followCounts ? formatProfileCount(followCounts.followers) : mockUser?.followers ?? '—'}
           followingLabel={followCounts ? formatProfileCount(followCounts.following) : mockUser?.following ?? '—'}
           locationLabel={locationLabel}
@@ -330,8 +330,8 @@ export default function UserProfileScreen() {
         </View>
 
         <TopSpotCards
-          restaurants={hydratedTopRestaurants.length > 0 ? hydratedTopRestaurants : topRestaurantsSource}
-          onPressRestaurant={openRestaurant}
+          places={hydratedTopPlaces.length > 0 ? hydratedTopPlaces : topPlacesSource}
+          onPressPlace={openPlace}
         />
 
         {profileInterests.length > 0 && (
@@ -344,7 +344,7 @@ export default function UserProfileScreen() {
         )}
 
         <View style={styles.tabs} accessibilityRole="tablist">
-          {(['reviews', 'collections'] as TabKey[]).map(key => (
+          {(['posts', 'collections'] as TabKey[]).map(key => (
             <TouchableOpacity
               key={key}
               style={[styles.tab, activeTab === key && styles.tabActive]}
@@ -359,10 +359,10 @@ export default function UserProfileScreen() {
           ))}
         </View>
 
-        {activeTab === 'reviews' && (userPosts.length === 0 ? (
+        {activeTab === 'posts' && (userPosts.length === 0 ? (
           <EmptyProfileTab title="No reviews yet." styles={styles} colors={colors} />
         ) : (
-          <ProfileReviewCards
+          <ProfilePostCards
             posts={visibleUserPosts}
             hasMore={userPostsHasMore}
             onLoadMore={loadMoreUserPosts}

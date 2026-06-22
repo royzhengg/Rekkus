@@ -11,7 +11,7 @@ import {
 } from '@/lib/mocks/data'
 
 export const demoPosts = ALLOW_MOCK_DATA ? POSTS : []
-export const demoRestaurants = ALLOW_MOCK_DATA ? RESTAURANTS : []
+export const demoPlaces = ALLOW_MOCK_DATA ? RESTAURANTS : []
 export const demoUsers = ALLOW_MOCK_DATA ? MOCK_USERS : {}
 
 export const demoCurrentUser = {

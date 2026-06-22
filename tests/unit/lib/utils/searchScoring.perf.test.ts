@@ -65,7 +65,7 @@ function runSearch(places: PlaceResult[], posts: Post[]): void {
     popularityCache: new Map(),
     searchAffinities: {},
     userLocation: null,
-    savedRestaurantIds: new Set<string>(),
+    savedPlaceIds: new Set<string>(),
     radiusKm: 10,
     isAroundMe: false,
     words: ['ramen'],

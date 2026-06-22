@@ -30,20 +30,20 @@ import {
 import { CollectionList, FavouriteCuisines } from './ProfileFoodSections'
 import {
   deriveProfileInterests,
-  deriveReviewedRestaurants,
-  deriveTopRestaurants,
+  derivePlacesWithPosts,
+  deriveTopPlaces,
   formatProfileCount,
   normalizeProfileTabParam,
-  type ProfileRestaurant,
+  type ProfilePlace,
 } from './profileIdentity'
-import { hydrateProfileRestaurantPhotos } from './profilePhotos'
-import { ProfileReviewCards } from './ProfileReviewCards'
+import { hydrateProfilePlacePhotos } from './profilePhotos'
+import { ProfilePostCards } from './ProfilePostCards'
 import { TopSpotCards } from './TopSpotCards'
 
-type TabKey = 'reviews' | 'collections'
+type TabKey = 'posts' | 'collections'
 
 const TAB_LABELS: Record<TabKey, string> = {
-  reviews: 'Reviews',
+  posts: 'Posts',
   collections: 'Collections',
 }
 
@@ -57,7 +57,7 @@ type ProfileInfo = {
 }
 
 export default function ProfileScreen() {
-  const [activeTab, setActiveTab] = useState<TabKey>('reviews')
+  const [activeTab, setActiveTab] = useState<TabKey>('posts')
   const { posts } = usePosts()
   const { user } = useAuth()
   const { requireAuth } = useAuthGate()
@@ -69,8 +69,8 @@ export default function ProfileScreen() {
   const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null)
   const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null)
   const [profileCollections, setProfileCollections] = useState<Collection[]>([])
-  const [hydratedTopRestaurants, setHydratedTopRestaurants] = useState<ProfileRestaurant[]>([])
-  const [manualTopSpots, setManualTopSpots] = useState<ProfileRestaurant[] | null>(null)
+  const [hydratedTopPlaces, setHydratedTopPlaces] = useState<ProfilePlace[]>([])
+  const [manualTopSpots, setManualTopSpots] = useState<ProfilePlace[] | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const { savedPlaces, refresh: refreshLocations } = useSavedPlaces(user?.id)
 
@@ -80,7 +80,7 @@ export default function ProfileScreen() {
       router.replace(routes.saved('posts'))
       return
     }
-    if (normalisedTab === 'collections' || normalisedTab === 'reviews') setActiveTab(normalisedTab)
+    if (normalisedTab === 'collections' || normalisedTab === 'posts') setActiveTab(normalisedTab)
   }, [router, tabParam])
 
   useEffect(() => {
@@ -164,21 +164,21 @@ export default function ProfileScreen() {
     usePagedList(myPosts)
 
   const profileInterests = useMemo(() => deriveProfileInterests(myPosts), [myPosts])
-  const reviewedRestaurants = useMemo(() => deriveReviewedRestaurants(myPosts), [myPosts])
-  const topRestaurantsSource = useMemo(() => {
+  const placesWithPosts = useMemo(() => derivePlacesWithPosts(myPosts), [myPosts])
+  const topPlacesSource = useMemo(() => {
     if (manualTopSpots && manualTopSpots.length > 0) return manualTopSpots
-    return deriveTopRestaurants(reviewedRestaurants, savedPlaces)
-  }, [manualTopSpots, reviewedRestaurants, savedPlaces])
+    return deriveTopPlaces(placesWithPosts, savedPlaces)
+  }, [manualTopSpots, placesWithPosts, savedPlaces])
 
   useEffect(() => {
     let cancelled = false
-    void hydrateProfileRestaurantPhotos(topRestaurantsSource).then(restaurants => {
-      if (!cancelled) setHydratedTopRestaurants(restaurants)
+    void hydrateProfilePlacePhotos(topPlacesSource).then(places => {
+      if (!cancelled) setHydratedTopPlaces(places)
     })
     return () => {
       cancelled = true
     }
-  }, [topRestaurantsSource])
+  }, [topPlacesSource])
 
   const openPost = useCallback((post: { dbId?: string; id: string | number }) => {
     router.push(routes.postDetail(String(post.dbId || post.id)))
@@ -194,15 +194,15 @@ export default function ProfileScreen() {
   const displayName = profileInfo?.full_name ?? 'Sarah Lee'
   const profileUsername = profileInfo?.username ?? demoCurrentUser.username
 
-  const openRestaurant = useCallback((restaurant: ProfileRestaurant) => {
-    analytics.profileInteraction(user?.id ?? null, user?.id ?? null, 'top_restaurant_tapped')
+  const openPlace = useCallback((place: ProfilePlace) => {
+    analytics.profileInteraction(user?.id ?? null, user?.id ?? null, 'top_place_tapped')
     router.push(routes.placeDetail({
-      placeId: restaurant.id,
-      ...(restaurant.placeId ? { googlePlaceId: restaurant.placeId } : {}),
-      name: restaurant.name,
-      address: restaurant.address ?? '',
-      lat: restaurant.lat ?? '',
-      lng: restaurant.lng ?? '',
+      placeId: place.id,
+      ...(place.placeId ? { googlePlaceId: place.placeId } : {}),
+      name: place.name,
+      address: place.address ?? '',
+      lat: place.lat ?? '',
+      lng: place.lng ?? '',
     }))
   }, [router, user?.id])
 
@@ -212,12 +212,12 @@ export default function ProfileScreen() {
   }, [user?.id])
 
   function tabContent() {
-    if (activeTab === 'reviews') {
+    if (activeTab === 'posts') {
       return myPosts.length === 0 ? (
         <View style={styles.emptyWithAction}>
           <EmptyState
             title="Start your food journey"
-            subtitle="Review your first restaurant."
+            subtitle="Post about your first place."
             icon={<ImagePlaceholder size={25} color={colors.text3} />}
           />
           <TouchableOpacity
@@ -229,12 +229,12 @@ export default function ProfileScreen() {
             accessibilityRole="button"
           >
             <Text style={styles.primaryEmptyButtonText} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-              Create Review
+              Create Post
             </Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <ProfileReviewCards
+        <ProfilePostCards
           posts={visibleMyPosts}
           hasMore={myPostsHasMore}
           onLoadMore={loadMoreMyPosts}
@@ -271,7 +271,7 @@ export default function ProfileScreen() {
           avatarColor={demoCurrentUser.avatarColor}
           displayName={displayName}
           username={profileUsername}
-          reviewCount={myPosts.length}
+          postCount={myPosts.length}
           followersLabel={followCounts ? formatProfileCount(followCounts.followers) : '—'}
           followingLabel={followCounts ? formatProfileCount(followCounts.following) : '—'}
           locationLabel={locationLabel}
@@ -299,8 +299,8 @@ export default function ProfileScreen() {
         />
 
         <TopSpotCards
-          restaurants={hydratedTopRestaurants.length > 0 ? hydratedTopRestaurants : topRestaurantsSource}
-          onPressRestaurant={openRestaurant}
+          places={hydratedTopPlaces.length > 0 ? hydratedTopPlaces : topPlacesSource}
+          onPressPlace={openPlace}
           onManage={() => {
             analytics.profileInteraction(user?.id ?? null, user?.id ?? null, 'manage_top_spots_tapped')
             router.push(routes.manageTopSpots())
@@ -317,7 +317,7 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.tabs} accessibilityRole="tablist">
-          {(['reviews', 'collections'] as TabKey[]).map(key => (
+          {(['posts', 'collections'] as TabKey[]).map(key => (
             <TouchableOpacity
               key={key}
               style={[styles.tab, activeTab === key && styles.tabActive]}

@@ -2,8 +2,6 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { analytics } from '@/lib/analytics'
 import type { Post } from '@/types/domain'
 import { useAutocomplete } from './useAutocomplete'
-import { usePopularityCache } from './usePopularityCache'
-import { useSavedPlaceIds } from './useSavedPlaceIds'
 import { useSearchResults } from './useSearchResults'
 import { usePosts } from '../contexts/PostsContext'
 import {
@@ -12,22 +10,19 @@ import {
 } from '../search/cache'
 import { buildSearchContext } from '../search/context'
 import { runSearchPipeline } from '../search/pipeline'
-import { fetchPostsByIds, mapRowToPost } from '../services/posts'
 import { type SearchFallbackReason, type SearchIntentKind } from '../utils/searchIntent'
-import { parseWords, scorePost } from '../utils/searchScoring'
+import { parseWords } from '../utils/searchScoring'
 import type {
   DishResult,
   PersonResult,
   PlaceResult,
-  RankedPostCandidate,
   SearchCandidate,
   SearchFilters,
   SearchMode,
   SearchOptions,
-  SearchProviderPrediction,
   SearchSortMode,
   SearchSuggestion,
-  SearchUserResult,
+  TopFeedItem,
   UserLocation,
 } from './searchTypes'
 import type { CuisineAffinities } from './useSearchHistory'
@@ -40,7 +35,7 @@ const SEARCH_PIPELINE_CACHE = createSearchMemoryCache<Awaited<ReturnType<typeof 
 // Cost reduction: provider calls use fetchPlaceAutocompleteJson gated by shouldUseProviderFallback (both in lib/search/pipeline via B-570)
 
 // Re-export shared types so existing callers keep working
-export type { DishResult, PlaceResult, SearchCandidate, SearchFilters, UserLocation, SearchOptions, PersonResult, SearchMode, SearchSortMode, SearchSuggestion }
+export type { DishResult, PlaceResult, SearchCandidate, SearchFilters, TopFeedItem, UserLocation, SearchOptions, PersonResult, SearchMode, SearchSortMode, SearchSuggestion }
 
 export function useSearch(
   query: string,
@@ -49,25 +44,15 @@ export function useSearch(
   searchAffinities: CuisineAffinities = {}
 ) {
   const { posts } = usePosts()
-  const [dbUsers, setDbUsers] = useState<SearchUserResult[]>([])
-  const [dbPlaces, setDbPlaces] = useState<PlaceResult[]>([])
-  const [expandedDbPosts, setExpandedDbPosts] = useState<Post[]>([])
-  const [expandedDbPlaces, setExpandedDbPlaces] = useState<PlaceResult[]>([])
   const [expansionCuisines, setExpansionCuisines] = useState<Array<{ cuisine_type: string; match_count: number }>>([])
-  const [googlePredictions, setGooglePredictions] = useState<SearchProviderPrediction[]>([])
-  const [interactionCounts, setInteractionCounts] = useState<Map<string, number>>(new Map())
-  const [ftsPostIds, setFtsPostIds] = useState<RankedPostCandidate[]>([])
-  const [ftsDbPosts, setFtsDbPosts] = useState<Post[]>([])
-  const [dishPostIds, setDishPostIds] = useState<Map<string, { rank: number; match_source: string }>>(new Map())
   const [dishEntityResults, setDishEntityResults] = useState<DishResult[]>([])
   const [candidates, setCandidates] = useState<SearchCandidate[]>([])
+  const [hydratedPosts, setHydratedPosts] = useState<Post[]>([])
   const [providerFallbackSuppressed, setProviderFallbackSuppressed] = useState(false)
   const [providerFallbackReason, setProviderFallbackReason] = useState<SearchFallbackReason | null>(null)
   const [queryIntent, setQueryIntent] = useState<SearchIntentKind>('general')
   const requestIdRef = useRef(0)
 
-  const popularityCache = usePopularityCache()
-  const savedRestaurantIds = useSavedPlaceIds(options.userId)
   const suggestions = useAutocomplete(query, userLocation)
 
   const words = useMemo(() => parseWords(query), [query])
@@ -81,30 +66,20 @@ export function useSearch(
   useEffect(() => {
     const requestId = ++requestIdRef.current
     if (words.length === 0 && !isAroundMe) {
-      setDbUsers([])
-      setDbPlaces([])
-      setExpandedDbPosts([])
-      setExpandedDbPlaces([])
       setExpansionCuisines([])
-      setGooglePredictions([])
-      setInteractionCounts(new Map())
       setDishEntityResults([])
       setCandidates([])
+      setHydratedPosts([])
       setProviderFallbackSuppressed(false)
       setProviderFallbackReason(null)
       setQueryIntent('general')
       return
     }
     if (isAroundMe && !userLocation) {
-      setDbUsers([])
-      setDbPlaces([])
-      setExpandedDbPosts([])
-      setExpandedDbPlaces([])
       setExpansionCuisines([])
-      setGooglePredictions([])
-      setInteractionCounts(new Map())
       setDishEntityResults([])
       setCandidates([])
+      setHydratedPosts([])
       setProviderFallbackSuppressed(false)
       setProviderFallbackReason(null)
       setQueryIntent('general')
@@ -128,6 +103,7 @@ export function useSearch(
         coarseLocationCacheKey(context.userLocation),
         context.suburbFilter ?? 'none',
         posts.length,
+        context.userId ?? 'anon',
       ].join(':')
       const cachedPipeline = SEARCH_PIPELINE_CACHE.get(pipelineCacheKey)
       const pipeline = cachedPipeline
@@ -142,16 +118,13 @@ export function useSearch(
           })()
       if (requestId !== requestIdRef.current) return
 
-      setDbUsers(pipeline.users)
-      setDbPlaces(pipeline.places)
-      setExpandedDbPosts(pipeline.expandedPosts)
-      setExpandedDbPlaces(pipeline.expandedPlaces)
       setExpansionCuisines(pipeline.expansionCuisines)
-      setGooglePredictions(pipeline.providerPredictions)
       setProviderFallbackSuppressed(pipeline.providerFallbackSuppressed)
       setProviderFallbackReason(pipeline.providerFallbackReason)
       setQueryIntent(context.intent)
       setCandidates(pipeline.candidates)
+      setHydratedPosts(pipeline.hydratedPosts)
+
       if (pipeline.providerFallbackDecision.shouldUseGoogleFallback) {
         analytics.searchGoogleFallbackUsed(
           context.userId,
@@ -173,41 +146,10 @@ export function useSearch(
         )
       }
 
-      // Dish search results map (Phase 3h scoring)
-      if (pipeline.dishPosts.length > 0) {
-        const dishMap = new Map<string, { rank: number; match_source: string }>()
-        for (const r of pipeline.dishPosts) dishMap.set(r.id, { rank: r.rank, match_source: r.match_source })
-        setDishPostIds(dishMap)
-      } else {
-        setDishPostIds(new Map())
-      }
-
-      // B-544: canonical dish entity results
       setDishEntityResults(pipeline.dishEntities)
 
-      setInteractionCounts(new Map())
-
-      const ftsMeta = pipeline.postFts
-      setFtsPostIds(ftsMeta)
-      if (ftsMeta.length > 0) {
-        const contextIds = new Set(posts.map(p => p.dbId).filter(Boolean))
-        const missingIds = ftsMeta.map(r => r.id).filter(id => !contextIds.has(id))
-        if (missingIds.length > 0) {
-          const rows = await fetchPostsByIds(missingIds)
-          if (requestId !== requestIdRef.current) return
-          setFtsDbPosts(rows.map((row, i) => mapRowToPost(row, i)))
-        } else {
-          setFtsDbPosts([])
-        }
-      } else {
-        setFtsDbPosts([])
-      }
-
       // Log search to analytics_events for trending + history
-      const resultCount =
-        pipeline.places.length +
-        posts.filter(p => scorePost(p, words) > 0).length +
-        pipeline.postFts.length
+      const resultCount = pipeline.candidates.length
       if (resultCount === 0 && pipeline.providerFallbackDecision.suppressed) {
         analytics.searchNoResultsAfterSuppression(
           options.userId ?? null,
@@ -227,28 +169,18 @@ export function useSearch(
   // never the RPC queries — adding filtersKey here would cause unnecessary refetches
   }, [query, wordsKey, words, userLocation, posts, isAroundMe, radiusKm, options.userId, options.locationSource, mode])
 
-  const { postResults, peopleResults, placeResults, placeDistances, expansionLabel } = useSearchResults({
+  const { postResults, peopleResults, placeResults, placeDistances, expansionLabel, topFeed } = useSearchResults({
+    candidates,
+    hydratedPosts,
     posts,
-    ftsDbPosts,
-    ftsPostIds,
-    expandedDbPosts,
-    dishPostIds,
-    dbUsers,
     words,
     userLocation,
     expansionCuisines,
     isAroundMe,
     filters,
     filtersKey,
-    dbPlaces,
-    expandedDbPlaces,
-    googlePredictions,
-    interactionCounts,
-    popularityCache,
-    savedRestaurantIds,
-    radiusKm,
-    searchAffinities,
     query,
+    searchAffinities,
   })
 
   return {
@@ -257,6 +189,7 @@ export function useSearch(
     placeResults,
     placeDistances,
     dishEntityResults,
+    topFeed,
     candidates,
     suggestions,
     providerFallbackSuppressed,

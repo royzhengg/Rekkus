@@ -19,20 +19,25 @@ export function NoResultsCard({ query, chips, onChipPress }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>No results for "{query}"</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-      >
-        {chips.map(chip => (
-          <Chip
-            key={chip.query}
-            label={chip.emoji ? `${chip.emoji} ${chip.label}` : chip.label}
-            onPress={() => onChipPress(chip.query)}
-            accessibilityLabel={`Search for ${chip.label}`}
-          />
-        ))}
-      </ScrollView>
+      {chips.length > 0 && (
+        <>
+          <Text style={styles.subheading}>Try instead</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chips}
+          >
+            {chips.map(chip => (
+              <Chip
+                key={chip.query}
+                label={chip.emoji ? `${chip.emoji} ${chip.label}` : chip.label}
+                onPress={() => onChipPress(chip.query)}
+                accessibilityLabel={`Search for ${chip.label}`}
+              />
+            ))}
+          </ScrollView>
+        </>
+      )}
     </View>
   )
 }
@@ -49,6 +54,11 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       fontSize: fontSize.md,
       fontWeight: fontWeight.medium,
       color: c.text,
+      textAlign: 'center',
+    },
+    subheading: {
+      fontSize: fontSize.sm,
+      color: c.text3,
       textAlign: 'center',
     },
     chips: {

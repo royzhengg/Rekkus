@@ -14,7 +14,7 @@ function makeContext(intent: SearchIntentKind, query = 'ramen'): SearchContext {
   const parsed: ParsedQuery = {
     raw: query,
     normalised: query,
-    intent: intent === 'food_dish' ? 'dish' : intent === 'restaurant_name' ? 'restaurant' : 'general',
+    intent: intent === 'food_dish' ? 'dish' : intent === 'place_name' ? 'place' : 'general',
     cuisineTerms: [],
     dishTerms: intent === 'food_dish' ? words : [],
     locationTerms: intent === 'location' ? words : [],
@@ -125,7 +125,7 @@ describe('rankSearchCandidates', () => {
   })
 
   it('keeps local places ahead for restaurant-name intent', () => {
-    const ranked = rankSearchCandidates(makeContext('restaurant_name', 'ramen bar'), [
+    const ranked = rankSearchCandidates(makeContext('place_name', 'ramen bar'), [
       dishCandidate('dish-1', 12),
       postCandidate('post-1', 12),
       localPlaceCandidate('place-1', 8),
@@ -137,7 +137,7 @@ describe('rankSearchCandidates', () => {
   })
 
   it('keeps provider places below local Rekkus places at comparable source rank', () => {
-    const ranked = rankSearchCandidates(makeContext('restaurant_name', 'ramen bar'), [
+    const ranked = rankSearchCandidates(makeContext('place_name', 'ramen bar'), [
       providerPlaceCandidate('provider-1', 10),
       localPlaceCandidate('local-1', 10),
     ])
@@ -148,7 +148,7 @@ describe('rankSearchCandidates', () => {
   })
 
   it('adds exact-match explanation and ranks exact local candidates above weak matches', () => {
-    const ranked = rankSearchCandidates(makeContext('restaurant_name', 'ramen bar'), [
+    const ranked = rankSearchCandidates(makeContext('place_name', 'ramen bar'), [
       localPlaceCandidate('weak', 10, { name: 'Ramen Bar House' }),
       localPlaceCandidate('exact', 10, { name: 'Ramen Bar' }),
     ])
@@ -161,7 +161,7 @@ describe('rankSearchCandidates', () => {
   })
 
   it('downranks keyword-stuffed candidates without suppressing clean matches', () => {
-    const ranked = rankSearchCandidates(makeContext('restaurant_name', 'ramen'), [
+    const ranked = rankSearchCandidates(makeContext('place_name', 'ramen'), [
       localPlaceCandidate('stuffed', 10, { name: 'Ramen Ramen Ramen Ramen Bar' }),
       localPlaceCandidate('clean', 9, { name: 'Ramen Bar' }),
     ])
@@ -174,7 +174,7 @@ describe('rankSearchCandidates', () => {
   })
 
   it('collapses duplicate place candidates and prefers local evidence deterministically', () => {
-    const ranked = rankSearchCandidates(makeContext('restaurant_name', 'ramen bar'), [
+    const ranked = rankSearchCandidates(makeContext('place_name', 'ramen bar'), [
       providerPlaceCandidate('provider-1', 20),
       localPlaceCandidate('local-1', 8, {
         name: 'Ramen Bar',
@@ -188,7 +188,7 @@ describe('rankSearchCandidates', () => {
   })
 
   it('does not give provider predictions first-party trust badges', () => {
-    const ranked = rankSearchCandidates(makeContext('restaurant_name', 'ramen bar'), [
+    const ranked = rankSearchCandidates(makeContext('place_name', 'ramen bar'), [
       providerPlaceCandidate('provider-1', 10),
     ])
 
@@ -202,7 +202,7 @@ describe('rankSearchCandidates', () => {
   it('adds nearby, popular nearby, and trending explanation badges for local places', () => {
     const ranked = rankSearchCandidates(
       {
-        ...makeContext('restaurant_name', 'ramen bar'),
+        ...makeContext('place_name', 'ramen bar'),
         userLocation: { lat: -33.87, lng: 151.21 },
         locationSource: 'gps',
       },
@@ -277,7 +277,7 @@ describe('rankSearchCandidates', () => {
     expect(dishes[0]).toEqual(expect.objectContaining({ id: 'dish-new' }))
     expect(dishes[0]?.rankingReasons).toContain('cold_start_exposure')
 
-    const places = rankSearchCandidates(makeContext('restaurant_name', 'ramen bar'), [
+    const places = rankSearchCandidates(makeContext('place_name', 'ramen bar'), [
       localPlaceCandidate('place-old', 4, {
         postCount: 8,
         latestPostedAt: '2026-01-01T00:00:00.000Z',
@@ -297,7 +297,7 @@ describe('rankSearchCandidates', () => {
   it('does not let freshness beat stronger source rank and restaurant intent', () => {
     jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-06-02T00:00:00.000Z'))
 
-    const ranked = rankSearchCandidates(makeContext('restaurant_name', 'ramen bar'), [
+    const ranked = rankSearchCandidates(makeContext('place_name', 'ramen bar'), [
       dishCandidate('dish-new', 6, {
         post_count: 1,
         latestPostedAt: '2026-06-01T00:00:00.000Z',
@@ -315,7 +315,7 @@ describe('rankSearchCandidates', () => {
   it('does not apply freshness to provider predictions', () => {
     jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-06-02T00:00:00.000Z'))
 
-    const ranked = rankSearchCandidates(makeContext('restaurant_name', 'ramen bar'), [
+    const ranked = rankSearchCandidates(makeContext('place_name', 'ramen bar'), [
       providerPlaceCandidate('provider-1', 10),
     ])
 
@@ -349,16 +349,140 @@ describe('rankSearchCandidates', () => {
       {
         ...localPlaceCandidate('personalized', 4),
         personalizationBoost: 4,
-        personalizationReasons: ['saved_restaurant'],
+        personalizationReasons: ['saved_place'],
         trendingScore: 100,
       },
     ])
 
     expect(ranked[0]).toEqual(expect.objectContaining({
       id: 'personalized',
-      personalizationReasons: ['saved_restaurant'],
+      personalizationReasons: ['saved_place'],
       trendingScore: 100,
       rankingReasons: expect.arrayContaining(['personalized_signal', 'trending_signal']),
     }))
+  })
+})
+
+describe('rankSearchCandidates — occasion boost + content score (Fix 2)', () => {
+  function makeOccasionContext(occasionTerms: string[]): SearchContext {
+    const ctx = makeContext('general', 'birthday dinner')
+    return {
+      ...ctx,
+      parsed: { ...ctx.parsed, occasionTerms: occasionTerms as never },
+    }
+  }
+
+  function placeWithTags(id: string, tags: string[], postCount = 0): SearchCandidatePayload {
+    return {
+      kind: 'place',
+      id,
+      source: 'local',
+      rank: 1,
+      item: { ...place, id, occasion_tags: tags, postCount },
+    }
+  }
+
+  describe('occasion boost', () => {
+    it('ranks a tagged place above an untagged place when occasionTerms match', () => {
+      const ctx = makeOccasionContext(['special'])
+      const ranked = rankSearchCandidates(ctx, [
+        placeWithTags('tagged', ['special']),
+        placeWithTags('untagged', []),
+      ])
+      const taggedScore = ranked.find(r => r.id === 'tagged')!.rankingScore
+      const untaggedScore = ranked.find(r => r.id === 'untagged')!.rankingScore
+      expect(taggedScore).toBeGreaterThan(untaggedScore)
+    })
+
+    it('adds occasion_match to rankingReasons for matched place', () => {
+      const ctx = makeOccasionContext(['special'])
+      const ranked = rankSearchCandidates(ctx, [placeWithTags('tagged', ['special'])])
+      expect(ranked[0]!.rankingReasons).toContain('occasion_match')
+    })
+
+    it('does not boost when occasionTerms is empty', () => {
+      const ctx = makeOccasionContext([])
+      const ranked = rankSearchCandidates(ctx, [
+        placeWithTags('tagged', ['special']),
+        placeWithTags('untagged', []),
+      ])
+      const taggedScore = ranked.find(r => r.id === 'tagged')!.rankingScore
+      const untaggedScore = ranked.find(r => r.id === 'untagged')!.rankingScore
+      // scores should be equal (same rank, no occasion boost)
+      expect(taggedScore).toBe(untaggedScore)
+    })
+
+    it('does not boost when place tags do not match occasion terms', () => {
+      const ctx = makeOccasionContext(['special'])
+      const ranked = rankSearchCandidates(ctx, [
+        placeWithTags('tagged', ['casual']),
+        placeWithTags('untagged', []),
+      ])
+      const taggedScore = ranked.find(r => r.id === 'tagged')!.rankingScore
+      const untaggedScore = ranked.find(r => r.id === 'untagged')!.rankingScore
+      expect(taggedScore).toBe(untaggedScore)
+    })
+
+    it('ranks higher-matching place above lower when both partially match', () => {
+      const ctx = makeOccasionContext(['special'])
+      const ranked = rankSearchCandidates(ctx, [
+        placeWithTags('no-match', ['casual']),
+        placeWithTags('match', ['special', 'date_night']),
+      ])
+      const matchScore = ranked.find(r => r.id === 'match')!.rankingScore
+      const noMatchScore = ranked.find(r => r.id === 'no-match')!.rankingScore
+      expect(matchScore).toBeGreaterThan(noMatchScore)
+    })
+
+    it('adds Great for this badge to matched place', () => {
+      const ctx = makeOccasionContext(['special'])
+      const ranked = rankSearchCandidates(ctx, [placeWithTags('tagged', ['special'])])
+      expect(ranked[0]!.explanationBadges).toContain('Great for this')
+    })
+  })
+
+  describe('content score', () => {
+    it('ranks place with more posts above place with fewer posts when all else equal', () => {
+      const ctx = makeOccasionContext([])
+      const recentDate = new Date(Date.now() - 86_400_000).toISOString() // 1 day ago
+      // Both above cold-start threshold (>1 post) so neither gets a cold-start boost
+      const richCandidate: SearchCandidatePayload = {
+        kind: 'place', id: 'rich', source: 'local', rank: 1,
+        item: { ...place, id: 'rich', postCount: 50, latestPostedAt: recentDate },
+      }
+      const fewerCandidate: SearchCandidatePayload = {
+        kind: 'place', id: 'fewer', source: 'local', rank: 1,
+        item: { ...place, id: 'fewer', postCount: 2, latestPostedAt: recentDate },
+      }
+      const ranked = rankSearchCandidates(ctx, [richCandidate, fewerCandidate])
+      const richScore = ranked.find(r => r.id === 'rich')!.rankingScore
+      const fewerScore = ranked.find(r => r.id === 'fewer')!.rankingScore
+      expect(richScore).toBeGreaterThan(fewerScore)
+    })
+
+    it('caps content boost so a place with 10000 posts cannot overwhelm text match', () => {
+      const ctx = makeOccasionContext([])
+      const ranked = rankSearchCandidates(ctx, [
+        placeWithTags('huge', [], 10000),
+        placeWithTags('tiny', [], 0),
+      ])
+      const hugScore = ranked.find(r => r.id === 'huge')!.rankingScore
+      const tinyScore = ranked.find(r => r.id === 'tiny')!.rankingScore
+      // boost should be capped — max difference should be the cap value (0.5)
+      expect(hugScore - tinyScore).toBeLessThanOrEqual(0.5 + 0.001)
+    })
+
+    it('treats undefined postCount as 0', () => {
+      const ctx = makeOccasionContext([])
+      const candidateWithout: SearchCandidatePayload = {
+        kind: 'place', id: 'no-count', source: 'local', rank: 1,
+        item: { ...place, id: 'no-count' },
+      }
+      const candidateWith = placeWithTags('with-count', [], 0)
+      const ranked = rankSearchCandidates(ctx, [candidateWithout, candidateWith])
+      const scoreWithout = ranked.find(r => r.id === 'no-count')!.rankingScore
+      const scoreWith = ranked.find(r => r.id === 'with-count')!.rankingScore
+      expect(scoreWithout).toBe(scoreWith)
+    })
   })
 })

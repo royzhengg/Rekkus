@@ -6,6 +6,7 @@ type RawPlaceResult = PlaceResult & {
   created_at?: string | null
   first_posted_at?: string | null
   latest_posted_at?: string | null
+  occasion_tags?: string[]
 }
 
 type RawDishResult = DishResult & {
@@ -29,6 +30,10 @@ function optionalNumber(value: unknown): value is number | undefined {
   return value === undefined || typeof value === 'number'
 }
 
+function optionalStringArray(value: unknown): value is string[] | undefined {
+  return value === undefined || (Array.isArray(value) && value.every(v => typeof v === 'string'))
+}
+
 export function isPlaceResult(value: unknown): value is RawPlaceResult {
   return (
     isRecord(value) &&
@@ -45,8 +50,19 @@ export function isPlaceResult(value: unknown): value is RawPlaceResult {
     optionalNumber(value.post_count) &&
     optionalNullableString(value.created_at) &&
     optionalNullableString(value.first_posted_at) &&
-    optionalNullableString(value.latest_posted_at)
+    optionalNullableString(value.latest_posted_at) &&
+    optionalStringArray(value.occasion_tags)
   )
+}
+
+function sanitizeCoords(
+  lat: number | null,
+  lng: number | null
+): { latitude: number | null; longitude: number | null } {
+  if (lat === null || lng === null) return { latitude: null, longitude: null }
+  if (lat === 0 && lng === 0) return { latitude: null, longitude: null }
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return { latitude: null, longitude: null }
+  return { latitude: lat, longitude: lng }
 }
 
 export function parsePlaceResults(value: unknown): PlaceResult[] {
@@ -55,6 +71,7 @@ export function parsePlaceResults(value: unknown): PlaceResult[] {
 }
 
 function mapPlaceResult(row: RawPlaceResult): PlaceResult {
+  const { latitude, longitude } = sanitizeCoords(row.latitude, row.longitude)
   return {
     id: row.id,
     name: row.name,
@@ -62,8 +79,8 @@ function mapPlaceResult(row: RawPlaceResult): PlaceResult {
     city: row.city,
     cuisine_type: row.cuisine_type,
     google_place_id: row.google_place_id,
-    latitude: row.latitude,
-    longitude: row.longitude,
+    latitude,
+    longitude,
     google_rating: row.google_rating,
     google_review_count: row.google_review_count,
     ...(row.suburb !== undefined ? { suburb: row.suburb } : {}),
@@ -73,6 +90,7 @@ function mapPlaceResult(row: RawPlaceResult): PlaceResult {
     ...(row.top_dishes !== undefined ? { top_dishes: row.top_dishes } : {}),
     ...(row.fromGoogle !== undefined ? { fromGoogle: row.fromGoogle } : {}),
     ...(row.post_count !== undefined ? { postCount: row.post_count } : {}),
+    ...(Array.isArray(row.occasion_tags) ? { occasion_tags: row.occasion_tags } : {}),
     ...(row.created_at !== undefined ? { createdAt: row.created_at } : {}),
     ...(row.first_posted_at !== undefined ? { firstPostedAt: row.first_posted_at } : {}),
     ...(row.latest_posted_at !== undefined ? { latestPostedAt: row.latest_posted_at } : {}),
@@ -83,7 +101,7 @@ export function isSearchSuggestion(value: unknown): value is SearchSuggestion {
   return (
     isRecord(value) &&
     (
-      value.suggestion_type === 'restaurant' ||
+      value.suggestion_type === 'place' ||
       value.suggestion_type === 'dish' ||
       value.suggestion_type === 'hashtag' ||
       value.suggestion_type === 'post' ||

@@ -31,13 +31,13 @@ jest.mock('@/lib/hooks/useSavedPlaceIds', () => ({
   useSavedPlaceIds: () => new Set(),
 }))
 jest.mock('@/lib/hooks/useSearchResults', () => ({
-  useSearchResults: ({ dbPlaces }: { dbPlaces: PlaceResult[] }) => ({
+  useSearchResults: jest.fn(({ dbPlaces }: { dbPlaces: PlaceResult[] }) => ({
     postResults: [],
     peopleResults: [],
-    placeResults: dbPlaces,
+    placeResults: dbPlaces ?? [],
     placeDistances: new Map(),
     expansionLabel: null,
-  }),
+  })),
 }))
 jest.mock('@/lib/services/googlePlaces', () => ({
   fetchPlaceAutocompleteJson: jest.fn().mockResolvedValue({ predictions: [] }),
@@ -52,7 +52,7 @@ jest.mock('@/lib/services/searchPersonalization', () => ({
     recentQueries: [],
     recentCuisines: [],
     recentAreas: [],
-    savedRestaurantIds: [],
+    savedPlaceIds: [],
     savedDishIds: [],
     savedPostIds: [],
   }),
@@ -238,8 +238,8 @@ describe('useSearch', () => {
     expect(analytics.searchGoogleFallbackUsed).toHaveBeenCalledWith(
       null,
       'din tai fung',
-      'restaurant_name',
-      'unbounded_restaurant_name',
+      'place_name',
+      'unbounded_place_name',
       false,
       'none',
       'search'
@@ -268,5 +268,94 @@ describe('useSearch', () => {
       'manual',
       'search'
     )
+  })
+
+  // B-595: after Phase 6, useSearch must pass pipeline candidates to useSearchResults
+  // (not raw dbPlaces / dbUsers / ftsDbPosts etc.)
+  describe('B-595: candidate-driven result path', () => {
+    it('passes candidates from pipeline to useSearchResults instead of raw dbPlaces', async () => {
+      const { useSearchResults: mockUseSearchResults } =
+        jest.requireMock('@/lib/hooks/useSearchResults') as {
+          useSearchResults: jest.Mock
+        }
+      mockUseSearchResults.mockClear()
+      mockSearchPlaces.mockResolvedValueOnce([place])
+
+      renderHook(() => useSearch('ramen'))
+      await act(async () => {
+        jest.advanceTimersByTime(300)
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      // After Phase 6, useSearchResults should receive candidates (not dbPlaces)
+      expect(mockUseSearchResults).toHaveBeenCalledWith(
+        expect.objectContaining({ candidates: expect.any(Array) })
+      )
+      expect(mockUseSearchResults).not.toHaveBeenCalledWith(
+        expect.objectContaining({ dbPlaces: expect.anything() })
+      )
+    })
+
+    it('does not pass ftsDbPosts, expandedDbPosts, or interactionCounts to useSearchResults', async () => {
+      const { useSearchResults: mockUseSearchResults } =
+        jest.requireMock('@/lib/hooks/useSearchResults') as {
+          useSearchResults: jest.Mock
+        }
+      mockUseSearchResults.mockClear()
+      mockSearchPlaces.mockResolvedValueOnce([])
+
+      renderHook(() => useSearch('ramen'))
+      await act(async () => {
+        jest.advanceTimersByTime(300)
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      // These are dead-state params that should not exist in the new interface
+      expect(mockUseSearchResults).not.toHaveBeenCalledWith(
+        expect.objectContaining({ ftsDbPosts: expect.anything() })
+      )
+      expect(mockUseSearchResults).not.toHaveBeenCalledWith(
+        expect.objectContaining({ expandedDbPosts: expect.anything() })
+      )
+      expect(mockUseSearchResults).not.toHaveBeenCalledWith(
+        expect.objectContaining({ interactionCounts: expect.anything() })
+      )
+    })
+  })
+
+  describe('Fix 5: search analytics', () => {
+    it('calls analytics.search with query and result count equal to candidates.length', async () => {
+      mockSearchPlaces.mockResolvedValueOnce([place])
+
+      renderHook(() => useSearch('ramen'))
+      await act(async () => {
+        jest.advanceTimersByTime(300)
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(mockAnalyticsSearch).toHaveBeenCalledWith(
+        null,
+        'ramen',
+        expect.any(Number)
+      )
+      // result count must be >= 0 and reflect actual candidates, not raw DB rows
+      expect(mockAnalyticsSearch.mock.calls[0]?.[2]).toBeGreaterThanOrEqual(0)
+    })
+
+    it('records results_count: 0 correctly for a zero-result search', async () => {
+      mockSearchPlaces.mockResolvedValueOnce([])
+
+      renderHook(() => useSearch('unicornfoodxyz123'))
+      await act(async () => {
+        jest.advanceTimersByTime(300)
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(mockAnalyticsSearch).toHaveBeenCalledWith(null, 'unicornfoodxyz123', 0)
+    })
   })
 })

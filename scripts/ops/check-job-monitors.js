@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const { printResult, readSchemaSource } = require('./lib/policy-checks')
 const { exists, readText } = require('./lib/files')
+const { readAnalyticsSources } = require('../lib/scan-files')
 
 const { parseFlags } = require('../lib/args')
 const args = parseFlags()
@@ -55,11 +56,9 @@ for (const term of [
   }
 }
 
-if (exists('lib/analytics.ts')) {
-  const analytics = readText('lib/analytics.ts')
-  for (const token of ['sanitizeAnalyticsMetadata', 'SAFE_METADATA_KEYS', 'SENSITIVE_VALUE_PATTERN']) {
-    if (!analytics.includes(token)) failures.push(`lib/analytics.ts must include ${token}.`)
-  }
+const analyticsSource = readAnalyticsSources()
+for (const token of ['sanitizeAnalyticsMetadata', 'SAFE_METADATA_KEYS', 'SENSITIVE_VALUE_PATTERN']) {
+  if (!analyticsSource.includes(token)) failures.push(`lib/analytics.ts must include ${token}.`)
 }
 
 printResult({

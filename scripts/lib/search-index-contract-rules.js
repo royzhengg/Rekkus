@@ -1,6 +1,6 @@
 const SEARCH_DOC_TERMS = [
   ['Searchable Field Contract', /Searchable Field Contract/i],
-  ['restaurants/places contract', /Restaurants \/ places/i],
+  ['restaurants/places contract', /Restaurants \/ places|\bPlaces\b/i],
   ['dishes contract', /\bDishes\b/i],
   ['posts contract', /\bPosts\b/i],
   ['people/users contract', /People \/ users/i],
@@ -17,11 +17,11 @@ const SEARCH_DOC_TERMS = [
 ]
 
 const SCHEMA_EVIDENCE = [
-  ['restaurants_search_tsv_idx', /restaurants_search_tsv_idx/i],
+  ['places_search_tsv_idx', /places_search_tsv_idx/i],
   ['posts_search_tsv_idx', /posts_search_tsv_idx/i],
   ['users_search_tsv_idx', /users_search_tsv_idx/i],
   ['dishes_search_tsv_idx', /dishes_search_tsv_idx/i],
-  ['search_restaurants_full_text RPC', /function\s+(?:public\.)?search_restaurants_full_text\b/i],
+  ['search_places_full_text RPC', /function\s+(?:public\.)?search_places_full_text\b/i],
   ['search_posts_full_text RPC', /function\s+(?:public\.)?search_posts_full_text\b/i],
   ['search_posts_by_dish RPC', /function\s+(?:public\.)?search_posts_by_dish\b/i],
   ['search_dishes_full_text RPC', /function\s+(?:public\.)?search_dishes_full_text\b/i],
@@ -61,7 +61,7 @@ function searchIndexContractFailures({
     failures.push('lib/search/pipeline.ts must retain unified candidate retrieval and provider fallback ownership.')
   }
 
-  if (!/search_places_full_text|search_restaurants_full_text/.test(restaurantServiceSource) || !/near_lat/.test(restaurantServiceSource)) {
+  if (!/search_places_full_text/.test(restaurantServiceSource) || !/near_lat/.test(restaurantServiceSource)) {
     failures.push('lib/services/places.ts must retain place FTS and geo-ranked RPC ownership.')
   }
 

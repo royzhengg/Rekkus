@@ -5,7 +5,7 @@ import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import type { Collection } from '@/lib/services/collections'
-import type { ProfileInterest, ProfileRestaurant } from './profileIdentity'
+import type { ProfileInterest, ProfilePlace } from './profileIdentity'
 
 export function FavouriteCuisines({ interests }: { interests: ProfileInterest[] }) {
   const colors = useThemeColors()
@@ -24,13 +24,13 @@ export function FavouriteCuisines({ interests }: { interests: ProfileInterest[] 
   )
 }
 
-export function RestaurantList({
-  restaurants,
-  onPressRestaurant,
+export function PlaceList({
+  places,
+  onPressPlace,
   compact = false,
 }: {
-  restaurants: ProfileRestaurant[]
-  onPressRestaurant: (restaurant: ProfileRestaurant) => void
+  places: ProfilePlace[]
+  onPressPlace: (place: ProfilePlace) => void
   compact?: boolean
 }) {
   const colors = useThemeColors()
@@ -38,31 +38,31 @@ export function RestaurantList({
   const medals = ['🥇', '🥈', '🥉']
   return (
     <View style={[styles.rowList, compact && styles.compactRowList]}>
-      {restaurants.map((restaurant, index) => (
+      {places.map((place, index) => (
         <TouchableOpacity
-          key={restaurant.id}
-          style={styles.restaurantRow}
-          onPress={() => onPressRestaurant(restaurant)}
+          key={place.id}
+          style={styles.placeRow}
+          onPress={() => onPressPlace(place)}
           activeOpacity={0.75}
           accessibilityRole="button"
-          accessibilityLabel={`Open ${restaurant.name}`}
+          accessibilityLabel={`Open ${place.name}`}
         >
-          <Text style={styles.restaurantRank} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+          <Text style={styles.placeRank} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
             {compact ? medals[index] ?? `${index + 1}.` : `${index + 1}.`}
           </Text>
-          <View style={styles.restaurantText}>
-            <Text style={styles.restaurantName} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-              {restaurant.name}
+          <View style={styles.placeText}>
+            <Text style={styles.placeName} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+              {place.name}
             </Text>
-            {!!restaurant.address && (
-              <Text style={styles.restaurantMeta} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-                {restaurant.address.split(',')[0]}
+            {!!place.address && (
+              <Text style={styles.placeMeta} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+                {place.address.split(',')[0]}
               </Text>
             )}
           </View>
-          {!compact && restaurant.reviewCount > 0 && (
-            <Text style={styles.restaurantCount} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-              {restaurant.reviewCount} {restaurant.reviewCount === 1 ? 'review' : 'reviews'}
+          {!compact && place.postCount > 0 && (
+            <Text style={styles.placeCount} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+              {place.postCount} {place.postCount === 1 ? 'post' : 'posts'}
             </Text>
           )}
         </TouchableOpacity>
@@ -100,7 +100,7 @@ export function CollectionList({
             </Text>
           ) : (
             <Text style={styles.collectionDescription} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-              {collection.visibility === 'private' ? 'Private list' : 'Shareable list'}
+              {collection.visibility === 'private' ? 'Private collection' : 'Shareable collection'}
             </Text>
           )}
         </TouchableOpacity>
@@ -124,7 +124,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     cuisineText: { fontSize: fontSize.md, fontWeight: fontWeight.medium, color: c.text },
     rowList: { paddingHorizontal: spacing[5], paddingTop: spacing[3], gap: spacing[2] },
     compactRowList: { paddingHorizontal: spacing[0], paddingTop: spacing[0] },
-    restaurantRow: {
+    placeRow: {
       minHeight: 52,
       flexDirection: 'row',
       alignItems: 'center',
@@ -134,11 +134,11 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingHorizontal: spacing[3],
       paddingVertical: spacing[2],
     },
-    restaurantRank: { width: spacing.px30, fontSize: fontSize.base, color: c.text, fontWeight: fontWeight.semibold },
-    restaurantText: { flex: 1 },
-    restaurantName: { fontSize: fontSize.bodySm, fontWeight: fontWeight.semibold, color: c.text },
-    restaurantMeta: { fontSize: fontSize.xs, color: c.text3, marginTop: spacing.px2 },
-    restaurantCount: { fontSize: fontSize.xs, color: c.text3 },
+    placeRank: { width: spacing.px30, fontSize: fontSize.base, color: c.text, fontWeight: fontWeight.semibold },
+    placeText: { flex: 1 },
+    placeName: { fontSize: fontSize.bodySm, fontWeight: fontWeight.semibold, color: c.text },
+    placeMeta: { fontSize: fontSize.xs, color: c.text3, marginTop: spacing.px2 },
+    placeCount: { fontSize: fontSize.xs, color: c.text3 },
     collectionRow: {
       minHeight: 58,
       backgroundColor: c.surface,

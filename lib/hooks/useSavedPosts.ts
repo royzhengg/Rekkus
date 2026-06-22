@@ -6,7 +6,8 @@ import { readOfflineCache, writeOfflineCache } from '../services/offlineCache'
 import { fetchSavedPostsPage, mapRowToPost } from '../services/posts'
 import { isCachedPostList } from '../services/posts/guards'
 
-const firstPageCacheKey = (userId: string) => `saved-posts:${userId}:first-page`
+const SAVED_POSTS_CACHE_VERSION = 'v3'
+const firstPageCacheKey = (userId: string) => `saved-posts:${userId}:first-page:${SAVED_POSTS_CACHE_VERSION}`
 
 export function useSavedPosts(userId: string | undefined) {
   const [savedPosts, setSavedPosts] = useState<Post[]>([])

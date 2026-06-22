@@ -39,23 +39,45 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    void AsyncStorage.getItem(STORAGE_KEY).then(raw => {
-      if (!raw) return
-      try {
-        const parsed: unknown = JSON.parse(raw)
-        if (
-          parsed !== null && typeof parsed === 'object' &&
-          'coords' in parsed && 'label' in parsed
-        ) {
-          const p = parsed as { coords: Coords; label: string }
-          setCoords(p.coords)
-          setLabel(p.label)
-          setStatus('granted')
+    void (async () => {
+      const raw = await AsyncStorage.getItem(STORAGE_KEY)
+      if (raw) {
+        try {
+          const parsed: unknown = JSON.parse(raw)
+          if (
+            parsed !== null && typeof parsed === 'object' &&
+            'coords' in parsed && 'label' in parsed
+          ) {
+            const p = parsed as { coords: Coords; label: string }
+            setCoords(p.coords)
+            setLabel(p.label)
+            setStatus('granted')
+            return
+          }
+        } catch {
+          // stale or malformed — fall through to OS check
         }
-      } catch {
-        // stale or malformed — ignore
       }
-    })
+
+      // No stored location — check OS permission so callers see 'denied' or
+      // silently acquire coords if already granted from a prior session.
+      try {
+        const perm = await Location.getForegroundPermissionsAsync()
+        if (perm.status === 'denied') {
+          setStatus('denied')
+        } else if (perm.status === 'granted') {
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+          const next = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+          setCoords(next)
+          setLabel('Current location')
+          setStatus('granted')
+          persist(next, 'Current location')
+        }
+        // undetermined → stay 'idle' (first-time user)
+      } catch {
+        // ignore — degraded state, stay 'idle'
+      }
+    })()
   }, [])
 
   function persist(nextCoords: Coords, nextLabel: string) {

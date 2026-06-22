@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router'
 import { useState, useCallback, useEffect } from 'react'
-import type { ProfileRestaurant } from '@/features/profile/profileIdentity'
+import type { ProfilePlace } from '@/features/profile/profileIdentity'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import type { Collection } from '@/lib/services/collections'
 import { fetchProfileCollections } from '@/lib/services/collections'
@@ -18,7 +18,7 @@ export function useProfileData(userId: string | undefined) {
   const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null)
   const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null)
   const [profileCollections, setProfileCollections] = useState<Collection[]>([])
-  const [manualTopSpots, setManualTopSpots] = useState<ProfileRestaurant[] | null>(null)
+  const [manualTopSpots, setManualTopSpots] = useState<ProfilePlace[] | null>(null)
 
   const loadProfileData = useCallback(async () => {
     if (!userId) { setProfileInfo(null); return }

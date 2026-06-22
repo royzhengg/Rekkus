@@ -3,6 +3,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  View,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
@@ -74,7 +75,6 @@ export function Chip({
       } : undefined}
       style={[
         styles.chip,
-        !!detail && styles.withDetail,
         variant === 'filter' && styles.filterChip,
         activeStyle,
         disabled && styles.disabled,
@@ -82,12 +82,18 @@ export function Chip({
       ]}
     >
       {leading}
-      <Text style={[styles.label, activeTextStyle, labelStyle]} numberOfLines={numberOfLines} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-        {label}
-      </Text>
-      {!!detail && (
-        <Text style={[styles.detail, detailStyle]} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-          {detail}
+      {detail ? (
+        <View style={styles.labelGroup}>
+          <Text style={[styles.label, activeTextStyle, labelStyle]} numberOfLines={numberOfLines} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+            {label}
+          </Text>
+          <Text style={[styles.detail, detailStyle]} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+            {detail}
+          </Text>
+        </View>
+      ) : (
+        <Text style={[styles.label, activeTextStyle, labelStyle]} numberOfLines={numberOfLines} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+          {label}
         </Text>
       )}
     </TouchableOpacity>
@@ -111,9 +117,8 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     filterChip: {
       backgroundColor: c.bg,
     },
-    withDetail: {
-      alignItems: 'flex-start',
-      gap: spacing[0],
+    labelGroup: {
+      flexDirection: 'column',
     },
     chipSelectedSubtle: {
       backgroundColor: `${c.accent}14`,

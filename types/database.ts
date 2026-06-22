@@ -1260,9 +1260,9 @@ export type Database = {
           open_now: boolean | null
           open_now_checked_at: string | null
           owner_content_status: string
+          place_geog: unknown
           price_range: number | null
           primary_photo_source: string
-          restaurant_geog: unknown
           suburb: string | null
           updated_at: string
           verification_status: string
@@ -1292,9 +1292,9 @@ export type Database = {
           open_now?: boolean | null
           open_now_checked_at?: string | null
           owner_content_status?: string
+          place_geog?: unknown
           price_range?: number | null
           primary_photo_source?: string
-          restaurant_geog?: unknown
           suburb?: string | null
           updated_at?: string
           verification_status?: string
@@ -1324,9 +1324,9 @@ export type Database = {
           open_now?: boolean | null
           open_now_checked_at?: string | null
           owner_content_status?: string
+          place_geog?: unknown
           price_range?: number | null
           primary_photo_source?: string
-          restaurant_geog?: unknown
           suburb?: string | null
           updated_at?: string
           verification_status?: string
@@ -2232,6 +2232,24 @@ export type Database = {
           },
         ]
       }
+      restaurant_place_stubs: {
+        Row: {
+          expires_at: string
+          name: string
+          place_id: string
+        }
+        Insert: {
+          expires_at: string
+          name: string
+          place_id: string
+        }
+        Update: {
+          expires_at?: string
+          name?: string
+          place_id?: string
+        }
+        Relationships: []
+      }
       restaurant_provider_cache: {
         Row: {
           attribution_required: boolean
@@ -2818,6 +2836,44 @@ export type Database = {
           },
         ]
       }
+      user_top_spots_audit_events: {
+        Row: {
+          context: Json | null
+          created_at: string
+          event_type: string
+          id: string
+          place_id: string | null
+          position: number | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          event_type: string
+          id?: string
+          place_id?: string | null
+          position?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          place_id?: string | null
+          position?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_top_spots_audit_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_topic_follows: {
         Row: {
           created_at: string
@@ -3017,7 +3073,7 @@ export type Database = {
           p_created_by?: string
           p_cuisine_type?: string
           p_name: string
-          p_restaurant_id: string
+          p_place_id: string
         }
         Returns: string
       }
@@ -3165,6 +3221,15 @@ export type Database = {
           p_source_id: string
           p_source_type: string
           p_stale_at: string
+        }
+        Returns: undefined
+      }
+      record_top_spot_audit_event: {
+        Args: {
+          p_context?: Json
+          p_event_type: string
+          p_place_id?: string
+          p_position?: number
         }
         Returns: undefined
       }

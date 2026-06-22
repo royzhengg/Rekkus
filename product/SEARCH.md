@@ -23,7 +23,7 @@ signals, but Search is intent-led retrieval while Discovery is inspiration-led e
 | Index source    | Prefer Rekkus tables and deterministic fields before external providers.                                                     |
 | Query expansion | Use deterministic synonyms or Supabase evidence before AI, embeddings, or broad cached guesses.                              |
 | Freshness       | Ranking changes that use recency, trending, or interaction windows must document the window and fallback.                    |
-| Fairness        | Avoid ranking changes that permanently bury new or low-volume restaurants without a discovery reason.                        |
+| Fairness        | Avoid ranking changes that permanently bury new or low-volume places without a discovery reason.                        |
 | Observability   | Search changes should expose enough signal to debug zero results, provider fallback, and surprising top results. Ranking debates should use B-575 `get_search_quality_metrics` aggregates before tuning. |
 | Zero-results UX | Zero-results state must never be a blank screen. `NoResultsCard` renders "No results for X" + 3 alternative chips from local taste signals with static fallbacks. Any change to the `totalResults === 0` branch in `SearchScreen.tsx` must preserve this invariant (enforced by `tests/unit/NoResultsCard.test.tsx`). |
 | Transparency    | Public/help copy may explain main ranking factors, sources, and paid-placement status without exposing exact weights.        |
@@ -39,12 +39,12 @@ Search has a live deterministic index, not a separate materialized index. The co
 
 | Entity | Current searchable fields | Index/RPC owner |
 | --- | --- | --- |
-| Places | `places.name`, `cuisine_type`, `suburb`, `city`, `address`, geo distance, top dish names from linked posts, cuisine aliases, provider fallback rows with source attribution | `restaurants_search_tsv_idx`, `search_restaurants_full_text`, `restaurants_in_bounding_box`, `lib/services/restaurants.ts`, `lib/services/googlePlaces.ts` |
+| Places | `places.name`, `cuisine_type`, `suburb`, `city`, `address`, geo distance, top dish names from linked posts, cuisine aliases, provider fallback rows with source attribution | `restaurants_search_tsv_idx`, `search_places_full_text`, `places_in_bounding_box`, `lib/services/places.ts`, `lib/services/googlePlaces.ts` |
 | Dishes | `dishes.name`, `name_normalized`, save/post counts, top photo | `dishes.search_tsv`, `dishes_search_tsv_idx`, `search_dishes_full_text`, `search_posts_by_dish` |
 | Posts | `posts.must_order`, `dish_tags.name`, `cuisine_type`, linked `hashtags.name`, `caption`, `occasion_tags`, linked place evidence | `posts_search_tsv_idx`, `search_posts_full_text`, `search_posts_by_dish`, `PostsContext` |
 | People / users | `users.username`, `full_name`, follower/post counts for tie-breaking only | `users_search_tsv_idx`, user service reads, people scoring in search ranking utilities |
 | Hashtags / tags | `hashtags.name`, `post_hashtags`, `posts.dish_tags`, dietary/occasion tag routing | `suggest_searches`, `search_posts_full_text`, `search_posts_by_dish` |
-| Areas / suburbs | `suburb_aliases.alias`, `suburb_lookups`, `restaurants.suburb`, manual area filter, around-me bounds | `resolve_suburb_query`, alias cache in `lib/search/context.ts`, `restaurants_in_bounding_box` |
+| Areas / suburbs | `suburb_aliases.alias`, `suburb_lookups`, `places.suburb`, manual area filter, around-me bounds | `resolve_suburb_query`, alias cache in `lib/search/context.ts`, `places_in_bounding_box` |
 
 Owner process:
 
@@ -68,10 +68,10 @@ There is no heavy materialized search index yet. The current implementation is a
 | Refresh cadence             | Local app state refreshes with screen/query lifecycle; Supabase reads and 30-day analytics signals refresh on query execution.                                                             | If a persisted index ships later, document owner, source tables, retry policy, max staleness, and rollback before marking it shipped. |
 | Stale handling              | Missing or stale local/provider data falls back to local text evidence, then Google enrichment with source attribution.                                                                    | Stale provider data must degrade ranking gently and must not block local Rekkus results.                                              |
 | Ranking recalculation       | Scoring recalculates per query from deterministic weights and current 30-day interaction counts.                                                                                           | Any weight or signal change updates the tuning log and keeps exact lexical matches primary.                                           |
-| Search cache rules          | Google Places cache/dedupe lives in `lib/services/googlePlaces.ts`; search itself does not persist arbitrary query caches. Selected Google restaurants upsert canonical rows and provider snapshots. | Cache only provider responses with TTL/source/attribution; do not cache unbounded user query payloads or raw autocomplete prediction payloads. |
+| Search cache rules          | Google Places cache/dedupe lives in `lib/services/googlePlaces.ts`; search itself does not persist arbitrary query caches. Selected Google places upsert canonical rows and provider snapshots. | Cache only provider responses with TTL/source/attribution; do not cache unbounded user query payloads or raw autocomplete prediction payloads. |
 | Precomputed search signals  | Current precomputed-like signal is the 30-day analytics aggregate read from `analytics_events`. Saved-place personalization is read per user and stays bounded.                            | New precomputed signals must be privacy-safe, explainable, and derived from Rekkus-owned activity first.                              |
 | Cuisine taxonomy governance | `CUISINE_SYNONYMS`, `CUISINE_ALIASES`, `cuisine_aliases`, and `expand_search_cuisines` own taxonomy expansion.                                                                             | Add cuisine/dish mappings only when backed by product need or Rekkus evidence; avoid one-off long-tail synonym sprawl.                |
-| Nearby bounding             | Around-me reads use `restaurants_in_bounding_box` before client-side radius filtering and distance ranking.                                                                                | Nearby search must not store precise user coordinates in analytics.                                                                   |
+| Nearby bounding             | Around-me reads use `places_in_bounding_box` before client-side radius filtering and distance ranking.                                                                                | Nearby search must not store precise user coordinates in analytics.                                                                   |
 
 ---
 
@@ -137,7 +137,7 @@ The same sheet also owns scalable result filters: cuisine, occasion, value, medi
 
 ### Layer 3 — Candidate Retrieval (`lib/search/pipeline.ts`)
 
-`runSearchPipeline()` is the single full-search retrieval entry point. It composes service-layer reads for users, restaurants, post FTS IDs, dish-post matches, dish entities, cuisine expansion, dish graph evidence, personalization signals, trending entity signals, and Google provider fallback. The output includes ranked typed `SearchCandidate` rows for `post`, `dish`, `place`, and `person`, plus legacy arrays while the current tab UI migrates incrementally.
+`runSearchPipeline()` is the single full-search retrieval entry point. It composes service-layer reads for users, places, post FTS IDs, dish-post matches, dish entities, cuisine expansion, dish graph evidence, personalization signals, trending entity signals, and Google provider fallback. The output includes ranked typed `SearchCandidate` rows for `post`, `dish`, `place`, and `person`, plus legacy arrays while the current tab UI migrates incrementally.
 
 Cross-entity candidate ranking now lives in `lib/search/ranking.ts`. Existing tab presentation still consumes `useSearchResults` arrays until the Top tab migrates to the ranked candidate stream.
 
@@ -145,7 +145,7 @@ Cross-entity candidate ranking now lives in `lib/search/ranking.ts`. Existing ta
 
 Intent drives which RPCs fire in parallel:
 
-1. Always: `search_restaurants_full_text` (places RPC; with optional `suburb_filter` for location queries)
+1. Always: `search_places_full_text` (places RPC; with optional `suburb_filter` for location queries)
 2. `dish` or `mixed` intent: also fires `search_posts_by_dish` AND `search_dishes_full_text` in parallel
 3. `dietary` intent: also queries `hashtags` for dietary tag IDs
 4. `occasion` intent: auto-applies occasion filter without touching user-visible filter state
@@ -155,14 +155,14 @@ Intent drives which RPCs fire in parallel:
 
 | RPC | Purpose |
 | --- | --- |
-| `search_restaurants_full_text` | Places full-text search: weighted FTS + geo multiplier. Includes `suburb` in FTS vector + optional `suburb_filter`. Supports prefix matching (`tonkat:*` matches "tonkatsu") and lower-priority tagged dish-name matches through `posts.dish_id -> dishes.name`; returns place/post freshness metadata for bounded cold-start exposure. |
+| `search_places_full_text` | Places full-text search: weighted FTS + geo multiplier. Includes `suburb` in FTS vector + optional `suburb_filter`. Supports prefix matching (`tonkat:*` matches "tonkatsu") and lower-priority tagged dish-name matches through `posts.dish_id -> dishes.name`; returns place/post freshness metadata for bounded cold-start exposure. |
 | `search_posts_full_text` | Weighted FTS (A=dish/tags, B=cuisine/hashtags, C=caption, D=occasion). `ts_rank_cd` for phrase queries. Also supports prefix matching for as-you-type results. |
 | `search_posts_by_dish` | Targets `must_order` + `dish_tags.name` at weight A. Falls back to pg_trgm when FTS returns 0 (returns `match_source`) |
 | `search_dishes_full_text` | FTS on `dishes.search_tsv` (`to_tsvector('english', name)`) + trigram fallback. Returns canonical `Dish` rows with `save_count`, `post_count`, `top_photo_url`, `first_posted_at`, and `latest_posted_at`. `security definer` to aggregate `saved_dishes` counts without exposing individual savers. |
 | `suggest_searches` | Prefix FTS across place names, dish names, hashtags; app wrapper normalizes compact autocomplete types and area suggestions. Returns in < 50ms where feasible |
 | `match_embeddings` | pgvector cosine similarity. Called when FTS returns < 5 results |
-| `resolve_suburb_query` | 3-tier: exact alias → pg_trgm on `suburb_lookups` → pg_trgm on `restaurants.suburb` |
-| `refresh_restaurant_popularity_cache` | Pre-aggregates place post counts, interaction counts, avg food rating. Replaces per-search analytics fetch. (RPC retains historical naming.) |
+| `resolve_suburb_query` | 3-tier: exact alias → pg_trgm on `suburb_lookups` → pg_trgm on `places.suburb` |
+| `refresh_place_popularity_cache` | Pre-aggregates place post counts, interaction counts, avg food rating. Replaces per-search analytics fetch. |
 | `refresh_trending_queries` | Aggregates `analytics_events` from last 24h with 6h recency weighting |
 
 ### Layer 5b — Typo Tolerance (trigram fallback)
@@ -171,7 +171,7 @@ All three main search RPCs use a two-phase retrieval pattern: FTS primary, trigr
 
 | RPC | Trigram field | Function | Threshold | Rationale |
 | --- | --- | --- | --- | --- |
-| `search_restaurants_full_text` | `places.name` | `extensions.word_similarity(query, name)` | > 0.35 | Asymmetric — handles short query ("rmen") against longer name ("Ramen Bar"); higher threshold reduces false positives from common English words |
+| `search_places_full_text` | `places.name` | `extensions.word_similarity(query, name)` | > 0.35 | Asymmetric — handles short query ("rmen") against longer name ("Ramen Bar"); higher threshold reduces false positives from common English words |
 | `search_posts_full_text` | `posts.must_order` | `extensions.similarity(must_order, query)` | > 0.30 | Symmetric, mirrors `search_posts_by_dish` existing threshold |
 | `search_dishes_full_text` | `dishes.name_normalized` | `extensions.similarity(name_normalized, query)` | > 0.30 | Pre-existing since B-544 |
 | `search_posts_by_dish` | `posts.must_order` | `extensions.similarity(must_order, query)` | > 0.25 | Pre-existing since dish-intent search shipping |
@@ -217,7 +217,7 @@ Graph, personalization, and trending V1 metadata are additive and bounded:
 | Signal | Source | Max impact | Rule |
 | --- | --- | ---: | --- |
 | Dish graph evidence | Existing `posts.dish_id -> posts.place_id` links | metadata only | Dish candidates expose serving place IDs/count and up to 5 supporting post IDs; place candidates expose top-dish presence metadata from existing result rows |
-| Personalization | Recent search terms/areas/cuisines, saved posts, saved dishes, saved restaurants | +1.2 | Adds transparent `personalizationReasons`; anonymous users receive no boost |
+| Personalization | Recent search terms/areas/cuisines, saved posts, saved dishes, saved places | +1.2 | Adds transparent `personalizationReasons`; anonymous users receive no boost |
 | Trending entities | 7-day de-identified post/place/dish aggregates | +0.8 | Uses existing aggregate/trending readers and falls back from sparse city data to global where available |
 
 Search performance cache: autocomplete results are cached in memory for 60s/50 entries; full pipeline results are cached in memory for 30s/50 entries using normalized query, mode, radius, coarse location, suburb filter, and current post count. No cache is persisted to AsyncStorage and no raw provider payloads are cached beyond existing provider-specific TTL rules.
@@ -260,7 +260,7 @@ Additional scoring added in this enrichment pass:
 When a query contains location terms (words after `near`, `in`, `around`, `at`):
 
 1. **Sync alias cache** (0ms) — resolves `cbd`, `darlo`, `parra`, `surry`, etc. from `suburb_aliases` table loaded on app start
-2. **DB pg_trgm** (fast, indexed) — `resolve_suburb_query()` against `suburb_lookups` (16k AU suburbs) and `restaurants.suburb`
+2. **DB pg_trgm** (fast, indexed) — `resolve_suburb_query()` against `suburb_lookups` (16k AU suburbs) and `places.suburb`
 3. **Google Places geocoding** — only when flag `locationGeocodeFallback` is on (off by default). Result is fed back into `suburb_lookups` for future free lookups (data flywheel).
 
 The rest of the pipeline remains unchanged:
