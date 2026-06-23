@@ -1,14 +1,14 @@
 import { CUISINE_ALIASES, getCuisineSynonyms, isDynamicFoodToken } from './cuisineSynonyms'
 
 export type SearchIntentKind = 'food_dish' | 'place_name' | 'location' | 'mixed' | 'general'
-export type PlaceTagIntentKind =
+type PlaceTagIntentKind =
   | 'place_name'
   | 'venue_category'
   | 'dish_or_menu_item'
   | 'location_query'
   | 'general'
 export type SearchLocationSource = 'gps' | 'manual' | 'none'
-export type SearchFallbackReason =
+type SearchFallbackReason =
   | 'local_results_present'
   | 'bounded_locality'
   | 'unbounded_place_name'

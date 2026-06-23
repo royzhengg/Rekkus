@@ -20,7 +20,7 @@ import { fetchIsFollowing, fetchUserIdByUsername } from '@/lib/services/users'
 import { navigateToPlaceFromPost } from '@/lib/utils/placeNavigation'
 import type { Post } from '@/types/domain'
 
-export type PostDetailOperationError = { title: string; message: string }
+type PostDetailOperationError = { title: string; message: string }
 
 export interface UsePostDetailResult {
   // social state

@@ -46,12 +46,8 @@ export { recordPlaceProviderCache, recordPlaceSource } from './places/cache'
 export { cachePlacePhotoRefs, getPlaceDisplayPhoto, getPlaceDisplayPhotos } from './places/photos'
 
 // Ratings, save status, popularity
-export {
-  fetchIsPlaceSaved,
-  fetchPlacePopularityCache,
-  fetchPlacePostRatings,
-} from './places/analytics'
-export type { PopularityCacheRow, PostRatingRow } from './places/analytics'
+export { fetchIsPlaceSaved, fetchPlacePostRatings } from './places/analytics'
+export type { PostRatingRow } from './places/analytics'
 
 export type PredictionDistanceGroup = 'nearby' | 'city' | 'state' | 'country' | 'worldwide'
 

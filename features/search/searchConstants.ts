@@ -1,5 +1,5 @@
 import type { SearchSortMode, PlaceResult } from '@/lib/hooks/useSearch'
-export { CHIPS, type SearchChip } from '@/lib/dataSources/searchQuickStarts'
+export { CHIPS } from '@/lib/dataSources/searchQuickStarts'
 
 export const TRENDING = [
   { tag: '#ramen', count: '4.2k posts' },
@@ -9,8 +9,6 @@ export const TRENDING = [
   { tag: '#dumplings', count: '1.7k posts' },
   { tag: '#datenight', count: '1.4k posts' },
 ]
-
-export const SEARCH_RADIUS_OPTIONS = [2, 5, 10, 25]
 
 export const SEARCH_SORTS: Array<{ key: SearchSortMode; label: string }> = [
   { key: 'best_match', label: 'Best match' },

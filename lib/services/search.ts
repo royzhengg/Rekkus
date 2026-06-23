@@ -1,9 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { Json } from '@/types/database'
 import { supabase } from '../supabase'
 import { reportInvalidBoundary } from './boundaryTelemetry'
 import { parseSearchSuggestions } from './searchGuards'
-import { isRecord, parseJsonWithGuard } from '../utils/safeJson'
+import { isRecord } from '../utils/safeJson'
 import type { DishResult, PlaceResult, SearchSuggestion, SearchUserResult, UserLocation } from '../hooks/searchTypes'
 import type { SemanticResultRow } from '../search/types'
 
@@ -13,44 +12,6 @@ export type SearchHistoryRow = {
   search_count: number
 }
 
-export type SearchQualityMetricRow = {
-  day: string
-  result_type: string | null
-  result_position: number | null
-  search_sessions: number
-  query_count: number
-  click_count: number
-  attributed_view_count: number
-  attributed_save_count: number
-  attributed_review_count: number
-  zero_result_count: number
-  reformulation_count: number
-  success_count: number
-  success_rate: number
-  ctr: number
-  zero_result_rate: number
-  reformulation_rate: number
-}
-
-function isSearchQualityMetricRow(value: unknown): value is SearchQualityMetricRow {
-  return isRecord(value) &&
-    typeof value.day === 'string' &&
-    (value.result_type === null || typeof value.result_type === 'string') &&
-    (value.result_position === null || typeof value.result_position === 'number') &&
-    typeof value.search_sessions === 'number' &&
-    typeof value.query_count === 'number' &&
-    typeof value.click_count === 'number' &&
-    typeof value.attributed_view_count === 'number' &&
-    typeof value.attributed_save_count === 'number' &&
-    typeof value.attributed_review_count === 'number' &&
-    typeof value.zero_result_count === 'number' &&
-    typeof value.reformulation_count === 'number' &&
-    typeof value.success_count === 'number' &&
-    typeof value.success_rate === 'number' &&
-    typeof value.ctr === 'number' &&
-    typeof value.zero_result_rate === 'number' &&
-    typeof value.reformulation_rate === 'number'
-}
 
 export function normalizeSavedSearchQuery(query: string): string {
   return query.trim().replace(/\s+/g, ' ')
@@ -324,29 +285,6 @@ export async function fetchRecentSearchHistory(
   return data ?? []
 }
 
-export async function fetchDistinctCuisineTypes(): Promise<string[]> {
-  const { data } = await supabase
-    .from('places')
-    .select('cuisine_type')
-    .not('cuisine_type', 'is', null)
-  return [...new Set((data ?? []).map(r => r.cuisine_type as string).filter(Boolean))]
-}
-
-export async function fetchSearchQualityMetrics(
-  lookbackDays = 30
-): Promise<SearchQualityMetricRow[]> {
-  const boundedLookbackDays = Math.max(1, Math.min(Math.floor(lookbackDays), 90))
-  const { data, error } = await supabase.rpc('get_search_quality_metrics', {
-    lookback_days: boundedLookbackDays,
-  })
-  if (error) throw error
-  const rows = Array.isArray(data) ? data.filter(isSearchQualityMetricRow) : []
-  if (Array.isArray(data) && data.length !== rows.length) {
-    reportInvalidBoundary('search_quality_metrics_row_invalid')
-  }
-  return rows
-}
-
 // ---------------------------------------------------------------------------
 // Places (bounding box — used by aroundMe mode)
 // ---------------------------------------------------------------------------
@@ -362,25 +300,6 @@ export async function searchPlacesByBounds(bounds: SearchBounds): Promise<PlaceR
   const { data } = await supabase.rpc('places_in_bounding_box', { ...bounds, max_results: 50 })
   if (!Array.isArray(data)) return []
   return data.filter(isRecord).map(row => parsePlaceDisplayData(row as Record<string, unknown>))
-}
-
-// AsyncStorage cache helpers used by useSearchHistory — kept for backward compat
-type CachedSearchSynonyms = { savedAt: string; rows: unknown[] }
-function isCachedSearchSynonyms(value: unknown): value is CachedSearchSynonyms {
-  return isRecord(value) && typeof value.savedAt === 'string' && Array.isArray(value.rows)
-}
-
-const SEARCH_SYNONYMS_CACHE_KEY = 'rekkus:search-synonyms:v1'
-
-export async function fetchSearchSynonyms(): Promise<unknown[]> {
-  try {
-    const raw = await AsyncStorage.getItem(SEARCH_SYNONYMS_CACHE_KEY)
-    if (!raw) return []
-    const cached = parseJsonWithGuard(raw, isCachedSearchSynonyms)
-    return cached?.rows ?? []
-  } catch {
-    return []
-  }
 }
 
 export async function loadSearchSynonymCache(): Promise<void> {

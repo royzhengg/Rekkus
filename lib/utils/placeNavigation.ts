@@ -13,7 +13,7 @@ export interface PlaceNavTarget {
   lng?: number | undefined
 }
 
-export function buildPlaceNavParams(t: PlaceNavTarget) {
+function buildPlaceNavParams(t: PlaceNavTarget) {
   if (__DEV__) {
     if (!t.placeId && !t.googlePlaceId) {
       console.warn('[Rekkus] buildPlaceNavParams: missing both placeId and googlePlaceId for', t.name)

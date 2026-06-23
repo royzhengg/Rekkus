@@ -2,7 +2,7 @@ import type { Collection, CollectionVisibility } from '@/lib/services/collection
 import type { SavedPlace } from '@/lib/services/places'
 import type { CollectionTargetType, Post, SavedDish } from '@/types/domain'
 
-export type SavedLibraryItemType = 'dish' | 'place' | 'post' | 'collection'
+type SavedLibraryItemType = 'dish' | 'place' | 'post' | 'collection'
 export type SavedLibraryScope = 'all' | 'dishes' | 'places' | 'posts' | 'collections'
 
 export type SavedLibraryItem = {
@@ -148,7 +148,7 @@ export function buildSavedLibraryCounts(input: SavedLibraryInput): SavedLibraryC
   }
 }
 
-export function scopeMatchesItem(scope: SavedLibraryScope, item: SavedLibraryItem): boolean {
+function scopeMatchesItem(scope: SavedLibraryScope, item: SavedLibraryItem): boolean {
   if (scope === 'all') return true
   if (scope === 'dishes') return item.type === 'dish'
   if (scope === 'places') return item.type === 'place'
@@ -156,7 +156,7 @@ export function scopeMatchesItem(scope: SavedLibraryScope, item: SavedLibraryIte
   return item.type === 'collection'
 }
 
-export function itemMatchesQuery(item: SavedLibraryItem, query: string): boolean {
+function itemMatchesQuery(item: SavedLibraryItem, query: string): boolean {
   const normalizedQuery = normalizeText(query)
   if (!normalizedQuery) return true
   return [

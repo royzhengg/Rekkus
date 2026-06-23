@@ -50,7 +50,7 @@ async function requestCameraPermission(
 
 // ── EXIF normalisation ─────────────────────────────────────────────────────
 
-export function normaliseExifCoords(
+function normaliseExifCoords(
   lat: number | undefined,
   lng: number | undefined,
   latRef: string | undefined,

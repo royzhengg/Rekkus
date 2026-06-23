@@ -1,4 +1,4 @@
-export type ActivityStatusKind = 'hidden' | 'active_now' | 'recently_active' | 'inactive'
+type ActivityStatusKind = 'hidden' | 'active_now' | 'recently_active' | 'inactive'
 
 export type ActivityStatus = {
   kind: ActivityStatusKind

@@ -23,6 +23,8 @@ export default {
     // Listed in package.json but pulled in through Expo's plugin/peer system
     '@expo/vector-icons',
     'expo-av',
+    // Pulled in via Expo's peer system; used directly in test helpers
+    'expo-modules-core',
     // Used in eslint.config.js — Knip doesn't resolve eslint config imports
     'eslint-config-expo',
     'eslint-config-prettier',
@@ -35,7 +37,7 @@ export default {
     // Expo status bar consumed via Expo plugin, not direct import
     'expo-status-bar',
   ],
-  ignoreBinaries: ['supabase'],
+  ignoreBinaries: ['supabase', 'ts-node'],
 
   // ── Phased enforcement ────────────────────────────────────────────────────
   // Phase 2 active (2026-05-25): unused exports and types are now enforced.
@@ -48,7 +50,6 @@ export default {
   // Delete an entry here only after the file is either used or removed.
   ignoreFiles: [
     'components/ErrorBoundary.tsx',
-    'components/ui/ScreenHeader.tsx',
     'features/messages/CreateGroupScreen.tsx',
     'lib/data.ts',
   ],
@@ -99,9 +100,10 @@ export default {
     'lib/services/posts/social.ts': ['exports'],
     'lib/services/postUploadGuards.ts': ['exports', 'types'],
     'lib/services/places.ts': ['exports', 'types'],
+    'lib/services/places/cache.ts': ['exports'],
     'lib/services/places/governance.ts': ['exports'],
     'lib/services/search.ts': ['types'],
-    'lib/services/searchGuards.ts': ['exports'],
+    'lib/services/searchGuards.ts': ['exports', 'types'],
     'lib/services/users.ts': ['exports', 'types'],
 
     // Utility files with exports not yet consumed.
@@ -112,6 +114,7 @@ export default {
 
     // Hook/context types exported for future consumers.
     'lib/contexts/PostUploadContext.tsx': ['types'],
+    'lib/hooks/useContextualQuickStarts.ts': ['exports'],
     'lib/hooks/useSearch.ts': ['types'],
     'lib/hooks/useSearchResults.ts': ['types'],
     'lib/hooks/searchTypes.ts': ['types'],
@@ -120,7 +123,7 @@ export default {
     // Search pipeline types and utilities built on B-560/B-580 safe-search branch.
     // These form the public type surface for consumers not yet wired.
     'lib/search/types.ts': ['types'],
-    'lib/utils/cuisineSynonyms.ts': ['exports'],
+    'lib/utils/cuisineSynonyms.ts': ['exports', 'types'],
 
     // Domain type not yet imported by name; used as sub-type of Post.
     'types/domain.ts': ['types'],

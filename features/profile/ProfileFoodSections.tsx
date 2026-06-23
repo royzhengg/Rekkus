@@ -5,7 +5,7 @@ import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import type { Collection } from '@/lib/services/collections'
-import type { ProfileInterest, ProfilePlace } from './profileIdentity'
+import type { ProfileInterest } from './profileIdentity'
 
 export function FavouriteCuisines({ interests }: { interests: ProfileInterest[] }) {
   const colors = useThemeColors()
@@ -19,53 +19,6 @@ export function FavouriteCuisines({ interests }: { interests: ProfileInterest[] 
             {interest.emoji} {interest.label}
           </Text>
         </View>
-      ))}
-    </View>
-  )
-}
-
-export function PlaceList({
-  places,
-  onPressPlace,
-  compact = false,
-}: {
-  places: ProfilePlace[]
-  onPressPlace: (place: ProfilePlace) => void
-  compact?: boolean
-}) {
-  const colors = useThemeColors()
-  const styles = useMemo(() => makeStyles(colors), [colors])
-  const medals = ['🥇', '🥈', '🥉']
-  return (
-    <View style={[styles.rowList, compact && styles.compactRowList]}>
-      {places.map((place, index) => (
-        <TouchableOpacity
-          key={place.id}
-          style={styles.placeRow}
-          onPress={() => onPressPlace(place)}
-          activeOpacity={0.75}
-          accessibilityRole="button"
-          accessibilityLabel={`Open ${place.name}`}
-        >
-          <Text style={styles.placeRank} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-            {compact ? medals[index] ?? `${index + 1}.` : `${index + 1}.`}
-          </Text>
-          <View style={styles.placeText}>
-            <Text style={styles.placeName} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-              {place.name}
-            </Text>
-            {!!place.address && (
-              <Text style={styles.placeMeta} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-                {place.address.split(',')[0]}
-              </Text>
-            )}
-          </View>
-          {!compact && place.postCount > 0 && (
-            <Text style={styles.placeCount} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-              {place.postCount} {place.postCount === 1 ? 'post' : 'posts'}
-            </Text>
-          )}
-        </TouchableOpacity>
       ))}
     </View>
   )
