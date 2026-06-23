@@ -16,7 +16,6 @@ Pagination owns list-loading rules for feed, saved content, comments, search res
 | --- | --- |
 | [../../lib/hooks/usePagedList.ts](../../lib/hooks/usePagedList.ts) | Client-side visible/load-more helper. |
 | [../../lib/hooks/useSavedPosts.ts](../../lib/hooks/useSavedPosts.ts) | Cursor-based saved posts pagination. |
-| [../../lib/hooks/useLikedPosts.ts](../../lib/hooks/useLikedPosts.ts) | Cursor-based liked posts pagination. |
 
 ## Review Triggers
 
