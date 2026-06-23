@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { isCoolingDown } from '@/lib/utils/cooldown'
 import { sanitizeAnalyticsMetadata } from './privacy'
 
-export type EntityType = 'place' | 'post' | 'user' | 'collection' | 'dish'
+type EntityType = 'place' | 'post' | 'user' | 'collection' | 'dish'
 
 export type EventPayload = {
   event_type: string

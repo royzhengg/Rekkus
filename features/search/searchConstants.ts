@@ -1,5 +1,5 @@
 import type { SearchSortMode, PlaceResult } from '@/lib/hooks/useSearch'
-export { CHIPS, type SearchChip } from '@/lib/dataSources/searchQuickStarts'
+export { CHIPS } from '@/lib/dataSources/searchQuickStarts'
 
 export const TRENDING = [
   { tag: '#ramen', count: '4.2k posts' },

@@ -6,7 +6,7 @@ type UseRecentPhotosParams = {
   limit?: number
 }
 
-export type RecentPhoto = {
+type RecentPhoto = {
   id: string
   uri: string
   width: number

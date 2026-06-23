@@ -55,10 +55,3 @@ export function legacyFoodToTaste(food: number | null | undefined): RekkusTasteV
   return TASTE_PICK_OPTIONS[Math.max(0, Math.min(4, Math.round(food) - 1))]?.value
 }
 
-export function tasteToLegacyFood(value?: RekkusTasteVerdict): number {
-  return TASTE_PICK_OPTIONS.find(option => option.value === value)?.legacyFood ?? 3
-}
-
-export function valueToLegacyCost(value?: RekkusValueVerdict): number {
-  return VALUE_PICK_OPTIONS.find(option => option.value === value)?.legacyCost ?? 2
-}

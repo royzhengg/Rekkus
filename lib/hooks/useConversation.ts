@@ -27,7 +27,7 @@ import { blockUser, submitContentReport } from '@/lib/services/moderation'
 import { getActivityStatus } from '@/lib/utils/activityStatus'
 import { avatarPalette } from '@/lib/utils/format'
 
-export type ConversationOperationError = { title: string; message: string }
+type ConversationOperationError = { title: string; message: string }
 
 export interface UseConversationResult {
   // data
