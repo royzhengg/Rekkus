@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -247,35 +242,35 @@ export type Database = {
       comments: {
         Row: {
           content: string
-          created_at: string | null
+          created_at: string
           deleted_at: string | null
           deleted_reason: string | null
           id: string
           parent_id: string | null
           post_id: string
-          updated_at: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
           content: string
-          created_at?: string | null
+          created_at?: string
           deleted_at?: string | null
           deleted_reason?: string | null
           id?: string
           parent_id?: string | null
           post_id: string
-          updated_at?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
           content?: string
-          created_at?: string | null
+          created_at?: string
           deleted_at?: string | null
           deleted_reason?: string | null
           id?: string
           parent_id?: string | null
           post_id?: string
-          updated_at?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -888,19 +883,19 @@ export type Database = {
       }
       follows: {
         Row: {
-          created_at: string | null
+          created_at: string
           follower_id: string
           following_id: string
           id: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           follower_id: string
           following_id: string
           id?: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           follower_id?: string
           following_id?: string
           id?: string
@@ -924,17 +919,17 @@ export type Database = {
       }
       hashtags: {
         Row: {
-          created_at: string | null
+          created_at: string
           id: string
           name: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           id?: string
           name: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           id?: string
           name?: string
         }
@@ -942,19 +937,19 @@ export type Database = {
       }
       likes: {
         Row: {
-          created_at: string | null
+          created_at: string
           id: string
           post_id: string
           user_id: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           id?: string
           post_id: string
           user_id: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           id?: string
           post_id?: string
           user_id?: string
@@ -1600,6 +1595,59 @@ export type Database = {
           },
         ]
       }
+      place_search_index: {
+        Row: {
+          cuisine_slug: string | null
+          lat: number | null
+          lng: number | null
+          place_id: string
+          post_count: number
+          save_count: number
+          search_name: string
+          search_tsv: unknown
+          suburb: string | null
+          trending_score: number
+          updated_at: string
+          verification_score: number
+        }
+        Insert: {
+          cuisine_slug?: string | null
+          lat?: number | null
+          lng?: number | null
+          place_id: string
+          post_count?: number
+          save_count?: number
+          search_name: string
+          search_tsv: unknown
+          suburb?: string | null
+          trending_score?: number
+          updated_at?: string
+          verification_score?: number
+        }
+        Update: {
+          cuisine_slug?: string | null
+          lat?: number | null
+          lng?: number | null
+          place_id?: string
+          post_count?: number
+          save_count?: number
+          search_name?: string
+          search_tsv?: unknown
+          suburb?: string | null
+          trending_score?: number
+          updated_at?: string
+          verification_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_search_index_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: true
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       place_sources: {
         Row: {
           fetched_at: string
@@ -1737,7 +1785,7 @@ export type Database = {
           community_verification_score: number
           community_verified_at: string | null
           country: string | null
-          created_at: string | null
+          created_at: string
           created_by: string | null
           created_source: string | null
           cuisine_slug: string | null
@@ -1766,7 +1814,7 @@ export type Database = {
           primary_photo_source: string
           slug: string | null
           suburb: string | null
-          updated_at: string | null
+          updated_at: string
           verification_level: Database["public"]["Enums"]["verification_level"]
           verification_status: string
         }
@@ -1777,7 +1825,7 @@ export type Database = {
           community_verification_score?: number
           community_verified_at?: string | null
           country?: string | null
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           created_source?: string | null
           cuisine_slug?: string | null
@@ -1806,7 +1854,7 @@ export type Database = {
           primary_photo_source?: string
           slug?: string | null
           suburb?: string | null
-          updated_at?: string | null
+          updated_at?: string
           verification_level?: Database["public"]["Enums"]["verification_level"]
           verification_status?: string
         }
@@ -1817,7 +1865,7 @@ export type Database = {
           community_verification_score?: number
           community_verified_at?: string | null
           country?: string | null
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           created_source?: string | null
           cuisine_slug?: string | null
@@ -1846,7 +1894,7 @@ export type Database = {
           primary_photo_source?: string
           slug?: string | null
           suburb?: string | null
-          updated_at?: string | null
+          updated_at?: string
           verification_level?: Database["public"]["Enums"]["verification_level"]
           verification_status?: string
         }
@@ -2128,7 +2176,7 @@ export type Database = {
       }
       post_photos: {
         Row: {
-          created_at: string | null
+          created_at: string
           deleted_at: string | null
           duration_ms: number | null
           height: number | null
@@ -2136,7 +2184,7 @@ export type Database = {
           is_cover: boolean
           media_type: string
           mime_type: string | null
-          order_index: number | null
+          order_index: number
           original_url: string | null
           post_id: string
           processed_url: string | null
@@ -2148,7 +2196,7 @@ export type Database = {
           width: number | null
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           deleted_at?: string | null
           duration_ms?: number | null
           height?: number | null
@@ -2156,7 +2204,7 @@ export type Database = {
           is_cover?: boolean
           media_type?: string
           mime_type?: string | null
-          order_index?: number | null
+          order_index?: number
           original_url?: string | null
           post_id: string
           processed_url?: string | null
@@ -2168,7 +2216,7 @@ export type Database = {
           width?: number | null
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           deleted_at?: string | null
           duration_ms?: number | null
           height?: number | null
@@ -2176,7 +2224,7 @@ export type Database = {
           is_cover?: boolean
           media_type?: string
           mime_type?: string | null
-          order_index?: number | null
+          order_index?: number
           original_url?: string | null
           post_id?: string
           processed_url?: string | null
@@ -2240,7 +2288,7 @@ export type Database = {
         Row: {
           caption: string | null
           cost_rating: number | null
-          created_at: string | null
+          created_at: string
           cuisine_type: string | null
           deleted_at: string | null
           deleted_reason: string | null
@@ -2256,7 +2304,7 @@ export type Database = {
           rating: number | null
           search_tsv: unknown
           taste_verdict: string | null
-          updated_at: string | null
+          updated_at: string
           user_id: string
           value_verdict: string | null
           vibe_rating: number | null
@@ -2264,7 +2312,7 @@ export type Database = {
         Insert: {
           caption?: string | null
           cost_rating?: number | null
-          created_at?: string | null
+          created_at?: string
           cuisine_type?: string | null
           deleted_at?: string | null
           deleted_reason?: string | null
@@ -2280,7 +2328,7 @@ export type Database = {
           rating?: number | null
           search_tsv?: unknown
           taste_verdict?: string | null
-          updated_at?: string | null
+          updated_at?: string
           user_id: string
           value_verdict?: string | null
           vibe_rating?: number | null
@@ -2288,7 +2336,7 @@ export type Database = {
         Update: {
           caption?: string | null
           cost_rating?: number | null
-          created_at?: string | null
+          created_at?: string
           cuisine_type?: string | null
           deleted_at?: string | null
           deleted_reason?: string | null
@@ -2304,7 +2352,7 @@ export type Database = {
           rating?: number | null
           search_tsv?: unknown
           taste_verdict?: string | null
-          updated_at?: string | null
+          updated_at?: string
           user_id?: string
           value_verdict?: string | null
           vibe_rating?: number | null
@@ -3056,19 +3104,19 @@ export type Database = {
       }
       saves: {
         Row: {
-          created_at: string | null
+          created_at: string
           id: string
           post_id: string
           user_id: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           id?: string
           post_id: string
           user_id: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           id?: string
           post_id?: string
           user_id?: string
@@ -3526,14 +3574,14 @@ export type Database = {
           bio: string | null
           city: string | null
           country: string | null
-          created_at: string | null
+          created_at: string
           follower_count: number
           full_name: string | null
           id: string
           last_seen_at: string | null
           post_count: number
           suburb: string | null
-          updated_at: string | null
+          updated_at: string
           username: string
           website: string | null
         }
@@ -3542,14 +3590,14 @@ export type Database = {
           bio?: string | null
           city?: string | null
           country?: string | null
-          created_at?: string | null
+          created_at?: string
           follower_count?: number
           full_name?: string | null
           id: string
           last_seen_at?: string | null
           post_count?: number
           suburb?: string | null
-          updated_at?: string | null
+          updated_at?: string
           username: string
           website?: string | null
         }
@@ -3558,14 +3606,14 @@ export type Database = {
           bio?: string | null
           city?: string | null
           country?: string | null
-          created_at?: string | null
+          created_at?: string
           follower_count?: number
           full_name?: string | null
           id?: string
           last_seen_at?: string | null
           post_count?: number
           suburb?: string | null
-          updated_at?: string | null
+          updated_at?: string
           username?: string
           website?: string | null
         }
@@ -3649,6 +3697,23 @@ export type Database = {
         }
         Returns: string
       }
+      find_place_merge_candidates: {
+        Args: {
+          p_distance_metres?: number
+          p_limit?: number
+          p_name_sim_thresh?: number
+        }
+        Returns: {
+          candidate_new_id: string
+          candidate_old_id: string
+          confidence: number
+          distance_m: number
+          match_reasons: string[]
+          name_similarity: number
+          new_name: string
+          old_name: string
+        }[]
+      }
       get_or_create_direct_conversation: {
         Args: { target_user_id: string }
         Returns: string
@@ -3687,13 +3752,22 @@ export type Database = {
         Args: {
           match_count?: number
           match_type: string
-          query_embedding: number[]
+          query_embedding: string
           similarity_threshold?: number
         }
         Returns: {
           id: string
           similarity: number
         }[]
+      }
+      merge_places: {
+        Args: {
+          p_merged_by?: string
+          p_new_place_id: string
+          p_old_place_id: string
+          p_reason?: string
+        }
+        Returns: Json
       }
       pin_message: { Args: { p_message_id: string }; Returns: undefined }
       places_in_bounding_box: {
@@ -3798,6 +3872,10 @@ export type Database = {
         Returns: undefined
       }
       refresh_place_popularity_cache: { Args: never; Returns: undefined }
+      refresh_place_search_index: {
+        Args: { p_place_id: string }
+        Returns: undefined
+      }
       refresh_trending_queries: { Args: never; Returns: undefined }
       resolve_suburb_query: {
         Args: { input_text: string }
@@ -3810,33 +3888,12 @@ export type Database = {
       }
       restore_comment: { Args: { p_comment_id: string }; Returns: undefined }
       restore_post: { Args: { p_post_id: string }; Returns: undefined }
-      search_places_full_text: {
-        Args: {
-          query_text: string
-          max_results?: number
-          near_lat?: number
-          near_lng?: number
-        }
-        Returns: {
-          id: string
-          name: string
-          google_place_id: string | null
-          latitude: number | null
-          longitude: number | null
-          address: string | null
-          suburb: string | null
-          city: string | null
-          cuisine_type: string | null
-          canonical_suburb: string | null
-          confidence: number
-        }[]
-      }
       search_semantic:
         | {
             Args: {
               p_limit?: number
               p_user_id?: string
-              query_embedding: number[]
+              query_embedding: string
             }
             Returns: {
               display_data: Json
@@ -3852,7 +3909,7 @@ export type Database = {
               p_near_lat?: number
               p_near_lng?: number
               p_user_id?: string
-              query_embedding: number[]
+              query_embedding: string
             }
             Returns: {
               display_data: Json
@@ -4124,3 +4181,4 @@ export const Constants = {
     },
   },
 } as const
+

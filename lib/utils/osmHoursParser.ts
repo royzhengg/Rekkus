@@ -58,7 +58,7 @@ function parseIntervals(timeSpec: string): Interval[] | null {
   return intervals.length > 0 ? intervals : null
 }
 
-function formatIntervals(intervals: Interval[] | null): string {
+function formatIntervals(intervals: Interval[] | null | undefined): string {
   if (!intervals) return 'Closed'
   return intervals
     .map(iv => {
@@ -126,7 +126,7 @@ export function parseOsmHours(hoursText: string, lat?: number, lng?: number): Pa
   }
 
   const weekday_text = DAY_NAMES.map((name, i) => {
-    const intervals = schedule[i]
+    const intervals = schedule[i] ?? null
     return `${name}: ${formatIntervals(intervals)}`
   })
 
@@ -167,5 +167,8 @@ export function parseOsmHours(hoursText: string, lat?: number, lng?: number): Pa
     }
   }
 
-  return { weekday_text, open_now }
+  if (open_now !== undefined) {
+    return { weekday_text, open_now }
+  }
+  return { weekday_text }
 }

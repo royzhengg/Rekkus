@@ -58,8 +58,8 @@ function searchIndexContractFailures({
     failures.push('lib/services/search.ts must retain vector search ownership (searchSemantic + embedQuery).')
   }
 
-  // usePlaceSearch.ts retains provider fallback for place tagging (create-post flow)
-  if (!/search_places_full_text/.test(restaurantServiceSource) || !/near_lat/.test(restaurantServiceSource)) {
+  // searchPlacesByText routes through search_text_fallback (search_places_full_text was removed in 20260622000001)
+  if (!/search_text_fallback/.test(restaurantServiceSource) || !/p_near_lat/.test(restaurantServiceSource)) {
     failures.push('lib/services/places.ts must retain place FTS and geo-ranked RPC ownership.')
   }
 

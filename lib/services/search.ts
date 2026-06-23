@@ -89,7 +89,7 @@ export async function searchSemantic(
   nearLng?: number | null,
 ): Promise<SemanticResultRow[]> {
   const { data, error } = await supabase.rpc('search_semantic', {
-    query_embedding: queryEmbedding,
+    query_embedding: `[${queryEmbedding.join(',')}]`,
     p_limit: limit,
     ...(userId != null ? { p_user_id: userId } : {}),
     ...(nearLat != null ? { p_near_lat: nearLat } : {}),

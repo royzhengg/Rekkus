@@ -50,11 +50,11 @@ function buildOverpassQuery(bbox: StateBbox): string {
 out center tags;`
 }
 
-export async function fetchState(state: StateBbox, dryRun: boolean): Promise<OsmElement[]> {
+export async function fetchState(state: StateBbox, dryRun: boolean, forceRefresh = false): Promise<OsmElement[]> {
   fs.mkdirSync(CACHE_DIR, { recursive: true })
 
   const cached = cachePath(state.code)
-  if (isCacheFresh(cached)) {
+  if (!forceRefresh && isCacheFresh(cached)) {
     console.log(`  [${state.code}] Using cached snapshot (< ${CACHE_MAX_AGE_DAYS} days old)`)
     const raw = JSON.parse(fs.readFileSync(cached, 'utf8'))
     return raw.elements as OsmElement[]

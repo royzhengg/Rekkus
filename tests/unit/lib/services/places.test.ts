@@ -124,14 +124,34 @@ describe('distanceGroupForPrediction', () => {
 // ── searchPlacesByText ───────────────────────────────────────────────────────
 
 describe('searchPlacesByText', () => {
-  it('calls search_places_full_text RPC and maps results', async () => {
-    mockRpc.mockResolvedValue({ data: [baseRow], error: null })
+  // searchPlacesByText calls search_text_fallback (search_places_full_text removed in 20260622000001)
+  const fallbackRow = {
+    entity_type: 'place',
+    entity_id: baseRow.id,
+    semantic_similarity: 0.8,
+    final_score: 0.8,
+    display_data: {
+      name: baseRow.name,
+      address: baseRow.address,
+      city: baseRow.city,
+      suburb: baseRow.suburb,
+      cuisine_type: baseRow.cuisine_type,
+      google_place_id: baseRow.google_place_id,
+      latitude: baseRow.latitude,
+      longitude: baseRow.longitude,
+      google_rating: null,
+      google_review_count: null,
+    },
+  }
+
+  it('calls search_text_fallback RPC and maps results', async () => {
+    mockRpc.mockResolvedValue({ data: [fallbackRow], error: null })
     const results = await searchPlacesByText('dumpling', 8)
     expect(results).toHaveLength(1)
     expect(results[0]?.description).toBe('Golden Dumpling')
-    expect(mockRpc).toHaveBeenCalledWith('search_places_full_text', expect.objectContaining({
-      query_text: 'dumpling',
-      max_results: 8,
+    expect(mockRpc).toHaveBeenCalledWith('search_text_fallback', expect.objectContaining({
+      p_query: 'dumpling',
+      p_limit: 8,
     }))
   })
 
@@ -139,9 +159,9 @@ describe('searchPlacesByText', () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
     const location = { lat: -33.87, lng: 151.21 }
     await searchPlacesByText('ramen', 5, location)
-    expect(mockRpc).toHaveBeenCalledWith('search_places_full_text', expect.objectContaining({
-      near_lat: location.lat,
-      near_lng: location.lng,
+    expect(mockRpc).toHaveBeenCalledWith('search_text_fallback', expect.objectContaining({
+      p_near_lat: location.lat,
+      p_near_lng: location.lng,
     }))
   })
 

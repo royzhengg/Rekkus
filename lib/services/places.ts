@@ -219,12 +219,30 @@ export async function searchPlacesByText(
   maxResults = 8,
   userLocation?: { lat: number; lng: number } | null
 ): Promise<Prediction[]> {
-  const { data } = await supabase.rpc('search_places_full_text', {
-    query_text: query,
-    max_results: maxResults,
-    ...(userLocation ? { near_lat: userLocation.lat, near_lng: userLocation.lng } : {}),
+  const { data } = await supabase.rpc('search_text_fallback', {
+    p_query: query,
+    p_limit: maxResults,
+    ...(userLocation ? { p_near_lat: userLocation.lat, p_near_lng: userLocation.lng } : {}),
   })
-  return (data ?? []).map((r) => mapPlaceRpcRowToPrediction(r, userLocation))
+  type TextFallbackRow = { entity_type: string; entity_id: string; display_data: unknown }
+  const placeRows: PlaceRpcRow[] = ((data as unknown) as TextFallbackRow[] | null ?? [])
+    .filter(r => r.entity_type === 'place')
+    .flatMap(r => {
+      if (!r.display_data || typeof r.display_data !== 'object' || Array.isArray(r.display_data)) return []
+      const d = r.display_data as Record<string, unknown>
+      return [{
+        id: r.entity_id,
+        name: String(d['name'] ?? ''),
+        google_place_id: typeof d['google_place_id'] === 'string' ? d['google_place_id'] : null,
+        latitude: typeof d['latitude'] === 'number' ? d['latitude'] : null,
+        longitude: typeof d['longitude'] === 'number' ? d['longitude'] : null,
+        cuisine_type: typeof d['cuisine_type'] === 'string' ? d['cuisine_type'] : null,
+        city: typeof d['city'] === 'string' ? d['city'] : null,
+        address: typeof d['address'] === 'string' ? d['address'] : null,
+        suburb: typeof d['suburb'] === 'string' ? d['suburb'] : null,
+      }]
+    })
+  return placeRows.map((r) => mapPlaceRpcRowToPrediction(r, userLocation))
 }
 
 export async function fetchNearbyPlaces(

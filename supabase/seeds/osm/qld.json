@@ -122165,6 +122165,34 @@
       }
     },
     {
+      "type": "node",
+      "id": 13958828697,
+      "lat": -27.8250722,
+      "lon": 153.3180171,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Red Rooster",
+        "brand:wikidata": "Q376466",
+        "cuisine": "chicken",
+        "name": "Red Rooster",
+        "takeaway": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13958828698,
+      "lat": -27.8246922,
+      "lon": 153.3180475,
+      "tags": {
+        "amenity": "fast_food",
+        "brand": "Carl's Jr.",
+        "brand:wikidata": "Q1043486",
+        "cuisine": "burger",
+        "name": "Carl's Jr.",
+        "takeaway": "yes"
+      }
+    },
+    {
       "type": "way",
       "id": 19002224,
       "center": {

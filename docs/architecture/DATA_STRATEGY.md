@@ -124,8 +124,43 @@ Monitor via `search_analytics` zero-result queries and `place_stats` fill rates.
 
 OSM data: "© OpenStreetMap contributors" (ODbL licence). Display in map and address contexts. See `docs/security/COMPLIANCE.md`.
 
+## Derived search cache
+
+`place_search_index` — materialised table; refresh async on place/stats change (B-596).
+
+| Column | Source | Notes |
+| ------ | ------ | ----- |
+| `place_id` | `places.id` | PK; `ON DELETE CASCADE` |
+| `search_name` | `lower(unaccent(name))` | Pre-computed; no per-row `lower()` at query time |
+| `search_tsv` | `to_tsvector('simple', name + cuisine_type + city + suburb)` | GIN-indexed |
+| `cuisine_slug` | `places.cuisine_slug` | Derived search value; see `cuisine_type` vs `cuisine_slug` section |
+| `suburb` | `places.suburb` | Cached for ILIKE matching without join |
+| `verification_score` | Derived from `verification_level` | Values from §Verification-boosted search ranking |
+| `lat`, `lng` | `places.latitude / longitude` | Cached for proximity — no join to `places` needed |
+| `post_count`, `save_count`, `trending_score` | `place_stats` | Popularity signals for ranking |
+
+Refresh triggers: `trg_places_search_index` (fires on name/cuisine/location/verification/status changes) and `trg_place_stats_search_index` (fires on post_count/save_count/trending_score changes). Both call `refresh_place_search_index(place_id)` which upserts or deletes the row depending on whether the place is still active.
+
+Requires the `unaccent` extension (schema: `extensions`).
+
+## Place dedup pipeline
+
+Two-phase approach — no import-time spatial dedup needed:
+
+**Phase 1 — Import (idempotent by `osm_id`):** `scripts/admin/osm/index.ts` upserts OSM rows keyed on `osm_id`. Duplicate OSM elements cannot arise; `dedup.ts` is intentionally a no-op stub.
+
+**Phase 2 — Post-import canonicalisation (`scripts/admin/osm/canonicalise.ts`):** Finds cross-source duplicates (OSM vs Google vs user-created) via `find_place_merge_candidates()` RPC (PostGIS `ST_DWithin` + pg_trgm name similarity + phone/website/google_place_id matching; confidence-scored). Merges via `merge_places()` RPC (atomic: re-points posts/saves/dishes/collections, merges `place_popularity_cache`, soft-deletes loser, logs to `place_merge_log` + `restaurant_audit_events`). Run on-demand after each full import or when duplicate reports spike; see `operations/JOB_MANIFEST.md`.
+
+## Community verification state machine
+
+Places are promoted from `osm_only`/`osm_google` to `community_verified` automatically:
+
+- **Threshold**: ≥3 distinct `user_id` values on non-deleted posts for the same `place_id`, with `max(created_at) - min(created_at) ≥ 7 days`.
+- **Mechanism**: `maybe_promote_to_community_verified()` AFTER INSERT trigger on `posts` (migration `20260624000002`).
+- **Search effect**: `place_search_index.verification_score` updates automatically via the existing `trg_places_search_index` trigger on `places` — no extra refresh needed.
+- **Audit**: every promotion is logged to `restaurant_audit_events` with `action='verification_level_promoted'`, `before_summary` (old level), and `after_summary` (new level + distinct_users + date spread).
+- **Protection**: `community_verified` and `owner_verified` places are immune to OSM delta overwrites (enforced in `scripts/admin/osm/ingest-delta.ts`).
+
 ## Near-term priorities
 
-1. **`place_search_index` materialised table** — eliminates 7+ joins per search query. Refresh async on place/stats update. Columns: `place_id`, `search_name` (generated: `lower(unaccent(name))`), `search_tsv`, `cuisine_slug`, `verification_score`, `lat`, `lng`.
-2. **Community verification triggers** — auto-promote to `community_verified` at threshold.
-3. **Search analytics dashboard** — what queries return 0 results? Feeds cuisine taxonomy and venue expansion decisions.
+1. **Search analytics dashboard** — what queries return 0 results? Feeds cuisine taxonomy and venue expansion decisions.

@@ -38,7 +38,7 @@ const completeSources = {
   schemaSource: completeSchema,
   searchServiceSource: 'searchSemantic embedQuery',
   searchPipelineSource: '',
-  restaurantServiceSource: 'search_places_full_text near_lat',
+  restaurantServiceSource: 'search_text_fallback p_near_lat',
 }
 
 test('search index contract scanner rejects incomplete product contract docs', () => {
