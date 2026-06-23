@@ -19,7 +19,8 @@ async function run() {
   const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { realtime: { transport: WebSocket } },
+    // ws constructor signature differs from Supabase's WebSocketLikeConstructor — cast required
+    { realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket } },
   )
 
   let states: StateBbox[]
