@@ -8,10 +8,6 @@ import {
 } from '@/lib/services/places'
 import type { ProfilePlace } from './profileIdentity'
 
-export function profilePlacePhotoKey(place: ProfilePlace): string {
-  return place.placeId ?? place.id
-}
-
 export async function hydrateProfilePlacePhotos(
   places: ProfilePlace[]
 ): Promise<ProfilePlace[]> {

@@ -1,12 +1,10 @@
 import { analytics } from '@/lib/analytics'
 import { GOOGLE_PLACES_KEY } from '@/lib/config'
 import {
-  type GoogleAreaSuggestion,
   googlePredictionsEnvelope,
   googleResultEnvelope,
   googleResultsEnvelope,
   hasAllowedGoogleStatus,
-  isGoogleAreaSuggestion,
 } from '@/lib/services/googlePlacesGuards'
 import { supabase } from '@/lib/supabase'
 
@@ -181,30 +179,6 @@ export async function fetchPlaceTextSearchJson<T>(
   )
 }
 
-export async function fetchAreaSuggestionsJson(
-  input: string,
-  userLocation?: { lat: number; lng: number } | null
-): Promise<{ predictions: GoogleAreaSuggestion[] }> {
-  const q = input.trim()
-  const baseEvent = {
-    provider: 'google_places' as const,
-    requestType: 'autocomplete' as const,
-    feature: 'area_search',
-    fallbackReason: 'suburb_city_postcode_filter',
-    estimatedCostClass: 'paid_provider' as const,
-  }
-  if (!GOOGLE_PLACES_KEY || q.length < MIN_AUTOCOMPLETE_LENGTH) {
-    logProviderUsage({ ...baseEvent, cacheStatus: 'blocked' })
-    return { predictions: [] }
-  }
-  const locationParam = userLocation
-    ? `&location=${userLocation.lat},${userLocation.lng}&radius=50000`
-    : ''
-  const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(q)}${locationParam}&types=(regions)&key=${GOOGLE_PLACES_KEY}`
-  const cacheKey = `area:${q}:${locationParam}`
-  const result = await cachedJson<{ predictions?: unknown[] }>(cacheKey, url, baseEvent, googlePredictionsEnvelope)
-  return { predictions: (result?.predictions ?? []).filter(isGoogleAreaSuggestion).slice(0, 8) }
-}
 
 export function buildGooglePlacePhotoUrl(photoReference: string, maxWidth = 800): string {
   if (!GOOGLE_PLACES_KEY || !photoReference) return ''

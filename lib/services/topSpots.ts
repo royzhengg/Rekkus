@@ -115,11 +115,3 @@ export async function saveTopSpots(userId: string, spots: TopSpot[]): Promise<vo
   if (insertError) throw insertError
 }
 
-export async function clearTopSpots(userId: string): Promise<void> {
-  const { error } = await supabase
-    .from('user_top_spots')
-    .delete()
-    .eq('user_id', userId)
-
-  if (error) throw error
-}

@@ -273,7 +273,7 @@ export function parseSearchQuery(raw: string): ParsedQuery {
   }
 }
 
-export function fallbackParsedQuery(raw: string): ParsedQuery {
+function fallbackParsedQuery(raw: string): ParsedQuery {
   const normalised = raw.toLowerCase().trim()
   const searchWords = normalised
     .split(/\s+/)

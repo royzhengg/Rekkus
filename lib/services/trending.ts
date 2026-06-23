@@ -1,5 +1,4 @@
 import { supabase } from '../supabase'
-import { fetchTrendingDishes } from './search'
 import { parsePlaceResults } from './searchGuards'
 import type { PlaceResult } from '../hooks/searchTypes'
 
@@ -19,12 +18,6 @@ export type PlaceClickRow = {
 export type PostTrendEventRow = {
   event_type: TrendingPostEventType
   entity_id: string | null
-}
-
-export type TrendingEntitySignals = {
-  placeScores: Map<string, number>
-  postScores: Map<string, number>
-  dishScores: Map<string, number>
 }
 
 const GLOBAL_TRENDING_CITY = 'global'
@@ -198,38 +191,3 @@ export async function fetchTrendingPostEvents(sinceIso: string): Promise<PostTre
   )
 }
 
-export async function fetchTrendingEntitySignals(
-  nearCity?: string | null
-): Promise<TrendingEntitySignals> {
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  const [placeRows, postRows, dishRows] = await Promise.all([
-    fetchTrendingPlaceClicks(since, nearCity),
-    fetchTrendingPostEvents(since),
-    fetchTrendingDishes(10),
-  ])
-
-  const placeScores = new Map<string, number>()
-  for (const row of placeRows) {
-    if (row.entity_id) placeScores.set(row.entity_id, (placeScores.get(row.entity_id) ?? 0) + 1)
-  }
-
-  const postScores = new Map<string, number>()
-  const postWeights: Record<TrendingPostEventType, number> = {
-    post_view: 1,
-    post_like: 2,
-    post_save: 5,
-    post_dwell: 1.5,
-  }
-  for (const row of postRows) {
-    if (row.entity_id) {
-      postScores.set(row.entity_id, (postScores.get(row.entity_id) ?? 0) + postWeights[row.event_type])
-    }
-  }
-
-  const dishScores = new Map<string, number>()
-  for (const dish of dishRows) {
-    dishScores.set(dish.id, dish.save_count * 3 + dish.post_count)
-  }
-
-  return { placeScores, postScores, dishScores }
-}

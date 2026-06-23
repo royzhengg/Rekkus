@@ -10,8 +10,6 @@ export const TRENDING = [
   { tag: '#datenight', count: '1.4k posts' },
 ]
 
-export const SEARCH_RADIUS_OPTIONS = [2, 5, 10, 25]
-
 export const SEARCH_SORTS: Array<{ key: SearchSortMode; label: string }> = [
   { key: 'best_match', label: 'Best match' },
   { key: 'nearby', label: 'Nearby' },

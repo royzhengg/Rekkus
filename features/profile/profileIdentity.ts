@@ -1,5 +1,5 @@
 import { normalizeCuisine } from '@/lib/dataSources/cuisines'
-import type { Collection, CollectionVisibility } from '@/lib/services/collections'
+import type { Collection } from '@/lib/services/collections'
 import type { SavedPlace } from '@/lib/services/places'
 import type { Post } from '@/types/domain'
 
@@ -195,6 +195,3 @@ export function profileCollectionIsVisible(
   return viewerIsOwner || collection.visibility === 'public' || collection.visibility === 'unlisted'
 }
 
-export function profileCollectionVisibilityFilter(viewerIsOwner: boolean): CollectionVisibility[] {
-  return viewerIsOwner ? ['private', 'unlisted', 'public'] : ['unlisted', 'public']
-}
