@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { createClient } from '@supabase/supabase-js'
+import WebSocket from 'ws'
 import { AU_STATES, StateBbox } from './states'
 import { fetchState } from './fetch'
 import { transform } from './transform'
@@ -18,6 +19,8 @@ async function run() {
   const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    // ws constructor signature differs from Supabase's WebSocketLikeConstructor — cast required
+    { realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket } },
   )
 
   let states: StateBbox[]
