@@ -1,0 +1,21 @@
+name: OSM delta refresh
+
+on:
+  schedule:
+    - cron: '0 2 * * 0' # Sunday 2am UTC
+  workflow_dispatch: # allow manual trigger from Actions tab
+
+jobs:
+  delta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx ts-node scripts/admin/osm/delta.ts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
