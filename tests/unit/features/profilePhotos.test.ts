@@ -1,113 +1,139 @@
-import type { ProfileRestaurant } from '@/features/profile/profileIdentity'
-import { hydrateProfileRestaurantPhotos } from '@/features/profile/profilePhotos'
+import type { ProfilePlace } from '@/features/profile/profileIdentity'
+import { hydrateProfilePlacePhotos } from '@/features/profile/profilePhotos'
 import {
-  fetchRestaurantProviderDetail,
+  fetchPlaceProviderDetail,
   fetchPlaceRow,
   fetchPlaceRowByGooglePlaceId,
   getPlaceDisplayPhoto,
-  getRestaurantProviderPhotoUrl,
+  getPlaceProviderPhotoUrl,
+  cachePlacePhotoRefs,
 } from '@/lib/services/places'
 
 jest.mock('@/lib/services/places', () => ({
   fetchPlaceRow: jest.fn(),
   fetchPlaceRowByGooglePlaceId: jest.fn(),
   getPlaceDisplayPhoto: jest.fn(),
-  fetchRestaurantProviderDetail: jest.fn(),
-  getRestaurantProviderPhotoUrl: jest.fn(),
+  fetchPlaceProviderDetail: jest.fn(),
+  getPlaceProviderPhotoUrl: jest.fn(),
+  cachePlacePhotoRefs: jest.fn(),
 }))
 
-const mockFetchRestaurantRow = jest.mocked(fetchPlaceRow)
-const mockFetchRestaurantRowByPlaceId = jest.mocked(fetchPlaceRowByGooglePlaceId)
-const mockGetRestaurantDisplayPhoto = jest.mocked(getPlaceDisplayPhoto)
-const mockFetchRestaurantProviderDetail = jest.mocked(fetchRestaurantProviderDetail)
-const mockGetRestaurantProviderPhotoUrl = jest.mocked(getRestaurantProviderPhotoUrl)
+const mockFetchPlaceRow = jest.mocked(fetchPlaceRow)
+const mockFetchPlaceRowByPlaceId = jest.mocked(fetchPlaceRowByGooglePlaceId)
+const mockGetPlaceDisplayPhoto = jest.mocked(getPlaceDisplayPhoto)
+const mockFetchProviderDetail = jest.mocked(fetchPlaceProviderDetail)
+const mockGetProviderPhotoUrl = jest.mocked(getPlaceProviderPhotoUrl)
+const mockCachePlacePhotoRefs = jest.mocked(cachePlacePhotoRefs)
 
-function restaurant(overrides: Partial<ProfileRestaurant>): ProfileRestaurant {
+function place(overrides: Partial<ProfilePlace>): ProfilePlace {
   return {
-    id: 'restaurant-1',
+    id: 'place-1',
     name: 'Henry Lees',
     address: 'Hart St',
     lat: null,
     lng: null,
     placeId: null,
     photoUrl: null,
-    reviewCount: 1,
+    postCount: 1,
     avgFoodRating: 5,
-    lastReviewedAt: null,
+    lastPostedAt: null,
     ...overrides,
   }
 }
 
-describe('profile restaurant photo hydration', () => {
+describe('profile place photo hydration', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockFetchRestaurantRow.mockResolvedValue(null)
-    mockFetchRestaurantRowByPlaceId.mockResolvedValue(null)
-    mockGetRestaurantDisplayPhoto.mockResolvedValue(null)
-    mockFetchRestaurantProviderDetail.mockResolvedValue(null)
-    mockGetRestaurantProviderPhotoUrl.mockReturnValue('')
+    mockFetchPlaceRow.mockResolvedValue(null)
+    mockFetchPlaceRowByPlaceId.mockResolvedValue(null)
+    mockGetPlaceDisplayPhoto.mockResolvedValue(null)
+    mockFetchProviderDetail.mockResolvedValue(null)
+    mockGetProviderPhotoUrl.mockReturnValue('')
+    mockCachePlacePhotoRefs.mockResolvedValue(undefined)
   })
 
   it('keeps existing first-party profile photos without service lookups', async () => {
-    const hydrated = await hydrateProfileRestaurantPhotos([
-      restaurant({ photoUrl: 'https://example.com/review.jpg' }),
+    const hydrated = await hydrateProfilePlacePhotos([
+      place({ photoUrl: 'https://example.com/review.jpg' }),
     ])
 
     expect(hydrated[0]?.photoUrl).toBe('https://example.com/review.jpg')
-    expect(mockFetchRestaurantRow).not.toHaveBeenCalled()
-    expect(mockGetRestaurantDisplayPhoto).not.toHaveBeenCalled()
+    expect(mockFetchPlaceRow).not.toHaveBeenCalled()
+    expect(mockGetPlaceDisplayPhoto).not.toHaveBeenCalled()
   })
 
-  it('hydrates missing photos through restaurant rows and cached provider refs', async () => {
-    mockFetchRestaurantRow.mockResolvedValue({
-      id: 'restaurant-1',
-      google_place_id: 'place-1',
+  it('hydrates missing photos through place rows and cached provider refs', async () => {
+    mockFetchPlaceRow.mockResolvedValue({
+      id: 'place-1',
+      google_place_id: 'gplace-1',
       google_photo_refs: ['provider-ref'],
+      primary_photo_source: 'google',
     })
-    mockGetRestaurantDisplayPhoto.mockResolvedValue('https://example.com/provider.jpg')
+    mockGetPlaceDisplayPhoto.mockResolvedValue('https://example.com/provider.jpg')
 
-    const hydrated = await hydrateProfileRestaurantPhotos([
-      restaurant({ id: 'restaurant-1', placeId: 'place-1' }),
+    const hydrated = await hydrateProfilePlacePhotos([
+      place({ id: 'place-1', placeId: 'gplace-1' }),
     ])
 
-    expect(mockGetRestaurantDisplayPhoto).toHaveBeenCalledWith('restaurant-1', ['provider-ref'])
-    expect(mockFetchRestaurantRowByPlaceId).not.toHaveBeenCalled()
+    expect(mockGetPlaceDisplayPhoto).toHaveBeenCalledWith('place-1', ['provider-ref'])
+    expect(mockFetchPlaceRowByPlaceId).not.toHaveBeenCalled()
     expect(hydrated[0]?.photoUrl).toBe('https://example.com/provider.jpg')
   })
 
-  it('falls back to place-id row lookup when the restaurant id is not local', async () => {
-    mockFetchRestaurantRowByPlaceId.mockResolvedValue({
-      id: 'restaurant-2',
-      google_place_id: 'place-2',
+  it('falls back to google-place-id row lookup when the place id is not local', async () => {
+    mockFetchPlaceRowByPlaceId.mockResolvedValue({
+      id: 'place-2',
+      google_place_id: 'gplace-2',
       google_photo_refs: ['provider-ref-2'],
+      primary_photo_source: 'google',
     })
-    mockGetRestaurantDisplayPhoto.mockResolvedValue('https://example.com/provider2.jpg')
+    mockGetPlaceDisplayPhoto.mockResolvedValue('https://example.com/provider2.jpg')
 
-    const hydrated = await hydrateProfileRestaurantPhotos([
-      restaurant({ id: 'place-2', placeId: 'place-2' }),
+    const hydrated = await hydrateProfilePlacePhotos([
+      place({ id: 'gplace-2', placeId: 'gplace-2' }),
     ])
 
-    expect(mockFetchRestaurantRowByPlaceId).toHaveBeenCalledWith('place-2')
-    expect(mockGetRestaurantDisplayPhoto).toHaveBeenCalledWith('restaurant-2', ['provider-ref-2'])
+    expect(mockFetchPlaceRowByPlaceId).toHaveBeenCalledWith('gplace-2')
+    expect(mockGetPlaceDisplayPhoto).toHaveBeenCalledWith('place-2', ['provider-ref-2'])
     expect(hydrated[0]?.photoUrl).toBe('https://example.com/provider2.jpg')
   })
 
-  it('falls back to Google Places API when no cached photo refs exist', async () => {
-    mockFetchRestaurantRow.mockResolvedValue({
-      id: 'restaurant-3',
-      google_place_id: 'place-3',
+  it('falls back to Google Places API and caches fresh refs when no cached photo refs exist', async () => {
+    mockFetchPlaceRow.mockResolvedValue({
+      id: 'place-3',
+      google_place_id: 'gplace-3',
       google_photo_refs: [],
+      primary_photo_source: 'google',
     })
-    mockGetRestaurantDisplayPhoto.mockResolvedValue(null)
-    mockFetchRestaurantProviderDetail.mockResolvedValue({ photos: [{ photo_reference: 'fresh-ref' }] })
-    mockGetRestaurantProviderPhotoUrl.mockReturnValue('https://maps.googleapis.com/photo?ref=fresh-ref')
+    mockGetPlaceDisplayPhoto.mockResolvedValue(null)
+    mockFetchProviderDetail.mockResolvedValue({ photos: [{ photo_reference: 'fresh-ref' }] })
+    mockGetProviderPhotoUrl.mockReturnValue('https://maps.googleapis.com/photo?ref=fresh-ref')
 
-    const hydrated = await hydrateProfileRestaurantPhotos([
-      restaurant({ id: 'restaurant-3', placeId: 'place-3' }),
+    const hydrated = await hydrateProfilePlacePhotos([
+      place({ id: 'place-3', placeId: 'gplace-3' }),
     ])
 
-    expect(mockFetchRestaurantProviderDetail).toHaveBeenCalledWith('place-3', 'photos')
-    expect(mockGetRestaurantProviderPhotoUrl).toHaveBeenCalledWith('fresh-ref')
+    expect(mockFetchProviderDetail).toHaveBeenCalledWith('gplace-3', 'photos')
+    expect(mockCachePlacePhotoRefs).toHaveBeenCalledWith('place-3', ['fresh-ref'])
+    expect(mockGetProviderPhotoUrl).toHaveBeenCalledWith('fresh-ref')
     expect(hydrated[0]?.photoUrl).toBe('https://maps.googleapis.com/photo?ref=fresh-ref')
+  })
+
+  it('leaves photoUrl empty when no first-party, cached, or provider photo exists', async () => {
+    mockFetchPlaceRow.mockResolvedValue({
+      id: 'place-4',
+      google_place_id: 'gplace-4',
+      google_photo_refs: [],
+      primary_photo_source: 'google',
+    })
+    mockGetPlaceDisplayPhoto.mockResolvedValue(null)
+    mockFetchProviderDetail.mockResolvedValue({ photos: [] })
+
+    const hydrated = await hydrateProfilePlacePhotos([
+      place({ id: 'place-4', placeId: 'gplace-4' }),
+    ])
+
+    expect(hydrated[0]?.photoUrl).toBeNull()
+    expect(mockCachePlacePhotoRefs).not.toHaveBeenCalled()
   })
 })

@@ -3,7 +3,7 @@ import type { WithSpringConfig } from 'react-native-reanimated'
 // Spring physics tokens — use with withSpring() or .springify().damping/stiffness
 export const SPRING_SNAPPY: WithSpringConfig = { damping: 18, stiffness: 350 }  // buttons, context menu pop-in
 export const SPRING_SMOOTH: WithSpringConfig = { damping: 22, stiffness: 220 }  // modals, card slides
-export const SPRING_CARD:   WithSpringConfig = { damping: 20, stiffness: 180 }  // map/restaurant card slide-up
+export const SPRING_CARD:   WithSpringConfig = { damping: 20, stiffness: 180 }  // map/place card slide-up
 
 // Timing constants (ms)
 export const DUR_FAST = 150   // backdrop overlay fade

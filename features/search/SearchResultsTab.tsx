@@ -24,21 +24,17 @@ import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { usePressScale } from '@/lib/hooks/usePressScale'
-import type { DishResult, PersonResult, PlaceResult } from '@/lib/hooks/useSearch'
+import type { DishResult, PersonResult, PlaceResult, TopFeedItem } from '@/lib/hooks/useSearch'
 import { routes, searchAttributionRouteParams } from '@/lib/routes'
 import { fetchUserIdByUsername } from '@/lib/services/users'
 import type { Post } from '@/types/domain'
 import { RESULT_TABS, type ResultTab } from './searchConstants'
 import { PlaceRow, SectionHeader } from './searchShared'
-import { getTopResultSectionOrder, type TopResultSection } from './topResultOrder'
 
 interface SearchResultsTabProps {
   resultTab: ResultTab
   onTabChange: (tab: ResultTab) => void
-  dishFirstTopResults?: boolean
-  topPlaces: PlaceResult[]
-  topPosts: Post[]
-  topPeople: PersonResult[]
+  topFeed: TopFeedItem[]
   postResults: Post[]
   peopleResults: PersonResult[]
   placeResults: PlaceResult[]
@@ -46,7 +42,6 @@ interface SearchResultsTabProps {
   dishEntityResults: DishResult[]
   visiblePostCount: number
   onShowMorePosts: () => void
-  expansionLabel: string | null | undefined
   searchMode: 'search' | 'aroundMe'
   radiusKm: number
   locationLabel: string | null | undefined
@@ -60,10 +55,7 @@ interface SearchResultsTabProps {
 export function SearchResultsTab({
   resultTab,
   onTabChange,
-  dishFirstTopResults = false,
-  topPlaces,
-  topPosts,
-  topPeople,
+  topFeed,
   postResults,
   peopleResults,
   placeResults,
@@ -71,7 +63,6 @@ export function SearchResultsTab({
   dishEntityResults,
   visiblePostCount,
   onShowMorePosts,
-  expansionLabel,
   searchMode,
   radiusKm,
   locationLabel,
@@ -84,89 +75,38 @@ export function SearchResultsTab({
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const SEARCH_POST_LIMIT = 20
-  const topSectionOrder = useMemo(
-    () => getTopResultSectionOrder(dishFirstTopResults),
-    [dishFirstTopResults]
-  )
-
-  const topSections: Record<TopResultSection, React.ReactNode> = {
-    places: topPlaces.length > 0 ? (
-      <View>
-        <SectionHeader title="Places" count={placeResults.length} />
-        <View>
-          {topPlaces.map((p, index) => (
-            <PlaceRow
-              key={p.id}
-              place={p}
-              distanceKm={placeDistances.get(p.id)}
-              user={user}
-              query={query}
-              position={index + 1}
-              searchSessionId={searchSessionId}
-              onResultClick={onResultClick}
-            />
-          ))}
-        </View>
-      </View>
-    ) : null,
-    posts: topPosts.length > 0 ? (
-      <View>
-        <SectionHeader title="Dishes" count={postResults.length} />
-        <View>
-          {topPosts.map((p, index) => (
-            <PostCompactRow
-              key={p.id}
-              post={p}
-              position={index + 1}
-              query={query}
-              searchSessionId={searchSessionId}
-              user={user}
-              onResultClick={onResultClick}
-            />
-          ))}
-        </View>
-      </View>
-    ) : null,
-    people: topPeople.length > 0 ? (
-      <View>
-        <SectionHeader title="People" count={peopleResults.length} />
-        <View>
-          {topPeople.map(p => (
-            <PersonRow key={p.username} person={p} onResultClick={onResultClick} />
-          ))}
-        </View>
-      </View>
-    ) : null,
-  }
 
   return (
     <View style={styles.resultsPage}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.resultTabs}
-        accessibilityRole="tablist"
-      >
-        {RESULT_TABS.map(tab => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.resultTab, resultTab === tab.key && styles.resultTabActive]}
-            onPress={() => onTabChange(tab.key)}
-            accessibilityRole="tab"
-            accessibilityLabel={tab.label}
-            accessibilityState={{ selected: resultTab === tab.key }}
-          >
-            <Text
-              style={[
-                styles.resultTabText,
-                resultTab === tab.key && styles.resultTabTextActive,
-              ]}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.resultTabsOuter}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.resultTabs}
+          accessibilityRole="tablist"
+        >
+          {RESULT_TABS.map((tab, i) => {
+            const active = resultTab === tab.key
+            return (
+              <React.Fragment key={tab.key}>
+                {i > 0 && <Text style={styles.resultTabDot}>·</Text>}
+                <TouchableOpacity
+                  style={styles.resultTab}
+                  onPress={() => onTabChange(tab.key)}
+                  accessibilityRole="tab"
+                  accessibilityLabel={tab.label}
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text style={[styles.resultTabText, active && styles.resultTabTextActive]}>
+                    {tab.label}
+                  </Text>
+                  {active && <View style={styles.resultTabUnderline} />}
+                </TouchableOpacity>
+              </React.Fragment>
+            )
+          })}
+        </ScrollView>
+      </View>
 
       {searchMode === 'aroundMe' && (
         <View style={styles.expansionNotice}>
@@ -176,23 +116,56 @@ export function SearchResultsTab({
           </Text>
         </View>
       )}
-      {!!expansionLabel && (
-        <View style={styles.expansionNotice}>
-          <Text style={styles.expansionNoticeText}>{expansionLabel}</Text>
-        </View>
-      )}
-
       {activeTabEmpty && (
         <EmptyState title="No food finds in this tab yet" subtitle="Try Top, Nearby, or a more specific dish." />
       )}
 
-      {resultTab === 'top' && (
-        <>
-          {topSectionOrder.map(section => (
-            <React.Fragment key={section}>{topSections[section]}</React.Fragment>
-          ))}
-        </>
-      )}
+      {resultTab === 'top' && topFeed.map((item, i) => {
+        if (item.kind === 'post') {
+          return (
+            <PostCompactRow
+              key={item.data.dbId ?? item.data.id}
+              post={item.data}
+              position={i + 1}
+              query={query}
+              searchSessionId={searchSessionId}
+              user={user}
+              onResultClick={onResultClick}
+            />
+          )
+        }
+        if (item.kind === 'place') {
+          return (
+            <PlaceRow
+              key={item.data.id}
+              place={item.data}
+              distanceKm={item.distanceKm}
+              user={user}
+              query={query}
+              position={i + 1}
+              searchSessionId={searchSessionId}
+              onResultClick={onResultClick}
+            />
+          )
+        }
+        if (item.kind === 'person') {
+          return <PersonRow key={item.data.username} person={item.data} onResultClick={onResultClick} />
+        }
+        if (item.kind === 'dish') {
+          return (
+            <DishEntityRow
+              key={item.data.id}
+              dish={item.data}
+              position={i + 1}
+              query={query}
+              searchSessionId={searchSessionId}
+              user={user}
+              onResultClick={onResultClick}
+            />
+          )
+        }
+        return null
+      })}
 
       {resultTab === 'people' && peopleResults.length > 0 && (
         <View>
@@ -508,22 +481,39 @@ const PostCompactRow = React.memo(function PostCompactRow({
 function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
     resultsPage: { paddingBottom: spacing[6] },
+    resultTabsOuter: {
+      borderBottomWidth: 0.5,
+      borderBottomColor: c.border,
+    },
     resultTabs: {
-      gap: spacing.px6,
+      flexDirection: 'row',
+      alignItems: 'center',
       paddingHorizontal: spacing[4],
       paddingTop: spacing[3],
-      paddingBottom: spacing.px2,
     },
     resultTab: {
       minHeight: 44,
       justifyContent: 'center',
-      paddingHorizontal: spacing.px14,
-      borderRadius: radius.lg2,
-      backgroundColor: c.surface,
+      alignItems: 'center',
+      paddingHorizontal: spacing.px10,
+      position: 'relative',
     },
-    resultTabActive: { backgroundColor: `${c.accent}16` },
-    resultTabText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.semibold, color: c.text2 },
-    resultTabTextActive: { color: c.accent },
+    resultTabDot: {
+      fontSize: fontSize.bodySm,
+      color: c.text3,
+      marginHorizontal: spacing.px2,
+    },
+    resultTabText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.regular, color: c.text2 },
+    resultTabTextActive: { color: c.text, fontWeight: fontWeight.semibold },
+    resultTabUnderline: {
+      position: 'absolute',
+      bottom: 0,
+      left: spacing.px10,
+      right: spacing.px10,
+      height: 2,
+      borderRadius: radius.micro,
+      backgroundColor: c.accent,
+    },
     expansionNotice: {
       marginHorizontal: spacing[4],
       marginTop: spacing.px14,

@@ -21,7 +21,9 @@ import { DARK_MAP_STYLE } from '@/constants/mapStyles'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typography'
+import { analytics } from '@/lib/analytics'
 import { SPRING_CARD } from '@/lib/animations'
+import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors, useIsDarkMode } from '@/lib/contexts/ThemeContext'
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion'
 import { routeParamNumber, routeParamString } from '@/lib/utils/routeParams'
@@ -57,10 +59,16 @@ export default function PlaceMapScreen() {
     todayHours: string
   }>()
   const router = useRouter()
+  const { user } = useAuth()
   const colors = useThemeColors()
   const isDark = useIsDarkMode()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const reduceMotion = useReducedMotion()
+  const placeId = routeParamString(_placeId) ?? null
+
+  useEffect(() => {
+    if (placeId) analytics.viewPlace(user?.id ?? null, placeId)
+  }, [placeId, user?.id])
 
   const displayName = routeParamString(name) ?? ''
   const displayPhone = routeParamString(phone) ?? ''
@@ -161,6 +169,7 @@ export default function PlaceMapScreen() {
             onPress={() => {
               lastMarkerPress.current = Date.now()
               setCardVisible(true)
+              if (placeId) analytics.clickPlace(user?.id ?? null, placeId)
             }}
           >
             <MapMarker />

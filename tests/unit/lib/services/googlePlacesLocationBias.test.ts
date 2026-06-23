@@ -123,23 +123,26 @@ describe('fetchPlaceAutocompleteJson URL construction', () => {
 // ---------------------------------------------------------------------------
 
 describe('searchPlacesByText coordinate propagation', () => {
+  // searchPlacesByText now calls search_text_fallback (search_places_full_text removed in 20260622000001)
   const mockRpcResult = {
     data: [
       {
-        id: 'rest-1',
-        google_place_id: 'g-1',
-        name: 'Beefy Burgers',
-        address: '1 Parramatta Rd, Parramatta NSW 2150',
-        city: 'Sydney',
-        suburb: 'Parramatta',
-        cuisine_type: 'American',
-        latitude: -33.82,
-        longitude: 151.00,
-        google_rating: 4.5,
-        google_review_count: 120,
-        open_now: true,
-        rank: 0.8,
-        top_dishes: ['Beef Burger', 'Cheese Burger'],
+        entity_type: 'place',
+        entity_id: 'rest-1',
+        semantic_similarity: 0.8,
+        final_score: 0.8,
+        display_data: {
+          name: 'Beefy Burgers',
+          address: '1 Parramatta Rd, Parramatta NSW 2150',
+          city: 'Sydney',
+          suburb: 'Parramatta',
+          cuisine_type: 'American',
+          google_place_id: 'g-1',
+          latitude: -33.82,
+          longitude: 151.00,
+          google_rating: 4.5,
+          google_review_count: 120,
+        },
       },
     ],
     error: null,
@@ -149,27 +152,27 @@ describe('searchPlacesByText coordinate propagation', () => {
     mockRpc.mockResolvedValue(mockRpcResult as never)
   })
 
-  it('passes near_lat and near_lng to the RPC when userLocation is provided', async () => {
+  it('passes p_near_lat and p_near_lng to the RPC when userLocation is provided', async () => {
     await searchPlacesByText('beef', 8, sydneyCoords)
 
     expect(mockRpc).toHaveBeenCalledWith(
-      'search_places_full_text',
+      'search_text_fallback',
       expect.objectContaining({
-        query_text: 'beef',
-        max_results: 8,
-        near_lat: sydneyCoords.lat,
-        near_lng: sydneyCoords.lng,
+        p_query: 'beef',
+        p_limit: 8,
+        p_near_lat: sydneyCoords.lat,
+        p_near_lng: sydneyCoords.lng,
       })
     )
   })
 
-  it('omits near_lat/near_lng when no location provided', async () => {
+  it('omits p_near_lat/p_near_lng when no location provided', async () => {
     await searchPlacesByText('beef', 8, null)
 
     const call = mockRpc.mock.calls[0]
     const args = call?.[1] as Record<string, unknown>
-    expect(args).not.toHaveProperty('near_lat')
-    expect(args).not.toHaveProperty('near_lng')
+    expect(args).not.toHaveProperty('p_near_lat')
+    expect(args).not.toHaveProperty('p_near_lng')
   })
 
   it('computes and attaches distanceKm for each result when location is provided', async () => {

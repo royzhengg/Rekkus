@@ -2,14 +2,10 @@
 const { lineFailures, readText, walkFiles } = require('./lib/scan-files')
 const { fontSizeFailures } = require('./lib/font-size-rules')
 
-const files = walkFiles(['features', 'components'])
-const sourceFiles = files.filter(file => /\.[jt]sx?$/.test(file))
-
+const sourceFiles = walkFiles(['features', 'components'], { extensions: ['.ts', '.tsx', '.js', '.jsx'] })
 // Also scan app/ and lib/contexts/ for typography token violations (B-527 guardrail).
 // Colors and spacing are intentionally not extended here — those dirs have legitimate platform values.
-const typographyOnlyFiles = walkFiles(['app', 'lib/contexts']).filter(file => /\.[jt]sx?$/.test(file))
-const colorFailures = []
-const rawFailures = []
+const typographyOnlyFiles = walkFiles(['app', 'lib/contexts'], { extensions: ['.ts', '.tsx', '.js', '.jsx'] })
 
 const colorPattern = /#[0-9a-fA-F]{3,8}|rgba\(/
 const rawChecks = [
@@ -39,47 +35,50 @@ const allowed = [
   '...caption',
 ]
 
-for (const file of files) {
+const colorFailures = []
+const rawFailures = []
+const fontSizeFailuresList = []
+
+// Loop 1: features + components — colour, spacing/radius/typography, font-size (single read per file)
+for (const file of sourceFiles) {
   const source = readText(file)
-  colorFailures.push(...lineFailures(file, source, (line, lineNumber) => {
+
+  colorFailures.push(...lineFailures(file, source, (line) => {
     if (!colorPattern.test(line)) return null
     if (line.includes('fill=')) return null
     if (line.includes('shadowColor')) return null
     if (line.includes('check:tokens-ignore')) return null
-    return `${file}:${lineNumber}: ${line.trim()}`
+    return `${file}: ${line.trim()}`
   }))
-}
 
-for (const file of sourceFiles) {
-  const source = readText(file)
-  rawFailures.push(...lineFailures(file, source, (line, lineNumber) => {
+  rawFailures.push(...lineFailures(file, source, (line) => {
     if (allowed.some(token => line.includes(token))) return null
     for (const check of rawChecks) {
       if (check.regex.test(line)) {
-        return `${file}:${lineNumber}: ${check.name}: ${line.trim()} — ${check.guidance}`
+        return `${file}: ${check.name}: ${line.trim()} — ${check.guidance}`
       }
     }
     return null
   }))
+
+  fontSizeFailuresList.push(...fontSizeFailures(file, source))
 }
 
+// Loop 2: app + lib/contexts — typography + font-size only (single read per file)
 const typographyCheck = rawChecks.find(c => c.name === 'typography')
-if (typographyCheck) {
-  for (const file of typographyOnlyFiles) {
-    const source = readText(file)
-    rawFailures.push(...lineFailures(file, source, (line, lineNumber) => {
+for (const file of typographyOnlyFiles) {
+  const source = readText(file)
+
+  if (typographyCheck) {
+    rawFailures.push(...lineFailures(file, source, (line) => {
       if (allowed.some(token => line.includes(token))) return null
       if (typographyCheck.regex.test(line)) {
-        return `${file}:${lineNumber}: ${typographyCheck.name}: ${line.trim()} — ${typographyCheck.guidance}`
+        return `${file}: ${typographyCheck.name}: ${line.trim()} — ${typographyCheck.guidance}`
       }
       return null
     }))
   }
-}
 
-const fontSizeFailuresList = []
-for (const file of [...sourceFiles, ...typographyOnlyFiles]) {
-  const source = readText(file)
   fontSizeFailuresList.push(...fontSizeFailures(file, source))
 }
 

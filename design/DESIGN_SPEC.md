@@ -151,7 +151,7 @@ Use `elevation.xs` for subtle labels, `sm` for lifted controls/sheets, `md` for 
 
 Before public beta and for every new interactive flow:
 
-- VoiceOver/manual screen-reader pass on auth, feed, search, create, post detail, restaurant detail, profile, settings, and report/block flows.
+- VoiceOver/manual screen-reader pass on auth, feed, search, create, post detail, place detail, profile, settings, and report/block flows.
 - Icon-only buttons need accessible labels or adjacent visible text.
 - Touch targets should be at least 44x44 where layout allows.
 - Text must remain readable with OS text scaling and must not overlap controls.

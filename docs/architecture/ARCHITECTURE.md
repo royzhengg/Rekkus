@@ -347,6 +347,7 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 | `20260602000001_search_typo_tolerance.sql`           | Trigram fallback CTEs in `search_restaurants_full_text` and `search_posts_full_text`; word_similarity > 0.35 on place names, similarity > 0.30 on must_order (B-577)   |
 | `20260602000002_search_freshness_v1.sql`             | `search_freshness_scores` materialized view and `get_search_freshness` RPC; powers freshness signal in candidate ranking (B-574) |
 | `20260602000003_search_quality_metrics.sql`          | `search_quality_events` table and `log_search_quality_event` RPC; audit trail for quality governance and automated ratchets (B-585) |
+| `20260622000000_seed_mock_post_covers.sql`           | Backfills cover `post_photos` rows for fixed local seed posts so DB-hydrated seed content has thumbnails |
 
 ---
 

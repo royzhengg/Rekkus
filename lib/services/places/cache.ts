@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { FullPlaceDetail } from './google'
 
-export async function recordRestaurantSource(
+export async function recordPlaceSource(
   placeId: string,
   sourceType: string,
   sourceId: string,
@@ -30,7 +30,7 @@ export async function recordRestaurantSource(
   )
 }
 
-export async function recordRestaurantProviderCache(
+export async function recordPlaceProviderCache(
   placeId: string,
   sourceType: string,
   sourceId: string,

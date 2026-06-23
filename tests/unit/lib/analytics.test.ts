@@ -243,13 +243,13 @@ describe('analytics', () => {
     })
   })
 
-  it('emits restaurant field skipped without search metadata', async () => {
-    analytics.restaurantFieldSkipped('user-1')
+  it('emits place field skipped without search metadata', async () => {
+    analytics.placeFieldSkipped('user-1')
     await flushAnalytics()
 
     expect(lastInsertedRow()).toMatchObject({
       user_id: 'user-1',
-      event_type: 'restaurant_field_skipped',
+      event_type: 'place_field_skipped',
       event_version: 1,
     })
     expect(lastInsertedRow()).not.toHaveProperty('metadata')

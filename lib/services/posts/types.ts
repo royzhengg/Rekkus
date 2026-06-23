@@ -36,11 +36,11 @@ export type SavedPostRow = {
   username: string
   full_name: string | null
   avatar_url: string | null
-  restaurant_name: string | null
-  restaurant_address: string | null
-  restaurant_lat: number | null
-  restaurant_lng: number | null
-  restaurant_place_id: string | null
+  place_name: string | null
+  place_address: string | null
+  place_lat: number | null
+  place_lng: number | null
+  place_google_id: string | null
   created_at?: string | null
   last_edited_at?: string | null
   edit_count?: number | null
@@ -134,6 +134,15 @@ export type RawPost = {
 export function mapRowToPost(row: SavedPostRow, index: number): Post {
   const palette = avatarPalette(row.username)
   const name = row.full_name ?? row.username
+  const imageMedia = row.media.find(item => (item.media_type ?? 'image') === 'image')
+  const videoMedia = row.media.find(item => item.media_type === 'video')
+  const imageUrl =
+    imageMedia?.processed_url ??
+    imageMedia?.thumbnail_url ??
+    imageMedia?.url ??
+    videoMedia?.thumbnail_url ??
+    row.photo_url ??
+    undefined
   return {
     id: index + 1,
     dbId: row.id,
@@ -146,8 +155,8 @@ export function mapRowToPost(row: SavedPostRow, index: number): Post {
     avatarColor: palette.color,
     likes: '0',
     imgKey: 'warm',
-    imageUrl: row.media.find(item => (item.media_type ?? 'image') === 'image')?.processed_url ?? row.photo_url ?? undefined,
-    videoUrl: row.media.find(item => item.media_type === 'video')?.processed_url ?? row.media.find(item => item.media_type === 'video')?.url ?? undefined,
+    imageUrl,
+    videoUrl: videoMedia?.processed_url ?? videoMedia?.url ?? undefined,
     mediaType: row.media[0]?.media_type ?? (row.photo_url ? 'image' : undefined),
     media: row.media.map(item => ({
       id: item.id,
@@ -169,7 +178,7 @@ export function mapRowToPost(row: SavedPostRow, index: number): Post {
     editCount: row.edit_count ?? undefined,
     tall: false,
     tags: [],
-    location: row.restaurant_name ?? '',
+    location: row.place_name ?? '',
     food: row.food_rating ?? 0,
     vibe: row.vibe_rating ?? 0,
     cost: row.cost_rating ?? 0,
@@ -181,9 +190,9 @@ export function mapRowToPost(row: SavedPostRow, index: number): Post {
     dishTags: row.dish_tags ?? undefined,
     dishId: row.dish_id ?? undefined,
     placeId: row.place_id ?? undefined,
-    googlePlaceId: row.restaurant_place_id ?? undefined,
-    lat: row.restaurant_lat ?? undefined,
-    lng: row.restaurant_lng ?? undefined,
-    address: row.restaurant_address ?? undefined,
+    googlePlaceId: row.place_google_id ?? undefined,
+    lat: row.place_lat ?? undefined,
+    lng: row.place_lng ?? undefined,
+    address: row.place_address ?? undefined,
   }
 }

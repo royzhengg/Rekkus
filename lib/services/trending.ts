@@ -57,11 +57,11 @@ function mergeTrendingSearchRows(
 function mergePlaceClickRows(
   cityRows: PlaceClickRow[],
   globalRows: PlaceClickRow[],
-  cityRestaurantIds: Set<string>
+  cityPlaceIds: Set<string>
 ): PlaceClickRow[] {
   return [
     ...cityRows,
-    ...globalRows.filter(row => row.entity_id == null || !cityRestaurantIds.has(row.entity_id)),
+    ...globalRows.filter(row => row.entity_id == null || !cityPlaceIds.has(row.entity_id)),
   ]
 }
 
@@ -97,15 +97,15 @@ export async function fetchTrendingSearches(
 
 async function fetchPlaceClickRows(
   sinceIso: string,
-  restaurantIds?: string[]
+  placeIds?: string[]
 ): Promise<PlaceClickRow[]> {
   let query = supabase.from('analytics_events')
     .select('entity_id')
     .eq('event_type', 'place_click')
     .gte('created_at', sinceIso)
 
-  if (restaurantIds && restaurantIds.length > 0) {
-    query = query.in('entity_id', restaurantIds)
+  if (placeIds && placeIds.length > 0) {
+    query = query.in('entity_id', placeIds)
   }
 
   const { data, error } = await query
@@ -114,7 +114,7 @@ async function fetchPlaceClickRows(
   return data ?? []
 }
 
-async function fetchRestaurantIdsByCity(city: string): Promise<string[]> {
+async function fetchPlaceIdsByCity(city: string): Promise<string[]> {
   const { data, error } = await supabase
     .from('places')
     .select('id')
@@ -132,13 +132,13 @@ export async function fetchTrendingPlaceClicks(
   const globalRows = () => fetchPlaceClickRows(sinceIso)
   if (!normalizedCity) return globalRows()
 
-  const cityRestaurantIds = await fetchRestaurantIdsByCity(normalizedCity)
-  if (cityRestaurantIds.length === 0) return globalRows()
+  const cityPlaceIds = await fetchPlaceIdsByCity(normalizedCity)
+  if (cityPlaceIds.length === 0) return globalRows()
 
-  const cityRows = await fetchPlaceClickRows(sinceIso, cityRestaurantIds)
+  const cityRows = await fetchPlaceClickRows(sinceIso, cityPlaceIds)
   if (cityRows.length >= MIN_CITY_TRENDING_RESULTS) return cityRows
 
-  return mergePlaceClickRows(cityRows, await globalRows(), new Set(cityRestaurantIds))
+  return mergePlaceClickRows(cityRows, await globalRows(), new Set(cityPlaceIds))
 }
 
 export async function fetchPopularPlacesByIds(placeIds: string[]): Promise<PlaceResult[]> {

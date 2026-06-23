@@ -17,6 +17,31 @@ create extension if not exists vector with schema extensions;
 create extension if not exists pg_trgm with schema extensions;
 
 -- ---------------------------------------------------------------------------
+-- ENUMS
+-- ---------------------------------------------------------------------------
+
+create type public.verification_level as enum (
+  'user_created',       -- user typed a new place; not yet confirmed
+  'osm_only',           -- OSM import; no further verification
+  'osm_google',         -- OSM + Google cache enrichment applied
+  'community_verified', -- ≥3 unique users, ≥7 days apart
+  'owner_verified'      -- owner claimed + verified
+);
+
+create type public.place_status as enum (
+  'active',
+  'temporarily_closed',
+  'permanently_closed',
+  'unverified'
+);
+
+create type public.place_trait_slug as enum (
+  'date_night', 'cheap_eats', 'study_spot', 'group_dining',
+  'late_night', 'hidden_gem', 'family_friendly', 'romantic',
+  'outdoor', 'fast_casual', 'special_occasion'
+);
+
+-- ---------------------------------------------------------------------------
 -- TABLES
 -- ---------------------------------------------------------------------------
 
@@ -47,7 +72,7 @@ create table if not exists public.places (
   suburb                      text,
   latitude                    double precision,
   longitude                   double precision,
-  restaurant_geog             extensions.geography(Point, 4326)
+  place_geog                  extensions.geography(Point, 4326)
                               generated always as (
                                 case
                                   when latitude is null or longitude is null then null
@@ -76,7 +101,16 @@ create table if not exists public.places (
   embedding                   extensions.vector(384),
   embedding_hash              text,
   created_at                  timestamptz   not null default now(),
-  updated_at                  timestamptz   not null default now()
+  updated_at                  timestamptz   not null default now(),
+  -- Lifecycle + identity additions (OSM schema)
+  verification_level          public.verification_level not null default 'osm_only',
+  place_status                public.place_status not null default 'active',
+  created_source              text,
+  deleted_at                  timestamptz,
+  merged_into_place_id        uuid,
+  osm_id                      text unique,
+  slug                        text unique,
+  cuisine_slug                text
 );
 
 -- posts
@@ -244,6 +278,20 @@ create table if not exists public.analytics_events (
   event_version integer     not null default 1,
   created_at    timestamptz default now()
 );
+
+-- search_events: structured search analytics for post-launch analysis of failing queries
+create table if not exists public.search_events (
+  id                  uuid        default gen_random_uuid() primary key,
+  query               text        not null,
+  results_count       int         not null,
+  clicked_entity_id   uuid,
+  clicked_entity_kind text        check (clicked_entity_kind in ('place', 'dish', 'post')),
+  user_id             uuid        references public.users(id) on delete set null,
+  created_at          timestamptz default now()
+);
+
+create index if not exists idx_search_events_query on public.search_events (query, created_at desc);
+create index if not exists idx_search_events_zero on public.search_events (created_at desc) where results_count = 0;
 
 -- post_reactions
 create table if not exists public.post_reactions (
@@ -760,6 +808,159 @@ create table if not exists public.saved_search_audit_events (
 );
 
 -- ---------------------------------------------------------------------------
+-- OSM IMPORT RUNS
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.osm_import_runs (
+  id           uuid        primary key default gen_random_uuid(),
+  state        text        not null,
+  started_at   timestamptz not null default now(),
+  completed_at timestamptz,
+  imported     integer     not null default 0,
+  updated      integer     not null default 0,
+  skipped      integer     not null default 0,
+  report       jsonb
+);
+
+-- ---------------------------------------------------------------------------
+-- PLACE DOMAIN TABLES
+-- ---------------------------------------------------------------------------
+
+-- place_contact: owned by contact enrichment features
+create table if not exists public.place_contact (
+  place_id                 uuid        primary key references public.places(id) on delete cascade,
+  phone                    text,
+  website                  text,
+  instagram_url            text,
+  facebook_url             text,
+  tiktok_url               text,
+  last_verified_at         timestamptz,
+  last_owner_update_at     timestamptz,
+  last_community_update_at timestamptz,
+  updated_at               timestamptz not null default now()
+);
+
+-- place_features: aggregation table for venue characteristics
+-- (accessibility, dietary, payments grouped for convenience; may split in a future migration)
+create table if not exists public.place_features (
+  place_id        uuid        primary key references public.places(id) on delete cascade,
+  wheelchair      text,
+  outdoor_seating boolean,
+  takeaway        boolean,
+  delivery        boolean,
+  dietary_flags   text[],
+  payment_methods text[],
+  smoking         text,
+  internet_access text,
+  capacity        integer,
+  updated_at      timestamptz not null default now()
+);
+
+-- place_provider_metadata: owned by import/enrichment pipelines only
+create table if not exists public.place_provider_metadata (
+  place_id            uuid        primary key references public.places(id) on delete cascade,
+  amenity_type        text,
+  brand               text,
+  brand_wikidata      text,
+  operator            text,
+  price_level         integer,
+  floor_level         text,
+  start_date          text,
+  wikidata_id         text,
+  wikipedia_url       text,
+  image_url           text,
+  description         text,
+  alt_names           jsonb,
+  state               text,
+  postcode            text,
+  osm_import_run_id   uuid        references public.osm_import_runs(id),
+  osm_imported_at     timestamptz,
+  osm_check_date      date,
+  last_osm_sync_at    timestamptz,
+  last_google_sync_at timestamptz,
+  raw_osm_tags        jsonb,      -- archive only; never use in WHERE/ORDER BY of search queries
+  updated_at          timestamptz not null default now()
+);
+
+-- place_stats: derived cache; events (posts, saves, etc.) are truth
+create table if not exists public.place_stats (
+  place_id         uuid          primary key references public.places(id) on delete cascade,
+  post_count       integer       not null default 0,
+  save_count       integer       not null default 0,
+  collection_count integer       not null default 0,
+  visit_count      integer       not null default 0,
+  trending_score   numeric(6,3)  not null default 0,
+  last_activity_at timestamptz,
+  updated_at       timestamptz   not null default now()
+);
+
+-- place_aliases: highest ROI for search quality; expand without code changes
+create table if not exists public.place_aliases (
+  id         uuid        primary key default gen_random_uuid(),
+  place_id   uuid        not null references public.places(id) on delete cascade,
+  alias      text        not null,
+  source     text        not null check (source in ('osm', 'community', 'admin', 'cuisine_taxonomy')),
+  created_at timestamptz not null default now()
+);
+
+-- place_traits: community-inferred vibes; controlled enum vocabulary
+create table if not exists public.place_traits (
+  id         uuid                    primary key default gen_random_uuid(),
+  place_id   uuid                    not null references public.places(id) on delete cascade,
+  trait_slug public.place_trait_slug not null,
+  confidence numeric(3,2)            not null default 0.50,
+  source     text                    not null check (source in ('community', 'admin', 'ai')),
+  created_at timestamptz             not null default now()
+);
+
+-- place_merge_log: safe deduplication history
+create table if not exists public.place_merge_log (
+  id             uuid        primary key default gen_random_uuid(),
+  old_place_id   uuid        not null,   -- intentionally not a FK; old place is soft-deleted
+  new_place_id   uuid        not null references public.places(id) on delete cascade,
+  merged_by      uuid        references public.users(id) on delete set null,
+  reason         text,
+  created_at     timestamptz not null default now()
+);
+
+-- place_sources: raw provider payloads (selective retention)
+create table if not exists public.place_sources (
+  id         uuid        primary key default gen_random_uuid(),
+  place_id   uuid        not null references public.places(id) on delete cascade,
+  source     text        not null check (source in ('osm', 'google', 'owner', 'user', 'admin')),
+  payload    jsonb       not null,
+  fetched_at timestamptz not null default now()
+);
+
+-- place_opening_hours: source priority owner > community > google > osm
+create table if not exists public.place_opening_hours (
+  id         uuid        primary key default gen_random_uuid(),
+  place_id   uuid        not null references public.places(id) on delete cascade,
+  source     text        not null check (source in ('osm', 'google', 'owner', 'community')),
+  hours_text text,
+  hours_json jsonb,
+  is_current boolean     not null default true,
+  confidence numeric(3,2) default 0.50,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- search_analytics: what users actually search for; feeds product roadmap
+create table if not exists public.search_analytics (
+  id               uuid             primary key default gen_random_uuid(),
+  user_id          uuid             references public.users(id) on delete set null,
+  query            text             not null,
+  results_count    integer          not null default 0,
+  clicked_place_id uuid             references public.places(id) on delete set null,
+  filters          jsonb,
+  session_id       text,
+  search_lat       double precision,
+  search_lng       double precision,
+  search_region    text,
+  created_at       timestamptz      not null default now()
+);
+
+-- ---------------------------------------------------------------------------
 -- INDEXES
 -- ---------------------------------------------------------------------------
 
@@ -783,8 +984,8 @@ create index if not exists idx_places_google_place_id on public.places (google_p
 create index if not exists idx_places_lower_name on public.places (lower(name));
 create index if not exists idx_places_city on public.places (city);
 create index if not exists idx_places_cuisine_type on public.places (cuisine_type);
-create index if not exists places_geog_idx on public.places using gist (restaurant_geog)
-  where restaurant_geog is not null;
+create index if not exists places_geog_idx on public.places using gist (place_geog)
+  where place_geog is not null;
 create index if not exists places_search_tsv_idx on public.places using gin (
   to_tsvector('simple',
     coalesce(name, '') || ' ' ||
@@ -795,6 +996,43 @@ create index if not exists places_search_tsv_idx on public.places using gin (
 );
 create index if not exists places_embedding_idx on public.places using hnsw (embedding extensions.vector_cosine_ops)
   where embedding is not null;
+-- OSM schema indexes on places
+create index if not exists idx_places_osm_id on public.places (osm_id) where osm_id is not null;
+create index if not exists idx_places_verification_level on public.places (verification_level);
+create index if not exists idx_places_status on public.places (place_status);
+create index if not exists idx_places_deleted_at on public.places (deleted_at) where deleted_at is not null;
+create index if not exists idx_places_cuisine_slug on public.places (cuisine_slug) where cuisine_slug is not null;
+create index if not exists idx_places_slug on public.places (slug) where slug is not null;
+create index if not exists idx_places_active on public.places (id) where place_status = 'active' and deleted_at is null;
+-- place_contact
+create index if not exists idx_place_contact_website on public.place_contact (lower(website)) where website is not null;
+-- place_features
+create index if not exists idx_place_features_wheelchair on public.place_features (wheelchair) where wheelchair is not null;
+create index if not exists idx_place_features_dietary on public.place_features using gin (dietary_flags) where dietary_flags is not null;
+create index if not exists idx_place_features_payment on public.place_features using gin (payment_methods) where payment_methods is not null;
+-- place_provider_metadata
+create index if not exists idx_ppm_amenity_type on public.place_provider_metadata (amenity_type) where amenity_type is not null;
+create index if not exists idx_ppm_wikidata_id on public.place_provider_metadata (wikidata_id) where wikidata_id is not null;
+create index if not exists idx_ppm_brand on public.place_provider_metadata (lower(brand)) where brand is not null;
+create index if not exists idx_ppm_state on public.place_provider_metadata (state) where state is not null;
+create index if not exists idx_ppm_alt_names on public.place_provider_metadata using gin (alt_names) where alt_names is not null;
+-- place_stats
+create index if not exists idx_place_stats_trending on public.place_stats (trending_score desc);
+create index if not exists idx_place_stats_post_count on public.place_stats (post_count desc);
+-- place_aliases
+create unique index if not exists place_aliases_uniq on public.place_aliases (place_id, lower(alias));
+create index if not exists idx_place_aliases_alias on public.place_aliases using gin (to_tsvector('simple', alias));
+-- place_traits
+create unique index if not exists place_traits_uniq on public.place_traits (place_id, trait_slug);
+create index if not exists idx_place_traits_slug on public.place_traits (trait_slug);
+-- place_sources
+create index if not exists idx_place_sources_place_id on public.place_sources (place_id);
+create index if not exists idx_place_sources_source on public.place_sources (source);
+-- place_opening_hours
+create unique index if not exists place_opening_hours_current_uniq on public.place_opening_hours (place_id, source) where is_current = true;
+-- search_analytics
+create index if not exists idx_search_analytics_query on public.search_analytics (lower(query));
+create index if not exists idx_search_analytics_created_at on public.search_analytics (created_at);
 
 -- analytics_events
 create index if not exists idx_analytics_entity on public.analytics_events (entity_type, entity_id, created_at desc);
@@ -1004,7 +1242,7 @@ begin
     values (current_user_id, p_target_id)
     on conflict (user_id, post_id) do nothing;
   elsif p_target_type = 'place' then
-    if not exists (select 1 from public.places r where r.id = p_target_id) then
+    if not exists (select 1 from public.places p where p.id = p_target_id) then
       raise exception 'place_not_found';
     end if;
     insert into public.saved_places (user_id, place_id)
@@ -1438,7 +1676,7 @@ terms AS (
 post_matches AS (
   SELECT DISTINCT p.id, lower(p.cuisine_type) AS cuisine_type
   FROM public.posts p
-  LEFT JOIN public.places r ON r.id = p.place_id
+  LEFT JOIN public.places pl ON pl.id = p.place_id
   LEFT JOIN public.post_hashtags ph ON ph.post_id = p.id
   LEFT JOIN public.hashtags h ON h.id = ph.hashtag_id
   CROSS JOIN normalized n
@@ -1449,43 +1687,43 @@ post_matches AS (
       lower(coalesce(p.caption, '')) LIKE '%' || n.q || '%'
       OR lower(coalesce(p.must_order, '')) LIKE '%' || n.q || '%'
       OR lower(coalesce(p.cuisine_type, '')) LIKE '%' || n.q || '%'
-      OR lower(coalesce(r.name, '')) LIKE '%' || n.q || '%'
-      OR lower(coalesce(r.cuisine_type, '')) LIKE '%' || n.q || '%'
-      OR lower(coalesce(r.city, '')) LIKE '%' || n.q || '%'
-      OR lower(coalesce(r.address, '')) LIKE '%' || n.q || '%'
+      OR lower(coalesce(pl.name, '')) LIKE '%' || n.q || '%'
+      OR lower(coalesce(pl.cuisine_type, '')) LIKE '%' || n.q || '%'
+      OR lower(coalesce(pl.city, '')) LIKE '%' || n.q || '%'
+      OR lower(coalesce(pl.address, '')) LIKE '%' || n.q || '%'
       OR lower(coalesce(h.name, '')) LIKE '%' || n.q || '%'
       OR EXISTS (
         SELECT 1
         FROM terms t
         WHERE lower(coalesce(p.caption, '')) LIKE '%' || t.term || '%'
           OR lower(coalesce(p.must_order, '')) LIKE '%' || t.term || '%'
-          OR lower(coalesce(r.name, '')) LIKE '%' || t.term || '%'
-          OR lower(coalesce(r.cuisine_type, '')) LIKE '%' || t.term || '%'
-          OR lower(coalesce(r.city, '')) LIKE '%' || t.term || '%'
-          OR lower(coalesce(r.address, '')) LIKE '%' || t.term || '%'
+          OR lower(coalesce(pl.name, '')) LIKE '%' || t.term || '%'
+          OR lower(coalesce(pl.cuisine_type, '')) LIKE '%' || t.term || '%'
+          OR lower(coalesce(pl.city, '')) LIKE '%' || t.term || '%'
+          OR lower(coalesce(pl.address, '')) LIKE '%' || t.term || '%'
           OR lower(coalesce(h.name, '')) LIKE '%' || t.term || '%'
       )
     )
 ),
 place_matches AS (
-  SELECT DISTINCT r.id, lower(r.cuisine_type) AS cuisine_type
-  FROM public.places r
+  SELECT DISTINCT pl.id, lower(pl.cuisine_type) AS cuisine_type
+  FROM public.places pl
   CROSS JOIN normalized n
-  WHERE r.cuisine_type IS NOT NULL
-    AND trim(r.cuisine_type) <> ''
+  WHERE pl.cuisine_type IS NOT NULL
+    AND trim(pl.cuisine_type) <> ''
     AND n.q <> ''
     AND (
-      lower(coalesce(r.name, '')) LIKE '%' || n.q || '%'
-      OR lower(coalesce(r.cuisine_type, '')) LIKE '%' || n.q || '%'
-      OR lower(coalesce(r.city, '')) LIKE '%' || n.q || '%'
-      OR lower(coalesce(r.address, '')) LIKE '%' || n.q || '%'
+      lower(coalesce(pl.name, '')) LIKE '%' || n.q || '%'
+      OR lower(coalesce(pl.cuisine_type, '')) LIKE '%' || n.q || '%'
+      OR lower(coalesce(pl.city, '')) LIKE '%' || n.q || '%'
+      OR lower(coalesce(pl.address, '')) LIKE '%' || n.q || '%'
       OR EXISTS (
         SELECT 1
         FROM terms t
-        WHERE lower(coalesce(r.name, '')) LIKE '%' || t.term || '%'
-          OR lower(coalesce(r.cuisine_type, '')) LIKE '%' || t.term || '%'
-          OR lower(coalesce(r.city, '')) LIKE '%' || t.term || '%'
-          OR lower(coalesce(r.address, '')) LIKE '%' || t.term || '%'
+        WHERE lower(coalesce(pl.name, '')) LIKE '%' || t.term || '%'
+          OR lower(coalesce(pl.cuisine_type, '')) LIKE '%' || t.term || '%'
+          OR lower(coalesce(pl.city, '')) LIKE '%' || t.term || '%'
+          OR lower(coalesce(pl.address, '')) LIKE '%' || t.term || '%'
       )
     )
 ),
@@ -1634,9 +1872,9 @@ as $$
 $$;
 
 -- find_or_create_dish
-CREATE OR REPLACE FUNCTION public.find_or_create_dish(
+create or replace function public.find_or_create_dish(
   p_name          text,
-  p_restaurant_id uuid,
+  p_place_id      uuid,
   p_cuisine_type  text    DEFAULT NULL,
   p_created_by    uuid    DEFAULT NULL,
   p_context       jsonb   DEFAULT NULL
@@ -1654,7 +1892,7 @@ BEGIN
   SELECT id INTO v_id
   FROM public.dishes
   WHERE name_normalized = v_normalized
-    AND place_id = p_restaurant_id
+    AND place_id = p_place_id
   LIMIT 1;
 
   IF v_id IS NOT NULL THEN
@@ -1663,7 +1901,7 @@ BEGIN
 
   -- Insert, ignoring conflict from concurrent callers
   INSERT INTO public.dishes (name, place_id, cuisine_type, created_by)
-  VALUES (p_name, p_restaurant_id, p_cuisine_type, p_created_by)
+  VALUES (p_name, p_place_id, p_cuisine_type, p_created_by)
   ON CONFLICT (name_normalized, place_id) DO NOTHING
   RETURNING id INTO v_id;
 
@@ -1674,7 +1912,7 @@ BEGIN
     SELECT id INTO v_id
     FROM public.dishes
     WHERE name_normalized = v_normalized
-      AND place_id = p_restaurant_id
+      AND place_id = p_place_id
     LIMIT 1;
   END IF;
 
@@ -1884,16 +2122,16 @@ as $$
   ),
   saved_place_cuisines as (
     select
-      lower(trim(r.cuisine_type)) as query,
+      lower(trim(pl.cuisine_type)) as query,
       count(*)::numeric * 3.0 as score,
       'saved_place'::text as source
     from public.saved_places sl
-    join public.places r on r.id = sl.place_id
+    join public.places pl on pl.id = sl.place_id
     join params on true
     where auth.uid() = params.user_id
       and sl.user_id = params.user_id
-      and r.cuisine_type is not null
-    group by lower(trim(r.cuisine_type))
+      and pl.cuisine_type is not null
+    group by lower(trim(pl.cuisine_type))
   ),
   saved_dish_cuisines as (
     select
@@ -2358,10 +2596,10 @@ begin
       limit match_count;
   elsif match_type = 'place' then
     return query
-      select r.id, (1 - (r.embedding <=> query_embedding))::real as similarity
-      from public.places r
-      where r.embedding is not null
-        and (1 - (r.embedding <=> query_embedding)) > similarity_threshold
+      select p.id, (1 - (p.embedding <=> query_embedding))::real as similarity
+      from public.places p
+      where p.embedding is not null
+        and (1 - (p.embedding <=> query_embedding)) > similarity_threshold
       order by similarity desc
       limit match_count;
   end if;
@@ -2682,23 +2920,23 @@ $$;
 create or replace function public.refresh_place_popularity_cache()
 returns void language sql security definer set search_path = public as $$
   insert into public.place_popularity_cache (
-    restaurant_id, post_count, interaction_count_30d,
+    place_id, post_count, interaction_count_30d,
     avg_food_rating, food_rating_count, updated_at
   )
   select
-    r.id,
-    count(distinct p.id)::integer,
+    p.id,
+    count(distinct pt.id)::integer,
     count(ae.id) filter (
       where ae.event_type in ('place_click','place_view')
         and ae.created_at >= now() - interval '30 days'
     )::integer,
-    avg(p.food_rating) filter (where p.food_rating is not null),
-    count(p.id) filter (where p.food_rating is not null)::integer,
+    avg(pt.food_rating) filter (where pt.food_rating is not null),
+    count(pt.id) filter (where pt.food_rating is not null)::integer,
     now()
-  from public.places r
-  left join public.posts p on p.place_id = r.id and p.deleted_at is null
-  left join public.analytics_events ae on ae.entity_id = r.id
-  group by r.id
+  from public.places p
+  left join public.posts pt on pt.place_id = p.id and pt.deleted_at is null
+  left join public.analytics_events ae on ae.entity_id = p.id
+  group by p.id
   on conflict (place_id) do update set
     post_count = excluded.post_count,
     interaction_count_30d = excluded.interaction_count_30d,
@@ -2765,12 +3003,12 @@ language sql stable as $$
 
   union all
 
-  select distinct r.suburb::text,
-    extensions.similarity(lower(r.suburb), lower(trim(input_text)))::real,
+  select distinct p.suburb::text,
+    extensions.similarity(lower(p.suburb), lower(trim(input_text)))::real,
     null::double precision, null::double precision
-  from public.places r
-  where r.suburb is not null
-    and extensions.similarity(lower(r.suburb), lower(trim(input_text))) > 0.45
+  from public.places p
+  where p.suburb is not null
+    and extensions.similarity(lower(p.suburb), lower(trim(input_text))) > 0.45
 
   order by 2 desc
   limit 5;
@@ -2801,24 +3039,24 @@ language sql
 stable
 as $$
 select
-  r.id,
-  r.name,
-  r.address,
-  r.city,
-  r.cuisine_type,
-  r.google_place_id,
-  r.latitude,
-  r.longitude,
-  r.google_rating::double precision,
-  r.google_review_count,
-  r.open_now
-from public.places r
-where r.latitude between least(min_lat, max_lat) and greatest(min_lat, max_lat)
-  and r.longitude between least(min_lng, max_lng) and greatest(min_lng, max_lng)
+  p.id,
+  p.name,
+  p.address,
+  p.city,
+  p.cuisine_type,
+  p.google_place_id,
+  p.latitude,
+  p.longitude,
+  p.google_rating::double precision,
+  p.google_review_count,
+  p.open_now
+from public.places p
+where p.latitude between least(min_lat, max_lat) and greatest(min_lat, max_lat)
+  and p.longitude between least(min_lng, max_lng) and greatest(min_lng, max_lng)
   and (
-    r.restaurant_geog is null
+    p.place_geog is null
     or extensions.ST_Intersects(
-      r.restaurant_geog::extensions.geometry,
+      p.place_geog::extensions.geometry,
       extensions.ST_MakeEnvelope(
         least(min_lng, max_lng),
         least(min_lat, max_lat),
@@ -2828,7 +3066,7 @@ where r.latitude between least(min_lat, max_lat) and greatest(min_lat, max_lat)
       )
     )
   )
-order by r.name asc
+order by p.name asc
 limit greatest(1, least(coalesce(max_results, 50), 100));
 $$;
 
@@ -2859,25 +3097,25 @@ language sql
 stable
 as $$
 select
-  r.id,
-  r.name,
-  r.address,
-  r.city,
-  r.cuisine_type,
-  r.google_place_id,
-  r.latitude,
-  r.longitude,
-  r.google_rating::double precision,
-  r.google_review_count,
-  r.open_now,
+  p.id,
+  p.name,
+  p.address,
+  p.city,
+  p.cuisine_type,
+  p.google_place_id,
+  p.latitude,
+  p.longitude,
+  p.google_rating::double precision,
+  p.google_review_count,
+  p.open_now,
   (extensions.ST_Distance(
-    r.restaurant_geog,
+    p.place_geog,
     extensions.ST_SetSRID(extensions.ST_MakePoint(p_lng, p_lat), 4326)::extensions.geography
   ) / 1000.0) as distance_km
-from public.places r
-where r.restaurant_geog is not null
+from public.places p
+where p.place_geog is not null
   and extensions.ST_DWithin(
-    r.restaurant_geog,
+    p.place_geog,
     extensions.ST_SetSRID(extensions.ST_MakePoint(p_lng, p_lat), 4326)::extensions.geography,
     p_radius_metres
   )
@@ -3051,18 +3289,18 @@ fts_results as (
       setweight(to_tsvector('simple', coalesce(p.must_order,'') || ' ' || coalesce(dt.tag_names,'')), 'A'),
       normalized.query
     ) * case
-      when normalized.ref_point is null or r.restaurant_geog is null then 1.0
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 500  then 2.0
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 1000 then 1.5
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 2000 then 1.25
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 5000 then 1.1
+      when normalized.ref_point is null or pl.place_geog is null then 1.0
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 500  then 2.0
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 1000 then 1.5
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 2000 then 1.25
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 5000 then 1.1
       else 1.0
     end as rank,
     'fts'::text as match_source
   from public.posts p
   cross join normalized
   left join dish_tag_text dt on dt.id = p.id
-  left join public.places r on r.id = p.place_id
+  left join public.places pl on pl.id = p.place_id
   where normalized.raw_query <> ''
     and p.deleted_at is null
     and p.search_tsv @@ normalized.query
@@ -3071,14 +3309,14 @@ trgm_results as (
   select
     p.id,
     extensions.similarity(lower(coalesce(p.must_order,'')), lower(normalized.raw_query)) * case
-      when normalized.ref_point is null or r.restaurant_geog is null then 1.0
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 500  then 2.0
+      when normalized.ref_point is null or pl.place_geog is null then 1.0
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 500  then 2.0
       else 1.0
     end as rank,
     'trgm'::text as match_source
   from public.posts p
   cross join normalized
-  left join public.places r on r.id = p.place_id
+  left join public.places pl on pl.id = p.place_id
   where normalized.raw_query <> ''
     and p.deleted_at is null
     and p.must_order is not null
@@ -3159,17 +3397,17 @@ fts_results as (
         else 0.0
       end
     ) * case
-      when normalized.ref_point is null or r.restaurant_geog is null then 1.0
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 500  then 2.0
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 1000 then 1.5
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 2000 then 1.25
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 5000 then 1.1
+      when normalized.ref_point is null or pl.place_geog is null then 1.0
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 500  then 2.0
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 1000 then 1.5
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 2000 then 1.25
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 5000 then 1.1
       else 1.0
     end as rank
   from weighted w
   cross join normalized
   left join public.posts p on p.id = w.id
-  left join public.places r on r.id = p.place_id
+  left join public.places pl on pl.id = p.place_id
   where normalized.raw_query <> ''
     and (
       w.search_tsv @@ normalized.query
@@ -3183,16 +3421,16 @@ trgm_results as (
   select
     p.id,
     extensions.similarity(lower(coalesce(p.must_order,'')), lower(normalized.raw_query)) * case
-      when normalized.ref_point is null or r.restaurant_geog is null then 1.0
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 500  then 2.0
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 1000 then 1.5
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 2000 then 1.25
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 5000 then 1.1
+      when normalized.ref_point is null or pl.place_geog is null then 1.0
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 500  then 2.0
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 1000 then 1.5
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 2000 then 1.25
+      when extensions.ST_Distance(pl.place_geog, normalized.ref_point) < 5000 then 1.1
       else 1.0
     end as rank
   from public.posts p
   cross join normalized
-  left join public.places r on r.id = p.place_id
+  left join public.places pl on pl.id = p.place_id
   where normalized.raw_query <> ''
     and p.deleted_at is null
     and p.must_order is not null
@@ -3220,7 +3458,7 @@ returns table (
   cuisine_type text, google_place_id text,
   latitude double precision, longitude double precision,
   google_rating double precision, google_review_count integer,
-  open_now boolean, rank real
+  open_now boolean, occasion_tags text[], rank real
 )
 language sql stable as $$
 with normalized as (
@@ -3258,12 +3496,12 @@ alias_matches as (
   where alias <> '' and to_tsvector('simple', alias) @@ normalized.query
 ),
 ranked as (
-  select r.*,
+  select p.*,
     greatest(
       ts_rank(
         to_tsvector('simple',
-          coalesce(r.name,'') || ' ' || coalesce(r.cuisine_type,'') || ' ' ||
-          coalesce(r.suburb,'') || ' ' || coalesce(r.city,'') || ' ' || coalesce(r.address,'')
+          coalesce(p.name,'') || ' ' || coalesce(p.cuisine_type,'') || ' ' ||
+          coalesce(p.suburb,'') || ' ' || coalesce(p.city,'') || ' ' || coalesce(p.address,'')
         ),
         normalized.query
       ),
@@ -3271,43 +3509,43 @@ ranked as (
         when normalized.prefix_query is not null
         then ts_rank(
           to_tsvector('simple',
-            coalesce(r.name,'') || ' ' || coalesce(r.cuisine_type,'') || ' ' ||
-            coalesce(r.suburb,'') || ' ' || coalesce(r.city,'') || ' ' || coalesce(r.address,'')
+            coalesce(p.name,'') || ' ' || coalesce(p.cuisine_type,'') || ' ' ||
+            coalesce(p.suburb,'') || ' ' || coalesce(p.city,'') || ' ' || coalesce(p.address,'')
           ),
           normalized.prefix_query
         ) * 0.8
         else 0.0
       end
     ) * case
-      when normalized.ref_point is null or r.restaurant_geog is null then 1.0
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 500  then 2.0
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 1000 then 1.5
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 2000 then 1.25
-      when extensions.ST_Distance(r.restaurant_geog, normalized.ref_point) < 5000 then 1.1
+      when normalized.ref_point is null or p.place_geog is null then 1.0
+      when extensions.ST_Distance(p.place_geog, normalized.ref_point) < 500  then 2.0
+      when extensions.ST_Distance(p.place_geog, normalized.ref_point) < 1000 then 1.5
+      when extensions.ST_Distance(p.place_geog, normalized.ref_point) < 2000 then 1.25
+      when extensions.ST_Distance(p.place_geog, normalized.ref_point) < 5000 then 1.1
       else 1.0
     end as rank
-  from public.places r cross join normalized
+  from public.places p cross join normalized
   where normalized.raw_query <> ''
-    and (suburb_filter is null or lower(r.suburb) = lower(suburb_filter))
+    and (suburb_filter is null or lower(p.suburb) = lower(suburb_filter))
     and (
       to_tsvector('simple',
-        coalesce(r.name,'') || ' ' || coalesce(r.cuisine_type,'') || ' ' ||
-        coalesce(r.suburb,'') || ' ' || coalesce(r.city,'') || ' ' || coalesce(r.address,'')
+        coalesce(p.name,'') || ' ' || coalesce(p.cuisine_type,'') || ' ' ||
+        coalesce(p.suburb,'') || ' ' || coalesce(p.city,'') || ' ' || coalesce(p.address,'')
       ) @@ normalized.query
       or (
         normalized.prefix_query is not null
         and to_tsvector('simple',
-          coalesce(r.name,'') || ' ' || coalesce(r.cuisine_type,'') || ' ' ||
-          coalesce(r.suburb,'') || ' ' || coalesce(r.city,'') || ' ' || coalesce(r.address,'')
+          coalesce(p.name,'') || ' ' || coalesce(p.cuisine_type,'') || ' ' ||
+          coalesce(p.suburb,'') || ' ' || coalesce(p.city,'') || ' ' || coalesce(p.address,'')
         ) @@ normalized.prefix_query
       )
-      or lower(coalesce(r.cuisine_type,'')) in (select cuisine_type from alias_matches)
+      or lower(coalesce(p.cuisine_type,'')) in (select cuisine_type from alias_matches)
     )
 )
 select ranked.id, ranked.name, ranked.address, ranked.city, ranked.suburb,
   ranked.cuisine_type, ranked.google_place_id, ranked.latitude, ranked.longitude,
   ranked.google_rating::double precision, ranked.google_review_count,
-  ranked.open_now, ranked.rank
+  ranked.open_now, ranked.occasion_tags, ranked.rank
 from ranked
 order by rank desc, name asc
 limit greatest(1, least(coalesce(max_results, 20), 50));
@@ -3448,26 +3686,26 @@ with prefix as (
 place_matches as (
   select
     'place'::text as suggestion_type,
-    r.name as display_text,
-    coalesce(r.cuisine_type, r.city, '') as secondary_text,
-    r.id as entity_id,
+    p.name as display_text,
+    coalesce(p.cuisine_type, p.city, '') as secondary_text,
+    p.id as entity_id,
     ts_rank(
       to_tsvector('simple',
-        coalesce(r.name,'') || ' ' || coalesce(r.cuisine_type,'') || ' ' ||
-        coalesce(r.suburb,'') || ' ' || coalesce(r.city,'')
+        coalesce(p.name,'') || ' ' || coalesce(p.cuisine_type,'') || ' ' ||
+        coalesce(p.suburb,'') || ' ' || coalesce(p.city,'')
       ),
       to_tsquery('simple', replace(trim(prefix.raw),' ',' & ') || ':*')
     ) * case
-      when prefix.ref_point is null or r.restaurant_geog is null then 1.0
-      when extensions.ST_Distance(r.restaurant_geog, prefix.ref_point) < 1000 then 2.0
-      when extensions.ST_Distance(r.restaurant_geog, prefix.ref_point) < 5000 then 1.5
+      when prefix.ref_point is null or p.place_geog is null then 1.0
+      when extensions.ST_Distance(p.place_geog, prefix.ref_point) < 1000 then 2.0
+      when extensions.ST_Distance(p.place_geog, prefix.ref_point) < 5000 then 1.5
       else 1.0
     end as score
-  from public.places r, prefix
+  from public.places p, prefix
   where prefix.raw <> ''
     and to_tsvector('simple',
-      coalesce(r.name,'') || ' ' || coalesce(r.cuisine_type,'') || ' ' ||
-      coalesce(r.suburb,'') || ' ' || coalesce(r.city,'')
+      coalesce(p.name,'') || ' ' || coalesce(p.cuisine_type,'') || ' ' ||
+      coalesce(p.suburb,'') || ' ' || coalesce(p.city,'')
     ) @@ to_tsquery('simple', replace(trim(prefix.raw),' ',' & ') || ':*')
   order by score desc
   limit limit_per_type
@@ -3732,6 +3970,17 @@ alter table public.user_profile_audit_events enable row level security;
 alter table public.collection_audit_events enable row level security;
 alter table public.feature_flag_audit_events enable row level security;
 alter table public.saved_search_audit_events enable row level security;
+alter table public.osm_import_runs enable row level security;
+alter table public.place_contact enable row level security;
+alter table public.place_features enable row level security;
+alter table public.place_provider_metadata enable row level security;
+alter table public.place_stats enable row level security;
+alter table public.place_aliases enable row level security;
+alter table public.place_traits enable row level security;
+alter table public.place_merge_log enable row level security;
+alter table public.place_sources enable row level security;
+alter table public.place_opening_hours enable row level security;
+alter table public.search_analytics enable row level security;
 
 
 -- analytics_events
@@ -4299,6 +4548,64 @@ create policy "Users can view own created place provenance"
   to authenticated
   using (created_by = auth.uid());
 
+
+-- public.place_contact
+drop policy if exists "Public read place_contact" on public.place_contact;
+create policy "Public read place_contact" on public.place_contact for select using (true);
+drop policy if exists "Service role manages place_contact" on public.place_contact;
+create policy "Service role manages place_contact" on public.place_contact for all using (auth.role() = 'service_role');
+
+-- public.place_features
+drop policy if exists "Public read place_features" on public.place_features;
+create policy "Public read place_features" on public.place_features for select using (true);
+drop policy if exists "Service role manages place_features" on public.place_features;
+create policy "Service role manages place_features" on public.place_features for all using (auth.role() = 'service_role');
+
+-- public.place_provider_metadata
+drop policy if exists "Public read place_provider_metadata" on public.place_provider_metadata;
+create policy "Public read place_provider_metadata" on public.place_provider_metadata for select using (true);
+drop policy if exists "Service role manages place_provider_metadata" on public.place_provider_metadata;
+create policy "Service role manages place_provider_metadata" on public.place_provider_metadata for all using (auth.role() = 'service_role');
+
+-- public.place_stats
+drop policy if exists "Public read place_stats" on public.place_stats;
+create policy "Public read place_stats" on public.place_stats for select using (true);
+drop policy if exists "Service role manages place_stats" on public.place_stats;
+create policy "Service role manages place_stats" on public.place_stats for all using (auth.role() = 'service_role');
+
+-- public.place_aliases
+drop policy if exists "Public read place_aliases" on public.place_aliases;
+create policy "Public read place_aliases" on public.place_aliases for select using (true);
+drop policy if exists "Service role manages place_aliases" on public.place_aliases;
+create policy "Service role manages place_aliases" on public.place_aliases for all using (auth.role() = 'service_role');
+
+-- public.place_traits
+drop policy if exists "Public read place_traits" on public.place_traits;
+create policy "Public read place_traits" on public.place_traits for select using (true);
+drop policy if exists "Service role manages place_traits" on public.place_traits;
+create policy "Service role manages place_traits" on public.place_traits for all using (auth.role() = 'service_role');
+
+-- public.place_merge_log
+drop policy if exists "Service role manages place_merge_log" on public.place_merge_log;
+create policy "Service role manages place_merge_log" on public.place_merge_log for all using (auth.role() = 'service_role');
+
+-- public.place_sources
+drop policy if exists "Service role manages place_sources" on public.place_sources;
+create policy "Service role manages place_sources" on public.place_sources for all using (auth.role() = 'service_role');
+
+-- public.place_opening_hours
+drop policy if exists "Public read place_opening_hours" on public.place_opening_hours;
+create policy "Public read place_opening_hours" on public.place_opening_hours for select using (true);
+drop policy if exists "Service role manages place_opening_hours" on public.place_opening_hours;
+create policy "Service role manages place_opening_hours" on public.place_opening_hours for all using (auth.role() = 'service_role');
+
+-- public.search_analytics
+drop policy if exists "Users read own search_analytics" on public.search_analytics;
+create policy "Users read own search_analytics" on public.search_analytics for select using (auth.uid() = user_id);
+drop policy if exists "Service role manages search_analytics" on public.search_analytics;
+create policy "Service role manages search_analytics" on public.search_analytics for all using (auth.role() = 'service_role');
+drop policy if exists "Insert search_analytics" on public.search_analytics;
+create policy "Insert search_analytics" on public.search_analytics for insert with check (true);
 
 -- public.saved_dishes
 drop policy if exists "users manage own saved dishes" on public.saved_dishes;

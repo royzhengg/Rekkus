@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useFocusEffect } from 'expo-router'
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Linking } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Linking, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { SearchIcon, CloseIcon, FilterIcon, PinIcon } from '@/components/icons'
 import { Chip } from '@/components/ui/Chip'
@@ -11,18 +11,17 @@ import { fontFamily, fontSize, fontWeight, letterSpacing, maxFontSizeMultiplier 
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import { demoCurrentUser, demoRestaurants, demoUsers } from '@/lib/dataSources/demoData'
-import { occasionLabel, valueLabel } from '@/lib/dataSources/rekkusPicks'
+import { demoCurrentUser, demoPlaces, demoUsers } from '@/lib/dataSources/demoData'
+import { occasionLabel } from '@/lib/dataSources/rekkusPicks'
 import { isEnabled } from '@/lib/featureFlags'
 import { useNoResultsSuggestions } from '@/lib/hooks/useNoResultsSuggestions'
 import { useSearch, type PlaceResult, type SearchFilters } from '@/lib/hooks/useSearch'
 import { useSearchHistory, loadPersistedSearchState, persistSearchState } from '@/lib/hooks/useSearchHistory'
+import { useSearchLocation } from '@/lib/hooks/useSearchLocation'
 import { useTrendingData } from '@/lib/hooks/useTrendingData'
-import { useUserLocation } from '@/lib/hooks/useUserLocation'
 import { fetchStaffPickCollections, type Collection } from '@/lib/services/collections'
 import { fetchUserEngagementCuisines } from '@/lib/services/searchPersonalization'
 import { resolveTrendingCityFromCoords } from '@/lib/services/trending'
-import { parseSearchQuery } from '@/lib/utils/queryParser'
 import { resolveLocationSource } from '@/lib/utils/searchIntent'
 import { DiscoveryPage } from './DiscoveryPage'
 import { NoResultsCard } from './NoResultsCard'
@@ -35,11 +34,10 @@ export default function SearchScreen() {
   const params = useLocalSearchParams<{ query?: string; source?: string }>()
   const routeQuery = typeof params.query === 'string' ? params.query : ''
   const [query, setQuery] = useState(routeQuery)
-  const [activeChip, setActiveChip] = useState('')
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const { user } = useAuth()
-  const userLocation = useUserLocation()
+  const userLocation = useSearchLocation(user?.id)
   const [isFocused, setIsFocused] = useState(false)
   const [searchMode, setSearchMode] = useState<'search' | 'aroundMe'>('search')
   const [radiusKm, setRadiusKm] = useState(10)
@@ -80,17 +78,15 @@ export default function SearchScreen() {
     placeResults,
     placeDistances,
     dishEntityResults,
+    topFeed,
     suggestions,
-    providerFallbackSuppressed,
-    queryIntent,
+    loading,
     hasQuery,
-    expansionLabel,
   } = useSearch(query, userLocation.coords, {
     mode: searchMode,
     radiusKm,
     userId: user?.id,
     filters: searchFilters,
-    locationSource,
   })
 
   const totalResults = postResults.length + peopleResults.length + placeResults.length + dishEntityResults.length
@@ -105,16 +101,6 @@ export default function SearchScreen() {
     staticFallbacks: CHIPS,
   })
 
-  const dishFirstTopResults = useMemo(() => {
-    const trimmed = query.trim()
-    if (!trimmed) return false
-    try {
-      const intent = parseSearchQuery(trimmed).intent
-      return intent === 'dish' || intent === 'mixed'
-    } catch {
-      return false
-    }
-  }, [query])
 
   useEffect(() => {
     setVisiblePostCount(SEARCH_POST_LIMIT)
@@ -124,7 +110,7 @@ export default function SearchScreen() {
   useEffect(() => {
     if (!routeQuery) return
     setQuery(routeQuery)
-    setActiveChip('')
+
     setSearchMode('search')
     setResultTab('top')
   }, [routeQuery])
@@ -256,7 +242,7 @@ export default function SearchScreen() {
     ([u]) => u !== demoCurrentUser.username
   )
 
-  const demoPopularPlaces: PlaceResult[] = demoRestaurants.slice(0, 5).map(r => ({
+  const demoPopularPlaces: PlaceResult[] = demoPlaces.slice(0, 5).map(r => ({
     id: r.name,
     name: r.name,
     address: r.address ?? null,
@@ -282,9 +268,6 @@ export default function SearchScreen() {
     [isFocused, query, recentSearches, suggestions]
   )
 
-  const topPeople = useMemo(() => peopleResults.slice(0, 3), [peopleResults])
-  const topPosts = useMemo(() => postResults.slice(0, 5), [postResults])
-  const topPlaces = useMemo(() => placeResults.slice(0, 4), [placeResults])
 
   const nearbySummary = userLocation.label ? `${userLocation.label} · ${radiusKm} km` : `Nearby · ${radiusKm} km`
 
@@ -292,15 +275,8 @@ export default function SearchScreen() {
     const tokens: string[] = []
     if (searchMode === 'aroundMe') tokens.push(nearbySummary)
     if (searchFilters.cuisine) tokens.push(searchFilters.cuisine)
-    if (searchFilters.openNow) tokens.push('Open now')
     if (searchFilters.occasions?.length) {
       tokens.push(...searchFilters.occasions.slice(0, 2).map(occasionLabel))
-    }
-    if (searchFilters.values?.length) {
-      tokens.push(...searchFilters.values.slice(0, 1).map(valueLabel))
-    }
-    if (searchFilters.mediaTypes?.length) {
-      tokens.push(searchFilters.mediaTypes.map(t => t === 'mixed' ? 'Mixed media' : t === 'video' ? 'Videos' : 'Photos').join(', '))
     }
     if (searchFilters.sort && searchFilters.sort !== 'best_match') {
       tokens.push(SEARCH_SORTS.find(s => s.key === searchFilters.sort)?.label ?? 'Sorted')
@@ -309,51 +285,36 @@ export default function SearchScreen() {
   }, [nearbySummary, searchFilters, searchMode])
 
   const activeTabEmpty =
+    (resultTab === 'top' && topFeed.length === 0) ||
     (resultTab === 'dishes' && postResults.length === 0 && dishEntityResults.length === 0) ||
     (resultTab === 'people' && peopleResults.length === 0) ||
     (resultTab === 'places' && placeResults.length === 0)
 
   const showTypeaheadSuggestions =
     typeaheadSuggestions.length > 0 &&
-    (!hasQuery || totalResults === 0 || query.trim().length < 2)
+    (!hasQuery || query.trim().length < 2)
   const showLocationNudge =
     !locationNudgeDismissed &&
     searchMode === 'search' &&
     !userLocation.coords &&
-    query.trim().length >= 2 &&
-    (providerFallbackSuppressed || queryIntent === 'food_dish')
+    query.trim().length >= 2
 
   useEffect(() => {
     if (!showLocationNudge) return
-    const key = `${query.trim().toLowerCase()}|${queryIntent}|${searchMode}`
+    const key = `${query.trim().toLowerCase()}|${searchMode}`
     if (lastLocationNudgeKey.current === key) return
     lastLocationNudgeKey.current = key
-    analytics.searchLocationNudgeShown(user?.id ?? null, queryIntent, locationSource, searchMode)
-  }, [locationSource, query, queryIntent, searchMode, showLocationNudge, user?.id])
+    analytics.searchLocationNudgeShown(user?.id ?? null, 'general', locationSource, searchMode)
+  }, [locationSource, query, searchMode, showLocationNudge, user?.id])
 
   const handleResultClick = useCallback(() => {
     sessionHadClick.current = true
   }, [])
 
-  function handleChip(chip: { label: string; emoji: string; query: string }) {
-    setActiveChip(chip.query)
-    setQuery(chip.query)
-    setSearchMode('search')
-    setResultTab('top')
-  }
-
   function handleTrending(tag: string) {
     setQuery(tag)
-    setActiveChip('')
     setSearchMode('search')
     setResultTab('top')
-  }
-
-  function openNearbySearch() {
-    setSearchMode('aroundMe')
-    setActiveChip('')
-    setResultTab('top')
-    setNearbySheetVisible(true)
   }
 
   function updateSearchFilters(next: SearchFilters) {
@@ -362,10 +323,6 @@ export default function SearchScreen() {
     analytics.searchFilter(user?.id ?? null, 'applied', 'search_filters')
   }
 
-  function updateRadiusKm(next: number) {
-    setRadiusKm(next)
-    persistSearchState({ filters: searchFilters, radiusKm: next }, user?.id)
-  }
 
   function handleSelectRecent(item: string) {
     setQuery(item)
@@ -384,16 +341,16 @@ export default function SearchScreen() {
     const position = noResultsSuggestions.findIndex(chip => chip.query === q) + 1
     analytics.noResultsSuggestionClick(user?.id ?? null, failedQuery, q, position > 0 ? position : 1)
     setQuery(q)
-    setActiveChip('')
+
     setSearchMode('search')
     setResultTab('top')
   }
 
   async function handleLocationNudgePress() {
-    analytics.searchLocationNudgeClicked(user?.id ?? null, queryIntent, locationSource, searchMode)
+    analytics.searchLocationNudgeClicked(user?.id ?? null, 'general', locationSource, searchMode)
     if (userLocation.status === 'denied') {
       await Linking.openSettings()
-      analytics.searchLocationPermissionResult(user?.id ?? null, 'settings_opened', queryIntent, searchMode)
+      analytics.searchLocationPermissionResult(user?.id ?? null, 'settings_opened', 'general', searchMode)
       setLocationNudgeDismissed(true)
       return
     }
@@ -401,7 +358,7 @@ export default function SearchScreen() {
     analytics.searchLocationPermissionResult(
       user?.id ?? null,
       next ? 'granted' : userLocation.status,
-      queryIntent,
+      'general',
       searchMode
     )
     if (next) setLocationNudgeDismissed(true)
@@ -422,11 +379,11 @@ export default function SearchScreen() {
             style={styles.searchField}
             placeholder="Search dishes, people, places…"
             placeholderTextColor={colors.text3}
-            accessibilityLabel="Search for restaurants, dishes, or people"
+            accessibilityLabel="Search for places, dishes, or people"
             value={query}
             onChangeText={t => {
               setQuery(t)
-              setActiveChip('')
+          
               setSearchMode('search')
               setResultTab('top')
             }}
@@ -443,7 +400,7 @@ export default function SearchScreen() {
               style={styles.clearBtn}
               onPress={() => {
                 setQuery('')
-                setActiveChip('')
+            
                 setSearchMode('search')
                 setResultTab('top')
               }}
@@ -566,7 +523,7 @@ export default function SearchScreen() {
               style={styles.suggestionOption}
               onPress={() => {
                 setQuery(s.label)
-                setActiveChip('')
+            
                 setSearchMode('search')
                 setResultTab('top')
                 setIsFocused(false)
@@ -587,29 +544,31 @@ export default function SearchScreen() {
             onSelectSavedSearch={handleSelectSavedSearch}
             onSaveSearch={saveSearch}
             onUnsaveSearch={unsaveSearch}
-            activeChip={activeChip}
             trendingItems={trendingItems}
             trendingDishes={trendingDishes}
             suggestedPeople={suggestedPeople}
             popularPlaces={popularPlaces}
             staffPicks={staffPicks}
-            cuisineAffinities={cuisineAffinities}
-            onChip={handleChip}
             onTrending={handleTrending}
             onTrendingDish={handleTrending}
-            onOpenNearby={openNearbySearch}
             userId={user?.id}
           />
+        ) : loading ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator size="small" color={colors.accent} />
+          </View>
         ) : totalResults === 0 ? (
-          <NoResultsCard query={query} chips={noResultsSuggestions} onChipPress={handleNoResultsChip} />
+          <NoResultsCard
+            query={query}
+            chips={noResultsSuggestions}
+            onChipPress={handleNoResultsChip}
+            nearbyPlaces={popularPlaces.slice(0, 3)}
+          />
         ) : (
           <SearchResultsTab
             resultTab={resultTab}
             onTabChange={setResultTab}
-            dishFirstTopResults={dishFirstTopResults}
-            topPlaces={topPlaces}
-            topPosts={topPosts}
-            topPeople={topPeople}
+            topFeed={topFeed}
             postResults={postResults}
             peopleResults={peopleResults}
             placeResults={placeResults}
@@ -617,7 +576,7 @@ export default function SearchScreen() {
             dishEntityResults={dishEntityResults}
             visiblePostCount={visiblePostCount}
             onShowMorePosts={() => setVisiblePostCount(c => c + SEARCH_POST_LIMIT)}
-            expansionLabel={expansionLabel}
+
             searchMode={searchMode}
             radiusKm={radiusKm}
             locationLabel={userLocation.label}
@@ -634,12 +593,8 @@ export default function SearchScreen() {
         <SearchFiltersSheet
           visible={nearbySheetVisible}
           onClose={() => setNearbySheetVisible(false)}
-          radiusKm={radiusKm}
-          setRadiusKm={updateRadiusKm}
-          userLocation={userLocation}
           filters={searchFilters}
           setFilters={updateSearchFilters}
-          onEnableNearby={() => setSearchMode('aroundMe')}
         />
       )}
     </SafeAreaView>
@@ -743,6 +698,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       justifyContent: 'center',
     },
     scroll: { flex: 1 },
+    loadingRow: { paddingTop: spacing.px40, alignItems: 'center' },
     suggestionScroll: { maxHeight: 52, flexGrow: 0 },
     suggestionRow: {
       gap: spacing.px7,

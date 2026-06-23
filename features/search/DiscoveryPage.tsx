@@ -1,28 +1,33 @@
 import { useRouter } from 'expo-router'
 import React, { useMemo, useState } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native'
 import { Avatar } from '@/components/Avatar'
-import { SaveIcon, ClockIcon, CloseIcon, PinIcon } from '@/components/icons'
+import { SaveIcon, ClockIcon, CloseIcon } from '@/components/icons'
 import { Chip } from '@/components/ui/Chip'
 import { IconButton } from '@/components/ui/IconButton'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontSize, fontWeight, lineHeight } from '@/constants/Typography'
+import { fontFamily, fontSize, fontWeight, lineHeight } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useAuthGate } from '@/lib/contexts/AuthGateContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import type { DishResult } from '@/lib/hooks/searchTypes'
-import { useContextualQuickStarts } from '@/lib/hooks/useContextualQuickStarts'
 import type { PlaceResult } from '@/lib/hooks/useSearch'
-import type { CuisineAffinities } from '@/lib/hooks/useSearchHistory'
 import { routes } from '@/lib/routes'
 import type { Collection } from '@/lib/services/collections'
 import { fetchUserIdByUsername } from '@/lib/services/users'
 import type { MockUser } from '@/types/domain'
-import { PlaceRow, SectionHeader } from './searchShared'
-import type { SearchChip } from './searchConstants'
+import { SectionHeader } from './searchShared'
+
+// Stable placeholder colors derived from the place id to vary cards visually // check:tokens-ignore
+const CARD_BG_COLORS = ['#EDE8E1', '#E1E8ED', '#E8EDE1', '#EDE1E8', '#E8E1ED', '#E1EDE8'] // check:tokens-ignore
+function cardBgForId(id: string): string {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = ((h << 5) - h + id.charCodeAt(i)) | 0
+  return CARD_BG_COLORS[Math.abs(h) % CARD_BG_COLORS.length] ?? '#EDE8E1' // check:tokens-ignore
+}
 
 interface DiscoveryPageProps {
   isFocused: boolean
@@ -33,17 +38,13 @@ interface DiscoveryPageProps {
   onSelectSavedSearch: (item: string) => void
   onSaveSearch: (item: string) => void
   onUnsaveSearch: (item: string) => void
-  activeChip: string
   trendingItems: Array<{ tag: string; count: string }>
   trendingDishes: DishResult[]
   suggestedPeople: Array<[string, MockUser]>
   popularPlaces: PlaceResult[]
   staffPicks: Collection[]
-  cuisineAffinities: CuisineAffinities
-  onChip: (chip: SearchChip) => void
   onTrending: (tag: string) => void
   onTrendingDish: (dishName: string) => void
-  onOpenNearby: () => void
   userId: string | undefined
 }
 
@@ -56,22 +57,20 @@ export function DiscoveryPage({
   onSelectSavedSearch,
   onSaveSearch,
   onUnsaveSearch,
-  activeChip,
   trendingItems,
   trendingDishes,
   suggestedPeople,
   popularPlaces,
   staffPicks,
-  cuisineAffinities,
-  onChip,
   onTrending,
   onTrendingDish,
-  onOpenNearby,
   userId,
 }: DiscoveryPageProps) {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  const contextualChips = useContextualQuickStarts(cuisineAffinities)
+  const { width } = useWindowDimensions()
+  const cardWidth = (width - spacing[4] * 2 - spacing[3]) / 2
+  const cardImageHeight = cardWidth * (4 / 3)
 
   return (
     <View style={styles.discoveryPage}>
@@ -149,38 +148,25 @@ export function DiscoveryPage({
         </View>
       )}
 
-      <SectionHeader title="Quick starts" />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.quickStartRow}
-      >
-        <Chip label="Nearby" leading={<PinIcon size={12} />} onPress={onOpenNearby} />
-        {contextualChips.map(chip => (
-          <Chip
-            key={chip.query}
-            label={chip.label}
-            leading={<Text style={styles.chipEmoji}>{chip.emoji}</Text>}
-            selected={activeChip === chip.query}
-            onPress={() => onChip(chip)}
-          />
-        ))}
-      </ScrollView>
+      {popularPlaces.length > 0 && (
+        <PlaceCardGrid places={popularPlaces} cardWidth={cardWidth} cardImageHeight={cardImageHeight} userId={userId} />
+      )}
 
-      <SectionHeader title="Trending now" />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.trendingRow}
-      >
-        {trendingItems.slice(0, 6).map(item => (
-          <Chip
-            key={item.tag}
-            label={item.tag.replace(/^#/, '')}
-            onPress={() => onTrending(item.tag)}
-          />
-        ))}
-      </ScrollView>
+      {trendingItems.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.trendingTagsRow}
+        >
+          {trendingItems.slice(0, 8).map(item => (
+            <Chip
+              key={item.tag}
+              label={item.tag.replace(/^#/, '')}
+              onPress={() => onTrending(item.tag)}
+            />
+          ))}
+        </ScrollView>
+      )}
 
       {trendingDishes.length > 0 && (
         <>
@@ -214,13 +200,6 @@ export function DiscoveryPage({
           </ScrollView>
         </>
       )}
-
-      <SectionHeader title="Food spots people save" />
-      <View>
-        {popularPlaces.map(place => (
-          <PlaceRow key={place.id} place={place} />
-        ))}
-      </View>
 
       {staffPicks.length > 0 && (
         <>
@@ -267,6 +246,57 @@ export function DiscoveryPage({
     </View>
   )
 }
+
+// ─── PlaceCardGrid ────────────────────────────────────────────────────────────
+
+const PlaceCardGrid = React.memo(function PlaceCardGrid({
+  places,
+  cardWidth,
+  cardImageHeight,
+  userId,
+}: {
+  places: PlaceResult[]
+  cardWidth: number
+  cardImageHeight: number
+  userId?: string | undefined
+}) {
+  const router = useRouter()
+  const colors = useThemeColors()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+
+  const rows: PlaceResult[][] = []
+  for (let i = 0; i < places.length; i += 2) {
+    rows.push(places.slice(i, i + 2))
+  }
+
+  return (
+    <View style={styles.cardGrid}>
+      {rows.map((row, rowIdx) => (
+        <View key={rowIdx} style={styles.cardRow}>
+          {row.map(place => (
+            <TouchableOpacity
+              key={place.id}
+              style={[styles.card, { width: cardWidth }]}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={place.name}
+              onPress={() => {
+                analytics.viewPlace(userId ?? null, place.id)
+                router.push(routes.placeDetail({ placeId: place.id }))
+              }}
+            >
+              <View style={[styles.cardImage, { height: cardImageHeight, backgroundColor: cardBgForId(place.id) }]} />
+              <Text style={styles.cardName} numberOfLines={2}>{place.name}</Text>
+              {!!place.cuisine_type && (
+                <Text style={styles.cardCuisine} numberOfLines={1}>{place.cuisine_type}</Text>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      ))}
+    </View>
+  )
+})
 
 // ─── PersonChip ───────────────────────────────────────────────────────────────
 
@@ -333,9 +363,37 @@ const PersonChip = React.memo(function PersonChip({
 function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
     discoveryPage: { paddingBottom: spacing[6] },
-    quickStartRow: {
+    cardGrid: {
+      paddingHorizontal: spacing[4],
+      paddingTop: spacing[4],
+      gap: spacing[3],
+    },
+    cardRow: {
+      flexDirection: 'row',
+      gap: spacing[3],
+    },
+    card: {
+      overflow: 'hidden',
+    },
+    cardImage: {
+      borderRadius: radius.md,
+      marginBottom: spacing[2],
+    },
+    cardName: {
+      fontFamily: fontFamily.serif,
+      fontSize: fontSize['2xl'],
+      color: c.text,
+      marginBottom: spacing.px3,
+      lineHeight: lineHeight.tight,
+    },
+    cardCuisine: {
+      fontSize: fontSize.sm,
+      color: c.text3,
+    },
+    trendingTagsRow: {
       gap: spacing[2],
       paddingHorizontal: spacing[4],
+      paddingTop: spacing[4],
       paddingBottom: spacing[2],
     },
     trendingRow: {
@@ -343,7 +401,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingHorizontal: spacing[4],
       paddingBottom: spacing.px2,
     },
-    chipEmoji: { fontSize: fontSize.bodySm },
     recentSearchRow: {
       flexDirection: 'row',
       alignItems: 'center',

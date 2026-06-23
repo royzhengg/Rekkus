@@ -1,7 +1,7 @@
-import { fetchPlaceIdByTextSearch, fetchRestaurantProviderDetail } from '@/lib/services/places'
+import { fetchPlaceIdByTextSearch, fetchPlaceProviderDetail } from '@/lib/services/places'
 import type { PlaceDetail } from './placeTypes'
 
-export type PlaceAction = 'suggest_edit' | 'report_duplicate' | 'verify_info' | 'claim_restaurant'
+export type PlaceAction = 'suggest_edit' | 'report_duplicate' | 'verify_info' | 'claim_place'
 export type DbRatings = { food: number | null; vibe: number | null; cost: number | null }
 
 export const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
@@ -25,5 +25,5 @@ export async function textSearchPlace(query: string): Promise<string | null> {
 export async function fetchPlaceDetail(googlePlaceId: string): Promise<PlaceDetail | null> {
   const fields =
     'rating,user_ratings_total,formatted_phone_number,website,opening_hours,price_level,photos,types,business_status,geometry'
-  return fetchRestaurantProviderDetail(googlePlaceId, fields)
+  return fetchPlaceProviderDetail(googlePlaceId, fields)
 }

@@ -33,7 +33,7 @@ function deferred<T>() {
 
 function suggestion(text: string): SearchSuggestion {
   return {
-    suggestion_type: 'restaurant',
+    suggestion_type: 'place',
     display_text: text,
     secondary_text: 'Sydney',
     entity_id: text,

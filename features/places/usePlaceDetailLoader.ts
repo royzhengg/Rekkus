@@ -5,6 +5,7 @@ import type { AuthUser } from '@/lib/services/auth'
 import {
   fetchPlaceRowByGooglePlaceId,
   fetchPlaceRow,
+  fetchOsmPlaceDetail,
   getPlaceDisplayPhotos,
   cachePlaceGoogleData,
   fetchPlacePostRatings,
@@ -36,13 +37,13 @@ type LoaderResult = {
   saved: boolean
   setSaved: (v: boolean) => void
   dbRatings: DbRatings
-  hasRecentReviews: boolean
+  hasRecentPosts: boolean
   topDishes: Array<{ name: string; dishId?: string }>
   resolvedGooglePlaceId: string | null
   setResolvedGooglePlaceId: (id: string | null) => void
 }
 
-type PlaceRow = { id: string; google_place_id: string | null; google_photo_refs: string[] }
+type PlaceRow = { id: string; google_place_id: string | null; google_photo_refs: string[]; primary_photo_source: string }
 type ResolvedIds = { googlePlaceId: string | null; preloadedRow: PlaceRow | null }
 
 export function usePlaceDetailLoader({
@@ -62,7 +63,7 @@ export function usePlaceDetailLoader({
   const [placeId, setPlaceId] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [dbRatings, setDbRatings] = useState<DbRatings>({ food: null, vibe: null, cost: null })
-  const [hasRecentReviews, setHasRecentReviews] = useState(false)
+  const [hasRecentPosts, setHasRecentReviews] = useState(false)
   const [topDishes, setTopDishes] = useState<Array<{ name: string; dishId?: string }>>([])
   const [resolvedGooglePlaceId, setResolvedGooglePlaceId] = useState<string | null>(
     routeGooglePlaceId && routeGooglePlaceId !== 'none' ? routeGooglePlaceId : null
@@ -103,21 +104,43 @@ export function usePlaceDetailLoader({
           ? Promise.resolve(preloadedRow)
           : googlePlaceId
             ? fetchPlaceRowByGooglePlaceId(googlePlaceId)
-            : Promise.resolve(null),
+            : routePlaceId && routePlaceId !== 'none'
+              ? fetchPlaceRow(routePlaceId)
+              : Promise.resolve(null),
       ])
 
       if (cancelled) return null
 
-      const refs = (placeResult?.photos ?? [])
-        .slice(0, 6)
-        .map(p => p.photo_reference)
-        .filter((ref): ref is string => typeof ref === 'string')
-      const cachedRefs = placeRowResult?.google_photo_refs ?? []
+      // Only use Google photos if no user post photos exist for this place yet
+      const primarySource = placeRowResult?.primary_photo_source ?? 'rekkus_post'
+      const shouldUseGooglePhotos = primarySource !== 'rekkus_post'
+      const refs = shouldUseGooglePhotos
+        ? (placeResult?.photos ?? [])
+          .slice(0, 6)
+          .map(p => p.photo_reference)
+          .filter((ref): ref is string => typeof ref === 'string')
+        : []
+      const cachedRefs = shouldUseGooglePhotos ? (placeRowResult?.google_photo_refs ?? []) : []
       const providerRefs = refs.length > 0 ? refs : cachedRefs
 
-      if (placeResult) setDetail(placeResult)
-
       const pid: string | null = placeRowResult?.id ?? null
+
+      if (placeResult) {
+        setDetail(placeResult)
+      } else if (pid) {
+        // OSM-only place: no Google data — hydrate detail from place_contact + place_opening_hours
+        const osm = await fetchOsmPlaceDetail(pid)
+        if (!cancelled) {
+          const osmDetail: PlaceDetail = {}
+          if (osm.phone) osmDetail.formatted_phone_number = osm.phone
+          if (osm.website) osmDetail.website = osm.website
+          if (osm.hoursText) osmDetail.opening_hours = { weekday_text: [osm.hoursText] }
+          if (osmDetail.formatted_phone_number ?? osmDetail.website ?? osmDetail.opening_hours) {
+            setDetail(osmDetail)
+          }
+        }
+      }
+
       if (pid) setPlaceId(pid)
 
       if (contextPhotoUrls.length > 0) {
@@ -221,9 +244,9 @@ export function usePlaceDetailLoader({
     saved,
     setSaved,
     dbRatings,
-    hasRecentReviews,
+    hasRecentPosts,
     topDishes,
     resolvedGooglePlaceId,
     setResolvedGooglePlaceId,
-  }), [loading, refreshing, detail, photoUrls, placeId, saved, dbRatings, hasRecentReviews, topDishes, resolvedGooglePlaceId])
+  }), [loading, refreshing, detail, photoUrls, placeId, saved, dbRatings, hasRecentPosts, topDishes, resolvedGooglePlaceId])
 }

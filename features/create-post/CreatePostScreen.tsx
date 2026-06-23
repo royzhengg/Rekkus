@@ -190,7 +190,7 @@ export default function PostScreen() {
         duration_ms: now - stepEnteredAt.current,
       })
       if (step === 1 && form.selectedPlace === null) {
-        analytics.restaurantFieldSkipped(user.id)
+        analytics.placeFieldSkipped(user.id)
       }
       setStep((step + 1) as Step)
     }
@@ -210,7 +210,7 @@ export default function PostScreen() {
     if (!form.hasDraftContent) {
       setDraftNotice({
         title: 'Nothing to save yet',
-        subtitle: 'Add media, a title, or review details before saving a draft.',
+        subtitle: 'Add media, a title, or post details before saving a draft.',
       })
       return
     }
@@ -233,13 +233,6 @@ export default function PostScreen() {
     form.setCurrentDraftId(saved.remoteId ?? saved.id)
     form.setCurrentDraftStatus(saved.status)
     await refreshDraftSummaries()
-    if (saved.syncStatus === 'failed') {
-      setDraftNotice({
-        title: 'Saved on this device',
-        subtitle: 'We could not sync draft media yet. Your draft is recoverable here and can retry later.',
-      })
-      return
-    }
     if (showConfirmation) {
       setDraftNotice({
         title: mode === 'new' ? 'Saved as new draft' : 'Draft saved',
@@ -394,7 +387,7 @@ export default function PostScreen() {
           title="Create a post"
           subtitle="Start fresh, or open your saved drafts list."
           options={[
-            { label: 'New post', value: 'new', description: 'Start with a blank review.', variant: 'tile' },
+            { label: 'New post', value: 'new', description: 'Start with a blank post.', variant: 'tile' },
             { label: 'Edit a draft', value: 'all', description: 'Choose from your saved draft posts.', variant: 'tile' },
           ]}
           onSelect={value => {
@@ -442,7 +435,7 @@ export default function PostScreen() {
 
   const mediaProps = { userId: user.id, media: form.media, setMedia: form.setMedia, title: form.title, setTitle: form.setTitle, selectedPlace: form.selectedPlace, setSelectedPlace: form.setSelectedPlace, cuisineType: form.cuisineType, dishTags: form.dishTags, setDishTags: form.setDishTags }
   const detailsProps = { tasteVerdict: form.tasteVerdict, setTasteVerdict: form.setTasteVerdict, valueVerdict: form.valueVerdict, setValueVerdict: form.setValueVerdict, occasionTags: form.occasionTags, setOccasionTags: form.setOccasionTags, body: form.body, setBody: form.setBody, cuisineType: form.cuisineType, setCuisineType: form.setCuisineType, hashtags: form.hashtags, setHashtags: form.setHashtags, hashtagInput: form.hashtagInput, setHashtagInput: form.setHashtagInput, mustOrder: form.mustOrder, setMustOrder: form.setMustOrder, cashDiscount: form.cashDiscount, setCashDiscount: form.setCashDiscount, googleReviewFreebie: form.googleReviewFreebie, setGoogleReviewFreebie: form.setGoogleReviewFreebie, dishTags: form.dishTags }
-  const reviewProps = { title: form.title, body: form.body, media: form.media, dishTags: form.dishTags, selectedPlace: form.selectedPlace, tasteVerdict: form.tasteVerdict, valueVerdict: form.valueVerdict, occasionTags: form.occasionTags, cuisineType: form.cuisineType, mustOrder: form.mustOrder, cashDiscount: form.cashDiscount, googleReviewFreebie: form.googleReviewFreebie, hashtags: form.hashtags, onEditBasics: () => setStep(1), onEditDetails: () => setStep(2), onPost: handlePost, primaryLabel: isEditingPost ? 'Save changes' : 'Post review', posting, onSaveDraft: openSaveDraftOptions, savingDraft }
+  const reviewProps = { title: form.title, body: form.body, media: form.media, dishTags: form.dishTags, selectedPlace: form.selectedPlace, tasteVerdict: form.tasteVerdict, valueVerdict: form.valueVerdict, occasionTags: form.occasionTags, cuisineType: form.cuisineType, mustOrder: form.mustOrder, cashDiscount: form.cashDiscount, googleReviewFreebie: form.googleReviewFreebie, hashtags: form.hashtags, onEditBasics: () => setStep(1), onEditDetails: () => setStep(2), onPost: handlePost, primaryLabel: isEditingPost ? 'Save changes' : 'Post', posting, onSaveDraft: openSaveDraftOptions, savingDraft }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

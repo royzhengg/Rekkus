@@ -136,8 +136,6 @@ export default function TabLayout() {
         />
         <Tabs.Screen name="alerts" options={{ href: null }} />
         <Tabs.Screen name="post" options={{ href: null }} />
-        <Tabs.Screen name="places" options={{ href: null }} />
-        <Tabs.Screen name="restaurants" options={{ href: null }} />
       </Tabs>
       {materialEligible ? (
         <View style={styles.fabContainer}>

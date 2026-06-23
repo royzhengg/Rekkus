@@ -75,6 +75,21 @@ export type Database = {
           },
         ]
       }
+      app_config: {
+        Row: {
+          key: string
+          value: string
+        }
+        Insert: {
+          key: string
+          value: string
+        }
+        Update: {
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
       auth_audit_events: {
         Row: {
           context: Json | null
@@ -716,6 +731,35 @@ export type Database = {
           },
         ]
       }
+      dish_embeddings: {
+        Row: {
+          dish_id: string
+          embedding: string
+          embedding_hash: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          dish_id: string
+          embedding: string
+          embedding_hash?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          dish_id?: string
+          embedding?: string
+          embedding_hash?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dish_embeddings_dish_id_fkey"
+            columns: ["dish_id"]
+            isOneToOne: true
+            referencedRelation: "dishes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dishes: {
         Row: {
           created_at: string
@@ -1178,6 +1222,254 @@ export type Database = {
           },
         ]
       }
+      osm_import_runs: {
+        Row: {
+          completed_at: string | null
+          id: string
+          imported: number
+          report: Json | null
+          skipped: number
+          started_at: string
+          state: string
+          updated: number
+        }
+        Insert: {
+          completed_at?: string | null
+          id?: string
+          imported?: number
+          report?: Json | null
+          skipped?: number
+          started_at?: string
+          state: string
+          updated?: number
+        }
+        Update: {
+          completed_at?: string | null
+          id?: string
+          imported?: number
+          report?: Json | null
+          skipped?: number
+          started_at?: string
+          state?: string
+          updated?: number
+        }
+        Relationships: []
+      }
+      place_aliases: {
+        Row: {
+          alias: string
+          created_at: string
+          id: string
+          place_id: string
+          source: string
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          id?: string
+          place_id: string
+          source: string
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          id?: string
+          place_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_aliases_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_contact: {
+        Row: {
+          facebook_url: string | null
+          instagram_url: string | null
+          last_community_update_at: string | null
+          last_owner_update_at: string | null
+          last_verified_at: string | null
+          phone: string | null
+          place_id: string
+          tiktok_url: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          facebook_url?: string | null
+          instagram_url?: string | null
+          last_community_update_at?: string | null
+          last_owner_update_at?: string | null
+          last_verified_at?: string | null
+          phone?: string | null
+          place_id: string
+          tiktok_url?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          facebook_url?: string | null
+          instagram_url?: string | null
+          last_community_update_at?: string | null
+          last_owner_update_at?: string | null
+          last_verified_at?: string | null
+          phone?: string | null
+          place_id?: string
+          tiktok_url?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_contact_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: true
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_features: {
+        Row: {
+          capacity: number | null
+          delivery: boolean | null
+          dietary_flags: string[] | null
+          internet_access: string | null
+          outdoor_seating: boolean | null
+          payment_methods: string[] | null
+          place_id: string
+          smoking: string | null
+          takeaway: boolean | null
+          updated_at: string
+          wheelchair: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          delivery?: boolean | null
+          dietary_flags?: string[] | null
+          internet_access?: string | null
+          outdoor_seating?: boolean | null
+          payment_methods?: string[] | null
+          place_id: string
+          smoking?: string | null
+          takeaway?: boolean | null
+          updated_at?: string
+          wheelchair?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          delivery?: boolean | null
+          dietary_flags?: string[] | null
+          internet_access?: string | null
+          outdoor_seating?: boolean | null
+          payment_methods?: string[] | null
+          place_id?: string
+          smoking?: string | null
+          takeaway?: boolean | null
+          updated_at?: string
+          wheelchair?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_features_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: true
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_merge_log: {
+        Row: {
+          created_at: string
+          id: string
+          merged_by: string | null
+          new_place_id: string
+          old_place_id: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          merged_by?: string | null
+          new_place_id: string
+          old_place_id: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          merged_by?: string | null
+          new_place_id?: string
+          old_place_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_merge_log_merged_by_fkey"
+            columns: ["merged_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_merge_log_new_place_id_fkey"
+            columns: ["new_place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_opening_hours: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          hours_json: Json | null
+          hours_text: string | null
+          id: string
+          is_current: boolean
+          place_id: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          hours_json?: Json | null
+          hours_text?: string | null
+          id?: string
+          is_current?: boolean
+          place_id: string
+          source: string
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          hours_json?: Json | null
+          hours_text?: string | null
+          id?: string
+          is_current?: boolean
+          place_id?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_opening_hours_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       place_popularity_cache: {
         Row: {
           avg_food_rating: number | null
@@ -1213,6 +1505,222 @@ export type Database = {
           },
         ]
       }
+      place_provider_metadata: {
+        Row: {
+          alt_names: Json | null
+          amenity_type: string | null
+          brand: string | null
+          brand_wikidata: string | null
+          description: string | null
+          floor_level: string | null
+          image_url: string | null
+          last_google_sync_at: string | null
+          last_osm_sync_at: string | null
+          operator: string | null
+          osm_check_date: string | null
+          osm_import_run_id: string | null
+          osm_imported_at: string | null
+          place_id: string
+          postcode: string | null
+          price_level: number | null
+          raw_osm_tags: Json | null
+          start_date: string | null
+          state: string | null
+          updated_at: string
+          wikidata_id: string | null
+          wikipedia_url: string | null
+        }
+        Insert: {
+          alt_names?: Json | null
+          amenity_type?: string | null
+          brand?: string | null
+          brand_wikidata?: string | null
+          description?: string | null
+          floor_level?: string | null
+          image_url?: string | null
+          last_google_sync_at?: string | null
+          last_osm_sync_at?: string | null
+          operator?: string | null
+          osm_check_date?: string | null
+          osm_import_run_id?: string | null
+          osm_imported_at?: string | null
+          place_id: string
+          postcode?: string | null
+          price_level?: number | null
+          raw_osm_tags?: Json | null
+          start_date?: string | null
+          state?: string | null
+          updated_at?: string
+          wikidata_id?: string | null
+          wikipedia_url?: string | null
+        }
+        Update: {
+          alt_names?: Json | null
+          amenity_type?: string | null
+          brand?: string | null
+          brand_wikidata?: string | null
+          description?: string | null
+          floor_level?: string | null
+          image_url?: string | null
+          last_google_sync_at?: string | null
+          last_osm_sync_at?: string | null
+          operator?: string | null
+          osm_check_date?: string | null
+          osm_import_run_id?: string | null
+          osm_imported_at?: string | null
+          place_id?: string
+          postcode?: string | null
+          price_level?: number | null
+          raw_osm_tags?: Json | null
+          start_date?: string | null
+          state?: string | null
+          updated_at?: string
+          wikidata_id?: string | null
+          wikipedia_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_provider_metadata_osm_import_run_id_fkey"
+            columns: ["osm_import_run_id"]
+            isOneToOne: false
+            referencedRelation: "osm_import_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_provider_metadata_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: true
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_search_index: {
+        Row: {
+          cuisine_slug: string | null
+          lat: number | null
+          lng: number | null
+          place_id: string
+          post_count: number
+          save_count: number
+          search_name: string
+          search_tsv: unknown
+          suburb: string | null
+          trending_score: number
+          updated_at: string
+          verification_score: number
+        }
+        Insert: {
+          cuisine_slug?: string | null
+          lat?: number | null
+          lng?: number | null
+          place_id: string
+          post_count?: number
+          save_count?: number
+          search_name: string
+          search_tsv: unknown
+          suburb?: string | null
+          trending_score?: number
+          updated_at?: string
+          verification_score?: number
+        }
+        Update: {
+          cuisine_slug?: string | null
+          lat?: number | null
+          lng?: number | null
+          place_id?: string
+          post_count?: number
+          save_count?: number
+          search_name?: string
+          search_tsv?: unknown
+          suburb?: string | null
+          trending_score?: number
+          updated_at?: string
+          verification_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_search_index_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: true
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_sources: {
+        Row: {
+          fetched_at: string
+          id: string
+          payload: Json
+          place_id: string
+          source: string
+        }
+        Insert: {
+          fetched_at?: string
+          id?: string
+          payload: Json
+          place_id: string
+          source: string
+        }
+        Update: {
+          fetched_at?: string
+          id?: string
+          payload?: Json
+          place_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_sources_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_stats: {
+        Row: {
+          collection_count: number
+          last_activity_at: string | null
+          place_id: string
+          post_count: number
+          save_count: number
+          trending_score: number
+          updated_at: string
+          visit_count: number
+        }
+        Insert: {
+          collection_count?: number
+          last_activity_at?: string | null
+          place_id: string
+          post_count?: number
+          save_count?: number
+          trending_score?: number
+          updated_at?: string
+          visit_count?: number
+        }
+        Update: {
+          collection_count?: number
+          last_activity_at?: string | null
+          place_id?: string
+          post_count?: number
+          save_count?: number
+          trending_score?: number
+          updated_at?: string
+          visit_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_stats_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: true
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       place_stubs: {
         Row: {
           created_at: string
@@ -1234,6 +1742,41 @@ export type Database = {
         }
         Relationships: []
       }
+      place_traits: {
+        Row: {
+          confidence: number
+          created_at: string
+          id: string
+          place_id: string
+          source: string
+          trait_slug: Database["public"]["Enums"]["place_trait_slug"]
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          place_id: string
+          source: string
+          trait_slug: Database["public"]["Enums"]["place_trait_slug"]
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          place_id?: string
+          source?: string
+          trait_slug?: Database["public"]["Enums"]["place_trait_slug"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_traits_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       places: {
         Row: {
           address: string | null
@@ -1244,7 +1787,10 @@ export type Database = {
           country: string | null
           created_at: string
           created_by: string | null
+          created_source: string | null
+          cuisine_slug: string | null
           cuisine_type: string | null
+          deleted_at: string | null
           embedding: string | null
           embedding_hash: string | null
           google_photo_refs: string[] | null
@@ -1254,17 +1800,22 @@ export type Database = {
           id: string
           latitude: number | null
           longitude: number | null
+          merged_into_place_id: string | null
           metadata_confidence: number
           metadata_source_priority: string
           name: string
           open_now: boolean | null
           open_now_checked_at: string | null
+          osm_id: string | null
           owner_content_status: string
+          place_geog: unknown
+          place_status: Database["public"]["Enums"]["place_status"]
           price_range: number | null
           primary_photo_source: string
-          restaurant_geog: unknown
+          slug: string | null
           suburb: string | null
           updated_at: string
+          verification_level: Database["public"]["Enums"]["verification_level"]
           verification_status: string
         }
         Insert: {
@@ -1276,7 +1827,10 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string | null
+          created_source?: string | null
+          cuisine_slug?: string | null
           cuisine_type?: string | null
+          deleted_at?: string | null
           embedding?: string | null
           embedding_hash?: string | null
           google_photo_refs?: string[] | null
@@ -1286,17 +1840,22 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          merged_into_place_id?: string | null
           metadata_confidence?: number
           metadata_source_priority?: string
           name: string
           open_now?: boolean | null
           open_now_checked_at?: string | null
+          osm_id?: string | null
           owner_content_status?: string
+          place_geog?: unknown
+          place_status?: Database["public"]["Enums"]["place_status"]
           price_range?: number | null
           primary_photo_source?: string
-          restaurant_geog?: unknown
+          slug?: string | null
           suburb?: string | null
           updated_at?: string
+          verification_level?: Database["public"]["Enums"]["verification_level"]
           verification_status?: string
         }
         Update: {
@@ -1308,7 +1867,10 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string | null
+          created_source?: string | null
+          cuisine_slug?: string | null
           cuisine_type?: string | null
+          deleted_at?: string | null
           embedding?: string | null
           embedding_hash?: string | null
           google_photo_refs?: string[] | null
@@ -1318,17 +1880,22 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          merged_into_place_id?: string | null
           metadata_confidence?: number
           metadata_source_priority?: string
           name?: string
           open_now?: boolean | null
           open_now_checked_at?: string | null
+          osm_id?: string | null
           owner_content_status?: string
+          place_geog?: unknown
+          place_status?: Database["public"]["Enums"]["place_status"]
           price_range?: number | null
           primary_photo_source?: string
-          restaurant_geog?: unknown
+          slug?: string | null
           suburb?: string | null
           updated_at?: string
+          verification_level?: Database["public"]["Enums"]["verification_level"]
           verification_status?: string
         }
         Relationships: [
@@ -1614,6 +2181,7 @@ export type Database = {
           duration_ms: number | null
           height: number | null
           id: string
+          is_cover: boolean
           media_type: string
           mime_type: string | null
           order_index: number
@@ -1633,6 +2201,7 @@ export type Database = {
           duration_ms?: number | null
           height?: number | null
           id?: string
+          is_cover?: boolean
           media_type?: string
           mime_type?: string | null
           order_index?: number
@@ -1652,6 +2221,7 @@ export type Database = {
           duration_ms?: number | null
           height?: number | null
           id?: string
+          is_cover?: boolean
           media_type?: string
           mime_type?: string | null
           order_index?: number
@@ -2232,6 +2802,24 @@ export type Database = {
           },
         ]
       }
+      restaurant_place_stubs: {
+        Row: {
+          expires_at: string
+          name: string
+          place_id: string
+        }
+        Insert: {
+          expires_at: string
+          name: string
+          place_id: string
+        }
+        Update: {
+          expires_at?: string
+          name?: string
+          place_id?: string
+        }
+        Relationships: []
+      }
       restaurant_provider_cache: {
         Row: {
           attribution_required: boolean
@@ -2550,6 +3138,63 @@ export type Database = {
           },
         ]
       }
+      search_analytics: {
+        Row: {
+          clicked_place_id: string | null
+          created_at: string
+          filters: Json | null
+          id: string
+          query: string
+          results_count: number
+          search_lat: number | null
+          search_lng: number | null
+          search_region: string | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          clicked_place_id?: string | null
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          query: string
+          results_count?: number
+          search_lat?: number | null
+          search_lng?: number | null
+          search_region?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          clicked_place_id?: string | null
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          query?: string
+          results_count?: number
+          search_lat?: number | null
+          search_lng?: number | null
+          search_region?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "search_analytics_clicked_place_id_fkey"
+            columns: ["clicked_place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "search_analytics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       search_synonyms: {
         Row: {
           canonical: string
@@ -2818,6 +3463,44 @@ export type Database = {
           },
         ]
       }
+      user_top_spots_audit_events: {
+        Row: {
+          context: Json | null
+          created_at: string
+          event_type: string
+          id: string
+          place_id: string | null
+          position: number | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          event_type: string
+          id?: string
+          place_id?: string | null
+          position?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          place_id?: string | null
+          position?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_top_spots_audit_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_topic_follows: {
         Row: {
           created_at: string
@@ -2993,13 +3676,6 @@ export type Database = {
       delete_message: { Args: { p_message_id: string }; Returns: undefined }
       delete_own_account: { Args: never; Returns: undefined }
       delete_post: { Args: { p_post_id: string }; Returns: undefined }
-      expand_search_cuisines: {
-        Args: { max_cuisines?: number; query_text: string }
-        Returns: {
-          cuisine_type: string
-          match_count: number
-        }[]
-      }
       fetch_trending_dishes: {
         Args: { limit_count?: number; lookback_days?: number }
         Returns: {
@@ -3017,21 +3693,30 @@ export type Database = {
           p_created_by?: string
           p_cuisine_type?: string
           p_name: string
-          p_restaurant_id: string
+          p_place_id: string
         }
         Returns: string
+      }
+      find_place_merge_candidates: {
+        Args: {
+          p_distance_metres?: number
+          p_limit?: number
+          p_name_sim_thresh?: number
+        }
+        Returns: {
+          candidate_new_id: string
+          candidate_old_id: string
+          confidence: number
+          distance_m: number
+          match_reasons: string[]
+          name_similarity: number
+          new_name: string
+          old_name: string
+        }[]
       }
       get_or_create_direct_conversation: {
         Args: { target_user_id: string }
         Returns: string
-      }
-      get_personalized_suggestions: {
-        Args: { p_failed_query: string; p_limit?: number; p_user_id: string }
-        Returns: {
-          query: string
-          score: number
-          source: string
-        }[]
       }
       get_recent_search_history: {
         Args: { lookback_days?: number; max_results?: number }
@@ -3074,6 +3759,15 @@ export type Database = {
           id: string
           similarity: number
         }[]
+      }
+      merge_places: {
+        Args: {
+          p_merged_by?: string
+          p_new_place_id: string
+          p_old_place_id: string
+          p_reason?: string
+        }
+        Returns: Json
       }
       pin_message: { Args: { p_message_id: string }; Returns: undefined }
       places_in_bounding_box: {
@@ -3168,7 +3862,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_top_spot_audit_event: {
+        Args: {
+          p_context?: Json
+          p_event_type: string
+          p_place_id?: string
+          p_position?: number
+        }
+        Returns: undefined
+      }
       refresh_place_popularity_cache: { Args: never; Returns: undefined }
+      refresh_place_search_index: {
+        Args: { p_place_id: string }
+        Returns: undefined
+      }
       refresh_trending_queries: { Args: never; Returns: undefined }
       resolve_suburb_query: {
         Args: { input_text: string }
@@ -3181,74 +3888,63 @@ export type Database = {
       }
       restore_comment: { Args: { p_comment_id: string }; Returns: undefined }
       restore_post: { Args: { p_post_id: string }; Returns: undefined }
-      search_dishes_full_text: {
-        Args: {
-          max_results?: number
-          near_lat?: number
-          near_lng?: number
-          query: string
-        }
-        Returns: {
-          cuisine_type: string
-          first_posted_at: string
-          id: string
-          latest_posted_at: string
-          name: string
-          post_count: number
-          save_count: number
-          top_photo_url: string
-        }[]
-      }
-      search_places_full_text: {
-        Args: {
-          max_results?: number
-          near_lat?: number
-          near_lng?: number
-          query_text: string
-          suburb_filter?: string
-        }
-        Returns: {
-          address: string
-          city: string
-          cuisine_type: string
-          google_place_id: string
-          google_rating: number
-          google_review_count: number
-          id: string
-          latitude: number
-          longitude: number
-          name: string
-          open_now: boolean
-          rank: number
-          suburb: string
-        }[]
-      }
-      search_posts_by_dish: {
-        Args: {
-          dish_query: string
-          max_results?: number
-          near_lat?: number
-          near_lng?: number
-        }
-        Returns: {
-          id: string
-          match_source: string
-          rank: number
-        }[]
-      }
-      search_posts_full_text: {
-        Args: {
-          max_results?: number
-          near_lat?: number
-          near_lng?: number
-          offset_val?: number
-          query_text: string
-        }
-        Returns: {
-          id: string
-          rank: number
-        }[]
-      }
+      search_semantic:
+        | {
+            Args: {
+              p_limit?: number
+              p_user_id?: string
+              query_embedding: string
+            }
+            Returns: {
+              display_data: Json
+              entity_id: string
+              entity_type: string
+              final_score: number
+              semantic_similarity: number
+            }[]
+          }
+        | {
+            Args: {
+              p_limit?: number
+              p_near_lat?: number
+              p_near_lng?: number
+              p_user_id?: string
+              query_embedding: string
+            }
+            Returns: {
+              display_data: Json
+              entity_id: string
+              entity_type: string
+              final_score: number
+              semantic_similarity: number
+            }[]
+          }
+      search_text_fallback:
+        | {
+            Args: { p_limit?: number; p_query: string }
+            Returns: {
+              display_data: Json
+              entity_id: string
+              entity_type: string
+              final_score: number
+              semantic_similarity: number
+            }[]
+          }
+        | {
+            Args: {
+              p_limit?: number
+              p_near_lat?: number
+              p_near_lng?: number
+              p_query: string
+            }
+            Returns: {
+              display_data: Json
+              entity_id: string
+              entity_type: string
+              final_score: number
+              semantic_similarity: number
+            }[]
+          }
       send_direct_message: {
         Args: {
           p_attachment_metadata?: Json
@@ -3303,7 +3999,29 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      place_status:
+        | "active"
+        | "temporarily_closed"
+        | "permanently_closed"
+        | "unverified"
+      place_trait_slug:
+        | "date_night"
+        | "cheap_eats"
+        | "study_spot"
+        | "group_dining"
+        | "late_night"
+        | "hidden_gem"
+        | "family_friendly"
+        | "romantic"
+        | "outdoor"
+        | "fast_casual"
+        | "special_occasion"
+      verification_level:
+        | "user_created"
+        | "osm_only"
+        | "osm_google"
+        | "community_verified"
+        | "owner_verified"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3433,7 +4151,34 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      place_status: [
+        "active",
+        "temporarily_closed",
+        "permanently_closed",
+        "unverified",
+      ],
+      place_trait_slug: [
+        "date_night",
+        "cheap_eats",
+        "study_spot",
+        "group_dining",
+        "late_night",
+        "hidden_gem",
+        "family_friendly",
+        "romantic",
+        "outdoor",
+        "fast_casual",
+        "special_occasion",
+      ],
+      verification_level: [
+        "user_created",
+        "osm_only",
+        "osm_google",
+        "community_verified",
+        "owner_verified",
+      ],
+    },
   },
 } as const
 

@@ -28,6 +28,7 @@ const place: SavedPlace = {
     latitude: null,
     longitude: null,
     google_place_id: null,
+    photoUrl: null,
   },
 }
 
@@ -91,6 +92,140 @@ describe('savedLibrary', () => {
     })
   })
 
+  it('uses saved place photos as library row thumbnails', () => {
+    const items = buildSavedLibraryItems({
+      dishes: [],
+      locations: [{
+        ...place,
+        places: {
+          ...place.places!,
+          photoUrl: 'https://example.com/place.jpg',
+        },
+      }],
+      posts: [],
+      collections: [],
+    })
+
+    expect(items[0]).toMatchObject({
+      id: 'place:restaurant-1',
+      imageUrl: 'https://example.com/place.jpg',
+    })
+  })
+
+  it('uses saved post cover photos as library row thumbnails', () => {
+    const items = buildSavedLibraryItems({
+      dishes: [],
+      locations: [],
+      posts: [post],
+      collections: [],
+    })
+
+    expect(items[0]).toMatchObject({
+      id: 'post:post-1',
+      imageUrl: 'https://example.com/post.jpg',
+    })
+  })
+
+  it('uses image media as a saved post row thumbnail when imageUrl is missing', () => {
+    const items = buildSavedLibraryItems({
+      dishes: [],
+      locations: [],
+      posts: [{
+        ...post,
+        imageUrl: undefined,
+        media: [{
+          localId: 'media-1',
+          uri: 'https://example.com/raw.jpg',
+          type: 'image',
+          processedUrl: 'https://example.com/processed.jpg',
+          thumbnailUrl: 'https://example.com/thumb.jpg',
+        }],
+      }],
+      collections: [],
+    })
+
+    expect(items[0]).toMatchObject({
+      id: 'post:post-1',
+      imageUrl: 'https://example.com/processed.jpg',
+    })
+  })
+
+  it('uses a saved post cover media item before later image media', () => {
+    const items = buildSavedLibraryItems({
+      dishes: [],
+      locations: [],
+      posts: [{
+        ...post,
+        imageUrl: undefined,
+        media: [
+          {
+            localId: 'media-1',
+            uri: 'https://example.com/first.jpg',
+            type: 'image',
+          },
+          {
+            localId: 'media-2',
+            uri: 'https://example.com/cover-raw.jpg',
+            type: 'image',
+            thumbnailUrl: 'https://example.com/cover-thumb.jpg',
+            isCover: true,
+          },
+        ],
+      }],
+      collections: [],
+    })
+
+    expect(items[0]).toMatchObject({
+      id: 'post:post-1',
+      imageUrl: 'https://example.com/cover-thumb.jpg',
+    })
+  })
+
+  it('uses a video thumbnail as a saved post row thumbnail when no image media exists', () => {
+    const items = buildSavedLibraryItems({
+      dishes: [],
+      locations: [],
+      posts: [{
+        ...post,
+        imageUrl: undefined,
+        media: [{
+          localId: 'media-1',
+          uri: 'https://example.com/raw.mp4',
+          type: 'video',
+          processedUrl: 'https://example.com/video.mp4',
+          thumbnailUrl: 'https://example.com/video-thumb.jpg',
+        }],
+      }],
+      collections: [],
+    })
+
+    expect(items[0]).toMatchObject({
+      id: 'post:post-1',
+      imageUrl: 'https://example.com/video-thumb.jpg',
+    })
+  })
+
+  it('does not use a video URL as a saved post row image', () => {
+    const items = buildSavedLibraryItems({
+      dishes: [],
+      locations: [],
+      posts: [{
+        ...post,
+        imageUrl: undefined,
+        media: [{
+          localId: 'media-1',
+          uri: 'https://example.com/raw.mp4',
+          type: 'video',
+          processedUrl: 'https://example.com/video.mp4',
+        }],
+      }],
+      collections: [],
+    })
+
+    expect(items[0]).toMatchObject({ id: 'post:post-1' })
+    expect(items[0]?.imageUrl).toBeUndefined()
+  })
+
   it('filters by scope and local search without treating collections as bulk-selectable targets', () => {
     const items = buildSavedLibraryItems({
       dishes: [dish],
@@ -131,6 +266,7 @@ describe('savedLibrary', () => {
         latitude: null,
         longitude: null,
         google_place_id: null,
+        photoUrl: null,
       },
     }
     const items = buildSavedLibraryItems({

@@ -2,10 +2,10 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import * as ImagePicker from 'expo-image-picker'
 import StepMedia from '@/components/post-create/StepMedia'
 import { analytics } from '@/lib/analytics'
-import { usePermissionRecovery } from '@/lib/hooks/usePermissionRecovery'
 import { usePlaceSearch } from '@/lib/hooks/usePlaceSearch'
 import { preparePostMedia } from '@/lib/services/postMediaProcessing'
 import type { PostMedia } from '@/types/domain'
+import type React from 'react'
 
 jest.mock('expo-sqlite/localStorage/install', () => {})
 jest.mock('expo-sqlite', () => ({}))
@@ -15,13 +15,40 @@ jest.mock('react-native-reanimated', () => {
   const useSharedValue = (initial: number) => ({ value: initial })
   const useAnimatedStyle = (fn: () => object) => fn()
   const withSpring = (value: number) => value
+  const createAnimatedComponent = (c: unknown) => c
   return {
     __esModule: true,
-    default: { View },
+    default: { View, createAnimatedComponent },
     FadeIn: { duration: () => undefined },
     useSharedValue,
     useAnimatedStyle,
     withSpring,
+    createAnimatedComponent,
+  }
+})
+
+
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+  SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+
+jest.mock('react-native-gesture-handler', () => {
+  const { View } = jest.requireActual('react-native')
+  const noop = () => {}
+  const chainable = { onUpdate: () => chainable, onEnd: () => chainable, onStart: () => chainable, enabled: () => chainable, runOnJS: () => chainable, simultaneousWithExternalGesture: () => chainable, blocksExternalGesture: () => chainable }
+  return {
+    Gesture: { Pan: () => chainable, Tap: () => chainable, LongPress: () => chainable },
+    GestureDetector: ({ children }: { children: React.ReactNode }) => children,
+    GestureHandlerRootView: ({ children }: { children: React.ReactNode }) => children,
+    PanGestureHandler: ({ children }: { children: React.ReactNode }) => children,
+    TouchableOpacity: View,
+    gestureHandlerRootHOC: (c: unknown) => c,
+    State: { BEGAN: 2, ACTIVE: 4, END: 5, FAILED: 1, CANCELLED: 3, UNDETERMINED: 0 },
+    Directions: {},
+    runOnJS: (fn: (...args: unknown[]) => void) => fn,
+    __esModule: true,
+    default: noop,
   }
 })
 
@@ -35,16 +62,6 @@ jest.mock('@/lib/contexts/ThemeContext', () => {
 })
 
 jest.mock('@/lib/hooks/useReducedMotion', () => ({ useReducedMotion: () => false }))
-
-jest.mock('@/lib/hooks/usePermissionRecovery', () => ({
-  usePermissionRecovery: jest.fn(() => ({
-    request: jest.fn(),
-    recoveryVisible: false,
-    recoveryMessage: '',
-    dismissRecovery: jest.fn(),
-    openSettings: jest.fn(),
-  })),
-}))
 
 jest.mock('@/lib/analytics', () => ({
   analytics: { dishTagOnboardingShown: jest.fn(), mediaEvent: jest.fn(), uploadFailure: jest.fn() },
@@ -80,14 +97,6 @@ jest.mock('@/components/DishTagOverlay', () => ({ __esModule: true, default: () 
 jest.mock('@/components/post-create/DraggableMediaStrip', () => ({
   __esModule: true,
   default: () => null,
-}))
-
-let capturedMediaOnSelect: ((v: string) => void) | undefined = undefined
-jest.mock('@/components/ui/RekkusActionSheet', () => ({
-  RekkusActionSheet: ({ title, visible, onSelect }: { title?: string; visible: boolean; onSelect: (v: string) => void }) => {
-    if (visible && title === 'Add media') capturedMediaOnSelect = onSelect
-    return null
-  },
 }))
 
 const mockUsePlaceSearch = jest.mocked(usePlaceSearch)
@@ -134,7 +143,6 @@ const defaultProps = {
 describe('StepMedia location nudge', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    capturedMediaOnSelect = undefined
     mockUsePlaceSearch.mockReturnValue(baseHookReturn())
     mockPreparePostMedia.mockResolvedValue({ media: [], rejectedCount: 0, error: null })
   })
@@ -260,10 +268,11 @@ describe('StepMedia — empty state and media present', () => {
     mockPreparePostMedia.mockResolvedValue({ media: [], rejectedCount: 0, error: null })
   })
 
-  it('shows clean empty state with camera icon and Add photos button when no media', () => {
+  it('shows clean empty state with camera icon and Camera/Library buttons when no media', () => {
     render(<StepMedia {...defaultProps} />)
     expect(screen.getByText('Add your photos or videos')).toBeTruthy()
-    expect(screen.getByLabelText('Add photos or video')).toBeTruthy()
+    expect(screen.getByLabelText('Take a photo')).toBeTruthy()
+    expect(screen.getByLabelText('Choose from library')).toBeTruthy()
     // Recent photos strip is gone
     expect(screen.queryByText('RECENTS')).toBeNull()
   })
@@ -298,13 +307,9 @@ describe('StepMedia — empty state and media present', () => {
   })
 })
 
-// Regression: picker must not be called while the action sheet is still animating out.
-describe('StepMedia picker deferral', () => {
-  const mockUsePermissionRecovery = jest.mocked(usePermissionRecovery)
-
+// Pickers are now launched directly from inline buttons — no intermediate modal to dismiss.
+describe('StepMedia picker buttons', () => {
   beforeEach(() => {
-    jest.useFakeTimers()
-    capturedMediaOnSelect = undefined
     jest.clearAllMocks()
     mockUsePlaceSearch.mockReturnValue(baseHookReturn())
     jest.mocked(ImagePicker.getMediaLibraryPermissionsAsync).mockResolvedValue({
@@ -319,56 +324,34 @@ describe('StepMedia picker deferral', () => {
       status: ImagePicker.PermissionStatus.GRANTED,
       expires: 'never',
     })
-    mockUsePermissionRecovery.mockReturnValue({
-      request: jest.fn().mockResolvedValue({ granted: true }),
-      recoveryVisible: false,
-      recoveryMessage: '',
-      dismissRecovery: jest.fn(),
-      openSettings: jest.fn(),
-    })
   })
 
-  afterEach(() => {
-    jest.useRealTimers()
-  })
-
-  it('does not call launchCameraAsync synchronously when camera is selected from the sheet', async () => {
+  it('launches the camera when Camera button is tapped', async () => {
     const mockLaunchCamera = jest.mocked(ImagePicker.launchCameraAsync)
-    mockLaunchCamera.mockResolvedValue({ canceled: true, assets: null })
+    mockLaunchCamera.mockResolvedValue({ canceled: true, assets: null } as unknown as ImagePicker.ImagePickerResult)
 
     render(<StepMedia {...defaultProps} />)
-    fireEvent.press(screen.getByLabelText('Add photos or video'))
-    expect(capturedMediaOnSelect).toBeDefined()
-
-    act(() => { capturedMediaOnSelect!('camera') })
-    expect(mockLaunchCamera).not.toHaveBeenCalled()
 
     await act(async () => {
-      jest.advanceTimersByTime(500)
-      await null
+      fireEvent.press(screen.getByLabelText('Take a photo'))
     })
+
     expect(mockLaunchCamera).toHaveBeenCalledTimes(1)
   })
 
-  it('does not call launchImageLibraryAsync synchronously when library is selected from the sheet', async () => {
+  it('launches the media library when Library button is tapped', async () => {
     const mockLaunchLibrary = jest.mocked(ImagePicker.launchImageLibraryAsync)
-    mockLaunchLibrary.mockResolvedValue({ canceled: true, assets: null })
+    mockLaunchLibrary.mockResolvedValue({ canceled: true, assets: null } as unknown as ImagePicker.ImagePickerResult)
 
     render(<StepMedia {...defaultProps} />)
-    fireEvent.press(screen.getByLabelText('Add photos or video'))
-    expect(capturedMediaOnSelect).toBeDefined()
-
-    act(() => { capturedMediaOnSelect!('library') })
-    expect(mockLaunchLibrary).not.toHaveBeenCalled()
 
     await act(async () => {
-      jest.advanceTimersByTime(500)
-      await null
+      fireEvent.press(screen.getByLabelText('Choose from library'))
     })
+
     expect(mockLaunchLibrary).toHaveBeenCalledTimes(1)
-    expect(mockLaunchLibrary).toHaveBeenCalledWith(expect.objectContaining({
-      presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
-    }))
+    const callArg = mockLaunchLibrary.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(callArg).not.toHaveProperty('presentationStyle')
   })
 
   it('shows an inline error when the library picker rejects', async () => {
@@ -376,14 +359,9 @@ describe('StepMedia picker deferral', () => {
     mockLaunchLibrary.mockRejectedValue(new Error('present failed'))
 
     render(<StepMedia {...defaultProps} />)
-    fireEvent.press(screen.getByLabelText('Add photos or video'))
-    expect(capturedMediaOnSelect).toBeDefined()
-
-    act(() => { capturedMediaOnSelect!('library') })
 
     await act(async () => {
-      jest.advanceTimersByTime(500)
-      await null
+      fireEvent.press(screen.getByLabelText('Choose from library'))
     })
 
     await waitFor(() => {

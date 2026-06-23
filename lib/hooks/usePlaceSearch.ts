@@ -13,11 +13,11 @@ import {
 } from '@/lib/services/places'
 import type { Prediction, SelectedPlace } from '@/lib/services/places'
 import {
-  classifyRestaurantTagIntent,
+  classifyPlaceTagIntent,
   decideSearchProviderFallback,
   resolveLocationSource,
 } from '@/lib/utils/searchIntent'
-import type { RestaurantTagIntent } from '@/lib/utils/searchIntent'
+import type { PlaceTagIntent } from '@/lib/utils/searchIntent'
 
 type UsePlaceSearchParams = {
   cuisineType: string
@@ -43,7 +43,7 @@ type UsePlaceSearchReturn = {
   showDropdown: boolean
   locationStatus: ReturnType<typeof useUserLocation>['status']
   locationConstrained: boolean
-  placeTagIntent: RestaurantTagIntent
+  placeTagIntent: PlaceTagIntent
   requestLocationAndSearch: () => Promise<void>
   handleSearchChange: (text: string) => void
   selectPrediction: (item: Prediction, source?: PlaceSelectionSource) => Promise<void>
@@ -113,7 +113,7 @@ export function usePlaceSearch({
   const [searchFocused, setSearchFocused] = useState(false)
   const [nearbyPlaces, setNearbyPlaces] = useState<Prediction[]>([])
   const [nearbyLoading, setNearbyLoading] = useState(false)
-  const [placeTagIntent, setPlaceTagIntent] = useState<RestaurantTagIntent>({
+  const [placeTagIntent, setPlaceTagIntent] = useState<PlaceTagIntent>({
     kind: 'general',
     providerIntent: 'general',
     confidence: 0.2,
@@ -150,7 +150,7 @@ export function usePlaceSearch({
       const requestId = searchRequestRef.current + 1
       searchRequestRef.current = requestId
       const query = text.trim()
-      const nextPlaceTagIntent = classifyRestaurantTagIntent(query)
+      const nextPlaceTagIntent = classifyPlaceTagIntent(query)
       setPlaceTagIntent(nextPlaceTagIntent)
       if (query.length < 2) {
         setPredictions([])
@@ -162,7 +162,7 @@ export function usePlaceSearch({
       // otherwise use the always-current ref so we never capture a stale closure.
       const effectiveCoords = coordsOverride !== undefined ? coordsOverride : latestCoordsRef.current
       debounceRef.current = setTimeout(() => {
-        // DB-first: query restaurants table via FTS (GIN index), then Google for new places
+        // DB-first: query places table via FTS (GIN index), then Google for new places
         void (async () => {
           try {
             analytics.placeSearchTermEntered(userId ?? null, query)
@@ -172,7 +172,7 @@ export function usePlaceSearch({
               effectiveCoords
             )
             if (!mountedRef.current || searchRequestRef.current !== requestId) return
-            const tagIntent = classifyRestaurantTagIntent(query)
+            const tagIntent = classifyPlaceTagIntent(query)
             const locationSource = resolveLocationSource(locationStatus, effectiveCoords != null)
             const topUpThinLocalResults =
               dbResults.length > 0 && dbResults.length < PLACE_TAG_PROVIDER_TOP_UP_THRESHOLD
@@ -254,7 +254,7 @@ export function usePlaceSearch({
       setNearbyPlaces([])
 
       if (item.dbDetails) {
-        // Fast path: restaurant already in our DB — no Google API call needed
+        // Fast path: place already in our DB — no Google API call needed
         if (mountedRef.current && selectionRequestRef.current === requestId) {
           onPlaceSelected({
             googlePlaceId: item.place_id,

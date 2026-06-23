@@ -15,10 +15,10 @@ import { routes } from '@/lib/routes'
 import {
   fetchCollectionById,
   fetchCollectionItems,
-  fetchCollectionRestaurantsByIds,
+  fetchCollectionPlacesByIds,
   type Collection,
   type CollectionItem,
-  type CollectionRestaurant,
+  type CollectionPlace,
 } from '@/lib/services/collections'
 import { fetchDishesByIds } from '@/lib/services/dishes'
 import { fetchPostsByIds, mapRowToPost } from '@/lib/services/posts'
@@ -33,7 +33,7 @@ export default function CollectionDetailScreen() {
   const [items, setItems] = useState<CollectionItem[]>([])
   const [dishes, setDishes] = useState<Map<string, DishDetail>>(new Map())
   const [posts, setPosts] = useState<Map<string, Post>>(new Map())
-  const [restaurants, setRestaurants] = useState<Map<string, CollectionRestaurant>>(new Map())
+  const [places, setPlaces] = useState<Map<string, CollectionPlace>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -49,11 +49,11 @@ export default function CollectionDetailScreen() {
         ])
         const dishIds = itemPage.rows.filter(item => item.target_type === 'dish').map(item => item.target_id)
         const postIds = itemPage.rows.filter(item => item.target_type === 'post').map(item => item.target_id)
-        const restaurantIds = itemPage.rows.filter(item => item.target_type === 'place').map(item => item.target_id)
-        const [dishRows, postRows, restaurantRows] = await Promise.all([
+        const placeIds = itemPage.rows.filter(item => item.target_type === 'place').map(item => item.target_id)
+        const [dishRows, postRows, placeRows] = await Promise.all([
           fetchDishesByIds(dishIds),
           fetchPostsByIds(postIds),
-          fetchCollectionRestaurantsByIds(restaurantIds),
+          fetchCollectionPlacesByIds(placeIds),
         ])
         if (cancelled) return
         setCollection(nextCollection)
@@ -63,7 +63,7 @@ export default function CollectionDetailScreen() {
           const mapped = mapRowToPost(post, index)
           return [mapped.dbId, mapped]
         })))
-        setRestaurants(new Map(restaurantRows.map(restaurant => [restaurant.id, restaurant])))
+        setPlaces(new Map(placeRows.map(place => [place.id, place])))
       } catch (reason: unknown) {
         if (!cancelled) setError(reason instanceof Error ? reason.message : 'Could not load this collection.')
       }
@@ -123,21 +123,21 @@ export default function CollectionDetailScreen() {
                 />
               )
             }
-            const restaurant = restaurants.get(item.target_id)
-            if (!restaurant) return null
+            const place = places.get(item.target_id)
+            if (!place) return null
             return (
               <CollectionRow
                 key={item.id ?? item.target_id}
-                title={restaurant.name}
-                subtitle={restaurant.address ?? 'Place'}
+                title={place.name}
+                subtitle={place.address ?? 'Place'}
                 leading={<PinIcon />}
                 onPress={() => router.push(routes.placeDetail({
-                  placeId: restaurant.id,
-                  ...(restaurant.googlePlaceId ? { googlePlaceId: restaurant.googlePlaceId } : {}),
-                  name: restaurant.name,
-                  ...(restaurant.address ? { address: restaurant.address } : {}),
-                  ...(restaurant.latitude != null ? { lat: restaurant.latitude } : {}),
-                  ...(restaurant.longitude != null ? { lng: restaurant.longitude } : {}),
+                  placeId: place.id,
+                  ...(place.googlePlaceId ? { googlePlaceId: place.googlePlaceId } : {}),
+                  name: place.name,
+                  ...(place.address ? { address: place.address } : {}),
+                  ...(place.latitude != null ? { lat: place.latitude } : {}),
+                  ...(place.longitude != null ? { lng: place.longitude } : {}),
                 }))}
                 styles={styles}
               />

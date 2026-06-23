@@ -1,6 +1,9 @@
+// B-509 refactor: FTS pipeline replaced by vector search (search_semantic RPC + HNSW indexes).
+// This contract now guards the vector search infrastructure instead of FTS RPCs.
+
 const SEARCH_DOC_TERMS = [
   ['Searchable Field Contract', /Searchable Field Contract/i],
-  ['restaurants/places contract', /Restaurants \/ places/i],
+  ['restaurants/places contract', /Restaurants \/ places|\bPlaces\b/i],
   ['dishes contract', /\bDishes\b/i],
   ['posts contract', /\bPosts\b/i],
   ['people/users contract', /People \/ users/i],
@@ -17,17 +20,14 @@ const SEARCH_DOC_TERMS = [
 ]
 
 const SCHEMA_EVIDENCE = [
-  ['restaurants_search_tsv_idx', /restaurants_search_tsv_idx/i],
-  ['posts_search_tsv_idx', /posts_search_tsv_idx/i],
-  ['users_search_tsv_idx', /users_search_tsv_idx/i],
-  ['dishes_search_tsv_idx', /dishes_search_tsv_idx/i],
-  ['search_restaurants_full_text RPC', /function\s+(?:public\.)?search_restaurants_full_text\b/i],
-  ['search_posts_full_text RPC', /function\s+(?:public\.)?search_posts_full_text\b/i],
-  ['search_posts_by_dish RPC', /function\s+(?:public\.)?search_posts_by_dish\b/i],
-  ['search_dishes_full_text RPC', /function\s+(?:public\.)?search_dishes_full_text\b/i],
+  // Vector search infrastructure (replaces FTS indexes)
+  ['post_embeddings HNSW index', /post_embeddings_hnsw/i],
+  ['dish_embeddings HNSW index', /dish_embeddings_hnsw/i],
+  ['search_semantic RPC', /function\s+(?:public\.)?search_semantic\b/i],
+  // Typeahead infrastructure (unchanged)
   ['suggest_searches RPC', /function\s+(?:public\.)?suggest_searches\b/i],
   ['resolve_suburb_query RPC', /function\s+(?:public\.)?resolve_suburb_query\b/i],
-  ['cuisine_aliases table', /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?cuisine_aliases\b/i],
+  // Supporting tables (unchanged)
   ['search_synonyms table', /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?search_synonyms\b/i],
   ['suburb_aliases table', /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?suburb_aliases\b/i],
   ['hashtags table', /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?hashtags\b/i],
@@ -53,15 +53,13 @@ function searchIndexContractFailures({
     ...missing(schemaSource, SCHEMA_EVIDENCE, 'Supabase search infrastructure'),
   ]
 
-  if (!/CUISINE_SYNONYMS/.test(searchServiceSource) || !/search_synonyms/.test(searchServiceSource)) {
-    failures.push('lib/services/search.ts must retain deterministic cuisine/search synonym ownership.')
+  // B-509: semantic search replaces cuisine synonyms + FTS
+  if (!/searchSemantic/.test(searchServiceSource) || !/embedQuery/.test(searchServiceSource)) {
+    failures.push('lib/services/search.ts must retain vector search ownership (searchSemantic + embedQuery).')
   }
 
-  if (!/SearchCandidate/.test(searchPipelineSource) || !/decideSearchProviderFallback/.test(searchPipelineSource)) {
-    failures.push('lib/search/pipeline.ts must retain unified candidate retrieval and provider fallback ownership.')
-  }
-
-  if (!/search_places_full_text|search_restaurants_full_text/.test(restaurantServiceSource) || !/near_lat/.test(restaurantServiceSource)) {
+  // searchPlacesByText routes through search_text_fallback (search_places_full_text was removed in 20260622000001)
+  if (!/search_text_fallback/.test(restaurantServiceSource) || !/p_near_lat/.test(restaurantServiceSource)) {
     failures.push('lib/services/places.ts must retain place FTS and geo-ranked RPC ownership.')
   }
 

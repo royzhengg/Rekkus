@@ -62,3 +62,11 @@ function firePendingPicker() {
 **Fix:** On explicit recent-photo tap, call `MediaLibrary.getAssetInfoAsync(asset.id)` and validate `localUri ?? uri` with MIME inferred from filename/local URI/asset URI. Keep the recents strip passive on mount: no permission prompts.
 
 **Regression tests:** `tests/unit/features/StepMedia.test.tsx` verifies extensionless `ph://` recent-photo assets resolve to local file URIs before media preparation and that unreadable metadata shows a recovery-oriented "Try Add media" error.
+
+## Preserve post cover URL fallbacks across service and cache boundaries
+
+**Bug (2026-06):** Saved posts could keep showing blank placeholders after post cover fallback logic was added. The service extractor filled missing `processed_url` with the raw media URL, so downstream code never got to prefer `thumbnail_url`; the saved-post hook also read an old first-page offline cache whose posts predated `imageUrl`.
+
+**Fix:** Keep `processed_url` null when the provider row has no processed asset, then let the mapper choose `processed_url → thumbnail_url → raw url → legacy photo_url`. When a user-scoped persisted cache stores derived presentation fields, bump the cache key version when that shape changes.
+
+**Regression tests:** `tests/unit/lib/services/posts.test.ts` verifies extraction preserves null `processed_url` so thumbnails can become covers. `tests/unit/lib/hooks/useSavedPosts.test.ts` verifies the saved-post first-page cache key is versioned.

@@ -50,7 +50,7 @@ type Props = {
   hasRekkusRatings: boolean
   rekkusRatings: { food: number | null; vibe: number | null; cost: number | null }
   contextPosts: Post[]
-  hasRecentReviews: boolean
+  hasRecentPosts: boolean
   topDishes: Array<{ name: string; dishId?: string | undefined }>
   openAddress: () => void
   openPhone: (phone: string) => void
@@ -83,7 +83,7 @@ export function PlaceDetailContent({
   hasRekkusRatings,
   rekkusRatings,
   contextPosts,
-  hasRecentReviews,
+  hasRecentPosts,
   topDishes,
   openAddress,
   openPhone,
@@ -195,7 +195,7 @@ export function PlaceDetailContent({
                 </View>
               </View>
             )}
-            {hasRekkusRatings && hasRecentReviews && <Text style={styles.recentReviewsNote}>(based on recent reviews)</Text>}
+            {hasRekkusRatings && hasRecentPosts && <Text style={styles.recentReviewsNote}>(based on recent posts)</Text>}
             {topDishes.length > 0 && (
               <>
                 {(hasGoogleRating || hasRekkusRatings) && <View style={styles.ratingsCardDivider} />}

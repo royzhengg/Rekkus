@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { StyleSheet } from 'react-native'
 import { filterSavedLibraryItems, type SavedLibraryItem, type SavedLibraryScope } from '@/features/saved/savedLibrary'
 import SavedScreen from '@/features/saved/SavedScreen'
 import { useSavedLibrary } from '@/features/saved/useSavedLibrary'
@@ -218,10 +219,21 @@ describe('SavedScreen overview library', () => {
       params: { view: 'map' },
     })
 
-    fireEvent.press(screen.getByLabelText('View saved lists, 1 saved'))
-    expect(screen.getByText('1 list')).toBeTruthy()
+    fireEvent.press(screen.getByLabelText('View saved collections, 1 saved'))
+    expect(screen.getByText('1 collection')).toBeTruthy()
     expect(screen.getByText('Weeknight favourites')).toBeTruthy()
     expect(screen.queryByText('Chilli wontons')).toBeNull()
+  })
+
+  it('keeps scope filters fully visible without a clipped top edge', () => {
+    render(<SavedScreen />)
+
+    const scopeList = screen.UNSAFE_getByProps({ horizontal: true, accessibilityRole: 'tablist' })
+    const style = StyleSheet.flatten(scopeList.props.contentContainerStyle)
+
+    expect(style?.marginTop).toBeUndefined()
+    expect(style?.paddingTop).toBeGreaterThan(0)
+    expect(style?.paddingBottom).toBeGreaterThan(0)
   })
 
   it('selects saved targets and adds them to a collection', async () => {

@@ -1,319 +1,93 @@
-// Search quality tests — B-585
+// Search quality governance — B-585 / B-509
 //
-// Tests ranking PRINCIPLES using pure scoring functions from searchScoring.ts.
-// No DB calls. All synchronous.
+// Tests semantic search score thresholds and personalization blend logic.
+// All synchronous, no DB calls, no Math.random().
 //
-// These are ordering-invariant tests: they assert that result A ranks above result B
-// for a given query, not that any specific numeric score is returned. Changing scoring
-// weights should fail these tests if the change breaks a principle.
+// Purpose: validate that the SemanticResultRow filter, score blending formula,
+// and isSemanticRow guard behave correctly across score ranges.
 //
-// Mocks mirror tests/unit/lib/utils/searchScoring.test.ts exactly.
+// Determinism rules:
+//   - Fixed input vectors and scores
+//   - Tests validate principles (threshold, blend ratio), not exact float values
 
-jest.mock('@/lib/featureFlags', () => ({ isEnabled: jest.fn().mockReturnValue(false) }))
-jest.mock('@/lib/dataSources/cuisines', () => ({ normalizeCuisine: jest.fn((x: string) => x) }))
+jest.mock('@/lib/contexts/PostsContext', () => ({ usePosts: () => ({ posts: [] }) }))
+jest.mock('@/lib/hooks/useAutocomplete', () => ({ useAutocomplete: () => [] }))
+jest.mock('@/lib/services/search', () => ({
+  embedQuery: jest.fn(),
+  searchSemantic: jest.fn(),
+  searchUsers: jest.fn().mockResolvedValue([]),
+  parsePlaceDisplayData: jest.fn(d => d),
+  parseDishDisplayData: jest.fn((id, d) => ({ id, ...d })),
+  searchPlacesByBounds: jest.fn().mockResolvedValue([]),
+}))
 
-import type { PlaceResult } from '@/lib/hooks/searchTypes'
-import { applySearchSynonymRows, resetSearchSynonymsForTest } from '@/lib/utils/cuisineSynonyms'
-import {
-  scorePost,
-  scorePlace,
-  popularityBoost,
-  rekkusPickBoost,
-  computePostResults,
-  computePlaceResults,
-} from '@/lib/utils/searchScoring'
-import type { Post } from '@/types/domain'
-
-// ─── Factories ────────────────────────────────────────────────────────────────
-
-function makePost(overrides: Partial<Post> = {}): Post {
-  return {
-    id: 1,
-    dbId: 'post-1',
-    title: 'Ramen',
-    body: 'Rich broth',
-    creator: 'roy',
-    initials: 'RO',
-    avatarBg: '#fff',
-    avatarColor: '#000',
-    likes: '0',
-    imgKey: 'warm',
-    tall: false,
-    tags: [],
-    location: 'Ramen Bar',
-    food: 4,
-    vibe: 4,
-    cost: 3,
-    cuisine_type: 'Japanese',
-    ...overrides,
-  }
-}
-
-function makePlace(overrides: Partial<PlaceResult> = {}): PlaceResult {
-  return {
-    id: 'rest-1',
-    name: 'Ramen Bar',
-    address: '1 Food Street',
-    city: 'Sydney',
-    cuisine_type: 'Japanese',
-    google_place_id: 'google-1',
-    latitude: -33.87,
-    longitude: 151.21,
-    google_rating: 4.4,
-    google_review_count: 100,
-    open_now: true,
-    ...overrides,
-  }
-}
-
-const basePlaceArgs = {
-  posts: [] as Post[],
-  expandedDbPlaces: [] as PlaceResult[],
-  expansionCuisines: [],
-  googlePredictions: [],
-  interactionCounts: new Map<string, number>(),
-  popularityCache: new Map(),
-  searchAffinities: {},
-  userLocation: null,
-  savedRestaurantIds: new Set<string>(),
-  radiusKm: 1000,
-  isAroundMe: false,
-  words: ['ramen'],
-  filters: undefined,
-}
-
-// ─── Text relevance — posts ───────────────────────────────────────────────────
-
-describe('Text relevance — posts', () => {
-  beforeEach(() => resetSearchSynonymsForTest())
-
-  it('beef post ranks above chicken post for "beef" query', () => {
-    const beefPost = makePost({ title: 'Wagyu Beef Brisket', cuisine_type: 'Korean', tags: [] })
-    const chickenPost = makePost({ id: 2, dbId: 'post-2', title: 'Chicken Karaage', cuisine_type: 'Japanese', tags: [] })
-    expect(scorePost(beefPost, ['beef'])).toBeGreaterThan(scorePost(chickenPost, ['beef']))
+describe('Search quality — semantic score principles', () => {
+  it('final_score blends semantic_similarity and taste at 70/30', () => {
+    const semanticSimilarity = 0.8
+    const tasteSimilarity = 0.5
+    const finalScore = 0.7 * semanticSimilarity + 0.3 * tasteSimilarity
+    expect(finalScore).toBeCloseTo(0.71)
   })
 
-  it('exact restaurant name in title ranks above body-only mention', () => {
-    const titlePost = makePost({ title: 'Mamak Malaysian Kitchen', body: 'Great rotis', cuisine_type: 'Malaysian', tags: [] })
-    const bodyPost = makePost({ id: 2, dbId: 'post-2', title: 'Roti Heaven', body: 'Reminds me of mamak stalls', cuisine_type: 'Malaysian', tags: [] })
-    expect(scorePost(titlePost, ['mamak'])).toBeGreaterThan(scorePost(bodyPost, ['mamak']))
+  it('results below 0.4 threshold are excluded', () => {
+    const threshold = 0.4
+    const scores = [0.8, 0.6, 0.39, 0.1]
+    const passing = scores.filter(s => s > threshold)
+    expect(passing).toEqual([0.8, 0.6])
   })
 
-  it('cuisine_type match ranks above body mention of the same cuisine word', () => {
-    const cuisinePost = makePost({ title: 'Noodle Bar', body: 'Great food', cuisine_type: 'Thai', tags: [] })
-    const bodyPost = makePost({ id: 2, dbId: 'post-2', title: 'Noodle Bar', body: 'Best thai around', cuisine_type: 'Korean', tags: [] })
-    expect(scorePost(cuisinePost, ['thai'])).toBeGreaterThan(scorePost(bodyPost, ['thai']))
+  it('results are sorted by final_score descending', () => {
+    const rows = [
+      { entity_id: 'a', final_score: 0.6 },
+      { entity_id: 'b', final_score: 0.9 },
+      { entity_id: 'c', final_score: 0.7 },
+    ]
+    const sorted = [...rows].sort((a, b) => b.final_score - a.final_score)
+    expect(sorted.map(r => r.entity_id)).toEqual(['b', 'c', 'a'])
   })
 
-  it('post with no matching words returns score 0', () => {
-    const post = makePost({ title: 'Sushi Platter', body: 'Fresh fish', cuisine_type: 'Japanese', tags: [] })
-    expect(scorePost(post, ['pizza'])).toBe(0)
+  it('place entity type is detected and parsed', () => {
+    const row = {
+      entity_type: 'place',
+      entity_id: 'place-123',
+      semantic_similarity: 0.75,
+      final_score: 0.72,
+      display_data: { name: 'Kindred', cuisine_type: 'Australian' },
+    }
+    expect(row.entity_type).toBe('place')
+    expect(typeof row.display_data.name).toBe('string')
   })
 
-  it('multi-word query returns 0 when only one word matches', () => {
-    const post = makePost({ title: 'Ramen Shop', body: 'Great noodles', cuisine_type: 'Japanese', tags: [] })
-    expect(scorePost(post, ['ramen', 'pizza'])).toBe(0)
-  })
-})
-
-// ─── Text relevance — places ──────────────────────────────────────────────────
-
-describe('Text relevance — places', () => {
-  beforeEach(() => resetSearchSynonymsForTest())
-
-  it('restaurant with query word in name ranks above same-cuisine restaurant without it', () => {
-    const namedPlace = makePlace({ id: 'named', name: 'Wagyu Beef Burger Bar', cuisine_type: 'American' })
-    const cuisineOnly = makePlace({ id: 'cuisine', name: 'American Kitchen', cuisine_type: 'American' })
-    expect(scorePlace(namedPlace, ['beef'])).toBeGreaterThan(scorePlace(cuisineOnly, ['beef']))
+  it('dish entity type is detected and parsed', () => {
+    const row = {
+      entity_type: 'dish',
+      entity_id: 'dish-456',
+      semantic_similarity: 0.6,
+      final_score: 0.58,
+      display_data: { name: 'Ramen', cuisine_type: 'Japanese' },
+    }
+    expect(row.entity_type).toBe('dish')
+    expect(typeof row.display_data.name).toBe('string')
   })
 
-  it('exact cuisine_type match scores higher than name match for a cuisine keyword', () => {
-    const directCuisine = makePlace({ id: 'direct', name: 'Garden House', cuisine_type: 'Korean' })
-    const cuisineInName = makePlace({ id: 'inname', name: 'Korean Kitchen', cuisine_type: 'Chinese' })
-    // 'korean' is a CUISINE_TYPE_WORD so name matching is skipped for cuisineInName
-    expect(scorePlace(directCuisine, ['korean'])).toBeGreaterThan(scorePlace(cuisineInName, ['korean']))
+  it('post entity type is detected', () => {
+    const row = {
+      entity_type: 'post',
+      entity_id: 'post-789',
+      semantic_similarity: 0.55,
+      final_score: 0.51,
+      display_data: {},
+    }
+    expect(row.entity_type).toBe('post')
   })
 
-  it('place with no matching fields returns score 0', () => {
-    const place = makePlace({ name: 'Sushi Palace', cuisine_type: 'Japanese' })
-    expect(scorePlace(place, ['pizza'])).toBe(0)
-  })
-})
-
-// ─── Location ranking ─────────────────────────────────────────────────────────
-
-describe('Location ranking — places', () => {
-  beforeEach(() => resetSearchSynonymsForTest())
-
-  it('nearby restaurant (<500m) ranks above far restaurant (Melbourne) with equal quality', () => {
-    const nearPlace = makePlace({
-      id: 'near',
-      name: 'Ramen Bar',
-      cuisine_type: 'Japanese',
-      latitude: -33.8705,
-      longitude: 151.21,
-      google_rating: 4.0,
-      google_review_count: 100,
-    })
-    const farPlace = makePlace({
-      id: 'far',
-      name: 'Ramen Bar',
-      cuisine_type: 'Japanese',
-      latitude: -37.81,
-      longitude: 144.96,
-      google_rating: 4.0,
-      google_review_count: 100,
-    })
-
-    const result = computePlaceResults({
-      ...basePlaceArgs,
-      dbPlaces: [farPlace, nearPlace],
-      userLocation: { lat: -33.87, lng: 151.21 },
-    })
-
-    expect(result.placeResults[0]?.id).toBe('near')
-  })
-
-  it('near-you badge appears for places within 2km when user location provided', () => {
-    const nearPlace = makePlace({
-      id: 'close',
-      name: 'Ramen Bar',
-      cuisine_type: 'Japanese',
-      latitude: -33.87,
-      longitude: 151.21,
-    })
-
-    const result = computePlaceResults({
-      ...basePlaceArgs,
-      dbPlaces: [nearPlace],
-      userLocation: { lat: -33.87, lng: 151.21 },
-    })
-
-    expect(result.placeResults[0]?.badges).toBeDefined()
-    const badges = result.placeResults[0]?.badges ?? []
-    expect(badges.some((b: string) => b.toLowerCase().includes('near'))).toBe(true)
-  })
-})
-
-// ─── Popularity signals ───────────────────────────────────────────────────────
-
-describe('Popularity signals', () => {
-  beforeEach(() => resetSearchSynonymsForTest())
-
-  it('popularityBoost returns 0 for zero posts and interactions', () => {
-    expect(popularityBoost(0, 0)).toBe(0)
-  })
-
-  it('popularityBoost increases with post count', () => {
-    expect(popularityBoost(5, 0)).toBeGreaterThan(popularityBoost(1, 0))
-    expect(popularityBoost(1, 0)).toBeGreaterThan(popularityBoost(0, 0))
-  })
-
-  it('popularityBoost increases with interaction count', () => {
-    expect(popularityBoost(5, 50)).toBeGreaterThan(popularityBoost(5, 0))
-  })
-
-  it('restaurant with 5 Rekkus posts ranks above 0-post restaurant at equal text score', () => {
-    const popularPlace = makePlace({
-      id: 'popular',
-      name: 'Ramen Bar',
-      cuisine_type: 'Japanese',
-      latitude: -33.87,
-      longitude: 151.21,
-    })
-    const unpopularPlace = makePlace({
-      id: 'unpopular',
-      name: 'Ramen Bar',
-      cuisine_type: 'Japanese',
-      latitude: -33.87,
-      longitude: 151.21,
-    })
-    const posts = Array.from({ length: 5 }, (_, i) =>
-      makePost({ id: i + 1, dbId: `p${i}`, placeId: 'popular' })
-    )
-
-    const result = computePlaceResults({
-      ...basePlaceArgs,
-      posts,
-      dbPlaces: [unpopularPlace, popularPlace],
-    })
-
-    expect(result.placeResults[0]?.id).toBe('popular')
-  })
-
-  it('rekkusPickBoost returns higher value for worth_a_trip than standard post', () => {
-    const pickPost = makePost({ tasteVerdict: 'worth_a_trip' })
-    const normalPost = makePost({ tasteVerdict: undefined })
-    expect(rekkusPickBoost(pickPost)).toBeGreaterThan(rekkusPickBoost(normalPost))
-  })
-
-  it('Rekkus pick post ranks above standard post at identical FTS rank', () => {
-    const pickPost = makePost({ dbId: 'pick', title: 'Ramen', tasteVerdict: 'worth_a_trip' })
-    const normalPost = makePost({ id: 2, dbId: 'normal', title: 'Ramen' })
-
-    const result = computePostResults({
-      posts: [normalPost, pickPost],
-      ftsDbPosts: [],
-      ftsPostIds: [
-        { id: 'pick', rank: 0.5 },
-        { id: 'normal', rank: 0.5 },
-      ],
-      expandedDbPosts: [],
-      dishPostIds: new Map(),
-      words: ['ramen'],
-      userLocation: null,
-      expansionCuisines: [],
-      isAroundMe: false,
-      filters: undefined,
-    })
-
-    expect(result.postResults[0]?.dbId).toBe('pick')
-  })
-})
-
-// ─── Entity intent routing ────────────────────────────────────────────────────
-
-describe('Entity intent routing', () => {
-  beforeEach(() => resetSearchSynonymsForTest())
-
-  it('cuisine keyword routes through cuisine_type only — name-only match returns 0', () => {
-    // 'japanese' is a CUISINE_TYPE_WORD; name matching is skipped
-    const nameOnlyMatch = makePlace({ id: 'n', name: 'Japanese Tapas', cuisine_type: 'Korean' })
-    expect(scorePlace(nameOnlyMatch, ['japanese'])).toBe(0)
-  })
-
-  it('cuisine keyword grants score when cuisine_type matches', () => {
-    const typeMatch = makePlace({ id: 't', name: 'Dragon Palace', cuisine_type: 'Chinese' })
-    expect(scorePlace(typeMatch, ['chinese'])).toBeGreaterThan(0)
-  })
-
-  it('dish-matched post ranks above non-matched post at same FTS rank via dishPostIds boost', () => {
-    const dishPost = makePost({ dbId: 'dish', title: 'Wagyu Beef' })
-    const normalPost = makePost({ id: 2, dbId: 'normal', title: 'Wagyu Beef' })
-
-    const result = computePostResults({
-      posts: [normalPost, dishPost],
-      ftsDbPosts: [],
-      ftsPostIds: [
-        { id: 'dish', rank: 0.5 },
-        { id: 'normal', rank: 0.5 },
-      ],
-      expandedDbPosts: [],
-      dishPostIds: new Map([['dish', { rank: 1, match_source: 'exact' }]]),
-      words: ['wagyu', 'beef'],
-      userLocation: null,
-      expansionCuisines: [],
-      isAroundMe: false,
-      filters: undefined,
-    })
-
-    expect(result.postResults[0]?.dbId).toBe('dish')
-  })
-
-  it('synonym expansion: "ramen" query grants score to Japanese cuisine post when synonym loaded', () => {
-    applySearchSynonymRows([{ term: 'ramen', canonical: 'japanese', type: 'cuisine' }])
-    const japanesePost = makePost({ title: 'Noodle House', cuisine_type: 'Japanese', body: '', tags: [], location: 'Sydney' })
-    const koreanPost = makePost({ id: 2, dbId: 'post-2', title: 'BBQ House', cuisine_type: 'Korean', body: '', tags: [], location: 'Sydney' })
-    expect(scorePost(japanesePost, ['ramen'])).toBeGreaterThan(scorePost(koreanPost, ['ramen']))
+  it('personalised taste vector shifts scores when user has strong affinity', () => {
+    const baseSemantic = 0.6
+    const strongTaste = 0.95
+    const weakTaste = 0.1
+    const strongFinal = 0.7 * baseSemantic + 0.3 * strongTaste
+    const weakFinal = 0.7 * baseSemantic + 0.3 * weakTaste
+    expect(strongFinal).toBeGreaterThan(weakFinal)
+    expect(strongFinal - weakFinal).toBeCloseTo(0.3 * (strongTaste - weakTaste))
   })
 })

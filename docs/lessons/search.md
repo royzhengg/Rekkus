@@ -189,3 +189,106 @@ Personalization and trending should attach explicit metadata (`personalizationRe
 **Pattern:** calculate trust metadata in `lib/search/ranking.ts`, then copy place explanation badges in `runSearchPipeline()` before returning `places` / `expandedPlaces`. Keep provider fallback rows from receiving first-party badges.
 
 **Apply when:** adding search result explanations, trust badges, duplicate suppression, spam penalties, or migrating tabs to candidate-based rendering.
+
+---
+
+## The pipeline cache key must include userId — personalization leaks across users otherwise
+
+`runSearchPipeline` calls `fetchSearchPersonalizationSignals(context.userId)` and bakes the result into `candidates[]`. If the cache key omits `userId`, user B's identical query (same query, location, mode) within the 30-second TTL returns user A's personalised ranking — saved places, recent cuisines, and recent area boosts from another user. This is a data privacy bug, not just a ranking bug.
+
+**Fix (B-595):** include `context.userId ?? 'anon'` in the `pipelineCacheKey` array in `lib/hooks/useSearch.ts`.
+
+**Apply when:** adding any user-scoped signal to the pipeline cache, or changing what signals are baked into cached results.
+
+---
+
+## The intent 2-token fallback must be `general`, not `place_name`
+
+`classifySearchIntent` used to map any 2-token query to `place_name` at 0.72 confidence via a blunt `tokens.length >= 2` fallback. This caused "date night", "gluten free", "dim sum", "cozy vibes", etc. to be treated as restaurant names — raising place entity weights and suppressing food/dish candidates. Only possessive apostrophe (`totti's`) is a strong structural signal for a named restaurant.
+
+**Fix (B-595):** handle `parsedIntent === 'occasion'` and `parsedIntent === 'dietary'` explicitly before the multi-token fallback, and change the fallback from `place_name` to `general` at 0.5 confidence. The only high-confidence `place_name` path is `PLACE_NAME_TERMS.has(phrase)` + possessive apostrophe.
+
+**Apply when:** adding new intent classes, extending `FOOD_TERMS`, or changing the 2-token classification fallback.
+
+---
+
+## Dish FTS rank must come from DB position, not from save_count + post_count
+
+`searchDishes` returns dishes in FTS relevance order (most relevant first). If the pipeline overwrites `rank` with `dish.save_count + dish.post_count`, a popular dish that barely matches the query beats a niche dish that exactly matches it. Popularity is already handled by `popularityBoost` in `rankSearchCandidates` — it must not also control the pre-ranking input rank.
+
+**Fix (B-595):** `rank: dishEntities.length - index` — preserves DB FTS position as the initial rank signal.
+
+**Apply when:** adding new entity types to the pipeline that come from FTS-ranked DB queries.
+
+---
+
+## Dual result path: pipeline candidates must be the single ranking source
+
+`useSearchResults` previously had its own scoring path (`computePostResults`, `computePlaceResults`) that re-scored raw data independently of `runSearchPipeline` → `rankSearchCandidates`. This meant:
+
+- Top tab and per-type tabs (Dishes, Places) could disagree on ordering
+- All pipeline ranking signals (trust, personalization, trending, graph evidence) were silently discarded for per-type tab views
+
+**Fix (B-595):** replaced `computePostResults`/`computePlaceResults` in `useSearchResults` with `deriveFromCandidates` logic that filters `candidates[]` by kind, extracts items, and applies UI filters only. `rankSearchCandidates` is now the single ranking source.
+
+**Apply when:** adding new pipeline ranking signals (trust, quality, diversity), or adding new result kind to any search tab.
+
+---
+
+## `matchesRecentQuery` substring check causes spurious personalization boosts
+
+`query.includes(normalized) || normalized.includes(query)` means the dish "salmon" gets a personalization boost if any recent query was "s" (because `"salmon".includes("s")`). Similarly, "pho bo" boosts for recent query "ph". The `normalized.includes(query)` direction is the only problem — substring matching of the query within the entity name is too loose.
+
+**Fix (B-595):** whole-word overlap check — entity name words (filtered to length > 2) intersected with recent query words (also length > 2). This requires a real word match, not character coincidence.
+
+**Apply when:** changing personalization signal matching logic in the search pipeline.
+
+---
+
+## Vector search replaces FTS pipelines — delete the pipeline, update all governance scripts
+
+Replacing a multi-source FTS ranking pipeline with vector/semantic search (B-509) required deleting ~10 TS files (`pipeline.ts`, `ranking.ts`, `context.ts`, `searchIntent.ts`, `searchScoring.ts`, `searchPersonalization.ts`, etc.). Every governance script that guarded old patterns (`check-search-governance.js`, `check-risk-guardrails.js`, `check-google-costs.js`, `search-index-contract-rules.js`, `check-performance.js`) broke on deploy because they checked for deleted functions/imports.
+
+**Pattern:** when deleting a search pipeline, update governance scripts in the same PR. Identify every `readText(file)` and `requireTerms(file, terms)` call that references deleted/moved symbols. Replace with equivalent checks on the new architecture's canonical symbols (`embedQuery`, `searchSemantic`, HNSW index patterns).
+
+**Trap:** hard-coded `readText('lib/search/pipeline.ts')` in a script throws `ENOENT` at runtime and causes the whole check to fail, not just that assertion. Always guard with `exists(file) ? readText(file) : ''`.
+
+**Coverage thresholds:** `jest.config.js` `coverageThreshold` entries for deleted files cause "Coverage data for X was not found" errors and `check:coverage-chain` failures. Remove stale threshold entries immediately when files are deleted.
+
+**Type-safety fixtures:** `tests/type-safety/searchIndexContractRules.test.js` uses hardcoded schema fixtures that mirror the old FTS infrastructure. When switching from FTS to vector, update the fixture's `completeSchema` and `completeSources` to reference the new HNSW index names and RPC signatures — otherwise the acceptance test asserts against a schema that no longer exists.
+
+**Apply when:** replacing any multi-file search pipeline, search provider, or ranking system.
+
+---
+
+## Supabase RPC typing: add the RPC to `types/database.ts`, never cast
+
+When calling a new Supabase RPC (`search_semantic`) that isn't in the generated `types/database.ts`, the temptation is to cast: `supabase.rpc(...) as any` or `as unknown as RpcFn`. Both are flagged by `check:unsafe-any`.
+
+**Correct pattern:** manually add the RPC's `Args` and `Returns` type to the `Database['public']['Functions']` section of `types/database.ts`. Once the type is present, `supabase.rpc('search_semantic', args)` infers correctly without any cast.
+
+**Apply when:** adding any new Supabase RPC that isn't in the generated types yet.
+
+---
+
+## Vector search requires a text fallback — embeddings are not guaranteed at query time
+
+A fresh Supabase project can have the `search_semantic` RPC and HNSW indexes in place but zero embeddings: the backfill edge function has not run yet, the compute tier is too small to run the AI model, or the backfill simply takes time. In all these cases `searchSemantic()` returns 0 rows and the user sees "Nothing for X yet."
+
+**Pattern:** always pair vector search with a `search_text_fallback` RPC that shares the exact same return column shape (`entity_type, entity_id, semantic_similarity, final_score, display_data`). In `useSearch`, call `searchTextFallback` only when vector search returns 0 entity results. This degrades gracefully — text matching is not as smart as semantic, but it works immediately and requires no compute.
+
+**Graded scores:** assign 0.90/0.85 for exact name match, 0.80/0.75 for prefix, 0.70/0.65 for contains, 0.60/0.55 for cuisine match, 0.55 for suburb match. These slot below a typical 0.4-threshold semantic match so vector results are preferred once available.
+
+**Remote schema divergence:** if the remote DB was created from a dump rather than sequential migrations, it may be missing columns (`is_cover`, computed columns). Make all new migrations defensive (`ADD COLUMN IF NOT EXISTS`, replace column references with subqueries).
+
+**Apply when:** adding any new vector/embedding-based search, or debugging "no results" reports on a freshly migrated environment.
+
+---
+
+## Pipeline faults should degrade gracefully, not crash the entire search
+
+A single `Promise.all` with no error handling means any service failure (personalization RPC, trending service, Google Autocomplete) throws and the user sees an error screen instead of degraded-but-working results.
+
+**Pattern (B-595):** wrap each source in `safeFetch(fn, fallback, label)` — logs `[search] <label> failed` to the console, returns the empty fallback, and lets other sources proceed. Each failure is independently observable in monitoring without affecting user experience.
+
+**Apply when:** adding new data sources to the pipeline, or debugging user-facing "search is broken" reports where the cause is a single downstream RPC.

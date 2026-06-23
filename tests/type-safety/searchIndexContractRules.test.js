@@ -20,18 +20,13 @@ Owner process
 provider fallback
 `
 
+// B-509: schema now requires HNSW indexes + search_semantic RPC instead of FTS indexes
 const completeSchema = `
-create index restaurants_search_tsv_idx on public.restaurants using gin (to_tsvector('simple', name));
-create index posts_search_tsv_idx on public.posts using gin (to_tsvector('simple', caption));
-create index users_search_tsv_idx on public.users using gin (to_tsvector('simple', username));
-create index dishes_search_tsv_idx on public.dishes using gin (search_tsv);
-create function public.search_restaurants_full_text() returns void language sql as $$ select 1 $$;
-create function public.search_posts_full_text() returns void language sql as $$ select 1 $$;
-create function public.search_posts_by_dish() returns void language sql as $$ select 1 $$;
-create function public.search_dishes_full_text() returns void language sql as $$ select 1 $$;
+create index post_embeddings_hnsw on public.post_embeddings using hnsw (embedding vector_cosine_ops);
+create index dish_embeddings_hnsw on public.dish_embeddings using hnsw (embedding vector_cosine_ops);
+create function public.search_semantic(query_embedding vector) returns void language sql as $$ select 1 $$;
 create function public.suggest_searches() returns void language sql as $$ select 1 $$;
 create function public.resolve_suburb_query() returns void language sql as $$ select 1 $$;
-create table if not exists public.cuisine_aliases (alias text);
 create table if not exists public.search_synonyms (term text);
 create table if not exists public.suburb_aliases (alias text);
 create table if not exists public.hashtags (name text);
@@ -41,9 +36,9 @@ create table if not exists public.post_hashtags (post_id uuid);
 const completeSources = {
   searchDoc: completeSearchDoc,
   schemaSource: completeSchema,
-  searchServiceSource: 'CUISINE_SYNONYMS search_synonyms',
-  searchPipelineSource: 'SearchCandidate decideSearchProviderFallback',
-  restaurantServiceSource: 'search_restaurants_full_text near_lat',
+  searchServiceSource: 'searchSemantic embedQuery',
+  searchPipelineSource: '',
+  restaurantServiceSource: 'search_text_fallback p_near_lat',
 }
 
 test('search index contract scanner rejects incomplete product contract docs', () => {
@@ -63,8 +58,9 @@ test('search index contract scanner rejects missing DB and RPC evidence', () => 
     schemaSource: 'create index restaurants_search_tsv_idx on public.restaurants using gin (to_tsvector(\'simple\', name));',
   })
 
-  assert.ok(failures.some((failure) => failure.includes('search_posts_full_text RPC')))
-  assert.ok(failures.some((failure) => failure.includes('dishes_search_tsv_idx')))
+  assert.ok(failures.some((failure) => failure.includes('post_embeddings HNSW index')))
+  assert.ok(failures.some((failure) => failure.includes('dish_embeddings HNSW index')))
+  assert.ok(failures.some((failure) => failure.includes('search_semantic RPC')))
   assert.ok(failures.some((failure) => failure.includes('suburb_aliases table')))
 })
 

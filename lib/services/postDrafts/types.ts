@@ -57,7 +57,7 @@ export type CreatePostDraft = {
 export type CreatePostDraftSummary = {
   id: string
   title: string
-  restaurantName?: string | undefined
+  placeName?: string | undefined
   coverUri?: string | undefined
   mediaCount: number
   updatedAt: string

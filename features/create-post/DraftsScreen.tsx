@@ -76,7 +76,7 @@ export default function DraftsScreen() {
               <View style={styles.info}>
                 <Text style={styles.rowTitle} numberOfLines={1}>{draft.title}</Text>
                 <Text style={styles.rowMeta} numberOfLines={1}>
-                  {[draft.restaurantName, `${draft.mediaCount} media`, new Date(draft.lastSavedAt ?? draft.updatedAt).toLocaleDateString()]
+                  {[draft.placeName, `${draft.mediaCount} media`, new Date(draft.lastSavedAt ?? draft.updatedAt).toLocaleDateString()]
                     .filter(Boolean)
                     .join(' · ')}
                 </Text>

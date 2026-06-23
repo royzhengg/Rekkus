@@ -6,18 +6,18 @@ import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, fontWeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
-import type { ProfileRestaurant } from './profileIdentity'
+import type { ProfilePlace } from './profileIdentity'
 
 type Props = {
-  restaurants: ProfileRestaurant[]
-  onPressRestaurant: (restaurant: ProfileRestaurant) => void
+  places: ProfilePlace[]
+  onPressPlace: (place: ProfilePlace) => void
   onManage?: () => void
 }
 
-export function TopSpotCards({ restaurants, onPressRestaurant, onManage }: Props) {
+export function TopSpotCards({ places, onPressPlace, onManage }: Props) {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  if (restaurants.length === 0) return null
+  if (places.length === 0) return null
 
   return (
     <View style={styles.wrap}>
@@ -46,17 +46,17 @@ export function TopSpotCards({ restaurants, onPressRestaurant, onManage }: Props
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.cardScroll}
       >
-        {restaurants.map((restaurant, index) => (
+        {places.map((place, index) => (
           <TouchableOpacity
-            key={restaurant.id}
+            key={place.id}
             style={styles.card}
-            onPress={() => onPressRestaurant(restaurant)}
+            onPress={() => onPressPlace(place)}
             activeOpacity={0.82}
             accessibilityRole="button"
-            accessibilityLabel={`Open ${restaurant.name}`}
+            accessibilityLabel={`Open ${place.name}`}
           >
-            {restaurant.photoUrl ? (
-              <CachedImage source={{ uri: restaurant.photoUrl }} style={StyleSheet.absoluteFillObject} />
+            {place.photoUrl ? (
+              <CachedImage source={{ uri: place.photoUrl }} style={StyleSheet.absoluteFillObject} />
             ) : (
               <View style={styles.fallback}>
                 <ImagePlaceholder size={24} color={colors.text3} />
@@ -70,11 +70,11 @@ export function TopSpotCards({ restaurants, onPressRestaurant, onManage }: Props
             </View>
             <View style={styles.cardText}>
               <Text style={styles.cardName} numberOfLines={2} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-                {restaurant.name}
+                {place.name}
               </Text>
-              {restaurant.address ? (
+              {place.address ? (
                 <Text style={styles.cardMeta} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-                  {restaurant.address.split(',')[0]}
+                  {place.address.split(',')[0]}
                 </Text>
               ) : null}
             </View>

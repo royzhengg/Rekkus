@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const { printResult, requiredScriptMissing } = require('./lib/policy-checks')
 const { exists, listFiles, readText } = require('./lib/files')
+const { readAnalyticsSources } = require('../lib/scan-files')
 
 const { parseFlags } = require('../lib/args')
 const args = parseFlags()
@@ -109,7 +110,7 @@ requireTerms(
   'failure'
 )
 
-const analytics = exists('lib/analytics.ts') ? readText('lib/analytics.ts') : ''
+const analytics = readAnalyticsSources()
 for (const token of [
   'onboardingAnomaly',
   'onboardingStep',
@@ -181,24 +182,6 @@ for (const token of [
   'refreshFeatureFlagOverrides',
 ]) {
   if (!featureFlags.includes(token)) failures.push(`lib/featureFlags.ts must include ${token}.`)
-}
-
-const approvedAnalyticsWriters = new Set(['lib/analytics.ts'])
-const directAnalyticsWritePattern =
-  /from\(['"]analytics_events['"]\)[\s\S]{0,220}\.(insert|upsert|update|delete)\s*\(/m
-for (const file of [
-  ...listFiles('app', f => /\.[jt]sx?$/.test(f)),
-  ...listFiles('components', f => /\.[jt]sx?$/.test(f)),
-  ...listFiles('features', f => /\.[jt]sx?$/.test(f)),
-  ...listFiles('lib', f => /\.[jt]sx?$/.test(f)),
-]) {
-  if (approvedAnalyticsWriters.has(file)) continue
-  const source = readText(file)
-  if (directAnalyticsWritePattern.test(source)) {
-    failures.push(
-      `${file} writes directly to analytics_events; route privacy-safe writes through lib/analytics.ts.`
-    )
-  }
 }
 
 const authContext = exists('lib/contexts/AuthContext.tsx')

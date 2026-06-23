@@ -34,7 +34,7 @@ const SAMPLE_CUISINES = CUISINES.slice(0, 4)  // ['Thai','Japanese','Korean','Vi
 const SAMPLE_LOCS = LOCATIONS.slice(0, 3)     // ['Sydney','Burwood','Chatswood']
 
 const KNOWN_INTENTS: QueryIntent[] = [
-  'cuisine', 'dish', 'restaurant', 'location', 'occasion', 'dietary', 'mixed', 'general',
+  'cuisine', 'dish', 'place', 'location', 'occasion', 'dietary', 'mixed', 'general',
 ]
 
 // ─── Typo variant generator ───────────────────────────────────────────────────
@@ -126,8 +126,8 @@ describe('Generated: cuisine + near-me queries classify correctly', () => {
   )('$query has cuisine/mixed/location intent', ({ query }) => {
     const result = parseSearchQuery(query)
     expect(KNOWN_INTENTS).toContain(result.intent)
-    // A bare cuisine + location hint should not be classified as 'dish' or 'restaurant'
-    expect(['dish', 'restaurant']).not.toContain(result.intent)
+    // A bare cuisine + location hint should not be classified as 'dish' or 'place'
+    expect(['dish', 'place']).not.toContain(result.intent)
   })
 })
 

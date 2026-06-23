@@ -40,7 +40,7 @@ export function SavedTargetCollectionSheets({
       <RekkusActionSheet
         visible={confirmUnsaveVisible}
         title={`Remove saved ${targetLabel}?`}
-        subtitle={`This ${targetLabel} is in a collection. Removing its bookmark also removes it from your collections.`}
+        subtitle={`This ${targetLabel} is in a collection. Removing it also removes it from your collections.`}
         options={[
           { label: 'Keep saved', value: 'keep' },
           { label: 'Remove everywhere', value: 'remove', destructive: true },

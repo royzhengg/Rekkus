@@ -3,7 +3,7 @@ import { SUPABASE_URL } from '@/lib/config'
 import { isModerationResponse } from '@/lib/services/moderationGuards'
 import { supabase } from '@/lib/supabase'
 
-export type ReportTargetType = 'post' | 'comment' | 'user' | 'restaurant' | 'message'
+export type ReportTargetType = 'post' | 'comment' | 'user' | 'place' | 'message'
 export type ReportType =
   | 'content_report'
   | 'fake_review'

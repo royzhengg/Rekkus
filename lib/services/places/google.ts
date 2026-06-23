@@ -23,7 +23,7 @@ export async function fetchPlaceDetails(googlePlaceId: string): Promise<FullPlac
   return json?.result ?? null
 }
 
-export async function fetchRestaurantProviderDetail(
+export async function fetchPlaceProviderDetail(
   googlePlaceId: string,
   fields: string
 ): Promise<PlaceDetail | null> {
@@ -44,6 +44,6 @@ export async function fetchPlaceIdByTextSearch(query: string): Promise<string | 
   }
 }
 
-export function getRestaurantProviderPhotoUrl(photoReference: string, maxWidth = 800): string {
+export function getPlaceProviderPhotoUrl(photoReference: string, maxWidth = 800): string {
   return buildGooglePlacePhotoUrl(photoReference, maxWidth)
 }

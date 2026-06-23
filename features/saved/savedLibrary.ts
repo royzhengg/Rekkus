@@ -56,6 +56,21 @@ function collectionVisibilityLabel(visibility: CollectionVisibility): string {
   return visibility.charAt(0).toUpperCase() + visibility.slice(1)
 }
 
+function resolvePostCoverImageUrl(post: Post): string | undefined {
+  if (post.imageUrl) return post.imageUrl
+
+  const coverMedia = post.media?.find(item => item.isCover)
+  if (coverMedia?.type === 'image') {
+    return coverMedia.processedUrl ?? coverMedia.thumbnailUrl ?? coverMedia.uri
+  }
+  if (coverMedia?.type === 'video' && coverMedia.thumbnailUrl) return coverMedia.thumbnailUrl
+
+  const imageMedia = post.media?.find(item => item.type === 'image')
+  if (imageMedia) return imageMedia.processedUrl ?? imageMedia.thumbnailUrl ?? imageMedia.uri
+
+  return post.media?.find(item => item.type === 'video' && item.thumbnailUrl)?.thumbnailUrl ?? undefined
+}
+
 export function savedLibraryItemKindLabel(item: SavedLibraryItem): string {
   if (item.type === 'place') return 'Place'
   if (item.type === 'collection') return 'List'
@@ -89,22 +104,26 @@ export function buildSavedLibraryItems(input: SavedLibraryInput): SavedLibraryIt
     title: location.places?.name ?? 'Saved place',
     subtitle: location.places?.address ?? 'Saved place',
     savedAt: location.created_at,
+    ...(location.places?.photoUrl ? { imageUrl: location.places.photoUrl } : {}),
     targetType: 'place',
     targetId: location.place_id,
     routeId: location.place_id,
   }))
 
-  const postItems: SavedLibraryItem[] = input.posts.map(post => ({
-    id: `post:${post.dbId}`,
-    type: 'post',
-    title: post.mustOrder ?? post.title,
-    subtitle: [post.location, `@${post.creator}`].filter(Boolean).join(' · '),
-    savedAt: post.createdAt ?? COLLECTION_FALLBACK_DATE,
-    ...(post.imageUrl ? { imageUrl: post.imageUrl } : {}),
-    targetType: 'post',
-    targetId: post.dbId,
-    routeId: post.dbId,
-  }))
+  const postItems: SavedLibraryItem[] = input.posts.map(post => {
+    const imageUrl = resolvePostCoverImageUrl(post)
+    return {
+      id: `post:${post.dbId}`,
+      type: 'post',
+      title: post.mustOrder ?? post.title,
+      subtitle: [post.location, `@${post.creator}`].filter(Boolean).join(' · '),
+      savedAt: post.createdAt ?? COLLECTION_FALLBACK_DATE,
+      ...(imageUrl ? { imageUrl } : {}),
+      targetType: 'post',
+      targetId: post.dbId,
+      routeId: post.dbId,
+    }
+  })
 
   const collectionItems: SavedLibraryItem[] = input.collections.map(collection => ({
     id: `collection:${collection.id}`,

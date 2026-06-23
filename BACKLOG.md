@@ -365,6 +365,23 @@ Follow-up work from the repo-wide hygiene, architecture, scalability, and AI-age
 | [~] | P3 | <a id="b-587"></a>B-587 | Decompose lib/services/places.ts and activate restaurant_place_stubs persistence | `lib/services/places.ts` exceeded the 600-line shared-file ratchet. Also needs `restaurant_place_stubs` DB migration to re-enable Google place stub caching. Do: apply migration adding `restaurant_place_stubs(place_id, name, expires_at)`, restore `upsertPlaceStubs` body in places.ts; split high-cohesion clusters into `lib/services/places/` sub-modules to bring the root file below 600 lines. | Partially shipped 2026-06-15: split into `lib/services/places/google.ts` (API wrappers), `cache.ts` (provider cache recording), `analytics.ts` (ratings + popularity). Barrel `places.ts` now 455 lines; architecture ratchet clears. Migration `20260615000001_restaurant_place_stubs.sql` created. Remaining: deploy migration, regenerate `types/database.ts`, restore `upsertPlaceStubs` body. | restructure |
 | [ ] | P3 | <a id="b-590"></a>B-590 | Gate rekkusPicks content behind its feature flag | The `rekkusPicks` flag is defined in `lib/featureFlags.ts` (state: active) but `occasionLabel`/`valueLabel` from `lib/dataSources/rekkusPicks` are imported unconditionally in `SearchFiltersSheet` and `SearchScreen`. Do: add `isEnabled('rekkusPicks')` guard at the callsites to honour the flag; remove the allowlist entry from `scripts/ops/check-stale-flags.js` once wired. | Not started. | none |
 
+---
+
+## Place Database
+
+Goal: maintain Rekkus's own place database seeded from OSM — data independence from Google.
+
+### Place Data Quality
+
+| Status | Priority | ID | Item | Problem | Implementations | Implementation Type |
+| ------ | -------- | -- | ---- | ------- | --------------- | ------------------- |
+| [ ] | P2 | <a id="b-600"></a>B-600 | Cuisine normalisation engine | Full canonical taxonomy of ~80 cuisine slugs. cuisine_type always stores the raw OSM value (immutable). cuisine_slug is the derived search value. Depends on: place_aliases (shipped). Burden: Medium. Do: create cuisines(id, slug, name, parent_id) table + place_cuisines many-to-many; seed from existing cuisine_type values; update search RPCs to use cuisine hierarchy for "Asian" → Japanese/Korean/Chinese expansion; update product/SEARCH.md. | Not implemented yet. | none |
+| [ ] | P2 | <a id="b-601"></a>B-601 | Closed venue detection | Process closure signals: owner claim, community reports threshold (3 reports → temporarily_closed), 12-month inactivity, Google closure signal. Depends on: place_status (shipped). Burden: Medium. Do: add community_reports count trigger; add inactivity scanner job; handle Google closure signal in enrichment path; update PlaceDetailContent to display closure banners. | Not implemented yet. | none |
+| [ ] | P2 | <a id="b-602"></a>B-602 | User-created place UX | Post creation flow for venues not in the database: create a user_created place stub mid-post-flow; surface it in search immediately; auto-promote to community_verified at threshold. Depends on: places.verification_level (shipped), B-599. Burden: Medium. Do: add create-place sheet in CreatePostScreen; wire to places INSERT with verification_level='user_created'; show in search with appropriate badge. | Not implemented yet. | none |
+| [ ] | P3 | <a id="b-603"></a>B-603 | Place popularity + recency signals | Denormalised place_stats counters updated by triggers on posts/saves/collections inserts/deletes. Feed post_count, save_count, trending_score into search ranking. Depends on: place_stats table (shipped), B-596. Burden: Medium. Do: create triggers on posts, saves, collections; compute trending_score = recency-weighted activity; integrate into search ranking formula in product/SEARCH.md. | Not implemented yet. | none |
+| [ ] | P3 | <a id="b-604"></a>B-604 | Search analytics dashboard | Permanent monitoring: zero-result queries, top searches by region, place click-through rates, dietary filter usage. Feeds cuisine taxonomy and venue expansion decisions. Depends on: search_analytics (shipped), B-596. Burden: Low. Do: build admin dashboard query reading search_analytics + place_stats; surface top zero-result queries daily; add to Admin Platform. | Not implemented yet. | none |
+| [ ] | P3 | <a id="b-605"></a>B-605 | Data quality dashboard | Permanent monitoring: places without phone %, without website %, without hours %, duplicate candidates, closed venues. Depends on: osm_import_runs, place_contact, place_opening_hours (all shipped). Burden: Low. Do: build SQL views summarising fill-rates per column per state; surface in admin; add threshold alerts. | Not implemented yet. | none |
+| [ ] | P4 | <a id="b-606"></a>B-606 | Field-level verification model | field_verifications(place_id, field_name, confidence, source, updated_at) for per-field trust. Needed once owner claims and community editing are live. Depends on: B-335 owner claiming. Burden: High. Do: design schema; migrate existing verification_level to field-level; update all enrichment writes. | Not implemented yet. | none |
 
 ---
 
@@ -372,4 +389,4 @@ Follow-up work from the repo-wide hygiene, architecture, scalability, and AI-age
 
 Goal: make search feel instant, dish-first, and observable — and eliminate every dead end before beta.
 
-_All B-569–B-586 shipped — see COMPLETED_ITEMS.md._
+_All items shipped — see COMPLETED_ITEMS.md._

@@ -65,7 +65,7 @@ function isUserRelation(value: unknown): boolean {
   )
 }
 
-function isRestaurantRelation(value: unknown): boolean {
+function isPlaceRelation(value: unknown): boolean {
   return value === null || (
     isRecord(value) &&
     typeof value.name === 'string' &&
@@ -96,7 +96,7 @@ export function isRawPost(value: unknown): value is RawPost {
     isNullableNumber(value.edit_count) &&
     isUserRelation(value.users) &&
     (value.post_photos === null || (Array.isArray(value.post_photos) && value.post_photos.every(isRawPostPhoto))) &&
-    isRestaurantRelation(value.places)
+    isPlaceRelation(value.places)
   )
 }
 

@@ -9,8 +9,7 @@ import {
 } from '@/lib/services/googlePlacesGuards'
 import { supabase } from '@/lib/supabase'
 import { isRecord } from '@/lib/utils/safeJson'
-import { recordRestaurantProviderCache } from './places/cache'
-import { getRestaurantProviderPhotoUrl } from './places/google'
+import { recordPlaceProviderCache } from './places/cache'
 import type { FullPlaceDetail } from './places/google'
 
 export {
@@ -31,19 +30,20 @@ export {
   isSavedPlaceList,
   normalizeSavedPlaces,
 } from './savedPlaces'
-export type { SavedPlace, SavedPlaceWithPlace } from './savedPlaces'
+export type { FetchSavedPlacesOptions, SavedPlace, SavedPlaceWithPlace } from './savedPlaces'
 
 // Google API wrappers
 export {
   fetchPlaceDetails,
   fetchPlaceIdByTextSearch,
-  fetchRestaurantProviderDetail,
-  getRestaurantProviderPhotoUrl,
+  fetchPlaceProviderDetail,
+  getPlaceProviderPhotoUrl,
 } from './places/google'
 export type { PlaceDetail, FullPlaceDetail } from './places/google'
 
 // Provider cache recording
-export { recordRestaurantProviderCache, recordRestaurantSource } from './places/cache'
+export { recordPlaceProviderCache, recordPlaceSource } from './places/cache'
+export { cachePlacePhotoRefs, getPlaceDisplayPhoto, getPlaceDisplayPhotos } from './places/photos'
 
 // Ratings, save status, popularity
 export {
@@ -219,12 +219,30 @@ export async function searchPlacesByText(
   maxResults = 8,
   userLocation?: { lat: number; lng: number } | null
 ): Promise<Prediction[]> {
-  const { data } = await supabase.rpc('search_places_full_text', {
-    query_text: query,
-    max_results: maxResults,
-    ...(userLocation ? { near_lat: userLocation.lat, near_lng: userLocation.lng } : {}),
+  const { data } = await supabase.rpc('search_text_fallback', {
+    p_query: query,
+    p_limit: maxResults,
+    ...(userLocation ? { p_near_lat: userLocation.lat, p_near_lng: userLocation.lng } : {}),
   })
-  return (data ?? []).map((r) => mapPlaceRpcRowToPrediction(r, userLocation))
+  type TextFallbackRow = { entity_type: string; entity_id: string; display_data: unknown }
+  const placeRows: PlaceRpcRow[] = ((data as unknown) as TextFallbackRow[] | null ?? [])
+    .filter(r => r.entity_type === 'place')
+    .flatMap(r => {
+      if (!r.display_data || typeof r.display_data !== 'object' || Array.isArray(r.display_data)) return []
+      const d = r.display_data as Record<string, unknown>
+      return [{
+        id: r.entity_id,
+        name: String(d['name'] ?? ''),
+        google_place_id: typeof d['google_place_id'] === 'string' ? d['google_place_id'] : null,
+        latitude: typeof d['latitude'] === 'number' ? d['latitude'] : null,
+        longitude: typeof d['longitude'] === 'number' ? d['longitude'] : null,
+        cuisine_type: typeof d['cuisine_type'] === 'string' ? d['cuisine_type'] : null,
+        city: typeof d['city'] === 'string' ? d['city'] : null,
+        address: typeof d['address'] === 'string' ? d['address'] : null,
+        suburb: typeof d['suburb'] === 'string' ? d['suburb'] : null,
+      }]
+    })
+  return placeRows.map((r) => mapPlaceRpcRowToPrediction(r, userLocation))
 }
 
 export async function fetchNearbyPlaces(
@@ -288,7 +306,7 @@ export async function upsertPlace(
   const placeId = (data as { id: string } | null)?.id
   if (!placeId) return undefined
 
-  await recordRestaurantProviderCache(placeId, 'google_places', googlePlaceId, detail).catch(() => null)
+  await recordPlaceProviderCache(placeId, 'google_places', googlePlaceId, detail).catch(() => null)
 
   return placeId
 }
@@ -348,44 +366,7 @@ export async function createUserPlace(input: UserPlaceInput): Promise<string | n
   return data ?? null
 }
 
-export async function getPlaceDisplayPhotos(
-  placeId?: string | null,
-  providerPhotoRefs: string[] = [],
-  maxPhotos = 6
-): Promise<string[]> {
-  const providerUrls = providerPhotoRefs
-    .slice(0, maxPhotos)
-    .map(ref => getRestaurantProviderPhotoUrl(ref))
-    .filter(Boolean)
-
-  if (!placeId) return providerUrls
-
-  const { data } = await supabase.from('posts')
-    .select('post_photos ( url, order_index )')
-    .eq('place_id', placeId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-    .limit(24)
-
-  const firstPartyUrls = (data ?? [])
-    .flatMap((row) => row.post_photos ?? [])
-    .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-    .map(photo => photo.url)
-    .filter((url, index, arr): url is string => typeof url === 'string' && !!url && arr.indexOf(url) === index)
-    .slice(0, maxPhotos)
-
-  return firstPartyUrls.length > 0 ? firstPartyUrls : providerUrls
-}
-
-export async function getPlaceDisplayPhoto(
-  placeId?: string | null,
-  providerPhotoRefs: string[] = []
-): Promise<string | null> {
-  const photos = await getPlaceDisplayPhotos(placeId, providerPhotoRefs, 1)
-  return photos[0] ?? null
-}
-
-type PlaceRow = { id: string; google_place_id: string | null; google_photo_refs: string[] }
+type PlaceRow = { id: string; google_place_id: string | null; google_photo_refs: string[]; primary_photo_source: string }
 
 function parsePlaceRow(value: unknown): PlaceRow | null {
   if (!isRecord(value) || typeof value.id !== 'string') return null
@@ -395,20 +376,44 @@ function parsePlaceRow(value: unknown): PlaceRow | null {
     google_photo_refs: Array.isArray(value.google_photo_refs)
       ? value.google_photo_refs.filter((ref): ref is string => typeof ref === 'string')
       : [],
+    primary_photo_source: typeof value.primary_photo_source === 'string' ? value.primary_photo_source : 'rekkus_post',
   }
 }
 
 export async function fetchPlaceRow(id: string): Promise<PlaceRow | null> {
   const { data } = await supabase.from('places')
-    .select('id, google_place_id, google_photo_refs')
+    .select('id, google_place_id, google_photo_refs, primary_photo_source')
     .eq('id', id)
     .maybeSingle()
   return parsePlaceRow(data)
 }
 
+export type OsmPlaceDetail = {
+  phone?: string
+  website?: string
+  hoursText?: string
+}
+
+export async function fetchOsmPlaceDetail(placeId: string): Promise<OsmPlaceDetail> {
+  const [contactRes, hoursRes] = await Promise.all([
+    supabase.from('place_contact').select('phone, website').eq('place_id', placeId).maybeSingle(),
+    supabase.from('place_opening_hours')
+      .select('hours_text')
+      .eq('place_id', placeId)
+      .eq('is_current', true)
+      .eq('source', 'osm')
+      .maybeSingle(),
+  ])
+  const result: OsmPlaceDetail = {}
+  if (contactRes.data?.phone) result.phone = contactRes.data.phone
+  if (contactRes.data?.website) result.website = contactRes.data.website
+  if (hoursRes.data?.hours_text) result.hoursText = hoursRes.data.hours_text
+  return result
+}
+
 export async function fetchPlaceRowByGooglePlaceId(googlePlaceId: string): Promise<PlaceRow | null> {
   const { data } = await supabase.from('places')
-    .select('id, google_place_id, google_photo_refs')
+    .select('id, google_place_id, google_photo_refs, primary_photo_source')
     .eq('google_place_id', googlePlaceId)
     .maybeSingle()
   return parsePlaceRow(data)
@@ -445,4 +450,31 @@ export async function insertGooglePlace(input: {
     .select('id')
     .single()
   return (data as { id: string } | null)?.id ?? null
+}
+
+const PHOTO_PROMOTION_THRESHOLD = 3
+
+// Promotes primary_photo_source to 'rekkus_post' once the place has ≥3 user post photos.
+// Called after a post is published or deleted. No-op if already promoted.
+export async function maybePromotePlacePhotoSource(placeId: string): Promise<void> {
+  const { data: place } = await supabase
+    .from('places')
+    .select('id, primary_photo_source')
+    .eq('id', placeId)
+    .single()
+
+  if (!place || place.primary_photo_source === 'rekkus_post') return
+
+  const { count } = await supabase
+    .from('posts')
+    .select('id', { count: 'exact', head: true })
+    .eq('place_id', placeId)
+    .is('deleted_at', null)
+
+  if ((count ?? 0) >= PHOTO_PROMOTION_THRESHOLD) {
+    await supabase
+      .from('places')
+      .update({ primary_photo_source: 'rekkus_post' })
+      .eq('id', placeId)
+  }
 }

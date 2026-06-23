@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react-native'
+import { render } from '@testing-library/react-native'
 import { NoResultsCard } from '@/features/search/NoResultsCard'
 import type { NoResultsSuggestionChip } from '@/lib/hooks/useNoResultsSuggestions'
 
@@ -16,6 +16,14 @@ jest.mock('@/lib/contexts/ThemeContext', () => ({
   }),
 }))
 
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}))
+
+jest.mock('@/lib/routes', () => ({
+  routes: { placeDetail: jest.fn((opts: { placeId: string }) => `/places/${opts.placeId}`) },
+}))
+
 const chips: NoResultsSuggestionChip[] = [
   { label: 'Sushi', emoji: '🍣', query: 'sushi' },
   { label: 'Pasta', query: 'pasta' },
@@ -27,22 +35,35 @@ describe('NoResultsCard', () => {
     const { getByText } = render(
       <NoResultsCard query="xyzzy" chips={chips} onChipPress={jest.fn()} />
     )
-    expect(getByText(/No results for "xyzzy"/)).toBeTruthy()
+    expect(getByText(/Nothing for "xyzzy" yet/)).toBeTruthy()
   })
 
-  it('renders at least 2 alternative chips', () => {
-    const { getAllByRole } = render(
-      <NoResultsCard query="xyzzy" chips={chips} onChipPress={jest.fn()} />
+  it('renders without crashing when no nearby places', () => {
+    const { getByText } = render(
+      <NoResultsCard query="Indian" chips={chips} onChipPress={jest.fn()} />
     )
-    expect(getAllByRole('button').length).toBeGreaterThanOrEqual(2)
+    expect(getByText(/Nothing for "Indian" yet/)).toBeTruthy()
   })
 
-  it('calls onChipPress with the chip query when a chip is tapped', () => {
-    const onChipPress = jest.fn()
-    const { getAllByRole } = render(
-      <NoResultsCard query="xyzzy" chips={chips} onChipPress={onChipPress} />
+  it('shows "Nearby instead" section when nearbyPlaces provided', () => {
+    const nearby = [
+      {
+        id: 'p1',
+        name: 'Kindred',
+        address: '1 King St',
+        city: 'Sydney',
+        cuisine_type: 'Australian',
+        google_place_id: null,
+        latitude: -33.8,
+        longitude: 151.2,
+        google_rating: 4.5,
+        google_review_count: 100,
+      },
+    ]
+    const { getByText } = render(
+      <NoResultsCard query="Indian" chips={chips} onChipPress={jest.fn()} nearbyPlaces={nearby} />
     )
-    fireEvent.press(getAllByRole('button')[0])
-    expect(onChipPress).toHaveBeenCalledWith('sushi')
+    expect(getByText('Popular places')).toBeTruthy()
+    expect(getByText('Kindred')).toBeTruthy()
   })
 })

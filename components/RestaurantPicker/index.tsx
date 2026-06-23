@@ -124,7 +124,7 @@ export function RestaurantPicker({ value, onSelect, cuisineType, userId }: Props
               onPress={() => onSelect(null)}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Clear selected restaurant"
+              accessibilityLabel="Clear selected place"
             >
               <CloseIcon size={10} color={c.text3} />
             </TouchableOpacity>
@@ -142,8 +142,8 @@ export function RestaurantPicker({ value, onSelect, cuisineType, userId }: Props
             onFocus={onSearchFocus}
             onBlur={onSearchBlur}
             returnKeyType="search"
-            accessibilityLabel="Restaurant name"
-            accessibilityHint="Search by name, or choose from restaurants near you"
+            accessibilityLabel="Place name"
+            accessibilityHint="Search by name, or choose from places near you"
           />
           {predictionsLoading && <ActivityIndicator size="small" color={c.text3} />}
           {locationSearch.length > 0 && !predictionsLoading ? (
@@ -151,7 +151,7 @@ export function RestaurantPicker({ value, onSelect, cuisineType, userId }: Props
               onPress={clearSearch}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Clear restaurant search"
+              accessibilityLabel="Clear place search"
             >
               <CloseIcon size={10} color={c.text3} />
             </TouchableOpacity>
@@ -199,7 +199,7 @@ export function RestaurantPicker({ value, onSelect, cuisineType, userId }: Props
                   onPress={() => { void requestLocationAndSearch() }}
                   disabled={locationStatus === 'requesting'}
                   accessibilityRole="button"
-                  accessibilityLabel="Use current location for restaurant search"
+                  accessibilityLabel="Use current location for place search"
                 >
                   <Text style={styles.locationBtnText}>
                     {locationStatus === 'requesting' ? 'Getting location…' : 'Use current location'}

@@ -1,4 +1,5 @@
-import { fetchPostLikes, mapRowToPost, savePost, type SavedPostRow } from '@/lib/services/posts'
+import { extractPostRow, fetchPostLikes, mapRowToPost, savePost, type SavedPostRow } from '@/lib/services/posts'
+import type { RawPost } from '@/lib/services/posts/types'
 import { supabase } from '@/lib/supabase'
 
 jest.mock('@/lib/supabase', () => ({
@@ -36,11 +37,11 @@ function makeRow(overrides: Partial<SavedPostRow> = {}): SavedPostRow {
     username: 'royzheng',
     full_name: 'Roy Zheng',
     avatar_url: null,
-    restaurant_name: 'Noodle Bar',
-    restaurant_address: null,
-    restaurant_lat: null,
-    restaurant_lng: null,
-    restaurant_place_id: null,
+    place_name: 'Noodle Bar',
+    place_address: null,
+    place_lat: null,
+    place_lng: null,
+    place_google_id: null,
     created_at: '2024-01-01T00:00:00Z',
     last_edited_at: null,
     edit_count: null,
@@ -93,6 +94,46 @@ describe('mapRowToPost', () => {
     expect(post.imageUrl).toBe('https://example.com/processed.jpg')
   })
 
+  it('uses image thumbnail_url as the post cover when processed_url is unavailable', () => {
+    const row = makeRow({
+      media: [{
+        url: 'https://example.com/raw.jpg',
+        processed_url: null,
+        thumbnail_url: 'https://example.com/thumb.jpg',
+        media_type: 'image',
+      }],
+    })
+    const post = mapRowToPost(row, 0)
+    expect(post.imageUrl).toBe('https://example.com/thumb.jpg')
+  })
+
+  it('uses raw image url as the post cover when processed and thumbnail URLs are unavailable', () => {
+    const row = makeRow({
+      media: [{
+        url: 'https://example.com/raw.jpg',
+        processed_url: null,
+        thumbnail_url: null,
+        media_type: 'image',
+      }],
+    })
+    const post = mapRowToPost(row, 0)
+    expect(post.imageUrl).toBe('https://example.com/raw.jpg')
+  })
+
+  it('uses video thumbnail as the saved-library cover when no image media exists', () => {
+    const row = makeRow({
+      media: [{
+        url: 'https://example.com/raw.mp4',
+        processed_url: 'https://example.com/processed.mp4',
+        thumbnail_url: 'https://example.com/video-thumb.jpg',
+        media_type: 'video',
+      }],
+    })
+    const post = mapRowToPost(row, 0)
+    expect(post.imageUrl).toBe('https://example.com/video-thumb.jpg')
+    expect(post.videoUrl).toBe('https://example.com/processed.mp4')
+  })
+
   it('falls back to photo_url when media array is empty', () => {
     const row = makeRow({ media: [], photo_url: 'https://example.com/legacy.jpg' })
     const post = mapRowToPost(row, 0)
@@ -117,6 +158,89 @@ describe('mapRowToPost', () => {
     expect(post.tasteVerdict).toBe('must_order')
     expect(post.valueVerdict).toBe('great_value')
     expect(post.occasionTags).toEqual(['date_night'])
+  })
+})
+
+describe('extractPostRow', () => {
+  function makeRawPost(overrides: Partial<RawPost> = {}): RawPost {
+    return {
+      id: 'post-1',
+      user_id: 'user-1',
+      deleted_at: null,
+      caption: 'Great ramen',
+      food_rating: 5,
+      vibe_rating: 4,
+      cost_rating: 3,
+      cuisine_type: 'Japanese',
+      must_order: 'Tonkotsu ramen',
+      dish_id: null,
+      dish_tags: null,
+      place_id: null,
+      taste_verdict: null,
+      value_verdict: null,
+      occasion_tags: [],
+      created_at: '2024-01-01T00:00:00Z',
+      last_edited_at: null,
+      edit_count: null,
+      users: { username: 'royzheng', full_name: 'Roy Zheng', avatar_url: null },
+      post_photos: [],
+      places: null,
+      ...overrides,
+    }
+  }
+
+  it('preserves missing processed_url so thumbnail_url can become the cover', () => {
+    const row = extractPostRow(makeRawPost({
+      post_photos: [{
+        id: 'photo-1',
+        url: 'https://example.com/raw.jpg',
+        deleted_at: null,
+        media_type: 'image',
+        processed_url: null,
+        thumbnail_url: 'https://example.com/thumb.jpg',
+        mime_type: 'image/jpeg',
+        duration_ms: null,
+        width: 1000,
+        height: 750,
+        size_bytes: 1234,
+        processing_status: 'ready',
+        processing_error: null,
+        order_index: 0,
+      }],
+    }))
+
+    expect(row).not.toBeNull()
+    if (!row) return
+    expect(row.media[0]?.processed_url).toBeNull()
+    expect(mapRowToPost(row, 0).imageUrl).toBe('https://example.com/thumb.jpg')
+  })
+
+  it('hydrates seeded mock post cover rows into post imageUrl', () => {
+    const seededCoverUrl = 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=800&h=1050&fit=crop&auto=format'
+    const row = extractPostRow(makeRawPost({
+      id: '11000000-0000-0000-0000-000000000006',
+      caption: 'Sydney brunch spot with zero wait — and the eggs benny are elite',
+      post_photos: [{
+        id: 'photo-6',
+        url: seededCoverUrl,
+        deleted_at: null,
+        media_type: 'image',
+        processed_url: seededCoverUrl,
+        thumbnail_url: seededCoverUrl,
+        mime_type: null,
+        duration_ms: null,
+        width: null,
+        height: null,
+        size_bytes: null,
+        processing_status: 'ready',
+        processing_error: null,
+        order_index: 0,
+      }],
+    }))
+
+    expect(row).not.toBeNull()
+    if (!row) return
+    expect(mapRowToPost(row, 0).imageUrl).toBe(seededCoverUrl)
   })
 })
 

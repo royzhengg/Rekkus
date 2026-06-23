@@ -84,7 +84,7 @@ export function SavedLibraryOverview({
 
   function scopeSummaryNoun(nextScope: SavedLibraryScope, count: number): string {
     if (nextScope === 'places') return count === 1 ? 'place' : 'places'
-    if (nextScope === 'collections') return count === 1 ? 'list' : 'lists'
+    if (nextScope === 'collections') return count === 1 ? 'collection' : 'collections'
     if (nextScope === 'dishes') return count === 1 ? 'dish' : 'dishes'
     if (nextScope === 'posts') return count === 1 ? 'post' : 'posts'
     return count === 1 ? 'item' : 'items'
@@ -198,7 +198,7 @@ export function SavedLibraryOverview({
             style={[styles.quickAction, scope === 'collections' && styles.quickActionActive]}
             onPress={openListsScope}
             accessibilityRole="button"
-            accessibilityLabel={`View saved lists, ${countForScope('collections')} saved`}
+            accessibilityLabel={`View saved collections, ${countForScope('collections')} saved`}
             accessibilityState={{ selected: scope === 'collections' }}
           >
             <ListIcon size={16} color={scope === 'collections' ? colors.accent : colors.text3} />
@@ -244,7 +244,7 @@ export function SavedLibraryOverview({
         ) : library.results.length === 0 ? (
           <EmptyState
             title={query.trim() ? 'No saved matches' : 'No saved items yet'}
-            subtitle={query.trim() ? 'Try another saved dish, place, post, or collection.' : 'Bookmark dishes, places, or posts to build your library.'}
+            subtitle={query.trim() ? 'Try another saved dish, place, post, or collection.' : 'Save dishes, places, or posts to build your library.'}
             icon={<SaveIcon size={24} />}
           />
         ) : (
@@ -372,7 +372,7 @@ function SavedLibraryRow({
   styles: ReturnType<typeof makeStyles>
 }) {
   const selectable = isSelectableSavedLibraryItem(item)
-  const itemKind = item.type === 'place' ? 'place' : item.type === 'collection' ? 'list' : item.type
+  const itemKind = item.type === 'place' ? 'place' : item.type === 'collection' ? 'collection' : item.type
   const itemLabel = savedLibraryItemKindLabel(item)
   const itemMetadata = savedLibraryItemMetadata(item)
   const itemDetail = itemMetadata.startsWith(`${itemLabel} · `) ? itemMetadata.slice(itemLabel.length + 3) : item.subtitle
@@ -460,7 +460,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       color: c.text,
       fontSize: fontSize.md,
     },
-    scopeTabs: { flexDirection: 'row', gap: spacing.px6, marginTop: -spacing.px2 },
+    scopeTabs: { flexDirection: 'row', gap: spacing.px6, paddingTop: spacing.px2, paddingBottom: spacing.px2 },
     scopeTab: {
       minHeight: spacing.px40 + spacing[1],
       borderRadius: radius.pill,

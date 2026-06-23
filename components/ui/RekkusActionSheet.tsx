@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   Modal,
@@ -70,6 +70,24 @@ export function RekkusActionSheet({
     if (visible) translateY.value = 0
   }, [visible, translateY])
 
+  const onAfterDismissRef = useRef(onAfterDismiss)
+  onAfterDismissRef.current = onAfterDismiss
+
+  const prevVisibleRef = useRef(visible)
+  useEffect(() => {
+    if (prevVisibleRef.current && !visible) {
+      // setTimeout instead of InteractionManager: the Modal slide animation (~300ms)
+      // is not registered with InteractionManager, so runAfterInteractions fires too
+      // early and iOS silently cancels the image picker. 350ms clears the animation
+      // with margin. Ref avoids cancelling the timeout on re-renders with new inline fn.
+      const id = setTimeout(() => {
+        onAfterDismissRef.current?.()
+      }, 350)
+      return () => clearTimeout(id)
+    }
+    prevVisibleRef.current = visible
+  }, [visible])
+
   const panGesture = Gesture.Pan()
     .onUpdate(e => {
       translateY.value = Math.max(0, e.translationY)
@@ -92,7 +110,6 @@ export function RekkusActionSheet({
       transparent
       animationType={reduceMotion ? 'none' : 'slide'}
       onRequestClose={onDismiss}
-      onDismiss={onAfterDismiss}
       accessibilityViewIsModal
     >
       <Pressable

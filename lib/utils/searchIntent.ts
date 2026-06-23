@@ -1,8 +1,8 @@
-import { CUISINE_ALIASES, getCuisineSynonyms } from './cuisineSynonyms'
+import { CUISINE_ALIASES, getCuisineSynonyms, isDynamicFoodToken } from './cuisineSynonyms'
 
-export type SearchIntentKind = 'food_dish' | 'restaurant_name' | 'location' | 'mixed' | 'general'
-export type RestaurantTagIntentKind =
-  | 'restaurant_name'
+export type SearchIntentKind = 'food_dish' | 'place_name' | 'location' | 'mixed' | 'general'
+export type PlaceTagIntentKind =
+  | 'place_name'
   | 'venue_category'
   | 'dish_or_menu_item'
   | 'location_query'
@@ -11,7 +11,7 @@ export type SearchLocationSource = 'gps' | 'manual' | 'none'
 export type SearchFallbackReason =
   | 'local_results_present'
   | 'bounded_locality'
-  | 'unbounded_restaurant_name'
+  | 'unbounded_place_name'
   | 'explicit_location_query'
   | 'ambiguous_food_without_location'
 
@@ -20,8 +20,8 @@ export type SearchIntent = {
   confidence: number
 }
 
-export type RestaurantTagIntent = {
-  kind: RestaurantTagIntentKind
+export type PlaceTagIntent = {
+  kind: PlaceTagIntentKind
   providerIntent: SearchIntentKind
   confidence: number
 }
@@ -56,9 +56,20 @@ const FOOD_TERMS = new Set([
   'taco',
   'tacos',
   'thai',
+  'wagyu',
+  'yakitori',
+  'tempura',
+  'udon',
+  'carbonara',
+  'schnitzel',
+  'croissant',
+  'gyoza',
+  'tonkotsu',
+  'bibimbap',
+  'banh',
 ])
 
-const RESTAURANT_NAME_TERMS = new Set([
+const PLACE_NAME_TERMS = new Set([
   'chat thai',
   'din tai fung',
   'hurricanes grill',
@@ -128,14 +139,14 @@ function normalizedPhrase(query: string): string {
 }
 
 function isFoodToken(token: string): boolean {
-  return FOOD_TERMS.has(token) || getCuisineSynonyms(token).length > 0
+  return FOOD_TERMS.has(token) || getCuisineSynonyms(token).length > 0 || isDynamicFoodToken(token)
 }
 
 function isVenueCategoryToken(token: string): boolean {
   return VENUE_CATEGORY_TERMS.has(token) || Object.prototype.hasOwnProperty.call(CUISINE_ALIASES, token)
 }
 
-function isRestaurantTagDishToken(token: string): boolean {
+function isPlaceTagDishToken(token: string): boolean {
   return RESTAURANT_TAG_DISH_TERMS.has(token) || isFoodToken(token)
 }
 
@@ -162,21 +173,23 @@ export function classifySearchIntent(
 
   if (options.parsedIntent === 'dish') return { kind: 'food_dish', confidence: 0.88 }
   if (options.parsedIntent === 'mixed') return { kind: hasFood ? 'food_dish' : 'mixed', confidence: 0.76 }
-  if (RESTAURANT_NAME_TERMS.has(phrase)) return { kind: 'restaurant_name', confidence: 0.92 }
+  if (PLACE_NAME_TERMS.has(phrase)) return { kind: 'place_name', confidence: 0.92 }
 
   const allFoodTokens = foodTokenCount === tokens.length
   if (hasFood && (allFoodTokens || tokens.length <= 2)) return { kind: 'food_dish', confidence: 0.84 }
 
-  if (options.parsedIntent === 'restaurant') return { kind: 'restaurant_name', confidence: 0.78 }
-
-  if (tokens.length >= 2 || /'s\b/i.test(query)) {
-    return { kind: 'restaurant_name', confidence: 0.72 }
+  if (options.parsedIntent === 'occasion' || options.parsedIntent === 'dietary') {
+    return { kind: 'general', confidence: 0.6 }
   }
+  if (options.parsedIntent === 'place') return { kind: 'place_name', confidence: 0.78 }
 
-  return { kind: 'general', confidence: 0.45 }
+  // Possessive apostrophe is a strong signal for a named restaurant ("Mario's", "totti's")
+  if (/'s\b/i.test(query)) return { kind: 'place_name', confidence: 0.72 }
+
+  return { kind: 'general', confidence: 0.5 }
 }
 
-export function classifyRestaurantTagIntent(query: string): RestaurantTagIntent {
+export function classifyPlaceTagIntent(query: string): PlaceTagIntent {
   const tokens = normalizeTokens(query)
   if (tokens.length === 0) {
     return { kind: 'general', providerIntent: 'general', confidence: 0.2 }
@@ -192,7 +205,7 @@ export function classifyRestaurantTagIntent(query: string): RestaurantTagIntent 
     return { kind: 'venue_category', providerIntent: 'food_dish', confidence: 0.87 }
   }
 
-  const dishTokenCount = tokens.filter(isRestaurantTagDishToken).length
+  const dishTokenCount = tokens.filter(isPlaceTagDishToken).length
   if (dishTokenCount > 0 && dishTokenCount === tokens.length) {
     return { kind: 'dish_or_menu_item', providerIntent: 'food_dish', confidence: 0.86 }
   }
@@ -201,8 +214,8 @@ export function classifyRestaurantTagIntent(query: string): RestaurantTagIntent 
     return { kind: 'dish_or_menu_item', providerIntent: 'food_dish', confidence: base.confidence }
   }
 
-  if (base.kind === 'restaurant_name') {
-    return { kind: 'restaurant_name', providerIntent: 'restaurant_name', confidence: base.confidence }
+  if (base.kind === 'place_name') {
+    return { kind: 'place_name', providerIntent: 'place_name', confidence: base.confidence }
   }
 
   return { kind: 'general', providerIntent: 'general', confidence: base.confidence }
@@ -236,12 +249,12 @@ export function decideSearchProviderFallback({
     return { shouldUseGoogleFallback: true, suppressed: false, reason: 'explicit_location_query' }
   }
 
-  // Suppress food/dish queries without location: Google returns restaurants (not dish venues)
+  // Suppress food/dish queries without location: Google returns places (not dish venues)
   // and without a location bias the results are too broad to be useful.
   if (intent === 'food_dish') {
     return { shouldUseGoogleFallback: false, suppressed: true, reason: 'ambiguous_food_without_location' }
   }
 
-  // For restaurant_name and general: fall back to Google — these are useful even without location.
-  return { shouldUseGoogleFallback: true, suppressed: false, reason: 'unbounded_restaurant_name' }
+  // For place_name and general: fall back to Google — these are useful even without location.
+  return { shouldUseGoogleFallback: true, suppressed: false, reason: 'unbounded_place_name' }
 }

@@ -27,7 +27,7 @@ import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { usePlaceSearch } from '@/lib/hooks/usePlaceSearch'
 import type { Prediction, SelectedPlace } from '@/lib/services/places'
 import { fetchTopSpotsWithDetails, saveTopSpots } from '@/lib/services/topSpots'
-import type { ProfileRestaurant } from './profileIdentity'
+import type { ProfilePlace } from './profileIdentity'
 
 export default function ManageTopSpotsScreen() {
   const router = useRouter()
@@ -35,7 +35,7 @@ export default function ManageTopSpotsScreen() {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
-  const [selectedSpots, setSelectedSpots] = useState<ProfileRestaurant[]>([])
+  const [selectedSpots, setSelectedSpots] = useState<ProfilePlace[]>([])
   const [searchVisible, setSearchVisible] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState(false)
@@ -46,7 +46,7 @@ export default function ManageTopSpotsScreen() {
     setSelectedSpots(prev => {
       if (prev.some(s => s.id === id || s.placeId === place.googlePlaceId)) return prev
       if (prev.length >= 3) return prev
-      const newSpot: ProfileRestaurant = {
+      const newSpot: ProfilePlace = {
         id,
         name: place.name,
         address: place.address,
@@ -54,9 +54,9 @@ export default function ManageTopSpotsScreen() {
         lng: place.lng,
         placeId: place.googlePlaceId,
         photoUrl: null,
-        reviewCount: 0,
+        postCount: 0,
         avgFoodRating: null,
-        lastReviewedAt: null,
+        lastPostedAt: null,
       }
       const next = [...prev, newSpot]
       analytics.profileInteraction(user?.id ?? null, user?.id ?? null, 'top_spot_added', { position: next.length })
@@ -268,7 +268,7 @@ export default function ManageTopSpotsScreen() {
                 <PinIcon color={colors.accent} size={18} />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Search restaurants..."
+                  placeholder="Search places..."
                   placeholderTextColor={colors.text3}
                   value={locationSearch}
                   onChangeText={handleSearchChange}
@@ -276,7 +276,7 @@ export default function ManageTopSpotsScreen() {
                   onBlur={onSearchBlur}
                   returnKeyType="search"
                   autoFocus
-                  accessibilityLabel="Search for a restaurant"
+                  accessibilityLabel="Search for a place"
                 />
                 {predictionsLoading || selectingPlace ? (
                   <ActivityIndicator size="small" color={colors.text3} />

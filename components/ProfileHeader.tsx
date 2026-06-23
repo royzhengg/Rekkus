@@ -12,7 +12,7 @@ type Props = {
   avatarColor: string
   displayName: string
   username: string
-  reviewCount: number
+  postCount: number
   followersLabel: string | number
   followingLabel: string | number
   locationLabel?: string | null
@@ -30,7 +30,7 @@ export function ProfileHeader({
   avatarColor,
   displayName,
   username,
-  reviewCount,
+  postCount,
   followersLabel,
   followingLabel,
   locationLabel,
@@ -83,7 +83,7 @@ export function ProfileHeader({
       <View style={styles.statsRow}>
         <View style={styles.statCol}>
           <Text style={styles.statNum} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-            {reviewCount}
+            {postCount}
           </Text>
           <Text style={styles.statLabel} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
             Reviews

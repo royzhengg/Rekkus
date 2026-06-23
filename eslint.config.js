@@ -24,7 +24,6 @@ module.exports = [
   // TypeScript + React Native files only
   {
     files: ['**/*.ts', '**/*.tsx'],
-    ...js.configs.recommended,
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -54,6 +53,9 @@ module.exports = [
       'unused-imports': unusedImportsPlugin,
     },
     rules: {
+      // JS recommended — merged here so TypeScript overrides below take effect
+      ...js.configs.recommended.rules,
+
       // Disable base rules replaced by TypeScript equivalents
       'no-unused-vars': 'off',
       'no-undef': 'off',
@@ -99,6 +101,18 @@ module.exports = [
 
       // General
       'no-console': ['warn', { allow: ['warn', 'error'] }],
+
+      // expo-image-picker: UIImagePickerPresentationStyle is UIImagePickerController-only.
+      // Passing it to launchImageLibraryAsync (which uses PHPickerViewController on iOS 14+)
+      // causes a silent canceled:true return — the picker appears to do nothing.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[object.property.name='UIImagePickerPresentationStyle']",
+          message:
+            "UIImagePickerPresentationStyle is UIImagePickerController-only and silently breaks PHPickerViewController (iOS 14+, expo-image-picker default). Never pass it to launchImageLibraryAsync. See components/post-create/StepMedia.tsx.",
+        },
+      ],
     },
   },
 

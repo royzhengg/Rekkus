@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/contexts/AuthContext'
 import { useNoResultsSuggestions } from '@/lib/hooks/useNoResultsSuggestions'
 import { useSearch } from '@/lib/hooks/useSearch'
 import { useSearchHistory } from '@/lib/hooks/useSearchHistory'
+import { useSearchLocation } from '@/lib/hooks/useSearchLocation'
 import { useTrendingData } from '@/lib/hooks/useTrendingData'
 import { useUserLocation } from '@/lib/hooks/useUserLocation'
 
@@ -15,6 +16,7 @@ jest.mock('expo-sqlite', () => ({}))
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ query: 'pork' }),
   useFocusEffect: jest.fn(),
+  useRouter: () => ({ push: jest.fn() }),
 }))
 
 jest.mock('react-native-safe-area-context', () => {
@@ -23,12 +25,13 @@ jest.mock('react-native-safe-area-context', () => {
 })
 
 jest.mock('@/components/icons', () => {
-  const { Text } = jest.requireActual('react-native')
+  const { Text, View } = jest.requireActual('react-native')
   return {
     SearchIcon: () => <Text>search</Text>,
     CloseIcon: () => <Text>close</Text>,
     FilterIcon: () => <Text>filter</Text>,
     PinIcon: () => <Text>pin</Text>,
+    ImagePlaceholder: () => <View />,
   }
 })
 
@@ -47,6 +50,10 @@ jest.mock('@/lib/contexts/AuthContext', () => ({
 
 jest.mock('@/lib/hooks/useUserLocation', () => ({
   useUserLocation: jest.fn(),
+}))
+
+jest.mock('@/lib/hooks/useSearchLocation', () => ({
+  useSearchLocation: jest.fn(),
 }))
 
 jest.mock('@/lib/hooks/useSearch', () => ({
@@ -103,6 +110,7 @@ jest.mock('@/lib/analytics', () => ({
 
 const mockUseAuth = jest.mocked(useAuth)
 const mockUseUserLocation = jest.mocked(useUserLocation)
+const mockUseSearchLocation = jest.mocked(useSearchLocation)
 const mockUseSearch = jest.mocked(useSearch)
 const mockUseNoResultsSuggestions = jest.mocked(useNoResultsSuggestions)
 const mockUseSearchHistory = jest.mocked(useSearchHistory)
@@ -132,15 +140,12 @@ function baseSearch(overrides: Partial<ReturnType<typeof useSearch>> = {}): Retu
     placeResults: [],
     placeDistances: new Map<string, number>(),
     dishEntityResults: [],
-    candidates: [],
     suggestions: [],
-    providerFallbackSuppressed: true,
-    providerFallbackReason: 'ambiguous_food_without_location',
-    queryIntent: 'food_dish',
     hasQuery: true,
-    expansionLabel: null,
+    topFeed: [],
+    loading: false,
     ...overrides,
-  }
+  } as ReturnType<typeof useSearch>
 }
 
 describe('SearchScreen location nudge', () => {
@@ -149,6 +154,7 @@ describe('SearchScreen location nudge', () => {
     requestLocation.mockResolvedValue({ lat: -33.87, lng: 151.21 })
     mockUseAuth.mockReturnValue({ user: null } as ReturnType<typeof useAuth>)
     mockUseUserLocation.mockReturnValue(baseLocation())
+    mockUseSearchLocation.mockReturnValue(baseLocation())
     mockUseSearch.mockReturnValue(baseSearch())
     mockUseNoResultsSuggestions.mockReturnValue([
       { label: 'Ramen', query: 'ramen' },
@@ -177,13 +183,13 @@ describe('SearchScreen location nudge', () => {
     mockOpenSettings.mockRestore()
   })
 
-  it('shows the nudge for food queries without location after provider fallback is suppressed', () => {
+  it('shows the nudge for queries without location', () => {
     render(<SearchScreen />)
 
     expect(screen.getByText('Enable location for better results')).toBeTruthy()
     expect(analytics.searchLocationNudgeShown).toHaveBeenCalledWith(
       null,
-      'food_dish',
+      'general',
       'none',
       'search'
     )
@@ -199,20 +205,21 @@ describe('SearchScreen location nudge', () => {
     })
     expect(analytics.searchLocationNudgeClicked).toHaveBeenCalledWith(
       null,
-      'food_dish',
+      'general',
       'none',
       'search'
     )
     expect(analytics.searchLocationPermissionResult).toHaveBeenCalledWith(
       null,
       'granted',
-      'food_dish',
+      'general',
       'search'
     )
   })
 
   it('opens Settings for denied location status', async () => {
     mockUseUserLocation.mockReturnValue(baseLocation({ status: 'denied' }))
+    mockUseSearchLocation.mockReturnValue(baseLocation({ status: 'denied' }))
     render(<SearchScreen />)
 
     expect(screen.getByText('Open Settings for better local results')).toBeTruthy()
@@ -224,7 +231,7 @@ describe('SearchScreen location nudge', () => {
     expect(analytics.searchLocationPermissionResult).toHaveBeenCalledWith(
       null,
       'settings_opened',
-      'food_dish',
+      'general',
       'search'
     )
   })

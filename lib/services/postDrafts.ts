@@ -1,9 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as FileSystem from 'expo-file-system'
+import * as Network from 'expo-network'
 import { supabase } from '@/lib/supabase'
 import { parseJsonWithGuard } from '@/lib/utils/safeJson'
 import type { PostMedia } from '@/types/domain'
 import { reportInvalidBoundary } from './boundaryTelemetry'
+import { isRetryableDeferredMutationError } from './deferredMutations'
 import {
   isLocalDraft,
   isLocalDraftList,
@@ -132,6 +134,13 @@ function isRemoteUri(uri: string): boolean {
   return /^https?:\/\//i.test(uri)
 }
 
+function decode(base64: string): Uint8Array {
+  const binaryStr = atob(base64)
+  const bytes = new Uint8Array(binaryStr.length)
+  for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
+  return bytes
+}
+
 async function signedUrl(path: string | null | undefined): Promise<string | null> {
   if (!path) return null
   const { data, error } = await supabase.storage.from(DRAFT_BUCKET).createSignedUrl(path, 60 * 60 * 24)
@@ -148,14 +157,11 @@ async function uploadOneDraftMedia(
   if (media.storagePath) return media
   if (isRemoteUri(media.uri)) return media
 
-  const info = await FileSystem.getInfoAsync(media.uri)
-  if (!info.exists) throw new Error('Draft media file was not found on this device.')
-
   const ext = extForMedia(media)
   const storagePath = `${userId}/${draftId}/${media.localId || `media-${index}`}.${ext}`
-  const response = await fetch(media.uri)
-  const blob = await response.blob()
-  const { error } = await supabase.storage.from(DRAFT_BUCKET).upload(storagePath, blob, {
+  const fileContent = await FileSystem.readAsStringAsync(media.uri, { encoding: 'base64' as const })
+  const bytes = decode(fileContent)
+  const { error } = await supabase.storage.from(DRAFT_BUCKET).upload(storagePath, bytes, {
     contentType: mimeForMedia(media),
     upsert: true,
   })
@@ -254,6 +260,24 @@ async function saveRemoteDraft(draft: CreatePostDraft, options: SaveOptions): Pr
   }
 
   const remoteId = result.data.id
+
+  const networkState = await Network.getNetworkStateAsync().catch(() => null)
+  const isOnline = networkState?.isConnected && networkState?.isInternetReachable !== false
+
+  if (!isOnline) {
+    const deferred: CreatePostDraft = {
+      ...draft,
+      id: remoteId,
+      remoteId,
+      userId,
+      status,
+      syncStatus: 'local' as const,
+      updatedAt: new Date().toISOString(),
+    }
+    await upsertLocalDraft(deferred)
+    return deferred
+  }
+
   try {
     const uploadedMedia = await uploadDraftMedia(remoteId, draft.media, userId)
     await syncDraftMediaRows(remoteId, userId, uploadedMedia)
@@ -273,19 +297,20 @@ async function saveRemoteDraft(draft: CreatePostDraft, options: SaveOptions): Pr
     }
     await upsertLocalDraft(synced)
     return synced
-  } catch {
-    reportInvalidBoundary('post_draft_media_upload_failed')
-    const failed = {
+  } catch (err) {
+    const isNetworkError = isRetryableDeferredMutationError(err)
+    if (!isNetworkError) reportInvalidBoundary('post_draft_media_upload_failed')
+    const draftStatus: CreatePostDraft = {
       ...draft,
       id: remoteId,
       remoteId,
       userId,
       status,
-      syncStatus: 'failed' as const,
+      syncStatus: isNetworkError ? 'local' : 'failed',
       updatedAt: new Date().toISOString(),
     }
-    await upsertLocalDraft(failed)
-    return failed
+    await upsertLocalDraft(draftStatus)
+    return draftStatus
   }
 }
 
@@ -360,7 +385,7 @@ export async function listSavedCreatePostDrafts(userId?: string | null): Promise
       .map(draft => ({
         id: draft.remoteId ?? draft.id ?? localDraftId(),
         title: draftTitle(draft),
-        restaurantName: draft.selectedPlace?.name,
+        placeName: draft.selectedPlace?.name,
         coverUri: draft.media[0]?.thumbnailUrl ?? draft.media[0]?.uri,
         mediaCount: draft.media.length,
         updatedAt: draft.updatedAt,
@@ -384,7 +409,7 @@ export async function listSavedCreatePostDrafts(userId?: string | null): Promise
     return {
       id: draft.id,
       title: draft.title?.trim() || draft.body?.trim() || 'Untitled draft',
-      restaurantName: draft.selected_place?.name,
+      placeName: draft.selected_place?.name,
       coverUri: cover?.thumbnail_url ?? await signedUrl(cover?.storage_path) ?? undefined,
       mediaCount: mediaRows.length,
       updatedAt: draft.updated_at,
@@ -451,7 +476,7 @@ export async function saveCreatePostDraftAsNew(
   return saveCreatePostDraftRemote(copy, { visible: true, userId: userId ?? draft.userId })
 }
 
-export type LoadDraftResult = { draft: CreatePostDraft; restaurantCleared: boolean }
+export type LoadDraftResult = { draft: CreatePostDraft; placeCleared: boolean }
 
 export async function loadCreatePostDraft(id?: string): Promise<LoadDraftResult | null> {
   const ownerId = await currentUserId()
@@ -477,10 +502,10 @@ export async function loadCreatePostDraft(id?: string): Promise<LoadDraftResult 
   if (placeId && isUuid(placeId)) {
     const { data } = await supabase.from('places').select('id').eq('id', placeId).maybeSingle()
     if (!data) {
-      return { draft: { ...draft, selectedPlace: null }, restaurantCleared: true }
+      return { draft: { ...draft, selectedPlace: null }, placeCleared: true }
     }
   }
-  return { draft, restaurantCleared: false }
+  return { draft, placeCleared: false }
 }
 
 export async function deleteCreatePostDraft(id: string): Promise<void> {
@@ -542,3 +567,23 @@ async function migrateLocalDraftsToRemote(userId: string): Promise<void> {
   if (allSynced) await AsyncStorage.setItem(migrationKey, 'true')
 }
 
+export async function syncUnsyncedDraftMedia(userId: string): Promise<void> {
+  const drafts = await readLocalDraftsRaw()
+  const pending = drafts.filter(d =>
+    d.userId === userId &&
+    isUuid(d.remoteId) &&
+    (d.syncStatus === 'local' || d.syncStatus === 'failed') &&
+    d.media.some(m => !m.storagePath && !isRemoteUri(m.uri))
+  )
+  for (const draft of pending) {
+    const remoteId = draft.remoteId
+    if (!remoteId) continue
+    try {
+      const uploaded = await uploadDraftMedia(remoteId, draft.media, userId)
+      await syncDraftMediaRows(remoteId, userId, uploaded)
+      await upsertLocalDraft({ ...draft, syncStatus: 'synced', media: uploaded })
+    } catch {
+      // Leave as-is; will retry on next reconnect
+    }
+  }
+}

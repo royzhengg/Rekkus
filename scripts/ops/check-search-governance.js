@@ -42,25 +42,21 @@ requireTerms(
   'failure',
 )
 
+// B-509 refactor: pipeline.ts replaced by vector search (search_semantic RPC + HNSW indexes).
+// useSearch.ts now calls embedQuery + searchSemantic. analytics.search() still fires on every query.
 const searchHook = exists('lib/hooks/useSearch.ts') ? readText('lib/hooks/useSearch.ts') : ''
-for (const token of ['analytics_events']) {
+for (const token of ['analytics.search', 'embedQuery', 'searchSemantic']) {
   if (!searchHook.includes(token)) failures.push(`lib/hooks/useSearch.ts must retain ${token} search evidence.`)
 }
 
-const searchPipeline = exists('lib/search/pipeline.ts') ? readText('lib/search/pipeline.ts') : ''
-for (const token of [
-  'runSearchPipeline',
-  'SearchCandidate',
-  'fetchPlaceAutocompleteJson',
-]) {
-  if (!searchPipeline.includes(token)) failures.push(`lib/search/pipeline.ts must retain ${token} search evidence.`)
-}
-
-// Cuisine expansion logic moved to lib/services/search.ts in B-509
+// B-509: search_semantic RPC replaces old FTS pipeline. Cuisine synonyms now live in DB (search_synonyms table).
+// searchTextFallback is required as fallback when embeddings are not yet backfilled.
 const searchService = exists('lib/services/search.ts') ? readText('lib/services/search.ts') : ''
 for (const token of [
-  'CUISINE_SYNONYMS',
-  'expand_search_cuisines',
+  'searchSemantic',
+  'embedQuery',
+  'search_semantic',
+  'searchTextFallback',
 ]) {
   if (!searchService.includes(token)) failures.push(`lib/services/search.ts must retain ${token} search evidence.`)
 }
@@ -71,15 +67,19 @@ for (const token of ['CACHE_TTL_MS', 'MIN_AUTOCOMPLETE_LENGTH', 'inflight']) {
 }
 
 const schema = readSchemaSource()
-if (!/create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?expand_search_cuisines\b/i.test(schema)) {
-  failures.push('Supabase migrations must define public.expand_search_cuisines for deterministic search expansion.')
+if (!/create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?search_semantic\b/i.test(schema)) {
+  failures.push('Supabase migrations must define public.search_semantic for vector search.')
+}
+if (!/dish_embeddings_hnsw/i.test(schema)) {
+  failures.push('Supabase migrations must define dish_embeddings_hnsw HNSW index for semantic dish search.')
 }
 
-// B-585: require quality and generated test files
+// B-585 / B-509: require quality and generated test files
+// quality.test.ts now tests semantic search score thresholds and blended ranking.
 if (!exists('tests/unit/lib/search/quality.test.ts')) {
   failures.push(
     'tests/unit/lib/search/quality.test.ts is required for search quality governance. ' +
-    'Add golden ranking principle tests for text relevance, distance, popularity, and entity intent.'
+    'Add golden tests for semantic similarity thresholds and personalised score blending.'
   )
 }
 if (!exists('tests/unit/lib/search/generated.test.ts')) {
@@ -97,7 +97,7 @@ failures.push(
     searchDoc: exists('product/SEARCH.md') ? readText('product/SEARCH.md') : '',
     schemaSource: schema,
     searchServiceSource: searchService,
-    searchPipelineSource: searchPipeline,
+    searchPipelineSource: '',
     restaurantServiceSource: exists('lib/services/places.ts') ? readText('lib/services/places.ts') : '',
   }),
 )

@@ -69,7 +69,7 @@ export default function DishDetailScreen() {
     if (detail.dish) analytics.viewDish(user?.id ?? null, detail.dish.id, searchAttribution)
   }, [detail.dish, searchAttribution, user?.id])
 
-  async function handleBookmark() {
+  async function handleSave() {
     setOperationError(null)
     if (detail.saved && detail.collectionItems.length > 0) {
       setConfirmUnsave(true)
@@ -82,7 +82,7 @@ export default function DishDetailScreen() {
         void haptic.confirmSave()
       }
     } catch {
-      setOperationError('Could not update this bookmark. Please try again.')
+      setOperationError('Could not update this save. Please try again.')
     }
   }
 
@@ -136,7 +136,7 @@ export default function DishDetailScreen() {
           </IconButton>
           <IconButton
             accessibilityLabel={detail.saved ? 'Remove saved dish' : 'Save dish'}
-            onPress={() => requireAuth(() => { void handleBookmark() })}
+            onPress={() => requireAuth(() => { void handleSave() })}
           >
             <SaveIcon filled={detail.saved} />
           </IconButton>
@@ -154,7 +154,7 @@ export default function DishDetailScreen() {
           {detail.dish.cuisineType ? <Text style={styles.cuisine}>{detail.dish.cuisineType}</Text> : null}
           {detail.dish.place ? (
             <TouchableOpacity
-              style={styles.restaurant}
+              style={styles.placeLink}
               accessibilityRole="button"
               onPress={() => router.push(routes.placeDetail({
                 placeId: detail.dish?.place?.id ?? '',
@@ -165,8 +165,8 @@ export default function DishDetailScreen() {
                 ...(detail.dish?.place?.lng != null ? { lng: detail.dish.place.lng } : {}),
               }))}
             >
-              <Text style={styles.restaurantLabel}>At</Text>
-              <Text style={styles.restaurantName}>{detail.dish.place.name}</Text>
+              <Text style={styles.placeLabel}>At</Text>
+              <Text style={styles.placeName}>{detail.dish.place.name}</Text>
             </TouchableOpacity>
           ) : null}
           <Text style={styles.evidenceTitle}>Posts featuring this dish</Text>
@@ -201,7 +201,7 @@ export default function DishDetailScreen() {
       <RekkusActionSheet
         visible={confirmUnsave}
         title="Remove saved dish?"
-        subtitle="This dish is in a collection. Removing its bookmark also removes it from your collections."
+        subtitle="This dish is in a collection. Removing it also removes it from your collections."
         options={[
           { label: 'Keep saved', value: 'keep' },
           { label: 'Remove everywhere', value: 'remove', destructive: true },
@@ -210,7 +210,7 @@ export default function DishDetailScreen() {
           if (value !== 'remove') return
           void detail.toggleSaved(true).then(() => {
             void haptic.confirmSave()
-          }).catch(() => setOperationError('Could not remove this bookmark.'))
+          }).catch(() => setOperationError('Could not remove this save.'))
         }}
         onDismiss={() => setConfirmUnsave(false)}
       />
@@ -236,7 +236,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     content: { padding: spacing[5], gap: spacing[2] },
     name: { fontSize: fontSize['5xl'], fontWeight: fontWeight.bold, color: c.text },
     cuisine: { fontSize: fontSize.bodySm, color: c.text3 },
-    restaurant: {
+    placeLink: {
       marginTop: spacing[2],
       minHeight: 48,
       paddingHorizontal: spacing[3],
@@ -246,8 +246,8 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       backgroundColor: c.surface,
       justifyContent: 'center',
     },
-    restaurantLabel: { fontSize: fontSize.xs, color: c.text3 },
-    restaurantName: { fontSize: fontSize.md, color: c.text, fontWeight: fontWeight.semibold },
+    placeLabel: { fontSize: fontSize.xs, color: c.text3 },
+    placeName: { fontSize: fontSize.md, color: c.text, fontWeight: fontWeight.semibold },
     evidenceTitle: { marginTop: spacing[4], fontSize: fontSize.lg, color: c.text, fontWeight: fontWeight.semibold },
     error: { marginHorizontal: spacing[4], marginTop: spacing[3] },
   })
