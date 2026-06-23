@@ -4,6 +4,7 @@
 
 | Agent / Session | Task | Status | Files claimed | Started | Updated | Blockers |
 | --- | --- | --- | --- | --- | --- | --- |
+| Codex ui-dependency-typecheck-fix | Fix typecheck missing UI dependencies | active | package.json, package-lock.json, tests/unit/components/ui/ListSurface.test.tsx | 2026-06-23T01:57:22Z | 2026-06-23T01:57:22Z | None |
 | Codex saved-post-cover-cache-fix | Fix saved post cover cache and thumbnail extraction | completed | lib/hooks/useSavedPosts.ts, lib/services/posts/queries.ts, tests/unit/lib/services/posts.test.ts, tests/unit/lib/hooks/useSavedPosts.test.ts, docs/lessons/media.md, worklog.md | 2026-06-19T00:00:00Z | 2026-06-19T00:00:00Z | Saved-post first-page cache bumped to v2 so stale no-cover rows are ignored; post extraction now preserves null processed_url so thumbnail/raw cover fallback works. Focused Jest, typecheck, unsafe-any, scoped ESLint, architecture, circular-deps, docs, and coordination passed. |
 
 ## Completed / Released Work
