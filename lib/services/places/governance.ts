@@ -20,8 +20,8 @@ export async function recordPlaceObservation(input: {
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData.user?.id
   if (!userId) return
-  await supabase.from('restaurant_observations').insert({
-    restaurant_id: input.placeId ?? null,
+  await supabase.from('place_observations').insert({
+    place_id: input.placeId ?? null,
     user_id: userId,
     observation_type: input.observationType,
     observed_value: input.observedValue,
@@ -67,7 +67,7 @@ export async function submitDuplicatePlaceSuggestion(input: {
   reason?: string | undefined
 }) {
   const reason = input.reason ?? 'possible_duplicate_reported_by_user'
-  await recordPlaceAlias({
+  await recordPlaceProviderLink({
     placeId: input.placeId,
     provider: input.duplicateProvider,
     providerPlaceId: input.duplicateProviderPlaceId,
@@ -114,7 +114,7 @@ export async function submitCommunityVerification(input: {
     sourceType: 'first_party_user',
     reason: input.verificationType ?? 'details_look_right',
     afterSummary: { status: 'pending_review' },
-    complianceCategory: 'restaurant_data_independence',
+    complianceCategory: 'place_data_independence',
   })
 }
 
@@ -129,12 +129,12 @@ export async function recordPlaceAuditEvent(input: {
   afterSummary?: Record<string, Json>
   complianceCategory?: string
 }) {
-  await supabase.from('restaurant_audit_events').insert({
+  await supabase.from('place_audit_events').insert({
     actor_type: 'client',
     action: input.action,
     entity_type: input.entityType,
     entity_id: input.entityId ?? null,
-    restaurant_id: input.placeId ?? null,
+    place_id: input.placeId ?? null,
     source_type: input.sourceType ?? null,
     reason: input.reason ?? null,
     before_summary: input.beforeSummary ?? null,
@@ -152,8 +152,8 @@ export async function submitPlaceClaim(input: {
   const userId = userData.user?.id
   if (!userId) return
 
-  await supabase.from('restaurant_ownership_events').insert({
-    restaurant_id: input.placeId,
+  await supabase.from('place_ownership_events').insert({
+    place_id: input.placeId,
     event_type: 'claim_submitted',
     actor_id: userId,
     new_owner_id: userId,
@@ -164,7 +164,7 @@ export async function submitPlaceClaim(input: {
   })
 }
 
-export async function recordPlaceAlias(input: {
+export async function recordPlaceProviderLink(input: {
   placeId: string
   provider?: string | undefined
   providerPlaceId?: string | undefined
@@ -177,8 +177,8 @@ export async function recordPlaceAlias(input: {
   const userId = userData.user?.id
   if (!userId) return
 
-  await supabase.from('restaurant_aliases').insert({
-    restaurant_id: input.placeId,
+  await supabase.from('place_provider_links').insert({
+    place_id: input.placeId,
     provider: input.provider ?? null,
     provider_place_id: input.providerPlaceId ?? null,
     alias_name: input.aliasName ?? null,
@@ -188,6 +188,9 @@ export async function recordPlaceAlias(input: {
     created_by: userId,
   })
 }
+
+/** @deprecated Use recordPlaceProviderLink instead */
+export const recordPlaceAlias = recordPlaceProviderLink
 
 export async function recordPlaceMergeEvidence(input: {
   canonicalPlaceId: string
@@ -199,9 +202,9 @@ export async function recordPlaceMergeEvidence(input: {
   rollbackReference?: string
 }) {
   const { data: userData } = await supabase.auth.getUser()
-  await supabase.from('restaurant_merge_events').insert({
-    canonical_restaurant_id: input.canonicalPlaceId,
-    merged_restaurant_id: input.mergedPlaceId ?? null,
+  await supabase.from('place_merge_events').insert({
+    canonical_place_id: input.canonicalPlaceId,
+    merged_place_id: input.mergedPlaceId ?? null,
     actor_id: userData.user?.id ?? null,
     reason: input.reason,
     confidence: input.confidence ?? 0.5,
@@ -227,7 +230,7 @@ export async function reportDataRepair(input: {
   await supabase.from('data_repair_events').insert({
     entity_type: input.entityType,
     entity_id: input.entityId ?? null,
-    restaurant_id: input.placeId ?? null,
+    place_id: input.placeId ?? null,
     actor_id: userId,
     repair_type: input.repairType,
     source_type: 'user_report',

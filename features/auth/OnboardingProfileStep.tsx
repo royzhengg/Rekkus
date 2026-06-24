@@ -41,13 +41,13 @@ function ChevronLeft() {
 
 export default function OnboardingProfileStep() {
   const router = useRouter()
-  const { user, updateProfile } = useAuth()
+  const { user, updateProfile, pendingAppleFullName } = useAuth()
   const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
 
   const [username, setUsername] = useState('')
-  const [displayName, setDisplayName] = useState('')
+  const [displayName, setDisplayName] = useState(pendingAppleFullName ?? '')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 

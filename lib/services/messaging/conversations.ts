@@ -27,6 +27,26 @@ type ParticipantConversationRow = {
   conversations: ConversationRow | ConversationRow[] | null
 }
 
+type VisibleLastSeenRow = {
+  user_id: string
+  last_seen_at: string | null
+}
+
+function isVisibleLastSeenRow(value: unknown): value is VisibleLastSeenRow {
+  return isRecord(value) &&
+    typeof value.user_id === 'string' &&
+    (value.last_seen_at === null || typeof value.last_seen_at === 'string')
+}
+
+async function hydrateVisibleLastSeen(participants: ConversationParticipant[]): Promise<ConversationParticipant[]> {
+  const ids = [...new Set(participants.map(p => p.user_id).filter(Boolean))]
+  if (ids.length === 0) return participants
+  const { data } = await supabase.rpc('visible_last_seen_at', { p_user_ids: ids })
+  const rows = (Array.isArray(data) ? data : []).filter(isVisibleLastSeenRow)
+  const byUser = new Map(rows.map(row => [row.user_id, row.last_seen_at]))
+  return participants.map(p => ({ ...p, last_seen_at: byUser.get(p.user_id) ?? null }))
+}
+
 async function fetchParticipantConversationRows(
   currentUserId: string
 ): Promise<{ rows: ParticipantConversationRow[]; hasRequestState: boolean }> {
@@ -128,7 +148,7 @@ export async function fetchDirectConversations(
   const [{ data: otherParticipantData }, { data: messageData }] = await Promise.all([
     supabase.from('conversation_participants')
       .select(
-        'conversation_id, user_id, is_admin, users!conversation_participants_user_id_fkey(username, full_name, avatar_url, last_seen_at)'
+        'conversation_id, user_id, is_admin, users!conversation_participants_user_id_fkey(username, full_name, avatar_url)'
       )
       .in('conversation_id', conversationIds)
       .neq('user_id', currentUserId),
@@ -143,13 +163,20 @@ export async function fetchDirectConversations(
   ])
 
   const participantsByConversation = new Map<string, ConversationParticipant[]>()
+  const parsedParticipantRows: Array<{ conversationId: string; participant: ConversationParticipant }> = []
   for (const row of (otherParticipantData ?? [])) {
     const p = parseConversationParticipant(row)
     if (!p) continue
-    const existing = participantsByConversation.get(row.conversation_id) ?? []
-    existing.push(p)
-    participantsByConversation.set(row.conversation_id, existing)
+    parsedParticipantRows.push({ conversationId: row.conversation_id, participant: p })
   }
+  const hydratedParticipants = await hydrateVisibleLastSeen(parsedParticipantRows.map(row => row.participant))
+  hydratedParticipants.forEach((participant, index) => {
+    const conversationId = parsedParticipantRows[index]?.conversationId
+    if (!conversationId) return
+    const existing = participantsByConversation.get(conversationId) ?? []
+    existing.push(participant)
+    participantsByConversation.set(conversationId, existing)
+  })
 
   const lastMessageByConversation = new Map<string, DirectMessage>()
   for (const message of (messageData ?? [])) {
@@ -243,7 +270,7 @@ export async function fetchMessageRequests(currentUserId: string): Promise<Conve
   const [otherParticipantsRes, messagesRes] = await Promise.all([
     supabase.from('conversation_participants')
       .select(
-        'conversation_id, user_id, is_admin, users!conversation_participants_user_id_fkey(username, full_name, avatar_url, last_seen_at)'
+        'conversation_id, user_id, is_admin, users!conversation_participants_user_id_fkey(username, full_name, avatar_url)'
       )
       .in('conversation_id', conversationIds)
       .neq('user_id', currentUserId),
@@ -258,13 +285,20 @@ export async function fetchMessageRequests(currentUserId: string): Promise<Conve
   ])
 
   const participantsByConversation = new Map<string, ConversationParticipant[]>()
+  const parsedParticipantRows: Array<{ conversationId: string; participant: ConversationParticipant }> = []
   for (const row of otherParticipantsRes.data ?? []) {
     const p = parseConversationParticipant(row)
     if (!p) continue
-    const existing = participantsByConversation.get(row.conversation_id) ?? []
-    existing.push(p)
-    participantsByConversation.set(row.conversation_id, existing)
+    parsedParticipantRows.push({ conversationId: row.conversation_id, participant: p })
   }
+  const hydratedParticipants = await hydrateVisibleLastSeen(parsedParticipantRows.map(row => row.participant))
+  hydratedParticipants.forEach((participant, index) => {
+    const conversationId = parsedParticipantRows[index]?.conversationId
+    if (!conversationId) return
+    const existing = participantsByConversation.get(conversationId) ?? []
+    existing.push(participant)
+    participantsByConversation.set(conversationId, existing)
+  })
 
   const lastMessageByConversation = new Map<string, DirectMessage>()
   for (const message of messagesRes.data ?? []) {

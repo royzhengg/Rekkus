@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   View,
   Text,
@@ -351,6 +351,19 @@ export default function PlaceDetailScreen() {
   const hasRekkusRatings = rekkusRatings.food != null || rekkusRatings.vibe != null || rekkusRatings.cost != null
   const hasGoogleRating = loader.detail?.rating != null
 
+  const { placeId: bannerPlaceId, placeStatus: bannerStatus, closureSource, closureSignalAt, closureSignalMetadata } = loader
+  const bannerProvider = closureSource === 'provider_status'
+    ? (closureSignalMetadata?.provider as string | null) ?? null
+    : null
+
+  useEffect(() => {
+    if (!bannerPlaceId || !bannerStatus || bannerStatus === 'active') return
+    const ageDays = closureSignalAt
+      ? Math.floor((Date.now() - new Date(closureSignalAt).getTime()) / 86_400_000)
+      : null
+    analytics.viewClosureBanner(user?.id ?? null, bannerPlaceId, bannerStatus, closureSource ?? null, bannerProvider, ageDays)
+  }, [bannerPlaceId, bannerStatus, closureSource, closureSignalAt, bannerProvider, user?.id])
+
   const contentProps = {
     styles, colors, refreshing: loader.refreshing, refresh: loader.refresh,
     photoUrls: loader.photoUrls, width, detail: loader.detail,
@@ -359,6 +372,10 @@ export default function PlaceDetailScreen() {
     openAddress, openPhone, openWebsite, weekdayText, hoursExpanded, setHoursExpanded,
     todayIdx, todayText, popularDishes, sortedPosts, sortPosts, openSortSheet,
     openPlaceActions: () => setPlaceActionsSheetVisible(true), onPhotoPress: openGallery,
+    placeStatus: loader.placeStatus ?? undefined,
+    closureSource: loader.closureSource,
+    closureSignalAt: loader.closureSignalAt,
+    closureSignalMetadata: loader.closureSignalMetadata,
   }
   const sheetProps = {
     styles, colors, name: displayName, address: displayAddress,

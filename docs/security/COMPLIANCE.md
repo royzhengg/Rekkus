@@ -38,10 +38,10 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 
 | System/table | Owner | Sensitivity | Source | Retention | Deletion/export | Access model |
 | --- | --- | --- | --- | --- | --- | --- |
-| users | Product | User profile | User | Account lifetime | Included in deletion/export | Public select, owner mutation |
-| user_settings | Product | User-private settings, including media autoplay preference | User | Account lifetime | Included | Owner RLS |
-| posts | Product | Public app data | User | Account lifetime unless deleted | Included where user-owned | Public select, owner mutation |
-| post_photos | Product | Public media | User | Account lifetime unless deleted | Included as URLs/metadata | Public select, owner mutation |
+| users | Product | User profile shell and activity timestamp | User/system heartbeat | Account lifetime | Included in deletion/export | Public shell select; owner mutation; `last_seen_at` exposed only through activity-visibility-aware reads |
+| user_settings | Product | User-private settings, including private account, activity visibility, and media autoplay preferences | User | Account lifetime | Included | Owner RLS |
+| posts | Product | Public or approved-follower app data | User | Account lifetime unless deleted | Included where user-owned | `can_view_user_content()` gated select, owner mutation |
+| post_photos | Product | Public or approved-follower media | User | Account lifetime unless deleted | Included as URLs/metadata | `can_view_user_content()` gated select, owner mutation |
 | post_edit_events | Security | Audit evidence | System/user action | Compliance audit retention | Minimized audit rows; not normal public export | Owner insert/select via RLS |
 | post_drafts | Product | User-private draft content | User/autosave | Account lifetime unless discarded/published cleanup | Included for owner; autosaves recovery-only | Owner RLS |
 | post_draft_media | Product | User-private draft media metadata | User/autosave | Follows draft lifecycle; cleanup job pending | Included for owner | Owner RLS plus private storage policies |
@@ -65,12 +65,17 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | restaurant_merge_events | Data/Trust | Merge history | Admin/system | Audit retention | Audit-retained | Authenticated review, service/admin write |
 | data_repair_events | Data/Trust | Repair reports | User/admin/system | Audit retention or superseded | User-linked rows included where appropriate | Owner report select/insert, service/admin review |
 | user_blocks | Trust/Safety | User-private block graph | User | Account lifetime unless unblocked | Included for blocker | Owner RLS |
+| follow_requests | Product/Trust | User-private follow request workflow (`pending`, `approved`, `declined`, `cancelled`) | User action | Account lifetime; history retained for abuse investigation | Included for requester/target | Requester/target select; SECURITY DEFINER RPC mutation only |
+| follow_request_audit_events | Security | Follow request audit evidence | SECURITY DEFINER follow-request RPCs | Compliance audit retention | Minimized; not normal public export | Direct client access denied; unified in `platform_audit_events_view` |
+| social_events | Product/Activity | User-facing Alerts activity ledger | Source-of-truth social tables/RPCs | 2 years | Included in activity export; rebuildable from source tables where possible | Target-user select; read-state update only |
+| notification_deliveries | Notifications/Ops | Push delivery and retry state | Social event delivery worker/RPC enqueue | 90 days | Operational export normally excluded unless required | Service-role/worker only |
+| privacy_audit_events | Security | Private/public account transition audit evidence | SECURITY DEFINER settings RPC | 7 years unless legal hold requires longer | Exportable minimized privacy changes | Direct client access denied; unified in `platform_audit_events_view` |
 | content_reports | Trust/Safety | Moderation queue intake | User/support/system | Manual review/audit retention | Reporter-linked rows included where appropriate | Reporter insert/select, admin/service review |
 | moderation_actions | Trust/Safety | Moderation decision audit | Admin/system/service | Audit retention | Minimized; not normal export | Reporter-related select, admin/service write |
 | moderation_appeals | Trust/Safety | Appeal record | User/admin | Manual review/audit retention | Appellant-linked rows included | Appellant insert/select, admin/service review |
 | user_trust_profiles | Trust/Safety | Private trust/restriction state | System/admin | Account lifetime or review expiry | Included where user-linked | Owner select, admin/service write |
 | privacy_requests | Security | User-private legal request | User/support | Legal retention | User visible | Owner RLS |
-| analytics_events | Analytics | Internal telemetry, including coarse search `near_city`, search/provider fallback outcomes, create-post place search queries, no-results recovery queries, optional cuisine metadata, and search-attribution metadata (`search_session_id`, capped query, result type/position) when available | User behavior/system | 90-day raw retention, aggregate later | De-identify or delete link when required | Insert own, aggregate/public read |
+| analytics_events | Analytics | Internal telemetry, including coarse search `near_city`, search/provider fallback outcomes, create-post place search queries, no-results recovery queries, optional cuisine metadata, search-attribution metadata (`search_session_id`, capped query, result type/position), follow request state, and privacy-setting state when available | User behavior/system | 90-day raw retention, aggregate later | De-identify or delete link when required | Insert own, aggregate/public read |
 | feature_flag_overrides | Operations | Emergency feature flag rollback state | Engineering/admin | Until flag retirement or incident closure | Internal only | Service-role only |
 | feature_flag_audit_events | Security/Operations | Feature flag change audit evidence | Database trigger on runtime overrides | Compliance audit retention | Minimized; not normal export | Service-role only |
 | saved_search_audit_events | Security/Search | Saved search mutation audit evidence without raw query text | Database trigger on saved_searches | Compliance audit retention | Minimized; not normal export | Service-role only |
@@ -115,6 +120,23 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 - Collection/provider impact: no new provider call, permission, table with mutable user state, or persistent location store.
 - Security/RLS: raw analytics retention remains 90 days; the RPC is aggregate-only and bounded to a maximum 90-day lookback.
 - Rollback: stop passing attribution route params and ignore already-written metadata until raw analytics retention expires.
+
+### B-619 Compliance Impact Review
+
+- Data added: Apple Sign-In can store Apple relay email addresses as the user's Supabase account email; relay addresses are valid primary account emails and must not be normalized or rejected.
+- Provider impact: adds Apple as an iOS native auth provider through `expo-apple-authentication` and Supabase ID-token verification; raw Apple identity tokens and nonces are never persisted or logged.
+- Analytics impact: adds bounded auth funnel/account events with provider enum and failure reason enum only; no emails, tokens, raw provider payloads, or account identifiers beyond existing user_id are added to metadata.
+- Security/RLS: account linking/unlinking remains through Supabase Auth; unlinking is blocked when it would remove the final sign-in method. Auth audit events record OAuth success with provider/device context.
+- Rollback: hide Apple UI, disable Apple provider in Supabase/Auth config, and keep already-linked identities visible until users add or remove sign-in methods.
+
+### B-620 Compliance Impact Review
+
+- Data added: no new data is persisted server-side. Provider revocation state is derived client-side from `supabase.auth.getUser()` and cached in AsyncStorage (`auth:provider_state:v1`) as an advisory UX signal only.
+- Provider impact: no new provider API, permission, or quota. Detection reuses existing `getUser()` calls triggered on app startup and foreground; no background polling is added.
+- Analytics impact: adds three bounded provider-lifecycle events (`provider_revoked_detected`, `provider_reconnected`, `provider_reconnect_failed`) with `provider` enum and `reason` enum only; no emails, tokens, raw OAuth payloads, identity data, or account identifiers beyond existing `user_id` are added to metadata.
+- Security/RLS: `ProviderStateRecord` is advisory UX state and must never gate authentication, authorisation, permissions, or content access. Existing sessions remain valid independently of revocation detection. No new RLS surface or database table is introduced.
+- Reconnect flow reuses existing `linkIdentity` OAuth path; no new auth surface is added.
+- Rollback: remove the AppState listener and provider state tracking from AuthContext; set `providerState` to a constant empty record; remove revoked/connecting UI branches from ConnectedAccountsScreen. Existing sign-in and account-link flows are unaffected.
 
 ### B-572/B-576/B-578/B-579/B-580 Compliance Impact Review
 
@@ -161,6 +183,15 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 - Security/RLS: profile lists use existing collection RLS through the service layer; public profiles request only `unlisted`/`public` collections, while private topic follows remain out of the public profile identity surface.
 - Rollback: remove `profile_interaction` calls and keep the food-first profile UI; already-written events expire under the existing analytics raw-retention policy.
 
+### 2026-06-23 Private Account + Activity Visibility Compliance Impact Review
+
+- Data added: `follow_requests` workflow rows, `follow_request_audit_events`, bounded analytics events `follow_request_state_changed` and `privacy_setting_changed`, and activity-visibility-aware `last_seen_at` reads.
+- Provider impact: none. No new external provider, location permission, media provider call, or raw provider payload path.
+- Privacy impact: private account is content privacy, not account hiding. Avatar/display name/handle plus follower/following/review counts stay public; posts/media, captions, tags, place associations, collections, Top Spots, cuisine interests, search/recommendation-derived content, and unauthorized notification fanout are blocked until owner/approved-follower access.
+- Security/RLS: `can_view_user_content(viewer_id, target_id)` is the single SQL authority for user-owned content visibility and is `STABLE SECURITY DEFINER SET search_path = public`. Follow request mutations are idempotent RPCs; one pending request per requester/target is enforced by partial unique index; blocks cancel pending requests and remove follow access atomically.
+- Activity visibility: disabling `show_activity_status` stops heartbeat writes, clears `users.last_seen_at`, and makes messaging participant reads return `last_seen_at=null`.
+- Rollback: disable UI entry points and revert the B-621 migration in a rollback release; existing follow request/audit rows remain compliance evidence and can be ignored by clients.
+
 | saved_places | Product | User-private saved place intent | User | Account lifetime | Included | Owner RLS |
 | saved_dishes | Product | User-private canonical dish intent | User | Account lifetime | Included | Owner RLS |
 | collections | Product | User-private/shareable collection metadata | User | Account lifetime unless deleted | Included | Owner RLS; unlisted/public select |
@@ -186,6 +217,7 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | --- | --- | --- | --- | --- | --- | --- |
 | Google Places | Fallback autocomplete/details/text search | Restricted provider_google | Place IDs durable; selected-place content only through field-mask/provider-cache rules; raw autocomplete predictions are not permanent app data | Required when displaying Google-derived content | Field masks, session tokens, dedupe, cache, quota monitor | Disable fallback in provider gateway |
 | Google Maps | Map rendering | Restricted maps provider | Do not treat tiles/map content as restaurant data | Required by SDK/platform | Key restrictions and quota review | Disable map-dependent surfaces or switch provider |
+| Apple Sign-In | iOS native authentication provider | Auth provider | Apple relay emails are valid account emails; raw identity tokens are not persisted | App Store disclosure as auth provider | Supabase Auth rate limits and native nonce verification | Disable Apple provider in Supabase/Auth config |
 | OpenStreetMap | Active — place database seed (AU, ~80k–200k venues) + weekly delta refresh | open_osm / ODbL | "© OpenStreetMap contributors" attribution required on map/address display; ODbL allows commercial use; ADR-021 | Required when displaying OSM-sourced place data | `canonical_source = 'osm'` on imported rows; attribution string in all place detail screens | Delta refresh (`scripts/admin/osm/delta.ts`) never overwrites `community_verified`/`owner_verified` rows — logs delta to `restaurant_audit_events` only. Full kill switch: remove `osm-delta-refresh` from cron schedule in `operations/JOB_MANIFEST.md`. |
 | Supabase | Database/auth/storage/functions | Processor/platform | App data storage owner rules | Not user-visible attribution | Release quota/storage review | Feature flags, rollback, backups |
 | Expo | Builds, push, device APIs | SDK/platform | Push token/device handling only as needed | Store disclosure as needed | Beta cohort review | Disable push/feature flag |
@@ -220,6 +252,10 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | --- | --- | --- |
 | Auth identities and profile data | Account lifetime unless deleted | Included in account deletion/export where user-owned |
 | Posts, comments, reactions, follows, saves, saved places | Account lifetime unless deleted or moderated | Included where user-owned |
+| Follow requests | Account lifetime; terminal history retained while account exists | Included for requester/target; deleted with account unless legal hold applies |
+| Social events | 2 years | Included in activity history export; may be rebuilt from source-of-truth tables |
+| Notification deliveries | 90 days | Operational delivery state; excluded from normal user export unless legally required |
+| Privacy audit events | 7 years | Minimized privacy-change export; legal hold overrides deletion schedules |
 | Public post media | Account lifetime unless post/media is deleted | URLs/metadata included; storage cleanup follows media lifecycle |
 | Offline saved cache | Device-local best-effort cache, overwritten on refresh | Cleared by app/device data removal; server deletion remains source of truth |
 | Offline pending intents | Device-local reversible mutation IDs/state only, until replay or session clearing | Cleared after sync, non-retryable rejection, sign-out/account removal, or app/device data removal |
@@ -228,6 +264,8 @@ Use this block in risky backlog rows, ADRs, release notes, and owner docs:
 | Privacy requests and security incidents | Legal/audit retention | Minimized and retained when justified |
 | Provider cache | Provider terms and TTL/freshness policy; Place IDs may be retained as provider identifiers | Governed by provider terms and source attribution |
 | Messages (body + attachment) | Soft-deleted on user request; body and attachment_url nulled immediately for true erasure; storage file purged within 24h via cron job | Message row retained with deleted_at for audit and moderation continuity |
+
+Legal hold overrides deletion and retention schedules when legally required.
 
 ### B-239 Compliance Impact Review
 
@@ -310,6 +348,7 @@ Audit automatically or through controlled service paths:
 - content lifecycle (post/comment creation and deletion via `content_lifecycle_events` — no FK, survives cascade delete)
 - user profile audit (username, avatar, bio, display name changes via `user_profile_audit_events` — context stores field names only, never values; ISO A.12.4 gap closure, B-517)
 - collection audit (collection create, rename, delete, item add/remove, visibility change via `collection_audit_events` — no FK on collection_id so records survive collection deletion; B-518)
+- follow request audit (requested, cancelled, approved, declined, and block-cancelled transitions via `follow_request_audit_events`; no retention deletion; B-621)
 - feature flag audit (runtime override create/update/removal via `feature_flag_audit_events` — fail-closed database trigger prevents unaudited control changes; B-521)
 - saved search audit (saved search create/update/delete via `saved_search_audit_events` — context omits raw query text; B-553)
 - user top spots audit (top spot set/removed/reordered via `user_top_spots_audit_events` — user_id ON DELETE SET NULL, place_id no FK so records survive deletion; written via `record_top_spot_audit_event` SECURITY DEFINER RPC)

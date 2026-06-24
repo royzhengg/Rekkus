@@ -41,9 +41,13 @@ type LoaderResult = {
   topDishes: Array<{ name: string; dishId?: string }>
   resolvedGooglePlaceId: string | null
   setResolvedGooglePlaceId: (id: string | null) => void
+  placeStatus: string | null
+  closureSource: string | null
+  closureSignalAt: string | null
+  closureSignalMetadata: Record<string, unknown> | null
 }
 
-type PlaceRow = { id: string; google_place_id: string | null; google_photo_refs: string[]; primary_photo_source: string }
+type PlaceRow = { id: string; google_place_id: string | null; google_photo_refs: string[]; primary_photo_source: string; place_status: string; closure_signal_source: string | null; closure_signal_metadata: Record<string, unknown> | null; closure_signal_at: string | null }
 type ResolvedIds = { googlePlaceId: string | null; preloadedRow: PlaceRow | null }
 
 export function usePlaceDetailLoader({
@@ -68,6 +72,10 @@ export function usePlaceDetailLoader({
   const [resolvedGooglePlaceId, setResolvedGooglePlaceId] = useState<string | null>(
     routeGooglePlaceId && routeGooglePlaceId !== 'none' ? routeGooglePlaceId : null
   )
+  const [placeStatus, setPlaceStatus] = useState<string | null>(null)
+  const [closureSource, setClosureSource] = useState<string | null>(null)
+  const [closureSignalAt, setClosureSignalAt] = useState<string | null>(null)
+  const [closureSignalMetadata, setClosureSignalMetadata] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -124,6 +132,13 @@ export function usePlaceDetailLoader({
       const providerRefs = refs.length > 0 ? refs : cachedRefs
 
       const pid: string | null = placeRowResult?.id ?? null
+
+      if (placeRowResult) {
+        setPlaceStatus(placeRowResult.place_status)
+        setClosureSource(placeRowResult.closure_signal_source)
+        setClosureSignalAt(placeRowResult.closure_signal_at)
+        setClosureSignalMetadata(placeRowResult.closure_signal_metadata)
+      }
 
       if (placeResult) {
         setDetail(placeResult)
@@ -248,5 +263,9 @@ export function usePlaceDetailLoader({
     topDishes,
     resolvedGooglePlaceId,
     setResolvedGooglePlaceId,
-  }), [loading, refreshing, detail, photoUrls, placeId, saved, dbRatings, hasRecentPosts, topDishes, resolvedGooglePlaceId])
+    placeStatus,
+    closureSource,
+    closureSignalAt,
+    closureSignalMetadata,
+  }), [loading, refreshing, detail, photoUrls, placeId, saved, dbRatings, hasRecentPosts, topDishes, resolvedGooglePlaceId, placeStatus, closureSource, closureSignalAt, closureSignalMetadata])
 }

@@ -68,6 +68,10 @@ describe('profile place photo hydration', () => {
       google_place_id: 'gplace-1',
       google_photo_refs: ['provider-ref'],
       primary_photo_source: 'google',
+      place_status: 'active',
+      closure_signal_source: null,
+      closure_signal_metadata: null,
+      closure_signal_at: null,
     })
     mockGetPlaceDisplayPhoto.mockResolvedValue('https://example.com/provider.jpg')
 
@@ -86,6 +90,10 @@ describe('profile place photo hydration', () => {
       google_place_id: 'gplace-2',
       google_photo_refs: ['provider-ref-2'],
       primary_photo_source: 'google',
+      place_status: 'active',
+      closure_signal_source: null,
+      closure_signal_metadata: null,
+      closure_signal_at: null,
     })
     mockGetPlaceDisplayPhoto.mockResolvedValue('https://example.com/provider2.jpg')
 
@@ -104,6 +112,10 @@ describe('profile place photo hydration', () => {
       google_place_id: 'gplace-3',
       google_photo_refs: [],
       primary_photo_source: 'google',
+      place_status: 'active',
+      closure_signal_source: null,
+      closure_signal_metadata: null,
+      closure_signal_at: null,
     })
     mockGetPlaceDisplayPhoto.mockResolvedValue(null)
     mockFetchProviderDetail.mockResolvedValue({ photos: [{ photo_reference: 'fresh-ref' }] })
@@ -125,6 +137,10 @@ describe('profile place photo hydration', () => {
       google_place_id: 'gplace-4',
       google_photo_refs: [],
       primary_photo_source: 'google',
+      place_status: 'active',
+      closure_signal_source: null,
+      closure_signal_metadata: null,
+      closure_signal_at: null,
     })
     mockGetPlaceDisplayPhoto.mockResolvedValue(null)
     mockFetchProviderDetail.mockResolvedValue({ photos: [] })

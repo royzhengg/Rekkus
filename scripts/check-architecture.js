@@ -117,6 +117,27 @@ for (const file of walkFiles(['features', 'app', 'lib/hooks', 'lib/contexts'], {
   }
 }
 
+// Guardrail: raw DB type path must not appear in UI/hook/context layers — use lib/types/ aliases instead.
+const rawDbTypePattern = /Database\[['"]public['"]\]\[['"]Tables['"]\]/
+for (const file of walkFiles(['features', 'app', 'lib/hooks', 'lib/contexts'], { extensions: ['.ts', '.tsx'] })) {
+  const source = readText(file)
+  if (rawDbTypePattern.test(source)) {
+    console.error(`FAIL [DB-TYPE] ${file}: raw Database['public']['Tables'] access — import from @/lib/types instead.`)
+    failed = true
+  }
+}
+
+// Guardrail: direct .from('table') calls must not appear in UI/hook/context layers.
+// This catches bypasses where a helper obtains the supabase client without a direct import.
+const directFromPattern = /\.from\(['"][a-z_]+['"]\)/
+for (const file of walkFiles(['features', 'app', 'lib/hooks', 'lib/contexts'], { extensions: ['.ts', '.tsx'] })) {
+  const source = readText(file)
+  if (directFromPattern.test(source)) {
+    console.error(`FAIL [DB-QUERY] ${file}: .from() table access — move query to lib/services/{domain}/queries.ts.`)
+    failed = true
+  }
+}
+
 // Guardrail: MessageList FlatList must handle initial scroll independently of isAtBottom.
 // Without needsInitialScroll, an initial onScroll event at y=0 sets isAtBottom=false before
 // onContentSizeChange fires, so the auto-scroll to latest message silently never runs.

@@ -34,6 +34,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: `com.anonymous.rekkus${suffix}`,
       buildNumber: iosBuildNumber,
+      usesAppleSignIn: true,
       config: {
         googleMapsApiKey: googleMapsKey,
       },
@@ -68,6 +69,7 @@ export default {
     },
     plugins: [
       "expo-router",
+      "expo-apple-authentication",
       [
         "@sentry/react-native/expo",
         {

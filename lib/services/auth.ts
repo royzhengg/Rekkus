@@ -1,10 +1,13 @@
 import { supabase } from '@/lib/supabase'
+import type { AuthProvider, OAuthProvider } from '@/lib/utils/authProviders'
 import type { Json } from '@/types/database'
 import type { Session, User, UserIdentity } from '@supabase/supabase-js'
 
 export type AuthSession = Session
 export type AuthUser = User
 export type AuthIdentity = UserIdentity
+export type { AuthProvider, OAuthProvider } from '@/lib/utils/authProviders'
+export { formatLinkedAuthProviders } from '@/lib/utils/authProviders'
 
 export async function getCurrentUser() {
   const { data, error } = await supabase.auth.getUser()
@@ -64,12 +67,33 @@ export function subscribeToAuthStateChange(onSessionChanged: (session: AuthSessi
   return () => data.subscription.unsubscribe()
 }
 
-export async function beginGoogleSignIn(redirectTo: string): Promise<{ url: string | null; error: string | null }> {
+export async function beginOAuthSignIn(
+  provider: OAuthProvider,
+  redirectTo: string
+): Promise<{ url: string | null; error: string | null }> {
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
+    provider,
     options: { redirectTo },
   })
   return { url: data.url ?? null, error: error?.message ?? null }
+}
+
+export async function beginGoogleSignIn(redirectTo: string): Promise<{ url: string | null; error: string | null }> {
+  return beginOAuthSignIn('google', redirectTo)
+}
+
+export async function signInWithIdToken(
+  provider: OAuthProvider,
+  token: string,
+  nonce?: string
+): Promise<string | null> {
+  // `nonce` is required for Apple ID-token auth; other providers should omit it unless their token contains a nonce claim.
+  const { error } = await supabase.auth.signInWithIdToken({
+    provider,
+    token,
+    ...(nonce ? { nonce } : {}),
+  })
+  return error?.message ?? null
 }
 
 export async function resetPasswordForEmail(email: string, redirectTo: string): Promise<string | null> {
@@ -77,12 +101,33 @@ export async function resetPasswordForEmail(email: string, redirectTo: string): 
   return error?.message ?? null
 }
 
-export async function beginGoogleLink(redirectTo: string): Promise<{ url: string | null; error: string | null }> {
+export async function beginOAuthLink(
+  provider: OAuthProvider,
+  redirectTo: string
+): Promise<{ url: string | null; error: string | null }> {
   const { data, error } = await supabase.auth.linkIdentity({
-    provider: 'google',
+    provider,
     options: { redirectTo },
   })
   return { url: data.url ?? null, error: error?.message ?? null }
+}
+
+export async function beginGoogleLink(redirectTo: string): Promise<{ url: string | null; error: string | null }> {
+  return beginOAuthLink('google', redirectTo)
+}
+
+export async function linkIdentityWithIdToken(
+  provider: OAuthProvider,
+  token: string,
+  nonce?: string
+): Promise<string | null> {
+  // `nonce` is required for Apple ID-token auth; other providers should omit it unless their token contains a nonce claim.
+  const { error } = await supabase.auth.linkIdentity({
+    provider,
+    token,
+    ...(nonce ? { nonce } : {}),
+  })
+  return error?.message ?? null
 }
 
 export async function unlinkIdentity(identity: AuthIdentity): Promise<string | null> {
@@ -95,10 +140,17 @@ export async function deleteAccount(): Promise<string | null> {
   return error?.message ?? null
 }
 
+// Returns null on network/auth failure — distinguishable from a genuinely empty identity list ([]).
+export async function refreshCurrentUserIdentities(): Promise<AuthIdentity[] | null> {
+  const { data, error } = await supabase.auth.getUser()
+  if (error) return null
+  return data.user?.identities ?? []
+}
+
 // Typed context for auth audit events (B-520).
 // ip_hash is server-side only (auth-audit-hook Edge Function); never send from client.
 export interface AuthAuditContext extends Record<string, Json | undefined> {
-  provider?: 'email' | 'google'
+  provider?: AuthProvider
   device_os?: 'ios' | 'android' | 'web' | 'unknown'
   device_version?: string
 }

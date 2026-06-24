@@ -127,6 +127,7 @@ The conversation composer uses a compact icon tray instead of a text-only attach
 ## Guardrails
 
 - Keep private message body and attachment URL out of all analytics events and server logs.
+- Activity visibility is opt-in by setting. When `show_activity_status=false`, heartbeat writes stop, `users.last_seen_at` is cleared, and participant/inbox reads return `last_seen_at=null`; UI falls back to no active dot and handle-based subtitles.
 - Do not add message search, public inbox counts, or growth prompts before moderation and blocking paths are confirmed working.
 - Do not send message body preview in push notification payloads; use generic copy only.
 - All group mutations (create, add member, remove member, promote admin) must go through security-definer RPCs — never direct table inserts.

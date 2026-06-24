@@ -50,6 +50,9 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 | Screen             | File                                  | Status  |
 | ------------------ | ------------------------------------- | ------- |
 | Settings hub       | `app/settings/index.tsx`              | ✅ Done |
+| Notification settings | `app/settings/notifications.tsx` | ✅ Done |
+| Privacy and social settings | `app/settings/privacy-social.tsx` | ✅ Done |
+| Appearance and playback settings | `app/settings/appearance-playback.tsx` | ✅ Done |
 | Edit profile       | `app/settings/edit-profile.tsx`       | ✅ Done |
 | Change email       | `app/settings/change-email.tsx`       | ✅ Done |
 | Change password    | `app/settings/change-password.tsx`    | ✅ Done |
@@ -122,8 +125,13 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 ### Alerts
 
 - Not a bottom nav tab — accessible via bell icon in Feed header
-- Empty state with bell icon and copy
-- Like, comment, follow notifications from Supabase
+- `Activity` / `Requests (N)` filters backed by `social_events`; `N` counts pending incoming follow requests only
+- Follow request shortcut row in Activity switches to Requests instead of duplicating the queue inline
+- Premium request cards show avatar, display name, username, account visibility, relative time, Approve, and Delete
+- Bulk approve/delete lives behind the Requests overflow menu with confirmation
+- Private-to-public conversion warns that pending requests will be approved, then reports the approved count in a toast
+- Empty states with bell/person icon and copy
+- Like, comment, reply, follow, and follow-request activity from the canonical activity ledger
 - Pull-to-refresh
 - Auth gate on mount — guests are prompted before accessing
 
@@ -164,6 +172,9 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 
 - Large food identity header: avatar, display name, handle, location, and primary Posts / Followers / Following stats
 - Share and settings actions sit in the header; Edit profile remains the signed-in profile owner action
+- Private account mode is enforced server-side through `can_view_user_content(viewer_id, target_id)`. Private profiles are not hidden profiles: avatar/display name/handle, follower count, following count, and review count remain visible by product decision.
+- Private profile content is locked until the viewer is the owner or an approved follower: posts/media, collections, Top Spots, Favourite Cuisines, location, captions, tags, place associations, search/recommendation-derived content, and notification fanout stay hidden.
+- Follow requests back private profiles. `follows` stores approved relationships only; pending requests never count as followers and never unlock content.
 - **Top Spots**: horizontal ranked photo cards; manual picks from `user_top_spots` table take precedence — if none are set, falls back to algorithmic derivation (places ranked by post count/rating/recency, enriched by saved places). Cards prefer Rekkus post photos before cached/provider photo refs
 - **Manage Top Spots** (`app/manage-top-spots.tsx`): full screen for picking and ordering up to 3 places (any place via search — Rekkus DB + Google Places fallback). Picks saved to `user_top_spots` table in Supabase and reflected on both own and other user profiles
 - **Favourite Cuisines**: auto-generated from post cuisine data through the profile identity view-model
@@ -176,7 +187,7 @@ Direct messaging is live behind `directMessages: enabled: true`. Not a bottom na
 
 - Accessible by tapping any creator name in feed, post detail, or search
 - Same food-first identity header, Top Spots, Favourite Cuisines, and Posts / Collections tabs
-- Follow + Message buttons (Follow auth-gated; Message is auth-gated and opens/reuses a direct thread behind `directMessages`)
+- Follow + Message buttons (Follow auth-gated; Message is auth-gated and opens/reuses a direct thread behind `directMessages`). Private accounts show `Follow → Requested → Following`; owners approve or decline requests from Privacy & Social settings.
 - Followers / Following stats open `app/user/[username]/follows.tsx`; counts and lists refresh on focus, follow/unfollow, offline sync, and realtime follow changes
 - Posts are paginated (30/page, client-side) via `usePagedList`; public Top Spots load manual picks via `fetchTopSpotsWithDetails` first, falling back to post-derived spots; Collections shows only shareable collections
 
@@ -240,7 +251,7 @@ New accounts are routed through a 3-step onboarding sequence after credentials a
 
 After completing onboarding, the feed shows a one-time dismissable nudge banner with "Post a dish" and "Explore nearby" CTAs. The nudge reads the AsyncStorage flag on mount, shows once, then clears the key.
 
-Google OAuth new-user detection: after OAuth success, `LoginScreen` calls `fetchProfile(userId)` — if `username` is null/empty, routes to `/(auth)/onboarding-profile` instead of feed.
+OAuth new-user detection: after Google or Apple OAuth success, `LoginScreen` calls `fetchProfile(userId)` — if `username` is null/empty, routes to `/(auth)/onboarding-profile` instead of feed.
 
 Existing email login paths are unchanged.
 
@@ -250,28 +261,32 @@ Existing email login paths are unchanged.
 - Email + password sign-up → routed to 3-step onboarding (B-240)
 - Profile setup requires 3+ food interests stored as `user_topic_follows` for initial Discover ranking.
 - Google OAuth (WebBrowser + token extraction + setSession); new users detected by missing `profiles.username` and routed to onboarding
+- Apple Sign-In on iOS uses native `expo-apple-authentication` with nonce-secured Supabase ID-token auth. Apple relay emails (`@privaterelay.appleid.com`) are valid primary account emails.
 - Forgot password — sends reset email via `resetPasswordForEmail`; success state shows inbox prompt
 - Password recovery deep link — `DeepLinkHandler` in `_layout.tsx` parses recovery tokens from `rekkus://` URL, sets session, navigates to reset-password screen
 - Reset password screen — sets new password via `supabase.auth.updateUser({ password })`; navigates to feed on success
 - Session persistence via Supabase (expo-sqlite/localStorage)
 - Soft auth gate — guests browse freely, prompted on interaction
-- `AuthContext` — user, session, loading; signIn/signUp/updateProfile/signInWithGoogle/resetPasswordForEmail/linkGoogle/unlinkIdentity/signOut
+- `AuthContext` — user, session, loading; signIn/signUp/updateProfile/provider sign-in/resetPasswordForEmail/provider link/unlink/signOut
 - `AuthGateContext` — `requireAuth()` shows bottom sheet modal if not signed in
 - `AuthPromptModal` — bottom sheet with "Join Rekkus." CTA
 
 ### Settings
 
-- Settings hub with sections: Account, Notifications, Privacy, Appearance, About, Danger zone
+- Settings hub uses a Control Dock layout: profile card, fast control summaries, Discovery & taste, Social boundaries, Account & security, and Data/privacy/app.
 - Toggles persisted to `user_settings` Supabase table (upsert on change)
-- **Appearance / Theme**: 3-way selector — Light, Dark, Follow OS. Stored as `theme_mode TEXT ('light'|'dark'|'system')` in `user_settings`. `'system'` resolves via `useColorScheme()` at runtime. Map tiles (Google Maps) apply a dark tile style (`constants/mapStyles.ts`) when dark mode is active.
-- **Appearance / Autoplay videos**: stored as `autoplay_videos BOOLEAN DEFAULT TRUE`; muted post autoplay is limited to the visible active feed/detail video and is disabled whenever OS Reduce Motion is enabled.
-- Notification toggles include likes, comments/replies, followers, mentions/tags, and private messages
+- Control Dock summary rows open sheets for existing settings: notifications, privacy mode, interaction rules, theme, video playback, and activity visibility.
+- **Theme**: 3-way selector — Light, Dark, System. Stored as `theme_mode TEXT ('light'|'dark'|'system')` in `user_settings`. `'system'` resolves via `useColorScheme()` at runtime. Map tiles (Google Maps) apply a dark tile style (`constants/mapStyles.ts`) when dark mode is active.
+- **Video playback**: stored as `autoplay_videos BOOLEAN DEFAULT TRUE`; muted post autoplay is limited to the visible active feed/detail video and is disabled whenever OS Reduce Motion is enabled.
+- Notification controls include likes, comments/replies, followers, mentions/tags, and private messages
+- Planned taste/social rows are labelled as planned until backing schema/routes ship: taste profile, home area, hidden dishes/places, recommendation controls, saved defaults, message controls, muted accounts, blocked accounts, and login sessions.
 - Edit profile: avatar upload (expo-image-picker → Supabase Storage), username, display name, bio
 - Change email: re-auth then `supabase.auth.updateUser({ email })`
 - Change password: re-auth then `supabase.auth.updateUser({ password })`
-- Connected accounts: shows Google identity from `user.identities`; connect via `linkIdentity`; disconnect via `unlinkIdentity` (blocked if sole identity)
-- Sign out: confirmation alert → `supabase.auth.signOut()`
-- Delete account: confirmation alert → contact support prompt
+- Connected accounts: derives Email, Apple, and Google from Supabase `user.identities`; connect via provider-agnostic `linkIdentity`; disconnect via `unlinkIdentity` (blocked if sole sign-in method). Apple linking is offered on iOS; linked Apple identities remain visible on Android.
+- Provider revocation detection (B-620): Apple and Google identities revoked outside Rekkus are detected on app startup and foreground. Revoked providers show "Reconnect" in Connected Accounts with a "Disconnected outside Rekkus" sublabel; tapping re-runs the OAuth link flow. State is persisted locally across sessions and self-heals if the user re-authorises the app externally. Advisory only — does not affect the active session.
+- Sign out: confirmation sheet → `supabase.auth.signOut()`
+- Delete account: Privacy and data screen confirmation sheet → `delete_own_account()` RPC
 
 ### Compliance and trust gaps
 

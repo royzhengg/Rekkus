@@ -362,7 +362,16 @@ export async function createUserPlace(input: UserPlaceInput): Promise<string | n
   return data ?? null
 }
 
-type PlaceRow = { id: string; google_place_id: string | null; google_photo_refs: string[]; primary_photo_source: string }
+type PlaceRow = {
+  id: string
+  google_place_id: string | null
+  google_photo_refs: string[]
+  primary_photo_source: string
+  place_status: string
+  closure_signal_source: string | null
+  closure_signal_metadata: Record<string, unknown> | null
+  closure_signal_at: string | null
+}
 
 function parsePlaceRow(value: unknown): PlaceRow | null {
   if (!isRecord(value) || typeof value.id !== 'string') return null
@@ -373,12 +382,18 @@ function parsePlaceRow(value: unknown): PlaceRow | null {
       ? value.google_photo_refs.filter((ref): ref is string => typeof ref === 'string')
       : [],
     primary_photo_source: typeof value.primary_photo_source === 'string' ? value.primary_photo_source : 'rekkus_post',
+    place_status: typeof value.place_status === 'string' ? value.place_status : 'active',
+    closure_signal_source: typeof value.closure_signal_source === 'string' ? value.closure_signal_source : null,
+    closure_signal_metadata: isRecord(value.closure_signal_metadata) ? value.closure_signal_metadata : null,
+    closure_signal_at: typeof value.closure_signal_at === 'string' ? value.closure_signal_at : null,
   }
 }
 
+const PLACE_ROW_SELECT = 'id, google_place_id, google_photo_refs, primary_photo_source, place_status, closure_signal_source, closure_signal_metadata, closure_signal_at'
+
 export async function fetchPlaceRow(id: string): Promise<PlaceRow | null> {
   const { data } = await supabase.from('places')
-    .select('id, google_place_id, google_photo_refs, primary_photo_source')
+    .select(PLACE_ROW_SELECT)
     .eq('id', id)
     .maybeSingle()
   return parsePlaceRow(data)
@@ -409,10 +424,42 @@ export async function fetchOsmPlaceDetail(placeId: string): Promise<OsmPlaceDeta
 
 export async function fetchPlaceRowByGooglePlaceId(googlePlaceId: string): Promise<PlaceRow | null> {
   const { data } = await supabase.from('places')
-    .select('id, google_place_id, google_photo_refs, primary_photo_source')
+    .select(PLACE_ROW_SELECT)
     .eq('google_place_id', googlePlaceId)
     .maybeSingle()
   return parsePlaceRow(data)
+}
+
+/**
+ * Records a provider closure signal for a venue.
+ * NOT called from page view — use from a scheduled sync or admin action.
+ * For Google OPERATIONAL: call supabase.rpc('reopen_place', { p_place_id, p_source: 'google_operational' })
+ */
+export async function applyProviderClosureSignal(
+  placeId: string,
+  provider: string,
+  providerStatus: string,
+  normalizedStatus: 'permanently_closed' | 'temporarily_closed',
+): Promise<void> {
+  const { data: place } = await supabase
+    .from('places')
+    .select('status_locked')
+    .eq('id', placeId)
+    .maybeSingle()
+  if (!place || place.status_locked) return
+
+  const confidence = normalizedStatus === 'permanently_closed' ? 0.95 : 0.80
+
+  const { error } = await supabase.from('place_closure_signals').insert({
+    place_id: placeId,
+    signal_type: 'provider_status',
+    signal_value: 'closed',
+    confidence,
+    metadata: { provider, business_status: providerStatus, normalized_status: normalizedStatus },
+    expires_at: null,
+  })
+  // Unique constraint violation (23505) means an identical active signal already exists — ignore.
+  if (error && (error as { code: string }).code !== '23505') throw error
 }
 
 export function cachePlaceGoogleData(

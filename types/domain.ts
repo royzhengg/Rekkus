@@ -88,6 +88,20 @@ export type CuisineOption = {
   aliases?: string[] | undefined
 }
 
+export type TaxonomyType = 'cuisine' | 'food_category' | 'venue_type' | 'dietary' | 'style'
+
+export type TaxonomyNode = {
+  id: string
+  slug: string
+  name: string
+  taxonomyType: TaxonomyType
+  parentId: string | null
+  path: string
+  metadata: Record<string, unknown>
+}
+
+export type Cuisine = TaxonomyNode & { taxonomyType: 'cuisine' }
+
 export interface Post {
   id: number
   dbId: string

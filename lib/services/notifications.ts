@@ -56,6 +56,8 @@ export type NotifyPayload =
   | { type: 'like'; actorId: string; postId: string }
   | { type: 'comment'; actorId: string; postId: string }
   | { type: 'follow'; actorId: string; followedId: string }
+  | { type: 'follow_request'; actorId: string; targetId: string }
+  | { type: 'follow_request_approved'; actorId: string; requesterId: string }
   | { type: 'comment_reply'; actorId: string; commentId: string }
   | { type: 'message'; actorId: string; conversationId: string; messageId: string }
 

@@ -17,7 +17,7 @@ Retention should come from repeat food utility: saved intent, revisits, collecti
 - Saved places map/list and post-visit prompt inside `Saved > Places`.
 - Post-visit prompt near saved locations.
 - Liked profile grid; Profile Saved action opens the unified Saved destination.
-- Alerts for likes, comments, follows, and replies.
+- Alerts for likes, comments, follows, replies, and follow-request workflow events.
 
 ## Signals
 

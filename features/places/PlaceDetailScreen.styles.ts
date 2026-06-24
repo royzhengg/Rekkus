@@ -51,6 +51,23 @@ export function makeStyles(c: ReturnType<typeof useThemeColors>) {
       marginBottom: spacing.px14,
     },
     improveButtonText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.semibold, color: c.text2 },
+    closureBanner: {
+      backgroundColor: c.ratingBg,
+      borderRadius: radius.md3,
+      padding: spacing[3],
+      marginTop: spacing[2],
+      marginBottom: spacing[4],
+      gap: spacing.px3,
+    },
+    closureBannerText: {
+      fontSize: fontSize.base,
+      fontWeight: fontWeight.semibold,
+      color: c.ratingText,
+    },
+    closureBannerSource: {
+      fontSize: fontSize.bodySm,
+      color: c.ratingText,
+    },
     ratingsCard: {
       backgroundColor: c.surface,
       borderRadius: radius.md3,

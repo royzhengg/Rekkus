@@ -1,6 +1,7 @@
+import * as AppleAuthentication from 'expo-apple-authentication'
 import { useRouter } from 'expo-router'
-import React, { useState, useMemo } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
+import React, { useEffect, useState, useMemo } from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Svg, Path } from 'react-native-svg'
 import { ArrowLeft } from '@/components/icons'
@@ -11,6 +12,8 @@ import { fontSize, fontWeight, letterSpacing, lineHeight } from '@/constants/Typ
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import type { AuthIdentity } from '@/lib/services/auth'
+import { deriveLinkedAuthProviders, type AuthProvider as AuthProviderName, type OAuthProvider } from '@/lib/utils/authProviders'
 
 function GoogleIcon() {
   return (
@@ -37,58 +40,149 @@ function GoogleIcon() {
 
 export default function ConnectedAccountsScreen() {
   const router = useRouter()
-  const { user, linkGoogle, unlinkIdentity } = useAuth()
+  const { user, linkIdentity, unlinkIdentity, providerState, reconnectProvider } = useAuth()
   const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  const [loading, setLoading] = useState(false)
+  const [pendingProvider, setPendingProvider] = useState<AuthProviderName | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [appleAvailable, setAppleAvailable] = useState(false)
 
   const identities = user?.identities ?? []
+  const linkedProviders = deriveLinkedAuthProviders(user)
+  const knownIdentityCount = linkedProviders.length
+  const emailIdentity = identities.find(i => i.provider === 'email')
+  const appleIdentity = identities.find(i => i.provider === 'apple')
   const googleIdentity = identities.find(i => i.provider === 'google')
-  const isGoogleConnected = !!googleIdentity
-  // Safe to unlink only if another identity exists (email/password or other provider)
-  const canUnlinkGoogle = identities.length > 1
+  const showApple = appleAvailable || !!appleIdentity
 
-  async function handleGoogleConnect() {
+  useEffect(() => {
+    if (Platform.OS !== 'ios') {
+      setAppleAvailable(false)
+      return
+    }
+    let cancelled = false
+    void AppleAuthentication.isAvailableAsync()
+      .then(available => {
+        if (!cancelled) setAppleAvailable(available)
+      })
+      .catch(() => {
+        if (!cancelled) setAppleAvailable(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  function identityEmail(identity: AuthIdentity | undefined): string | null {
+    const identityData: unknown = identity?.identity_data
+    if (typeof identityData !== 'object' || identityData === null) return null
+    const email = (identityData as { email?: unknown }).email
+    return typeof email === 'string' ? email : null
+  }
+
+  async function handleConnect(provider: OAuthProvider) {
     setError(null)
     if (!requireOnline()) {
       setError('Reconnect to connect an account.')
       return
     }
-    setLoading(true)
-    const err = await linkGoogle()
-    setLoading(false)
+    setPendingProvider(provider)
+    const err = await linkIdentity(provider)
+    setPendingProvider(null)
     if (err) setError(err)
   }
 
-  async function handleGoogleDisconnect() {
-    if (!googleIdentity) return
+  async function handleReconnect(provider: OAuthProvider) {
+    setError(null)
+    if (!requireOnline()) {
+      setError('Reconnect to re-link your account.')
+      return
+    }
+    setPendingProvider(provider)
+    const err = await reconnectProvider(provider)
+    setPendingProvider(null)
+    if (err) setError(err)
+  }
+
+  async function disconnect(identity: AuthIdentity, provider: AuthProviderName) {
+    setError(null)
+    setPendingProvider(provider)
+    const err = await unlinkIdentity(identity)
+    setPendingProvider(null)
+    if (err) setError(err)
+  }
+
+  async function handleDisconnect(identity: AuthIdentity | undefined, provider: AuthProviderName) {
+    if (!identity) return
     if (!requireOnline()) {
       setError('Reconnect to disconnect an account.')
       return
     }
-    if (!canUnlinkGoogle) {
+    if (knownIdentityCount <= 1) {
       Alert.alert(
         'Cannot disconnect',
-        'Google is your only sign-in method. Set a password first before disconnecting.'
+        `${providerLabel(provider)} is your only sign-in method. Add another sign-in method before disconnecting.`
       )
       return
     }
-    Alert.alert('Disconnect Google', 'Are you sure you want to remove Google sign-in?', [
+    Alert.alert(`Disconnect ${providerLabel(provider)}`, `Are you sure you want to remove ${providerLabel(provider)} sign-in?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Disconnect',
         style: 'destructive',
-        onPress: () => { void (async () => {
-          setError(null)
-          setLoading(true)
-          const err = await unlinkIdentity(googleIdentity)
-          setLoading(false)
-          if (err) setError(err)
-        })() },
+        onPress: () => { void disconnect(identity, provider) },
       },
     ])
+  }
+
+  function renderAction(provider: OAuthProvider, identity: AuthIdentity | undefined) {
+    const pending = pendingProvider === provider
+    if (pending || providerState[provider] === 'connecting') {
+      return <ActivityIndicator size="small" color={colors.text3} />
+    }
+    // Reconnect: identity must exist (was previously linked) AND state is revoked.
+    // If identity is undefined (never linked or intentionally disconnected) → show Connect, not Reconnect.
+    if (identity && providerState[provider] === 'revoked') {
+      return (
+        <TouchableOpacity
+          onPress={() => { void handleReconnect(provider) }}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`Reconnect ${providerLabel(provider)}`}
+          disabled={pendingProvider !== null}
+        >
+          <Text style={styles.actionConnect}>Reconnect</Text>
+        </TouchableOpacity>
+      )
+    }
+    if (identity) {
+      return (
+        <TouchableOpacity
+          onPress={() => { void handleDisconnect(identity, provider) }}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`Disconnect ${providerLabel(provider)}`}
+          disabled={pendingProvider !== null}
+        >
+          <Text style={styles.actionDisconnect}>Disconnect</Text>
+        </TouchableOpacity>
+      )
+    }
+    if (provider === 'apple' && !appleAvailable) {
+      return <Text style={styles.unavailableText}>Unavailable</Text>
+    }
+    return (
+      <TouchableOpacity
+        onPress={() => { void handleConnect(provider) }}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`Connect ${providerLabel(provider)}`}
+        disabled={pendingProvider !== null}
+      >
+        <Text style={styles.actionConnect}>Connect</Text>
+      </TouchableOpacity>
+    )
   }
 
   return (
@@ -109,29 +203,55 @@ export default function ConnectedAccountsScreen() {
 
       <View style={styles.scroll}>
         {error ? <ErrorMessage title="Could not update connected account" message={error} /> : null}
-        <Text style={styles.sectionHeader}>SOCIAL</Text>
+        <Text style={styles.sectionHeader}>SIGN-IN METHODS</Text>
         <View style={styles.card}>
+          <View style={styles.row}>
+            <View style={styles.emailIcon}>
+              <Text style={styles.emailIconText}>@</Text>
+            </View>
+            <View style={styles.rowMeta}>
+              <Text style={styles.rowLabel}>Email</Text>
+              <Text style={styles.rowSublabel}>
+                {identityEmail(emailIdentity) ?? user?.email ?? (emailIdentity ? 'Connected' : 'Not connected')}
+              </Text>
+            </View>
+            <Text style={emailIdentity ? styles.connectedText : styles.unavailableText}>
+              {emailIdentity ? 'Connected' : 'Not connected'}
+            </Text>
+          </View>
+          <View style={styles.divider} />
+          {showApple ? (
+            <>
+              <View style={styles.row}>
+                <View style={styles.appleIcon}>
+                  <Text style={styles.appleIconText}>A</Text>
+                </View>
+                <View style={styles.rowMeta}>
+                  <Text style={styles.rowLabel}>Apple</Text>
+                  {appleIdentity && providerState['apple'] === 'revoked' ? (
+                    <Text style={styles.rowSublabelWarning}>Disconnected outside Rekkus</Text>
+                  ) : appleIdentity ? (
+                    <Text style={styles.rowSublabel}>{identityEmail(appleIdentity) ?? 'Connected'}</Text>
+                  ) : Platform.OS === 'ios' ? (
+                    <Text style={styles.rowSublabel}>Use Sign in with Apple</Text>
+                  ) : null}
+                </View>
+                {renderAction('apple', appleIdentity)}
+              </View>
+              <View style={styles.divider} />
+            </>
+          ) : null}
           <View style={styles.row}>
             <GoogleIcon />
             <View style={styles.rowMeta}>
               <Text style={styles.rowLabel}>Google</Text>
-              {isGoogleConnected ? (
-                <Text style={styles.rowSublabel}>
-                  {googleIdentity?.identity_data?.email ?? 'Connected'}
-                </Text>
+              {googleIdentity && providerState['google'] === 'revoked' ? (
+                <Text style={styles.rowSublabelWarning}>Disconnected outside Rekkus</Text>
+              ) : googleIdentity ? (
+                <Text style={styles.rowSublabel}>{identityEmail(googleIdentity) ?? 'Connected'}</Text>
               ) : null}
             </View>
-            {loading ? (
-              <ActivityIndicator size="small" color={colors.text3} />
-            ) : isGoogleConnected ? (
-              <TouchableOpacity onPress={handleGoogleDisconnect} activeOpacity={0.7} accessibilityRole="button">
-                <Text style={styles.actionDisconnect}>Disconnect</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={handleGoogleConnect} activeOpacity={0.7} accessibilityRole="button">
-                <Text style={styles.actionConnect}>Connect</Text>
-              </TouchableOpacity>
-            )}
+            {renderAction('google', googleIdentity)}
           </View>
         </View>
 
@@ -141,6 +261,12 @@ export default function ConnectedAccountsScreen() {
       </View>
     </SafeAreaView>
   )
+}
+
+function providerLabel(provider: AuthProviderName): string {
+  if (provider === 'email') return 'Email'
+  if (provider === 'apple') return 'Apple'
+  return 'Google'
 }
 
 function makeStyles(c: ReturnType<typeof useThemeColors>) {
@@ -180,11 +306,33 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingVertical: spacing.px14,
       gap: spacing[3],
     },
+    divider: { height: spacing.hairline, backgroundColor: c.border, marginLeft: spacing.px50 },
+    emailIcon: {
+      width: spacing.px18,
+      height: spacing.px18,
+      borderRadius: radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.surface2,
+    },
+    emailIconText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text2 },
+    appleIcon: {
+      width: spacing.px18,
+      height: spacing.px18,
+      borderRadius: radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.text,
+    },
+    appleIconText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.bg },
     rowMeta: { flex: 1 },
     rowLabel: { fontSize: fontSize.md, color: c.text },
     rowSublabel: { fontSize: fontSize.bodySm, color: c.text3, marginTop: spacing.px2 },
+    rowSublabelWarning: { fontSize: fontSize.bodySm, color: c.liked, marginTop: spacing.px2 },
     actionConnect: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: c.info },
     actionDisconnect: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: c.liked },
+    connectedText: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: c.text3 },
+    unavailableText: { fontSize: fontSize.base, color: c.text3 },
     hint: {
       fontSize: fontSize.bodySm,
       color: c.text3,

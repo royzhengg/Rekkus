@@ -3,20 +3,44 @@ import { mapMessagingError } from './errors'
 import { parseConversationParticipant } from './guards'
 import type { ConversationParticipant, MuteDuration } from './types'
 
+type VisibleLastSeenRow = {
+  user_id: string
+  last_seen_at: string | null
+}
+
+function isVisibleLastSeenRow(value: unknown): value is VisibleLastSeenRow {
+  if (typeof value !== 'object' || value === null) return false
+  const row = value as Record<string, unknown>
+  return typeof row.user_id === 'string' &&
+    (row.last_seen_at === null || typeof row.last_seen_at === 'string')
+}
+
+async function hydrateVisibleLastSeen(participants: ConversationParticipant[]): Promise<ConversationParticipant[]> {
+  const ids = [...new Set(participants.map(p => p.user_id).filter(Boolean))]
+  if (ids.length === 0) return participants
+  const { data } = await supabase.rpc('visible_last_seen_at', { p_user_ids: ids })
+  const rows = (Array.isArray(data) ? data : []).filter(isVisibleLastSeenRow)
+  const byUser = new Map(rows.map(row => [row.user_id, row.last_seen_at]))
+  return participants.map(p => ({ ...p, last_seen_at: byUser.get(p.user_id) ?? null }))
+}
+
 export async function fetchConversationParticipant(
   conversationId: string,
   currentUserId: string
 ): Promise<ConversationParticipant | null> {
   const { data } = await supabase.from('conversation_participants')
     .select(
-      'user_id, is_admin, users!conversation_participants_user_id_fkey(username, full_name, avatar_url, last_seen_at)'
+      'user_id, is_admin, users!conversation_participants_user_id_fkey(username, full_name, avatar_url)'
     )
     .eq('conversation_id', conversationId)
     .neq('user_id', currentUserId)
     .limit(1)
     .maybeSingle()
 
-  return parseConversationParticipant(data)
+  const participant = parseConversationParticipant(data)
+  if (!participant) return null
+  const [hydrated] = await hydrateVisibleLastSeen([participant])
+  return hydrated ?? participant
 }
 
 export async function fetchConversationAllParticipants(
@@ -24,11 +48,14 @@ export async function fetchConversationAllParticipants(
 ): Promise<ConversationParticipant[]> {
   const { data } = await supabase.from('conversation_participants')
     .select(
-      'user_id, is_admin, users!conversation_participants_user_id_fkey(username, full_name, avatar_url, last_seen_at)'
+      'user_id, is_admin, users!conversation_participants_user_id_fkey(username, full_name, avatar_url)'
     )
     .eq('conversation_id', conversationId)
 
-  return (data ?? []).map(parseConversationParticipant).filter((participant): participant is ConversationParticipant => participant !== null)
+  const participants = (data ?? [])
+    .map(parseConversationParticipant)
+    .filter((participant): participant is ConversationParticipant => participant !== null)
+  return hydrateVisibleLastSeen(participants)
 }
 
 export const MUTE_DURATIONS_MS: Record<MuteDuration, number> = {

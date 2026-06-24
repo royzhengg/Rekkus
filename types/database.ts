@@ -1,3 +1,15 @@
+/* eslint-disable */
+/**
+ * AUTO-GENERATED FILE — DO NOT EDIT.
+ *
+ * Changes will be overwritten.
+ *
+ * Regenerate via:
+ *   npm run typegen:supabase:local
+ *
+ * Manual extensions belong in:
+ *   types/database.extensions.ts
+ */
 export type Json =
   | string
   | number
@@ -193,6 +205,8 @@ export type Database = {
         Row: {
           created_at: string
           curator_note: string | null
+          deleted_at: string | null
+          deleted_reason: string | null
           description: string | null
           display_order: number
           id: string
@@ -206,6 +220,8 @@ export type Database = {
         Insert: {
           created_at?: string
           curator_note?: string | null
+          deleted_at?: string | null
+          deleted_reason?: string | null
           description?: string | null
           display_order?: number
           id?: string
@@ -219,6 +235,8 @@ export type Database = {
         Update: {
           created_at?: string
           curator_note?: string | null
+          deleted_at?: string | null
+          deleted_reason?: string | null
           description?: string | null
           display_order?: number
           id?: string
@@ -588,24 +606,6 @@ export type Database = {
           },
         ]
       }
-      cuisine_aliases: {
-        Row: {
-          alias: string
-          created_at: string
-          cuisine_type: string
-        }
-        Insert: {
-          alias: string
-          created_at?: string
-          cuisine_type: string
-        }
-        Update: {
-          alias?: string
-          created_at?: string
-          cuisine_type?: string
-        }
-        Relationships: []
-      }
       data_repair_events: {
         Row: {
           actor_id: string | null
@@ -617,8 +617,8 @@ export type Database = {
           entity_type: string
           id: string
           issue_summary: string
+          place_id: string | null
           repair_type: string
-          restaurant_id: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           source_type: string
@@ -634,8 +634,8 @@ export type Database = {
           entity_type: string
           id?: string
           issue_summary: string
+          place_id?: string | null
           repair_type: string
-          restaurant_id?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           source_type?: string
@@ -651,8 +651,8 @@ export type Database = {
           entity_type?: string
           id?: string
           issue_summary?: string
+          place_id?: string | null
           repair_type?: string
-          restaurant_id?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           source_type?: string
@@ -670,12 +670,12 @@ export type Database = {
             foreignKeyName: "data_repair_events_audit_event_id_fkey"
             columns: ["audit_event_id"]
             isOneToOne: false
-            referencedRelation: "restaurant_audit_events"
+            referencedRelation: "place_audit_events"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "data_repair_events_restaurant_id_fkey"
-            columns: ["restaurant_id"]
+            columns: ["place_id"]
             isOneToOne: false
             referencedRelation: "places"
             referencedColumns: ["id"]
@@ -765,6 +765,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           cuisine_type: string | null
+          deleted_at: string | null
           id: string
           name: string
           name_normalized: string | null
@@ -776,6 +777,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           cuisine_type?: string | null
+          deleted_at?: string | null
           id?: string
           name: string
           name_normalized?: string | null
@@ -787,6 +789,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           cuisine_type?: string | null
+          deleted_at?: string | null
           id?: string
           name?: string
           name_normalized?: string | null
@@ -875,6 +878,138 @@ export type Database = {
           {
             foreignKeyName: "feature_flag_overrides_updated_by_fkey"
             columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      follow_request_audit_events: {
+        Row: {
+          actor_id: string | null
+          context: Json
+          created_at: string
+          event_type: string
+          follow_request_id: string | null
+          id: string
+          requester_id: string | null
+          target_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          context?: Json
+          created_at?: string
+          event_type: string
+          follow_request_id?: string | null
+          id?: string
+          requester_id?: string | null
+          target_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          context?: Json
+          created_at?: string
+          event_type?: string
+          follow_request_id?: string | null
+          id?: string
+          requester_id?: string | null
+          target_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_request_audit_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_request_audit_events_follow_request_id_fkey"
+            columns: ["follow_request_id"]
+            isOneToOne: false
+            referencedRelation: "follow_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_request_audit_events_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_request_audit_events_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      follow_requests: {
+        Row: {
+          approval_source:
+            | Database["public"]["Enums"]["follow_request_approval_source"]
+            | null
+          correlation_id: string | null
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          requester_id: string
+          resolved_at: string | null
+          status: string
+          target_id: string
+          updated_at: string
+        }
+        Insert: {
+          approval_source?:
+            | Database["public"]["Enums"]["follow_request_approval_source"]
+            | null
+          correlation_id?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          requester_id: string
+          resolved_at?: string | null
+          status?: string
+          target_id: string
+          updated_at?: string
+        }
+        Update: {
+          approval_source?:
+            | Database["public"]["Enums"]["follow_request_approval_source"]
+            | null
+          correlation_id?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          requester_id?: string
+          resolved_at?: string | null
+          status?: string
+          target_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_requests_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_requests_target_id_fkey"
+            columns: ["target_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1222,6 +1357,60 @@ export type Database = {
           },
         ]
       }
+      notification_deliveries: {
+        Row: {
+          attempt_count: number
+          correlation_id: string
+          created_at: string
+          id: string
+          last_error_code: string | null
+          next_attempt_at: string | null
+          recipient_id: string
+          sent_at: string | null
+          social_event_id: string
+          status: string
+        }
+        Insert: {
+          attempt_count?: number
+          correlation_id: string
+          created_at?: string
+          id?: string
+          last_error_code?: string | null
+          next_attempt_at?: string | null
+          recipient_id: string
+          sent_at?: string | null
+          social_event_id: string
+          status?: string
+        }
+        Update: {
+          attempt_count?: number
+          correlation_id?: string
+          created_at?: string
+          id?: string
+          last_error_code?: string | null
+          next_attempt_at?: string | null
+          recipient_id?: string
+          sent_at?: string | null
+          social_event_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_deliveries_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_deliveries_social_event_id_fkey"
+            columns: ["social_event_id"]
+            isOneToOne: false
+            referencedRelation: "social_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       osm_import_runs: {
         Row: {
           completed_at: string | null
@@ -1280,6 +1469,115 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "place_aliases_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_audit_events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_type: string
+          after_summary: Json | null
+          before_summary: Json | null
+          compliance_category: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          job_id: string | null
+          place_id: string | null
+          reason: string | null
+          request_id: string | null
+          rollback_reference: string | null
+          source_type: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_type?: string
+          after_summary?: Json | null
+          before_summary?: Json | null
+          compliance_category?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          job_id?: string | null
+          place_id?: string | null
+          reason?: string | null
+          request_id?: string | null
+          rollback_reference?: string | null
+          source_type?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_type?: string
+          after_summary?: Json | null
+          before_summary?: Json | null
+          compliance_category?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          job_id?: string | null
+          place_id?: string | null
+          reason?: string | null
+          request_id?: string | null
+          rollback_reference?: string | null
+          source_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_audit_events_restaurant_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_closure_signals: {
+        Row: {
+          confidence: number
+          detected_at: string
+          expires_at: string | null
+          id: string
+          metadata: Json | null
+          place_id: string
+          resolved_at: string | null
+          signal_type: Database["public"]["Enums"]["place_closure_signal_type"]
+          signal_value: Database["public"]["Enums"]["place_signal_value"]
+        }
+        Insert: {
+          confidence?: number
+          detected_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          place_id: string
+          resolved_at?: string | null
+          signal_type: Database["public"]["Enums"]["place_closure_signal_type"]
+          signal_value: Database["public"]["Enums"]["place_signal_value"]
+        }
+        Update: {
+          confidence?: number
+          detected_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          place_id?: string
+          resolved_at?: string | null
+          signal_type?: Database["public"]["Enums"]["place_closure_signal_type"]
+          signal_value?: Database["public"]["Enums"]["place_signal_value"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_closure_signals_place_id_fkey"
             columns: ["place_id"]
             isOneToOne: false
             referencedRelation: "places"
@@ -1384,6 +1682,77 @@ export type Database = {
           },
         ]
       }
+      place_merge_events: {
+        Row: {
+          actor_id: string | null
+          after_summary: Json
+          audit_event_id: string | null
+          before_summary: Json
+          canonical_place_id: string
+          confidence: number
+          created_at: string
+          id: string
+          merged_place_id: string | null
+          reason: string
+          rollback_reference: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          after_summary?: Json
+          audit_event_id?: string | null
+          before_summary?: Json
+          canonical_place_id: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          merged_place_id?: string | null
+          reason: string
+          rollback_reference?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          after_summary?: Json
+          audit_event_id?: string | null
+          before_summary?: Json
+          canonical_place_id?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          merged_place_id?: string | null
+          reason?: string
+          rollback_reference?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_merge_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_merge_events_audit_event_id_fkey"
+            columns: ["audit_event_id"]
+            isOneToOne: false
+            referencedRelation: "place_audit_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_merge_events_canonical_restaurant_id_fkey"
+            columns: ["canonical_place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_merge_events_merged_restaurant_id_fkey"
+            columns: ["merged_place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       place_merge_log: {
         Row: {
           created_at: string
@@ -1422,6 +1791,79 @@ export type Database = {
             columns: ["new_place_id"]
             isOneToOne: false
             referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_observations: {
+        Row: {
+          confidence: number
+          created_at: string
+          id: string
+          observation_type: string
+          observed_value: Json
+          place_id: string | null
+          retention_policy: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_entity_id: string | null
+          source_entity_type: string | null
+          source_type: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          observation_type: string
+          observed_value: Json
+          place_id?: string | null
+          retention_policy?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_entity_id?: string | null
+          source_entity_type?: string | null
+          source_type?: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          observation_type?: string
+          observed_value?: Json
+          place_id?: string | null
+          retention_policy?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_entity_id?: string | null
+          source_entity_type?: string | null
+          source_type?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_observations_restaurant_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_observations_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_observations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1470,6 +1912,142 @@ export type Database = {
           },
         ]
       }
+      place_owners: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          claimed_at: string
+          owner_id: string
+          place_id: string
+          role: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          claimed_at?: string
+          owner_id: string
+          place_id: string
+          role?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          claimed_at?: string
+          owner_id?: string
+          place_id?: string
+          role?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_owners_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_owners_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_owners_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_ownership_events: {
+        Row: {
+          actor_id: string | null
+          audit_event_id: string | null
+          created_at: string
+          event_type: string
+          evidence_summary: Json
+          id: string
+          new_owner_id: string | null
+          place_id: string
+          previous_owner_id: string | null
+          reason: string | null
+          source_type: string
+          status: string
+        }
+        Insert: {
+          actor_id?: string | null
+          audit_event_id?: string | null
+          created_at?: string
+          event_type: string
+          evidence_summary?: Json
+          id?: string
+          new_owner_id?: string | null
+          place_id: string
+          previous_owner_id?: string | null
+          reason?: string | null
+          source_type?: string
+          status?: string
+        }
+        Update: {
+          actor_id?: string | null
+          audit_event_id?: string | null
+          created_at?: string
+          event_type?: string
+          evidence_summary?: Json
+          id?: string
+          new_owner_id?: string | null
+          place_id?: string
+          previous_owner_id?: string | null
+          reason?: string | null
+          source_type?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_ownership_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_ownership_events_audit_event_id_fkey"
+            columns: ["audit_event_id"]
+            isOneToOne: false
+            referencedRelation: "place_audit_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_ownership_events_new_owner_id_fkey"
+            columns: ["new_owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_ownership_events_previous_owner_id_fkey"
+            columns: ["previous_owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_ownership_events_restaurant_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       place_popularity_cache: {
         Row: {
           avg_food_rating: number | null
@@ -1500,6 +2078,200 @@ export type Database = {
             foreignKeyName: "restaurant_popularity_cache_restaurant_id_fkey"
             columns: ["place_id"]
             isOneToOne: true
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_provenance: {
+        Row: {
+          attribution_required: boolean
+          cacheability: string
+          confidence: number
+          created_at: string
+          created_by: string | null
+          id: string
+          place_id: string
+          retention_policy: string
+          source_id: string | null
+          source_payload: Json | null
+          source_rights: string
+          source_type: string
+          updated_at: string
+        }
+        Insert: {
+          attribution_required?: boolean
+          cacheability?: string
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          place_id: string
+          retention_policy?: string
+          source_id?: string | null
+          source_payload?: Json | null
+          source_rights?: string
+          source_type: string
+          updated_at?: string
+        }
+        Update: {
+          attribution_required?: boolean
+          cacheability?: string
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          place_id?: string
+          retention_policy?: string
+          source_id?: string | null
+          source_payload?: Json | null
+          source_rights?: string
+          source_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_sources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_sources_restaurant_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_provider_cache: {
+        Row: {
+          attribution_required: boolean
+          attribution_text: string | null
+          cacheability: string
+          created_at: string
+          expires_at: string | null
+          fetched_at: string
+          field_mask: string[] | null
+          freshness_state: string
+          id: string
+          last_refresh_error: string | null
+          normalized_payload: Json
+          place_id: string | null
+          raw_payload: Json | null
+          retention_policy: string
+          source_id: string
+          source_type: string
+          stale_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          attribution_required?: boolean
+          attribution_text?: string | null
+          cacheability: string
+          created_at?: string
+          expires_at?: string | null
+          fetched_at?: string
+          field_mask?: string[] | null
+          freshness_state?: string
+          id?: string
+          last_refresh_error?: string | null
+          normalized_payload?: Json
+          place_id?: string | null
+          raw_payload?: Json | null
+          retention_policy: string
+          source_id: string
+          source_type: string
+          stale_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attribution_required?: boolean
+          attribution_text?: string | null
+          cacheability?: string
+          created_at?: string
+          expires_at?: string | null
+          fetched_at?: string
+          field_mask?: string[] | null
+          freshness_state?: string
+          id?: string
+          last_refresh_error?: string | null
+          normalized_payload?: Json
+          place_id?: string | null
+          raw_payload?: Json | null
+          retention_policy?: string
+          source_id?: string
+          source_type?: string
+          stale_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_provider_cache_restaurant_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_provider_links: {
+        Row: {
+          alias_address: string | null
+          alias_name: string | null
+          confidence: number
+          created_at: string
+          created_by: string | null
+          id: string
+          place_id: string
+          provider: string | null
+          provider_place_id: string | null
+          reason: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          alias_address?: string | null
+          alias_name?: string | null
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          place_id: string
+          provider?: string | null
+          provider_place_id?: string | null
+          reason: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          alias_address?: string | null
+          alias_name?: string | null
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          place_id?: string
+          provider?: string | null
+          provider_place_id?: string | null
+          reason?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_aliases_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_aliases_restaurant_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
             referencedRelation: "places"
             referencedColumns: ["id"]
           },
@@ -1687,7 +2459,6 @@ export type Database = {
           place_id: string
           post_count: number
           save_count: number
-          trending_score: number
           updated_at: string
           visit_count: number
         }
@@ -1697,7 +2468,6 @@ export type Database = {
           place_id: string
           post_count?: number
           save_count?: number
-          trending_score?: number
           updated_at?: string
           visit_count?: number
         }
@@ -1707,7 +2477,6 @@ export type Database = {
           place_id?: string
           post_count?: number
           save_count?: number
-          trending_score?: number
           updated_at?: string
           visit_count?: number
         }
@@ -1741,6 +2510,39 @@ export type Database = {
           place_id?: string
         }
         Relationships: []
+      }
+      place_taxonomies: {
+        Row: {
+          node_id: string
+          place_id: string
+          source: string
+        }
+        Insert: {
+          node_id: string
+          place_id: string
+          source?: string
+        }
+        Update: {
+          node_id?: string
+          place_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_taxonomies_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_taxonomies_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       place_traits: {
         Row: {
@@ -1782,6 +2584,9 @@ export type Database = {
           address: string | null
           canonical_source: string
           city: string | null
+          closure_signal_at: string | null
+          closure_signal_metadata: Json | null
+          closure_signal_source: string | null
           community_verification_score: number
           community_verified_at: string | null
           country: string | null
@@ -1813,6 +2618,7 @@ export type Database = {
           price_range: number | null
           primary_photo_source: string
           slug: string | null
+          status_locked: boolean
           suburb: string | null
           updated_at: string
           verification_level: Database["public"]["Enums"]["verification_level"]
@@ -1822,6 +2628,9 @@ export type Database = {
           address?: string | null
           canonical_source?: string
           city?: string | null
+          closure_signal_at?: string | null
+          closure_signal_metadata?: Json | null
+          closure_signal_source?: string | null
           community_verification_score?: number
           community_verified_at?: string | null
           country?: string | null
@@ -1853,6 +2662,7 @@ export type Database = {
           price_range?: number | null
           primary_photo_source?: string
           slug?: string | null
+          status_locked?: boolean
           suburb?: string | null
           updated_at?: string
           verification_level?: Database["public"]["Enums"]["verification_level"]
@@ -1862,6 +2672,9 @@ export type Database = {
           address?: string | null
           canonical_source?: string
           city?: string | null
+          closure_signal_at?: string | null
+          closure_signal_metadata?: Json | null
+          closure_signal_source?: string | null
           community_verification_score?: number
           community_verified_at?: string | null
           country?: string | null
@@ -1893,6 +2706,7 @@ export type Database = {
           price_range?: number | null
           primary_photo_source?: string
           slug?: string | null
+          status_locked?: boolean
           suburb?: string | null
           updated_at?: string
           verification_level?: Database["public"]["Enums"]["verification_level"]
@@ -2381,6 +3195,63 @@ export type Database = {
           },
         ]
       }
+      privacy_audit_events: {
+        Row: {
+          actor_id: string | null
+          approved_request_count: number
+          context: Json
+          correlation_id: string
+          created_at: string
+          event_type: Database["public"]["Enums"]["privacy_audit_event_type"]
+          id: string
+          new_private_account: boolean
+          old_private_account: boolean | null
+          origin: Database["public"]["Enums"]["event_origin"]
+          user_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          approved_request_count?: number
+          context?: Json
+          correlation_id: string
+          created_at?: string
+          event_type: Database["public"]["Enums"]["privacy_audit_event_type"]
+          id?: string
+          new_private_account: boolean
+          old_private_account?: boolean | null
+          origin?: Database["public"]["Enums"]["event_origin"]
+          user_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          approved_request_count?: number
+          context?: Json
+          correlation_id?: string
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["privacy_audit_event_type"]
+          id?: string
+          new_private_account?: boolean
+          old_private_account?: boolean | null
+          origin?: Database["public"]["Enums"]["event_origin"]
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "privacy_audit_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "privacy_audit_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       privacy_requests: {
         Row: {
           audit_reference: string | null
@@ -2452,356 +3323,6 @@ export type Database = {
         }
         Relationships: []
       }
-      restaurant_aliases: {
-        Row: {
-          alias_address: string | null
-          alias_name: string | null
-          confidence: number
-          created_at: string
-          created_by: string | null
-          id: string
-          provider: string | null
-          provider_place_id: string | null
-          reason: string
-          restaurant_id: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          alias_address?: string | null
-          alias_name?: string | null
-          confidence?: number
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          provider?: string | null
-          provider_place_id?: string | null
-          reason: string
-          restaurant_id: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          alias_address?: string | null
-          alias_name?: string | null
-          confidence?: number
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          provider?: string | null
-          provider_place_id?: string | null
-          reason?: string
-          restaurant_id?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "restaurant_aliases_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "restaurant_aliases_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      restaurant_audit_events: {
-        Row: {
-          action: string
-          actor_id: string | null
-          actor_type: string
-          after_summary: Json | null
-          before_summary: Json | null
-          compliance_category: string | null
-          created_at: string
-          entity_id: string | null
-          entity_type: string
-          id: string
-          job_id: string | null
-          reason: string | null
-          request_id: string | null
-          restaurant_id: string | null
-          rollback_reference: string | null
-          source_type: string | null
-        }
-        Insert: {
-          action: string
-          actor_id?: string | null
-          actor_type?: string
-          after_summary?: Json | null
-          before_summary?: Json | null
-          compliance_category?: string | null
-          created_at?: string
-          entity_id?: string | null
-          entity_type: string
-          id?: string
-          job_id?: string | null
-          reason?: string | null
-          request_id?: string | null
-          restaurant_id?: string | null
-          rollback_reference?: string | null
-          source_type?: string | null
-        }
-        Update: {
-          action?: string
-          actor_id?: string | null
-          actor_type?: string
-          after_summary?: Json | null
-          before_summary?: Json | null
-          compliance_category?: string | null
-          created_at?: string
-          entity_id?: string | null
-          entity_type?: string
-          id?: string
-          job_id?: string | null
-          reason?: string | null
-          request_id?: string | null
-          restaurant_id?: string | null
-          rollback_reference?: string | null
-          source_type?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "restaurant_audit_events_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      restaurant_merge_events: {
-        Row: {
-          actor_id: string | null
-          after_summary: Json
-          audit_event_id: string | null
-          before_summary: Json
-          canonical_restaurant_id: string
-          confidence: number
-          created_at: string
-          id: string
-          merged_restaurant_id: string | null
-          reason: string
-          rollback_reference: string | null
-        }
-        Insert: {
-          actor_id?: string | null
-          after_summary?: Json
-          audit_event_id?: string | null
-          before_summary?: Json
-          canonical_restaurant_id: string
-          confidence?: number
-          created_at?: string
-          id?: string
-          merged_restaurant_id?: string | null
-          reason: string
-          rollback_reference?: string | null
-        }
-        Update: {
-          actor_id?: string | null
-          after_summary?: Json
-          audit_event_id?: string | null
-          before_summary?: Json
-          canonical_restaurant_id?: string
-          confidence?: number
-          created_at?: string
-          id?: string
-          merged_restaurant_id?: string | null
-          reason?: string
-          rollback_reference?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "restaurant_merge_events_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "restaurant_merge_events_audit_event_id_fkey"
-            columns: ["audit_event_id"]
-            isOneToOne: false
-            referencedRelation: "restaurant_audit_events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "restaurant_merge_events_canonical_restaurant_id_fkey"
-            columns: ["canonical_restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "restaurant_merge_events_merged_restaurant_id_fkey"
-            columns: ["merged_restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      restaurant_observations: {
-        Row: {
-          confidence: number
-          created_at: string
-          id: string
-          observation_type: string
-          observed_value: Json
-          restaurant_id: string | null
-          retention_policy: string
-          reviewed_at: string | null
-          reviewed_by: string | null
-          source_entity_id: string | null
-          source_entity_type: string | null
-          source_type: string
-          status: string
-          user_id: string | null
-        }
-        Insert: {
-          confidence?: number
-          created_at?: string
-          id?: string
-          observation_type: string
-          observed_value: Json
-          restaurant_id?: string | null
-          retention_policy?: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          source_entity_id?: string | null
-          source_entity_type?: string | null
-          source_type?: string
-          status?: string
-          user_id?: string | null
-        }
-        Update: {
-          confidence?: number
-          created_at?: string
-          id?: string
-          observation_type?: string
-          observed_value?: Json
-          restaurant_id?: string | null
-          retention_policy?: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          source_entity_id?: string | null
-          source_entity_type?: string | null
-          source_type?: string
-          status?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "restaurant_observations_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "restaurant_observations_reviewed_by_fkey"
-            columns: ["reviewed_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "restaurant_observations_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      restaurant_ownership_events: {
-        Row: {
-          actor_id: string | null
-          audit_event_id: string | null
-          created_at: string
-          event_type: string
-          evidence_summary: Json
-          id: string
-          new_owner_id: string | null
-          previous_owner_id: string | null
-          reason: string | null
-          restaurant_id: string
-          source_type: string
-          status: string
-        }
-        Insert: {
-          actor_id?: string | null
-          audit_event_id?: string | null
-          created_at?: string
-          event_type: string
-          evidence_summary?: Json
-          id?: string
-          new_owner_id?: string | null
-          previous_owner_id?: string | null
-          reason?: string | null
-          restaurant_id: string
-          source_type?: string
-          status?: string
-        }
-        Update: {
-          actor_id?: string | null
-          audit_event_id?: string | null
-          created_at?: string
-          event_type?: string
-          evidence_summary?: Json
-          id?: string
-          new_owner_id?: string | null
-          previous_owner_id?: string | null
-          reason?: string | null
-          restaurant_id?: string
-          source_type?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "restaurant_ownership_events_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "restaurant_ownership_events_audit_event_id_fkey"
-            columns: ["audit_event_id"]
-            isOneToOne: false
-            referencedRelation: "restaurant_audit_events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "restaurant_ownership_events_new_owner_id_fkey"
-            columns: ["new_owner_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "restaurant_ownership_events_previous_owner_id_fkey"
-            columns: ["previous_owner_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "restaurant_ownership_events_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       restaurant_place_stubs: {
         Row: {
           expires_at: string
@@ -2819,140 +3340,6 @@ export type Database = {
           place_id?: string
         }
         Relationships: []
-      }
-      restaurant_provider_cache: {
-        Row: {
-          attribution_required: boolean
-          attribution_text: string | null
-          cacheability: string
-          created_at: string
-          expires_at: string | null
-          fetched_at: string
-          field_mask: string[] | null
-          freshness_state: string
-          id: string
-          last_refresh_error: string | null
-          normalized_payload: Json
-          raw_payload: Json | null
-          restaurant_id: string | null
-          retention_policy: string
-          source_id: string
-          source_type: string
-          stale_at: string | null
-          updated_at: string
-        }
-        Insert: {
-          attribution_required?: boolean
-          attribution_text?: string | null
-          cacheability: string
-          created_at?: string
-          expires_at?: string | null
-          fetched_at?: string
-          field_mask?: string[] | null
-          freshness_state?: string
-          id?: string
-          last_refresh_error?: string | null
-          normalized_payload?: Json
-          raw_payload?: Json | null
-          restaurant_id?: string | null
-          retention_policy: string
-          source_id: string
-          source_type: string
-          stale_at?: string | null
-          updated_at?: string
-        }
-        Update: {
-          attribution_required?: boolean
-          attribution_text?: string | null
-          cacheability?: string
-          created_at?: string
-          expires_at?: string | null
-          fetched_at?: string
-          field_mask?: string[] | null
-          freshness_state?: string
-          id?: string
-          last_refresh_error?: string | null
-          normalized_payload?: Json
-          raw_payload?: Json | null
-          restaurant_id?: string | null
-          retention_policy?: string
-          source_id?: string
-          source_type?: string
-          stale_at?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "restaurant_provider_cache_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      restaurant_sources: {
-        Row: {
-          attribution_required: boolean
-          cacheability: string
-          confidence: number
-          created_at: string
-          created_by: string | null
-          id: string
-          restaurant_id: string
-          retention_policy: string
-          source_id: string | null
-          source_payload: Json | null
-          source_rights: string
-          source_type: string
-          updated_at: string
-        }
-        Insert: {
-          attribution_required?: boolean
-          cacheability?: string
-          confidence?: number
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          restaurant_id: string
-          retention_policy?: string
-          source_id?: string | null
-          source_payload?: Json | null
-          source_rights?: string
-          source_type: string
-          updated_at?: string
-        }
-        Update: {
-          attribution_required?: boolean
-          cacheability?: string
-          confidence?: number
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          restaurant_id?: string
-          retention_policy?: string
-          source_id?: string | null
-          source_payload?: Json | null
-          source_rights?: string
-          source_type?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "restaurant_sources_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "restaurant_sources_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       saved_dishes: {
         Row: {
@@ -3225,6 +3612,69 @@ export type Database = {
         }
         Relationships: []
       }
+      social_events: {
+        Row: {
+          actor_id: string | null
+          correlation_id: string
+          created_at: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["social_event_entity_type"]
+          event_type: Database["public"]["Enums"]["social_event_type"]
+          id: string
+          metadata: Json
+          origin: Database["public"]["Enums"]["event_origin"]
+          read_at: string | null
+          source_id: string
+          source_type: Database["public"]["Enums"]["social_event_source_type"]
+          target_user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          correlation_id?: string
+          created_at?: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["social_event_entity_type"]
+          event_type: Database["public"]["Enums"]["social_event_type"]
+          id?: string
+          metadata?: Json
+          origin?: Database["public"]["Enums"]["event_origin"]
+          read_at?: string | null
+          source_id: string
+          source_type: Database["public"]["Enums"]["social_event_source_type"]
+          target_user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          correlation_id?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["social_event_entity_type"]
+          event_type?: Database["public"]["Enums"]["social_event_type"]
+          id?: string
+          metadata?: Json
+          origin?: Database["public"]["Enums"]["event_origin"]
+          read_at?: string | null
+          source_id?: string
+          source_type?: Database["public"]["Enums"]["social_event_source_type"]
+          target_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_events_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suburb_aliases: {
         Row: {
           alias: string
@@ -3275,6 +3725,108 @@ export type Database = {
           state?: string | null
         }
         Relationships: []
+      }
+      taxonomy_aliases: {
+        Row: {
+          alias: string
+          id: string
+          node_id: string
+          taxonomy_type: string
+        }
+        Insert: {
+          alias: string
+          id?: string
+          node_id: string
+          taxonomy_type: string
+        }
+        Update: {
+          alias?: string
+          id?: string
+          node_id?: string
+          taxonomy_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taxonomy_aliases_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taxonomy_nodes: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json
+          name: string
+          parent_id: string | null
+          path: string
+          slug: string
+          taxonomy_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          name: string
+          parent_id?: string | null
+          path: string
+          slug: string
+          taxonomy_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          name?: string
+          parent_id?: string | null
+          path?: string
+          slug?: string
+          taxonomy_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taxonomy_nodes_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taxonomy_unmapped: {
+        Row: {
+          first_seen_at: string
+          last_seen_at: string
+          occurrences: number
+          raw_value: string
+          resolved_to_node_id: string | null
+        }
+        Insert: {
+          first_seen_at?: string
+          last_seen_at?: string
+          occurrences?: number
+          raw_value: string
+          resolved_to_node_id?: string | null
+        }
+        Update: {
+          first_seen_at?: string
+          last_seen_at?: string
+          occurrences?: number
+          raw_value?: string
+          resolved_to_node_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taxonomy_unmapped_resolved_to_node_id_fkey"
+            columns: ["resolved_to_node_id"]
+            isOneToOne: false
+            referencedRelation: "taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trending_searches: {
         Row: {
@@ -3648,8 +4200,44 @@ export type Database = {
         }
         Returns: undefined
       }
+      approve_all_follow_requests: {
+        Args: { p_idempotency_key?: string }
+        Returns: Json
+      }
+      approve_follow_request: {
+        Args: { p_idempotency_key?: string; p_request_id: string }
+        Returns: string
+      }
+      block_user: {
+        Args: { p_blocked_id: string; p_reason?: string }
+        Returns: undefined
+      }
+      can_view_user_content: {
+        Args: { target_id: string; viewer_id: string }
+        Returns: boolean
+      }
+      cancel_follow_request: {
+        Args: { p_target_id: string }
+        Returns: undefined
+      }
       create_group_conversation: {
         Args: { p_avatar_url?: string; p_member_ids: string[]; p_name: string }
+        Returns: string
+      }
+      create_social_event: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_created_at?: string
+          p_entity_id: string
+          p_entity_type: Database["public"]["Enums"]["social_event_entity_type"]
+          p_event_type: Database["public"]["Enums"]["social_event_type"]
+          p_metadata?: Json
+          p_origin?: Database["public"]["Enums"]["event_origin"]
+          p_source_id: string
+          p_source_type: Database["public"]["Enums"]["social_event_source_type"]
+          p_target_user_id: string
+        }
         Returns: string
       }
       create_user_place: {
@@ -3668,6 +4256,14 @@ export type Database = {
         Args: { p_conversation_id: string }
         Returns: boolean
       }
+      decline_all_follow_requests: {
+        Args: { p_idempotency_key?: string }
+        Returns: number
+      }
+      decline_follow_request: {
+        Args: { p_idempotency_key?: string; p_request_id: string }
+        Returns: string
+      }
       decline_message_request: {
         Args: { p_conversation_id: string }
         Returns: undefined
@@ -3676,6 +4272,17 @@ export type Database = {
       delete_message: { Args: { p_message_id: string }; Returns: undefined }
       delete_own_account: { Args: never; Returns: undefined }
       delete_post: { Args: { p_post_id: string }; Returns: undefined }
+      enqueue_social_event_delivery: {
+        Args: { p_social_event_id: string }
+        Returns: undefined
+      }
+      expand_search_cuisines: {
+        Args: { max_cuisines?: number; query_text: string }
+        Returns: {
+          cuisine_type: string
+          match_count: number
+        }[]
+      }
       fetch_trending_dishes: {
         Args: { limit_count?: number; lookback_days?: number }
         Returns: {
@@ -3714,6 +4321,10 @@ export type Database = {
           old_name: string
         }[]
       }
+      follow_relationship_state: {
+        Args: { p_target_id: string }
+        Returns: string
+      }
       get_or_create_direct_conversation: {
         Args: { target_user_id: string }
         Returns: string
@@ -3747,7 +4358,20 @@ export type Database = {
           zero_result_rate: number
         }[]
       }
+      get_taxonomy_ancestors: {
+        Args: { p_slug: string; p_type?: string }
+        Returns: string[]
+      }
+      get_taxonomy_family: {
+        Args: { p_slug: string; p_type?: string }
+        Returns: string[]
+      }
+      has_user_block_between: {
+        Args: { target_id: string; viewer_id: string }
+        Returns: boolean
+      }
       leave_group: { Args: { p_conversation_id: string }; Returns: undefined }
+      mark_all_social_events_read: { Args: never; Returns: number }
       match_embeddings: {
         Args: {
           match_count?: number
@@ -3814,6 +4438,13 @@ export type Database = {
           open_now: boolean
         }[]
       }
+      profile_visibility_state: {
+        Args: { p_target_id: string }
+        Returns: {
+          can_view_content: boolean
+          private_account: boolean
+        }[]
+      }
       purge_soft_deleted_content: {
         Args: { batch_size?: number }
         Returns: number
@@ -3843,23 +4474,34 @@ export type Database = {
         }
         Returns: undefined
       }
-      record_profile_audit_event: {
-        Args: { p_context?: Json; p_event_type: string }
+      record_follow_request_audit_event: {
+        Args: {
+          p_actor_id: string
+          p_context?: Json
+          p_event_type: string
+          p_follow_request_id: string
+          p_requester_id: string
+          p_target_id: string
+        }
         Returns: undefined
       }
-      record_restaurant_provider_snapshot: {
+      record_place_provider_snapshot: {
         Args: {
           p_attribution_required: boolean
           p_attribution_text: string
           p_cacheability: string
           p_field_mask: string[]
           p_normalized_payload: Json
-          p_restaurant_id: string
+          p_place_id: string
           p_retention_policy: string
           p_source_id: string
           p_source_type: string
           p_stale_at: string
         }
+        Returns: undefined
+      }
+      record_profile_audit_event: {
+        Args: { p_context?: Json; p_event_type: string }
         Returns: undefined
       }
       record_top_spot_audit_event: {
@@ -3877,6 +4519,22 @@ export type Database = {
         Returns: undefined
       }
       refresh_trending_queries: { Args: never; Returns: undefined }
+      reopen_place: {
+        Args: { p_metadata?: Json; p_place_id: string; p_source: string }
+        Returns: undefined
+      }
+      repair_place_stats: { Args: { p_place_id?: string }; Returns: undefined }
+      request_follow: { Args: { p_target_id: string }; Returns: string }
+      resolve_all_taxonomy_matches: {
+        Args: { p_query: string }
+        Returns: {
+          family_slugs: string[]
+          match_weight: number
+          resolved_slug: string
+          taxonomy_type: string
+        }[]
+      }
+      resolve_place_status: { Args: { p_place_id: string }; Returns: undefined }
       resolve_suburb_query: {
         Args: { input_text: string }
         Returns: {
@@ -3886,8 +4544,16 @@ export type Database = {
           lng: number
         }[]
       }
+      resolve_taxonomy_slug: {
+        Args: { p_input: string; p_type?: string }
+        Returns: string
+      }
       restore_comment: { Args: { p_comment_id: string }; Returns: undefined }
       restore_post: { Args: { p_post_id: string }; Returns: undefined }
+      scan_inactive_places: {
+        Args: { inactivity_months?: number }
+        Returns: number
+      }
       search_semantic:
         | {
             Args: {
@@ -3973,6 +4639,11 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      set_account_privacy: {
+        Args: { p_idempotency_key?: string; p_private: boolean }
+        Returns: Json
+      }
+      set_activity_visibility: { Args: { p_show: boolean }; Returns: undefined }
       suggest_searches: {
         Args: {
           limit_per_type?: number
@@ -3997,8 +4668,34 @@ export type Database = {
         }
         Returns: undefined
       }
+      validate_place_stats: {
+        Args: never
+        Returns: {
+          actual_value: number
+          field: string
+          place_id: string
+          stored_value: number
+        }[]
+      }
+      visible_last_seen_at: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          last_seen_at: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
+      event_origin: "user" | "system" | "migration" | "repair" | "admin"
+      follow_request_approval_source: "manual" | "bulk" | "auto_public"
+      place_closure_signal_type:
+        | "provider_status"
+        | "community_reports"
+        | "owner_claim"
+        | "inactivity"
+        | "admin_override"
+        | "reopen"
+      place_signal_value: "closed" | "open"
       place_status:
         | "active"
         | "temporarily_closed"
@@ -4016,6 +4713,16 @@ export type Database = {
         | "outdoor"
         | "fast_casual"
         | "special_occasion"
+      privacy_audit_event_type: "private_account_changed"
+      social_event_entity_type: "post" | "comment" | "follow" | "follow_request"
+      social_event_source_type: "like" | "comment" | "follow" | "follow_request"
+      social_event_type:
+        | "like_post"
+        | "comment_post"
+        | "reply_comment"
+        | "follow"
+        | "follow_request_pending"
+        | "follow_request_approved"
       verification_level:
         | "user_created"
         | "osm_only"
@@ -4152,6 +4859,17 @@ export const Constants = {
   },
   public: {
     Enums: {
+      event_origin: ["user", "system", "migration", "repair", "admin"],
+      follow_request_approval_source: ["manual", "bulk", "auto_public"],
+      place_closure_signal_type: [
+        "provider_status",
+        "community_reports",
+        "owner_claim",
+        "inactivity",
+        "admin_override",
+        "reopen",
+      ],
+      place_signal_value: ["closed", "open"],
       place_status: [
         "active",
         "temporarily_closed",
@@ -4170,6 +4888,17 @@ export const Constants = {
         "outdoor",
         "fast_casual",
         "special_occasion",
+      ],
+      privacy_audit_event_type: ["private_account_changed"],
+      social_event_entity_type: ["post", "comment", "follow", "follow_request"],
+      social_event_source_type: ["like", "comment", "follow", "follow_request"],
+      social_event_type: [
+        "like_post",
+        "comment_post",
+        "reply_comment",
+        "follow",
+        "follow_request_pending",
+        "follow_request_approved",
       ],
       verification_level: [
         "user_created",

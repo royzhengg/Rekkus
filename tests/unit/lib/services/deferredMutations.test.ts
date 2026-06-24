@@ -136,6 +136,17 @@ describe('deferred mutations', () => {
     expect(isRetryableDeferredMutationError(new Error('JWT not authorized'))).toBe(false)
   })
 
+  it('accepts activity visibility setting mutations at the offline boundary', () => {
+    expect(isDeferredMutation({
+      kind: 'setting',
+      userId: 'user-1',
+      updatedAt: now,
+      retryCount: 0,
+      setting: 'show_activity_status',
+      value: false,
+    })).toBe(true)
+  })
+
   it('drops entries older than 7 days on read (TTL pruning)', async () => {
     const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
     const fresh = { kind: 'post_like', userId: 'user-1', updatedAt: now, retryCount: 0, postId: 'p1', targetState: true }
@@ -302,5 +313,19 @@ describe('deferred mutations', () => {
 
     await executeDeferredMutation({ kind: 'conversation_unread', ...base, conversationId: 'conv-1' })
     expect(messaging.markConversationUnread).toHaveBeenCalledWith('conv-1', 'u1')
+  })
+
+  it('returns follow request state from deferred follow execution', async () => {
+    const users = jest.requireMock('@/lib/services/users') as { followUser: jest.Mock }
+    users.followUser.mockResolvedValue('requested')
+
+    await expect(executeDeferredMutation({
+      kind: 'follow',
+      userId: 'user-1',
+      updatedAt: now,
+      retryCount: 0,
+      targetUserId: 'target-1',
+      targetState: true,
+    })).resolves.toBe('requested')
   })
 })

@@ -1,7 +1,13 @@
 import {
+  approveAllFollowRequests,
+  approveFollowRequest,
+  declineAllFollowRequests,
+  fetchFollowRelationshipState,
   fetchFollowers,
   fetchFollowCounts,
   fetchFollowing,
+  fetchIncomingFollowRequests,
+  followUser,
   removeFollowChannel,
   subscribeToFollowChanges,
 } from '@/lib/services/users'
@@ -10,13 +16,14 @@ import { supabase } from '@/lib/supabase'
 jest.mock('@/lib/supabase', () => ({
   supabase: {
     from: jest.fn(),
+    rpc: jest.fn(),
     channel: jest.fn(),
     removeChannel: jest.fn(),
   },
 }))
 
 jest.mock('@/lib/analytics', () => ({
-  analytics: { follow: jest.fn() },
+  analytics: { follow: jest.fn(), followRequestStateChanged: jest.fn() },
 }))
 
 jest.mock('@/lib/services/notifications', () => ({
@@ -24,6 +31,7 @@ jest.mock('@/lib/services/notifications', () => ({
 }))
 
 const mockFrom = jest.mocked(supabase.from)
+const mockRpc = jest.mocked(supabase.rpc)
 const mockChannel = jest.mocked(supabase.channel)
 const mockRemoveChannel = jest.mocked(supabase.removeChannel)
 
@@ -32,6 +40,7 @@ type MockQueryBuilder = {
   eq: jest.Mock
   order: jest.Mock
   limit: jest.Mock
+  overrideTypes?: jest.Mock
 }
 
 function queryBuilder(result: unknown): MockQueryBuilder {
@@ -45,6 +54,22 @@ function queryBuilder(result: unknown): MockQueryBuilder {
   builder.eq.mockReturnValue(builder)
   builder.order.mockReturnValue(builder)
   builder.limit.mockResolvedValue(result)
+  return builder
+}
+
+function requestQueryBuilder(result: unknown) {
+  const builder = {
+    select: jest.fn(),
+    eq: jest.fn(),
+    order: jest.fn(),
+    limit: jest.fn(),
+    overrideTypes: jest.fn(),
+  }
+  builder.select.mockReturnValue(builder)
+  builder.eq.mockReturnValue(builder)
+  builder.order.mockReturnValue(builder)
+  builder.limit.mockReturnValue(builder)
+  builder.overrideTypes.mockResolvedValue(result)
   return builder
 }
 
@@ -146,5 +171,99 @@ describe('users follow list services', () => {
     removeFollowChannel(channel as never)
 
     expect(mockRemoveChannel).toHaveBeenCalledWith(channel)
+  })
+
+  it('returns relationship state from the central RPC', async () => {
+    mockRpc.mockResolvedValue({ data: 'requested', error: null } as never)
+
+    await expect(fetchFollowRelationshipState('target-1')).resolves.toBe('requested')
+
+    expect(mockRpc).toHaveBeenCalledWith('follow_relationship_state', { p_target_id: 'target-1' })
+  })
+
+  it('requests private follows without inserting an approved follow row locally', async () => {
+    const notify = jest.requireMock('@/lib/services/notifications') as { notify: jest.Mock }
+    const analytics = jest.requireMock('@/lib/analytics') as {
+      analytics: { followRequestStateChanged: jest.Mock; follow: jest.Mock }
+    }
+    mockRpc.mockResolvedValue({ data: 'requested', error: null } as never)
+
+    await expect(followUser('user-1', 'target-1')).resolves.toBe('requested')
+
+    expect(mockRpc).toHaveBeenCalledWith('request_follow', { p_target_id: 'target-1' })
+    expect(analytics.analytics.followRequestStateChanged).toHaveBeenCalledWith('user-1', 'sent')
+    expect(analytics.analytics.follow).not.toHaveBeenCalled()
+    expect(notify.notify).toHaveBeenCalledWith({ type: 'follow_request', actorId: 'user-1', targetId: 'target-1' })
+  })
+
+  it('notifies requester when a follow request is approved', async () => {
+    const notify = jest.requireMock('@/lib/services/notifications') as { notify: jest.Mock }
+    mockRpc.mockResolvedValue({ data: 'requester-1', error: null } as never)
+
+    await expect(approveFollowRequest('request-1')).resolves.toBe('requester-1')
+
+    expect(mockRpc).toHaveBeenCalledWith('approve_follow_request', { p_request_id: 'request-1' })
+    expect(notify.notify).toHaveBeenCalledWith({
+      type: 'follow_request_approved',
+      actorId: '',
+      requesterId: 'requester-1',
+    })
+  })
+
+  it('approves all pending incoming requests through the bulk RPC', async () => {
+    const analytics = jest.requireMock('@/lib/analytics') as {
+      analytics: { followRequestStateChanged: jest.Mock; follow: jest.Mock }
+    }
+    mockRpc.mockResolvedValue({
+      data: { approved_count: 2, approved_requester_ids: ['requester-1', 'requester-2'] },
+      error: null,
+    } as never)
+
+    await expect(approveAllFollowRequests()).resolves.toEqual({
+      approvedCount: 2,
+      approvedRequesterIds: ['requester-1', 'requester-2'],
+    })
+
+    expect(mockRpc).toHaveBeenCalledWith('approve_all_follow_requests')
+    expect(analytics.analytics.followRequestStateChanged).toHaveBeenCalledWith(null, 'approved_bulk')
+  })
+
+  it('declines all pending incoming requests through the bulk RPC', async () => {
+    const analytics = jest.requireMock('@/lib/analytics') as {
+      analytics: { followRequestStateChanged: jest.Mock; follow: jest.Mock }
+    }
+    mockRpc.mockResolvedValue({ data: 3, error: null } as never)
+
+    await expect(declineAllFollowRequests()).resolves.toBe(3)
+
+    expect(mockRpc).toHaveBeenCalledWith('decline_all_follow_requests')
+    expect(analytics.analytics.followRequestStateChanged).toHaveBeenCalledWith(null, 'declined_bulk')
+  })
+
+  it('loads incoming pending requests through the follow request table', async () => {
+    const builder = requestQueryBuilder({
+      data: [{
+        id: 'request-1',
+        requester_id: 'requester-1',
+        target_id: 'target-1',
+        status: 'pending',
+        created_at: '2026-06-23T00:00:00.000Z',
+        users: { id: 'requester-1', username: 'roy', full_name: null, avatar_url: null },
+      }],
+      error: null,
+    })
+    mockFrom.mockReturnValue(builder as never)
+
+    await expect(fetchIncomingFollowRequests()).resolves.toEqual([{
+      id: 'request-1',
+      requester_id: 'requester-1',
+      target_id: 'target-1',
+      status: 'pending',
+      created_at: '2026-06-23T00:00:00.000Z',
+      requester: { id: 'requester-1', username: 'roy', full_name: null, avatar_url: null },
+    }])
+    expect(mockFrom).toHaveBeenCalledWith('follow_requests')
+    expect(builder.eq).toHaveBeenCalledWith('status', 'pending')
+    expect(builder.limit).toHaveBeenCalledWith(50)
   })
 })

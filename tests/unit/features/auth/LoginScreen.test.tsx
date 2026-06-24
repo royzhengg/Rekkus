@@ -1,5 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import * as AppleAuthentication from 'expo-apple-authentication'
+import { Platform } from 'react-native'
 import LoginScreen from '@/features/auth/LoginScreen'
+import { getCurrentUser } from '@/lib/services/auth'
+import { fetchProfile } from '@/lib/services/users'
 
 // ── module mocks ──────────────────────────────────────────────────────────────
 
@@ -10,6 +14,20 @@ const mockPush = jest.fn()
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: mockReplace, back: mockBack, push: mockPush }),
 }))
+
+jest.mock('expo-apple-authentication', () => {
+  const { Text, TouchableOpacity } = jest.requireActual('react-native')
+  return {
+    isAvailableAsync: jest.fn(),
+    AppleAuthenticationButtonType: { CONTINUE: 1 },
+    AppleAuthenticationButtonStyle: { BLACK: 2 },
+    AppleAuthenticationButton: ({ onPress }: { onPress: () => void }) => (
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Continue with Apple" onPress={onPress}>
+        <Text>Continue with Apple</Text>
+      </TouchableOpacity>
+    ),
+  }
+})
 
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native')
@@ -40,14 +58,12 @@ jest.mock('@/lib/contexts/ThemeContext', () => {
 })
 
 const mockSignInWithEmail = jest.fn()
-const mockSignInWithGoogle = jest.fn()
-const mockSignInWithApple = jest.fn()
+const mockSignInWithProvider = jest.fn()
 
 jest.mock('@/lib/contexts/AuthContext', () => ({
   useAuth: () => ({
     signInWithEmail: mockSignInWithEmail,
-    signInWithGoogle: mockSignInWithGoogle,
-    signInWithApple: mockSignInWithApple,
+    signInWithProvider: mockSignInWithProvider,
   }),
 }))
 
@@ -65,6 +81,10 @@ jest.mock('@/lib/services/users', () => ({
   fetchProfile: jest.fn(() => Promise.resolve(null)),
 }))
 
+const mockGetCurrentUser = jest.mocked(getCurrentUser)
+const mockFetchProfile = jest.mocked(fetchProfile)
+const mockIsAppleAvailableAsync = jest.mocked(AppleAuthentication.isAvailableAsync)
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function fillForm(email = 'test@example.com', password = 'password123') {
@@ -77,8 +97,13 @@ function fillForm(email = 'test@example.com', password = 'password123') {
 describe('LoginScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' })
     mockRequireOnline.mockReturnValue(true)
     mockSignInWithEmail.mockResolvedValue(null)
+    mockSignInWithProvider.mockResolvedValue(null)
+    mockIsAppleAvailableAsync.mockResolvedValue(false)
+    mockGetCurrentUser.mockResolvedValue(null as never)
+    mockFetchProfile.mockResolvedValue(null)
   })
 
   it('sign in button is disabled when email is empty', () => {
@@ -141,6 +166,60 @@ describe('LoginScreen', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Sign in' }))
     await waitFor(() => {
       expect(mockSignInWithEmail).toHaveBeenCalledWith('test@example.com', 'password123')
+    })
+  })
+
+  it('shows Apple sign in on iOS when Apple authentication is available', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
+    mockIsAppleAvailableAsync.mockResolvedValue(true)
+
+    render(<LoginScreen />)
+
+    expect(await screen.findByRole('button', { name: 'Continue with Apple' })).toBeTruthy()
+  })
+
+  it('hides Apple sign in on iOS when Apple authentication is unavailable', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
+    mockIsAppleAvailableAsync.mockResolvedValue(false)
+
+    render(<LoginScreen />)
+
+    await waitFor(() => {
+      expect(mockIsAppleAvailableAsync).toHaveBeenCalled()
+    })
+    expect(screen.queryByRole('button', { name: 'Continue with Apple' })).toBeNull()
+  })
+
+  it('calls provider sign in for Google', async () => {
+    render(<LoginScreen />)
+
+    fireEvent.press(screen.getByRole('button', { name: 'Continue with Google' }))
+
+    await waitFor(() => {
+      expect(mockSignInWithProvider).toHaveBeenCalledWith('google')
+    })
+  })
+
+  it('calls provider sign in for Apple and routes new users to onboarding', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
+    mockIsAppleAvailableAsync.mockResolvedValue(true)
+    mockGetCurrentUser.mockResolvedValue({ id: 'user-1' } as never)
+    mockFetchProfile.mockResolvedValue({
+      username: '',
+      full_name: null,
+      bio: null,
+      avatar_url: null,
+      suburb: null,
+      city: null,
+      country: null,
+    })
+
+    render(<LoginScreen />)
+    fireEvent.press(await screen.findByRole('button', { name: 'Continue with Apple' }))
+
+    await waitFor(() => {
+      expect(mockSignInWithProvider).toHaveBeenCalledWith('apple')
+      expect(mockReplace).toHaveBeenCalledWith('/(auth)/onboarding-profile')
     })
   })
 })
