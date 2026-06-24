@@ -57,6 +57,7 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 | Change email       | `app/settings/change-email.tsx`       | ✅ Done |
 | Change password    | `app/settings/change-password.tsx`    | ✅ Done |
 | Connected accounts | `app/settings/connected-accounts.tsx` | ✅ Done |
+| Blocked accounts   | `app/settings/blocked-accounts.tsx`   | ✅ Done |
 
 ---
 
@@ -97,6 +98,7 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 - Zero-result cuisine expansion: backend RPC infers likely cuisines from existing Rekkus content, so long-tail dish queries can fall back without a large synonym list, LLM, embeddings, or query cache
 - Location ranking is opt-in: users can tap Nearby, then use current location or enter a suburb/postcode fallback in the filter sheet; Search does not request GPS on mount.
 - Cuisine taxonomy lives in `lib/dataSources/cuisines.ts`, is searchable alphabetically, and excludes restaurant types such as cafe, bakery, bar, and fine dining.
+- **Taxonomy assignment pipeline** (B-625): Places acquire food_category, venue_type, and dietary tags through four sourcing pathways — OSM field mapping (automatic, confidence 0.75), admin direct assignment (confidence ≥ 0.90), AI classification (batch, confidence caller-supplied), and user community suggestions (confidence 0.40, always queued for moderation). All suggestions flow through `taxonomy_suggestions`; only promoted assignments appear in `place_taxonomies`. Search reads only `place_taxonomies_accepted` (view: `confidence_score >= 0.50 AND removed_at IS NULL`). Source authority hierarchy admin > osm > ai > user is enforced by trigger. Confidence gates acceptance only — never used as a search ranking signal. See [ADR-0031](../docs/adr/ADR-0031-taxonomy-assignment-pipeline.md).
 - Search uses live Supabase users/places/posts where available and only merges demo data when data mode allows mock content.
 - Search analytics include session query chains and result-click positions.
 - Search follow actions use the authenticated follow service; when offline, the shared connectivity notice provides reconnect guidance rather than a local-only toggle.
@@ -279,7 +281,8 @@ Existing email login paths are unchanged.
 - **Theme**: 3-way selector — Light, Dark, System. Stored as `theme_mode TEXT ('light'|'dark'|'system')` in `user_settings`. `'system'` resolves via `useColorScheme()` at runtime. Map tiles (Google Maps) apply a dark tile style (`constants/mapStyles.ts`) when dark mode is active.
 - **Video playback**: stored as `autoplay_videos BOOLEAN DEFAULT TRUE`; muted post autoplay is limited to the visible active feed/detail video and is disabled whenever OS Reduce Motion is enabled.
 - Notification controls include likes, comments/replies, followers, mentions/tags, and private messages
-- Planned taste/social rows are labelled as planned until backing schema/routes ship: taste profile, home area, hidden dishes/places, recommendation controls, saved defaults, message controls, muted accounts, blocked accounts, and login sessions.
+- Blocked accounts: Privacy and social settings shows a blocked-count summary and opens a management list with full-list search, defensive deleted-account rows, explicit unblock confirmation, and optimistic unblock rollback.
+- Planned taste/social rows are labelled as planned until backing schema/routes ship: taste profile, home area, hidden dishes/places, recommendation controls, saved defaults, message controls, muted accounts, and login sessions.
 - Edit profile: avatar upload (expo-image-picker → Supabase Storage), username, display name, bio
 - Change email: re-auth then `supabase.auth.updateUser({ email })`
 - Change password: re-auth then `supabase.auth.updateUser({ password })`

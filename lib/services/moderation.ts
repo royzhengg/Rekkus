@@ -3,6 +3,8 @@ import { SUPABASE_URL } from '@/lib/config'
 import { isModerationResponse } from '@/lib/services/moderationGuards'
 import { supabase } from '@/lib/supabase'
 
+export const BLOCKED_ACCOUNTS_LIMIT = 500
+
 export type ReportTargetType = 'post' | 'comment' | 'user' | 'place' | 'message'
 export type ReportType =
   | 'content_report'
@@ -10,6 +12,14 @@ export type ReportType =
   | 'incentive_disclosure'
   | 'dispute'
   | 'takedown'
+
+export type BlockedAccount = {
+  blockedUserId: string
+  username: string | null
+  fullName: string | null
+  avatarUrl: string | null
+  blockedAt: string
+}
 
 type SubmitReportInput = {
   reporterId: string
@@ -37,7 +47,7 @@ export async function submitContentReport(input: SubmitReportInput): Promise<str
 }
 
 export async function blockUser(
-  blockerId: string,
+  blockerId: string | null,
   blockedId: string,
   reason = 'user_requested'
 ): Promise<string | null> {
@@ -60,12 +70,75 @@ export async function unblockUser(blockerId: string, blockedId: string): Promise
   return error?.message ?? null
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function firstJoinedRow(value: unknown): Record<string, unknown> | null {
+  if (Array.isArray(value)) return isRecord(value[0]) ? value[0] : null
+  return isRecord(value) ? value : null
+}
+
+function parseBlockedAccount(row: unknown): BlockedAccount | null {
+  if (!isRecord(row)) return null
+  const blockedUserId = row.blocked_id
+  const blockedAt = row.created_at
+  if (typeof blockedUserId !== 'string' || typeof blockedAt !== 'string') return null
+
+  const user = firstJoinedRow(row.users)
+  if (!user) {
+    return {
+      blockedUserId,
+      username: null,
+      fullName: null,
+      avatarUrl: null,
+      blockedAt,
+    }
+  }
+
+  return {
+    blockedUserId,
+    username: typeof user.username === 'string' ? user.username : null,
+    fullName: typeof user.full_name === 'string' ? user.full_name : null,
+    avatarUrl: typeof user.avatar_url === 'string' ? user.avatar_url : null,
+    blockedAt,
+  }
+}
+
+export async function fetchBlockedAccountCount(userId: string): Promise<number> {
+  const { count, error } = await supabase.from('user_blocks')
+    .select('id', { count: 'exact', head: true })
+    .eq('blocker_id', userId)
+    .limit(1)
+  if (error) throw error
+  return count ?? 0
+}
+
+export async function fetchBlockedAccounts(userId: string): Promise<BlockedAccount[]> {
+  const { data, error } = await supabase.from('user_blocks')
+    .select('blocked_id, created_at, users!user_blocks_blocked_id_fkey(id, username, full_name, avatar_url)')
+    .eq('blocker_id', userId)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(BLOCKED_ACCOUNTS_LIMIT)
+    .overrideTypes<unknown[], { merge: false }>()
+  if (error) throw error
+  return (data ?? [])
+    .map(parseBlockedAccount)
+    .filter((account): account is BlockedAccount => account !== null)
+}
+
 export async function fetchBlockedUserIds(userId: string): Promise<string[]> {
-  const { data } = await supabase.from('user_blocks')
+  const { data, error } = await supabase.from('user_blocks')
     .select('blocked_id')
     .eq('blocker_id', userId)
+    .limit(BLOCKED_ACCOUNTS_LIMIT)
+    .overrideTypes<unknown[], { merge: false }>()
+  if (error) throw error
 
-  return (data ?? []).map((row: { blocked_id: string }) => row.blocked_id)
+  return (data ?? [])
+    .map(row => (isRecord(row) && typeof row.blocked_id === 'string' ? row.blocked_id : null))
+    .filter((id): id is string => id !== null)
 }
 
 export async function moderateMessageMedia(

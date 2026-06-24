@@ -2513,19 +2513,43 @@ export type Database = {
       }
       place_taxonomies: {
         Row: {
+          assigned_by_user_id: string | null
+          classifier_version: string | null
+          confidence_score: number
+          created_at: string
           node_id: string
           place_id: string
-          source: string
+          removed_at: string | null
+          removed_by: string | null
+          source: Database["public"]["Enums"]["taxonomy_source"]
+          source_suggestion_id: string | null
+          updated_at: string
         }
         Insert: {
+          assigned_by_user_id?: string | null
+          classifier_version?: string | null
+          confidence_score?: number
+          created_at?: string
           node_id: string
           place_id: string
-          source?: string
+          removed_at?: string | null
+          removed_by?: string | null
+          source?: Database["public"]["Enums"]["taxonomy_source"]
+          source_suggestion_id?: string | null
+          updated_at?: string
         }
         Update: {
+          assigned_by_user_id?: string | null
+          classifier_version?: string | null
+          confidence_score?: number
+          created_at?: string
           node_id?: string
           place_id?: string
-          source?: string
+          removed_at?: string | null
+          removed_by?: string | null
+          source?: Database["public"]["Enums"]["taxonomy_source"]
+          source_suggestion_id?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2540,6 +2564,13 @@ export type Database = {
             columns: ["place_id"]
             isOneToOne: false
             referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_taxonomies_source_suggestion_id_fkey"
+            columns: ["source_suggestion_id"]
+            isOneToOne: false
+            referencedRelation: "taxonomy_suggestions"
             referencedColumns: ["id"]
           },
         ]
@@ -3755,6 +3786,69 @@ export type Database = {
           },
         ]
       }
+      taxonomy_assignment_events: {
+        Row: {
+          actor_id: string | null
+          classifier_name: string | null
+          classifier_run_id: string | null
+          classifier_version: string | null
+          created_at: string
+          event_type: string
+          id: string
+          new_confidence: number | null
+          node_id: string
+          notes: string | null
+          old_confidence: number | null
+          place_id: string
+          source: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          classifier_name?: string | null
+          classifier_run_id?: string | null
+          classifier_version?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          new_confidence?: number | null
+          node_id: string
+          notes?: string | null
+          old_confidence?: number | null
+          place_id: string
+          source?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          classifier_name?: string | null
+          classifier_run_id?: string | null
+          classifier_version?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          new_confidence?: number | null
+          node_id?: string
+          notes?: string | null
+          old_confidence?: number | null
+          place_id?: string
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taxonomy_assignment_events_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taxonomy_assignment_events_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       taxonomy_nodes: {
         Row: {
           created_at: string
@@ -3792,6 +3886,87 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taxonomy_suggestions: {
+        Row: {
+          assigned_by_user_id: string | null
+          classifier_name: string | null
+          classifier_run_id: string | null
+          classifier_version: string | null
+          confidence_score: number
+          created_at: string
+          id: string
+          node_id: string
+          place_id: string
+          promoted_automatically: boolean
+          review_notes: string | null
+          review_reason:
+            | Database["public"]["Enums"]["taxonomy_review_reason"]
+            | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: Database["public"]["Enums"]["taxonomy_source"]
+          status: Database["public"]["Enums"]["taxonomy_suggestion_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_by_user_id?: string | null
+          classifier_name?: string | null
+          classifier_run_id?: string | null
+          classifier_version?: string | null
+          confidence_score: number
+          created_at?: string
+          id?: string
+          node_id: string
+          place_id: string
+          promoted_automatically?: boolean
+          review_notes?: string | null
+          review_reason?:
+            | Database["public"]["Enums"]["taxonomy_review_reason"]
+            | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source: Database["public"]["Enums"]["taxonomy_source"]
+          status?: Database["public"]["Enums"]["taxonomy_suggestion_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_by_user_id?: string | null
+          classifier_name?: string | null
+          classifier_run_id?: string | null
+          classifier_version?: string | null
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          node_id?: string
+          place_id?: string
+          promoted_automatically?: boolean
+          review_notes?: string | null
+          review_reason?:
+            | Database["public"]["Enums"]["taxonomy_review_reason"]
+            | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: Database["public"]["Enums"]["taxonomy_source"]
+          status?: Database["public"]["Enums"]["taxonomy_suggestion_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taxonomy_suggestions_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taxonomy_suggestions_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
         ]
@@ -4173,6 +4348,61 @@ export type Database = {
       }
     }
     Views: {
+      place_taxonomies_accepted: {
+        Row: {
+          assigned_by_user_id: string | null
+          classifier_version: string | null
+          confidence_score: number | null
+          created_at: string | null
+          node_id: string | null
+          place_id: string | null
+          source: Database["public"]["Enums"]["taxonomy_source"] | null
+          source_suggestion_id: string | null
+        }
+        Insert: {
+          assigned_by_user_id?: string | null
+          classifier_version?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          node_id?: string | null
+          place_id?: string | null
+          source?: Database["public"]["Enums"]["taxonomy_source"] | null
+          source_suggestion_id?: string | null
+        }
+        Update: {
+          assigned_by_user_id?: string | null
+          classifier_version?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          node_id?: string | null
+          place_id?: string | null
+          source?: Database["public"]["Enums"]["taxonomy_source"] | null
+          source_suggestion_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_taxonomies_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_taxonomies_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_taxonomies_source_suggestion_id_fkey"
+            columns: ["source_suggestion_id"]
+            isOneToOne: false
+            referencedRelation: "taxonomy_suggestions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_audit_events_view: {
         Row: {
           context: Json | null
@@ -4183,6 +4413,22 @@ export type Database = {
           id: string | null
           source_table: string | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      taxonomy_review_performance: {
+        Row: {
+          avg_review_hours: number | null
+          count: number | null
+          source: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      taxonomy_review_queue_stats: {
+        Row: {
+          oldest_pending_hours: number | null
+          pending_count: number | null
         }
         Relationships: []
       }
@@ -4207,6 +4453,15 @@ export type Database = {
       approve_follow_request: {
         Args: { p_idempotency_key?: string; p_request_id: string }
         Returns: string
+      }
+      assign_taxonomy_admin: {
+        Args: {
+          p_confidence?: number
+          p_node_id: string
+          p_notes?: string
+          p_place_id: string
+        }
+        Returns: undefined
       }
       block_user: {
         Args: { p_blocked_id: string; p_reason?: string }
@@ -4366,6 +4621,24 @@ export type Database = {
         Args: { p_slug: string; p_type?: string }
         Returns: string[]
       }
+      get_taxonomy_review_queue: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: {
+          assigned_by_user_id: string
+          classifier_name: string
+          classifier_version: string
+          confidence_score: number
+          created_at: string
+          node_id: string
+          node_label: string
+          node_slug: string
+          node_taxonomy_type: string
+          place_id: string
+          queue_age_hours: number
+          source: string
+          suggestion_id: string
+        }[]
+      }
       has_user_block_between: {
         Args: { target_id: string; viewer_id: string }
         Returns: boolean
@@ -4445,6 +4718,10 @@ export type Database = {
           private_account: boolean
         }[]
       }
+      promote_taxonomy_suggestion: {
+        Args: { p_notes?: string; p_suggestion_id: string }
+        Returns: undefined
+      }
       purge_soft_deleted_content: {
         Args: { batch_size?: number }
         Returns: number
@@ -4519,6 +4796,23 @@ export type Database = {
         Returns: undefined
       }
       refresh_trending_queries: { Args: never; Returns: undefined }
+      reject_taxonomy_suggestion: {
+        Args: {
+          p_notes?: string
+          p_reason?: Database["public"]["Enums"]["taxonomy_review_reason"]
+          p_suggestion_id: string
+        }
+        Returns: undefined
+      }
+      remove_taxonomy_assignment: {
+        Args: {
+          p_node_id: string
+          p_notes?: string
+          p_place_id: string
+          p_reason?: Database["public"]["Enums"]["taxonomy_review_reason"]
+        }
+        Returns: undefined
+      }
       reopen_place: {
         Args: { p_metadata?: Json; p_place_id: string; p_source: string }
         Returns: undefined
@@ -4644,6 +4938,17 @@ export type Database = {
         Returns: Json
       }
       set_activity_visibility: { Args: { p_show: boolean }; Returns: undefined }
+      submit_taxonomy_suggestion: {
+        Args: {
+          p_classifier_name?: string
+          p_classifier_run_id?: string
+          p_classifier_version?: string
+          p_confidence: number
+          p_node_id: string
+          p_place_id: string
+        }
+        Returns: string
+      }
       suggest_searches: {
         Args: {
           limit_per_type?: number
@@ -4723,6 +5028,14 @@ export type Database = {
         | "follow"
         | "follow_request_pending"
         | "follow_request_approved"
+      taxonomy_review_reason:
+        | "incorrect"
+        | "duplicate"
+        | "low_confidence"
+        | "spam"
+        | "other"
+      taxonomy_source: "osm" | "user" | "admin" | "ai"
+      taxonomy_suggestion_status: "pending" | "promoted" | "rejected"
       verification_level:
         | "user_created"
         | "osm_only"
@@ -4900,6 +5213,15 @@ export const Constants = {
         "follow_request_pending",
         "follow_request_approved",
       ],
+      taxonomy_review_reason: [
+        "incorrect",
+        "duplicate",
+        "low_confidence",
+        "spam",
+        "other",
+      ],
+      taxonomy_source: ["osm", "user", "admin", "ai"],
+      taxonomy_suggestion_status: ["pending", "promoted", "rejected"],
       verification_level: [
         "user_created",
         "osm_only",

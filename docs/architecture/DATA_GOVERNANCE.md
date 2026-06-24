@@ -35,6 +35,27 @@ Canonical entity IDs are immutable UUIDs. A real-world entity can gain aliases, 
 | Saved dish intent | `saved_dishes` | Owner-private save state for a canonical dish. |
 | Saved organisation | `collection_items` | Membership only; collection-add atomically ensures the corresponding base save exists. |
 
+## Taxonomy Confidence and Audit Pattern (B-625)
+
+Taxonomy tag assignment follows a suggestions/assignments split that separates intake from authoritative state:
+
+- All incoming signals (OSM, AI, admin, user) land in `taxonomy_suggestions` with a `confidence_score` and `source` enum.
+- A moderation gate (or OSM/admin direct path) promotes accepted suggestions into `place_taxonomies` (authoritative truth).
+- Search reads only `place_taxonomies_accepted` — a view enforcing `confidence_score >= 0.50 AND removed_at IS NULL`.
+- Every lifecycle event (promotion, rejection, removal, restoration) writes an append-only row to `taxonomy_assignment_events`.
+- Assignment removal is always a soft-delete (`removed_at`); hard-delete is forbidden so AI retraining and audit trails remain intact.
+- Source authority hierarchy (admin > osm > ai > user) is enforced by a BEFORE UPDATE trigger — admin assignments are never overwritten.
+- Confidence is an acceptance gate only; it is never used as a search ranking signal.
+
+| Table / View | Role |
+| --- | --- |
+| `taxonomy_suggestions` | Intake — all sources, all states (pending / promoted / rejected) |
+| `place_taxonomies` | Authoritative assignments only — truth table |
+| `place_taxonomies_accepted` | View consumed by all search functions |
+| `taxonomy_assignment_events` | Append-only audit log; RLS `FOR ALL USING (false)` |
+
+See [ADR-0031](../adr/ADR-0031-taxonomy-assignment-pipeline.md) and [taxonomy-assignment.md](../domains/search/taxonomy-assignment.md).
+
 ## Audit And History Rules
 
 - Critical admin, security, moderation, provider refresh, merge, alias, and ownership actions should be append-only.

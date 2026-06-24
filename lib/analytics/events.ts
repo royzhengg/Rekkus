@@ -1,3 +1,4 @@
+import type { SearchResultType, SearchSuggestionType } from '@/lib/search/filterContracts'
 import { supabase } from '@/lib/supabase'
 import type { AuthProvider, OAuthProvider } from '@/lib/utils/authProviders'
 import { track, searchAttributionMetadata } from './core'
@@ -229,7 +230,7 @@ export const analytics = {
 
   searchResultClick: (
     userId: string | null,
-    resultType: 'post' | 'place' | 'user' | 'dish',
+    resultType: 'post' | 'place' | 'user' | 'dish' | 'collection' | 'person',
     entityId: string,
     query: string,
     position: number,
@@ -237,13 +238,51 @@ export const analytics = {
   ): void =>
     void track(userId, {
       event_type: 'search_result_click',
-      entity_type: resultType === 'place' ? 'place' : resultType,
+      entity_type: resultType === 'person' ? 'user' : resultType,
       entity_id: entityId,
       metadata: {
         query,
         result_type: resultType,
         result_position: position,
         search_session_id: searchSessionId,
+      },
+    }),
+
+  searchFilterSheetOpened: (userId: string | null, filterCount: number): void =>
+    void track(userId, {
+      event_type: 'search_filter_sheet_opened',
+      metadata: { filter_count: Math.max(0, Math.round(filterCount)) },
+    }),
+
+  searchSuggestionSelected: (
+    userId: string | null,
+    suggestionType: SearchSuggestionType,
+    suggestionId: string,
+    suggestionSlug: string,
+    position: number
+  ): void =>
+    void track(userId, {
+      event_type: 'search_suggestion_selected',
+      metadata: {
+        suggestion_type: suggestionType,
+        suggestion_id: suggestionId,
+        suggestion_slug: suggestionSlug,
+        position: Math.max(1, Math.round(position)),
+      },
+    }),
+
+  searchNoResults: (
+    userId: string | null,
+    query: string,
+    resultType?: SearchResultType | null,
+    rankingVersion?: string | null
+  ): void =>
+    void track(userId, {
+      event_type: 'search_no_results',
+      metadata: {
+        query,
+        ...(resultType ? { result_type: resultType } : {}),
+        ...(rankingVersion ? { ranking_version: rankingVersion } : {}),
       },
     }),
 
@@ -323,6 +362,19 @@ export const analytics = {
     void track(userId, {
       event_type: 'saved_search_selected',
       metadata: { query },
+    }),
+
+  searchSavedSearchUsed: (
+    userId: string | null,
+    query: string,
+    searchSessionId?: string | null
+  ): void =>
+    void track(userId, {
+      event_type: 'search_saved_search_used',
+      metadata: {
+        query,
+        ...(searchSessionId ? { search_session_id: searchSessionId } : {}),
+      },
     }),
 
   searchLocationNudgeShown: (
@@ -529,6 +581,12 @@ export const analytics = {
 
   screen: (userId: string | null, screenName: string): void =>
     void track(userId, { event_type: 'screen_view', metadata: { screen: screenName } }),
+
+  blockedAccountsScreenViewed: (userId: string | null): void =>
+    void track(userId, { event_type: 'blocked_accounts_screen_viewed' }),
+
+  blockedAccountsSearchUsed: (userId: string | null): void =>
+    void track(userId, { event_type: 'blocked_accounts_search_used' }),
 
   onboardingStep: (userId: string | null, step: string, outcome: string, reason?: string): void =>
     void track(userId, { event_type: 'onboarding_step', metadata: { step, outcome, reason } }),
@@ -741,5 +799,66 @@ export const analytics = {
         provider: provider ?? null,
         signal_age_days: signalAgeDays ?? null,
       },
+    }),
+
+  // Taxonomy events (B-625)
+  // Privacy: source is an enum value; confidence is a float. No free-form strings.
+  taxonomySuggestionCreated: (
+    userId: string | null,
+    source: 'osm' | 'user' | 'admin' | 'ai',
+    confidence: number
+  ): void =>
+    void track(userId, {
+      event_type: 'taxonomy_suggestion_created',
+      metadata: { source, confidence },
+    }),
+
+  taxonomySuggestionPromoted: (
+    userId: string | null,
+    source: 'osm' | 'user' | 'admin' | 'ai',
+    promotedAutomatically: boolean
+  ): void =>
+    void track(userId, {
+      event_type: 'taxonomy_suggestion_promoted',
+      metadata: { source, promoted_automatically: promotedAutomatically },
+    }),
+
+  taxonomySuggestionRejected: (
+    userId: string | null,
+    source: 'osm' | 'user' | 'admin' | 'ai',
+    reviewReason: string | null
+  ): void =>
+    void track(userId, {
+      event_type: 'taxonomy_suggestion_rejected',
+      metadata: { source, review_reason: reviewReason },
+    }),
+
+  taxonomyAssignmentCreated: (
+    userId: string | null,
+    source: 'osm' | 'user' | 'admin' | 'ai',
+    confidence: number
+  ): void =>
+    void track(userId, {
+      event_type: 'taxonomy_assignment_created',
+      metadata: { source, confidence },
+    }),
+
+  taxonomyReviewCompleted: (
+    userId: string | null,
+    action: 'approve' | 'reject',
+    queueAgeHours: number
+  ): void =>
+    void track(userId, {
+      event_type: 'taxonomy_review_completed',
+      metadata: { action, queue_age_hours: Math.round(queueAgeHours) },
+    }),
+
+  taxonomyAssignmentRemoved: (
+    userId: string | null,
+    source: 'osm' | 'user' | 'admin' | 'ai'
+  ): void =>
+    void track(userId, {
+      event_type: 'taxonomy_assignment_removed',
+      metadata: { source },
     }),
 }

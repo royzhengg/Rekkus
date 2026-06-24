@@ -161,6 +161,45 @@ describe('analytics', () => {
     ])
   })
 
+  it('emits Search Domain analytics with bounded safe metadata', async () => {
+    analytics.searchFilterSheetOpened('user-1', 3.6)
+    analytics.searchSuggestionSelected('user-1', 'occasion', 'occasion-date-night', 'date-night', 2)
+    analytics.searchNoResults('user-1', 'date night', 'collection', 'search_v1')
+    analytics.searchSavedSearchUsed('user-1', 'date night', 'search-session-1')
+    await flushAnalytics()
+
+    expect(mockInsert.mock.calls.map(call => call[0])).toEqual([
+      expect.objectContaining({
+        event_type: 'search_filter_sheet_opened',
+        metadata: { filter_count: 4 },
+      }),
+      expect.objectContaining({
+        event_type: 'search_suggestion_selected',
+        metadata: {
+          suggestion_type: 'occasion',
+          suggestion_id: 'occasion-date-night',
+          suggestion_slug: 'date-night',
+          position: 2,
+        },
+      }),
+      expect.objectContaining({
+        event_type: 'search_no_results',
+        metadata: {
+          query: 'date night',
+          result_type: 'collection',
+          ranking_version: 'search_v1',
+        },
+      }),
+      expect.objectContaining({
+        event_type: 'search_saved_search_used',
+        metadata: {
+          query: 'date night',
+          search_session_id: 'search-session-1',
+        },
+      }),
+    ])
+  })
+
   it('emits profile follow list analytics with safe list type metadata', async () => {
     analytics.profileFollowListOpened('viewer-1', 'target-1', 'followers')
     await flushAnalytics()

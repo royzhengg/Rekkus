@@ -4,16 +4,17 @@
 
 ## What Rekkus Is
 
-Rekkus is a social review and recommendation platform built on honest, real, human opinions. We are starting with food — a rich, local, and deeply personal niche — and dish-first discovery is what makes Rekkus more useful than a generic restaurant directory.
+Rekkus is a social review and recommendation platform built on honest, real, human opinions. We are starting with food — a rich, local, and deeply personal niche — and food-first, discovery-first decision support is what makes Rekkus more useful than a generic restaurant directory.
 
 It helps people answer:
 
 - What should I eat?
+- Where should I go?
 - What is actually good here?
 - What places are worth saving?
 - What dishes are people with similar taste recommending nearby?
 
-Search and Discovery serve different jobs. Search is intent-led retrieval: the user names a dish, place, cuisine, person, or area and Rekkus should return the most relevant trustworthy evidence. Discovery is taste-led exploration: Rekkus suggests what may be worth saving or trying next from local, social, dish, and taste signals. They can share entities and signals, but their ranking goals must stay distinct.
+Search and Discovery serve different jobs. Search is intent-led retrieval: the user names a dish, place, collection, cuisine, occasion, person, or area and Rekkus should return the most relevant trustworthy evidence. Discovery is taste-led exploration: Rekkus suggests what may be worth saving or trying next from local, social, dish, collection, place, and taste signals. They can share entities and signals, but their ranking goals must stay distinct.
 
 ## What Rekkus Is Not
 
@@ -45,7 +46,7 @@ Priority order:
 ## Product Principles
 
 - Honest, real, human reviews over aggregated scores.
-- Dish-first discovery over restaurant-first browsing.
+- Food-first discovery over generic restaurant-first browsing; result prominence follows intent, context, and ranking.
 - Saves over likes.
 - Local relevance over global popularity.
 - Trust over vanity metrics.
