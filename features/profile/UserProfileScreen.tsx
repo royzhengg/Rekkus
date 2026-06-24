@@ -25,10 +25,13 @@ import { blockUser, submitContentReport } from '@/lib/services/moderation'
 import { fetchTopSpotsWithDetails } from '@/lib/services/topSpots'
 import {
   fetchUserIdByUsername,
-  fetchIsFollowing,
+  fetchFollowRelationshipState,
   fetchFollowCounts,
+  fetchPublicProfileShell,
+  fetchProfileVisibilityState,
   removeFollowChannel,
   subscribeToFollowChanges,
+  type FollowRelationshipState,
 } from '@/lib/services/users'
 import { CollectionList, FavouriteCuisines } from './ProfileFoodSections'
 import {
@@ -60,9 +63,11 @@ export default function UserProfileScreen() {
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [activeTab, setActiveTab] = useState<TabKey>('posts')
-  const [following, setFollowing] = useState(false)
+  const [relationshipState, setRelationshipState] = useState<FollowRelationshipState>('none')
+  const [profileVisibility, setProfileVisibility] = useState({ private_account: false, can_view_content: true })
   const [refreshing, setRefreshing] = useState(false)
   const [targetUserId, setTargetUserId] = useState<string | null>(null)
+  const [publicReviewCount, setPublicReviewCount] = useState<number | null>(null)
   const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null)
   const [profileCollections, setProfileCollections] = useState<Collection[]>([])
   const [hydratedTopPlaces, setHydratedTopPlaces] = useState<ProfilePlace[]>([])
@@ -75,28 +80,44 @@ export default function UserProfileScreen() {
   const loadUserData = useCallback(async () => {
     if (!username) return
     try {
-      const uid = await fetchUserIdByUsername(username)
+      const shell = await fetchPublicProfileShell(username)
+      const uid = shell?.id ?? await fetchUserIdByUsername(username)
       setTargetUserId(uid)
+      setPublicReviewCount(shell?.post_count ?? null)
       if (uid) {
-        const [counts, collections, manualSpots] = await Promise.all([
+        const [counts, visibility] = await Promise.all([
           fetchFollowCounts(uid),
-          fetchProfileCollections(uid, currentUserId === uid),
-          fetchTopSpotsWithDetails(uid),
+          fetchProfileVisibilityState(uid),
         ])
         setFollowCounts(counts)
-        setProfileCollections(collections)
-        setManualTopSpots(manualSpots)
+        setProfileVisibility(visibility)
+        if (visibility.can_view_content) {
+          const [collections, manualSpots] = await Promise.all([
+            fetchProfileCollections(uid, currentUserId === uid),
+            fetchTopSpotsWithDetails(uid),
+          ])
+          setProfileCollections(collections)
+          setManualTopSpots(manualSpots)
+        } else {
+          setProfileCollections([])
+          setManualTopSpots([])
+        }
         if (currentUserId) {
-          const isFollowing = await fetchIsFollowing(currentUserId, uid)
-          setFollowing(isFollowing)
+          setRelationshipState(await fetchFollowRelationshipState(uid))
+        } else {
+          setRelationshipState('none')
         }
       } else {
         setProfileCollections([])
         setManualTopSpots([])
+        setProfileVisibility({ private_account: false, can_view_content: true })
+        setRelationshipState('none')
+        setPublicReviewCount(null)
       }
     } catch {
       setFollowCounts(null)
       setProfileCollections([])
+      setPublicReviewCount(null)
     }
   }, [currentUserId, username])
 
@@ -121,7 +142,10 @@ export default function UserProfileScreen() {
   }, [loadUserData, targetUserId])
 
   const mockUser = demoUsers[username ?? '']
-  const userPosts = useMemo(() => posts.filter(p => p.creator === username), [posts, username])
+  const userPosts = useMemo(
+    () => profileVisibility.can_view_content ? posts.filter(p => p.creator === username) : [],
+    [posts, profileVisibility.can_view_content, username]
+  )
   const { visible: visibleUserPosts, hasMore: userPostsHasMore, loadMore: loadMoreUserPosts } =
     usePagedList(userPosts)
 
@@ -167,7 +191,7 @@ export default function UserProfileScreen() {
   const initials = mockUser?.initials ?? (username ?? '?').slice(0, 2).toUpperCase()
   const avatarBg = mockUser?.avatarBg ?? colors.surface2
   const avatarColor = mockUser?.avatarColor ?? colors.text2
-  const locationLabel = mockUser
+  const locationLabel = profileVisibility.can_view_content && mockUser
     ? [mockUser.suburb, mockUser.city].filter(Boolean).join(', ') || null
     : null
 
@@ -177,22 +201,27 @@ export default function UserProfileScreen() {
       return
     }
     if (!targetUserId) return
-    const next = !following
-    const previous = following
+    const next = relationshipState !== 'following' && relationshipState !== 'requested'
+    const previous = relationshipState
+    const optimisticNext: FollowRelationshipState = next
+      ? (profileVisibility.private_account && !profileVisibility.can_view_content ? 'requested' : 'following')
+      : 'none'
     setOperationError(null)
-    setFollowing(next)
+    setRelationshipState(optimisticNext)
     try {
       const result = await runDeferredMutation({ kind: 'follow', targetUserId, targetState: next })
+      if (result.followState) setRelationshipState(result.followState)
       if (!result.queued) {
         const counts = await fetchFollowCounts(targetUserId)
         setFollowCounts(counts)
+        setProfileVisibility(await fetchProfileVisibilityState(targetUserId))
       } else {
         setFollowCounts(prev => prev
-          ? { ...prev, followers: Math.max(0, prev.followers + (next ? 1 : -1)) }
+          ? { ...prev, followers: Math.max(0, prev.followers + (optimisticNext === 'following' ? 1 : previous === 'following' ? -1 : 0)) }
           : prev)
       }
     } catch {
-      setFollowing(previous)
+      setRelationshipState(previous)
       setOperationError({ title: 'Could not update follow', message: 'Check your connection and try again.' })
     }
   }
@@ -292,7 +321,7 @@ export default function UserProfileScreen() {
           avatarColor={avatarColor}
           displayName={displayName}
           username={username ?? ''}
-          postCount={userPosts.length}
+          postCount={publicReviewCount ?? userPosts.length}
           followersLabel={followCounts ? formatProfileCount(followCounts.followers) : mockUser?.followers ?? '—'}
           followingLabel={followCounts ? formatProfileCount(followCounts.following) : mockUser?.following ?? '—'}
           locationLabel={locationLabel}
@@ -307,13 +336,13 @@ export default function UserProfileScreen() {
         {/* Action buttons */}
         <View style={styles.actionBtns}>
           <TouchableOpacity
-            style={[styles.followBtn, following && styles.followBtnActive]}
+            style={[styles.followBtn, relationshipState !== 'none' && styles.followBtnActive]}
             onPress={handleFollow}
             activeOpacity={0.8}
             accessibilityRole="button"
           >
-            <Text style={[styles.followBtnText, following && styles.followBtnTextActive]}>
-              {following ? 'Following' : 'Follow'}
+            <Text style={[styles.followBtnText, relationshipState !== 'none' && styles.followBtnTextActive]}>
+              {relationshipState === 'following' ? 'Following' : relationshipState === 'requested' ? 'Requested' : 'Follow'}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.messageBtn} activeOpacity={0.8} onPress={handleMessage} accessibilityRole="button">
@@ -329,12 +358,14 @@ export default function UserProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <TopSpotCards
-          places={hydratedTopPlaces.length > 0 ? hydratedTopPlaces : topPlacesSource}
-          onPressPlace={openPlace}
-        />
+        {profileVisibility.can_view_content ? (
+          <TopSpotCards
+            places={hydratedTopPlaces.length > 0 ? hydratedTopPlaces : topPlacesSource}
+            onPressPlace={openPlace}
+          />
+        ) : null}
 
-        {profileInterests.length > 0 && (
+        {profileVisibility.can_view_content && profileInterests.length > 0 && (
           <View style={styles.profileSection}>
             <Text style={styles.sectionHeading} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
               Favourite Cuisines
@@ -343,7 +374,7 @@ export default function UserProfileScreen() {
           </View>
         )}
 
-        <View style={styles.tabs} accessibilityRole="tablist">
+        {profileVisibility.can_view_content ? <View style={styles.tabs} accessibilityRole="tablist">
           {(['posts', 'collections'] as TabKey[]).map(key => (
             <TouchableOpacity
               key={key}
@@ -357,9 +388,11 @@ export default function UserProfileScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </View> : null}
 
-        {activeTab === 'posts' && (userPosts.length === 0 ? (
+        {!profileVisibility.can_view_content ? (
+          <EmptyProfileTab title="This account is private." styles={styles} colors={colors} />
+        ) : activeTab === 'posts' && (userPosts.length === 0 ? (
           <EmptyProfileTab title="No reviews yet." styles={styles} colors={colors} />
         ) : (
           <ProfilePostCards
@@ -370,7 +403,7 @@ export default function UserProfileScreen() {
           />
         ))}
 
-        {activeTab === 'collections' && (profileCollections.length === 0 ? (
+        {profileVisibility.can_view_content && activeTab === 'collections' && (profileCollections.length === 0 ? (
           <EmptyProfileTab title="No public collections yet." styles={styles} colors={colors} />
         ) : (
           <CollectionList collections={profileCollections} onPressCollection={collection => router.push(routes.collectionDetail(collection.id))} />

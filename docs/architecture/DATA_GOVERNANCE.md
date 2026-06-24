@@ -19,15 +19,16 @@ Canonical entity IDs are immutable UUIDs. A real-world entity can gain aliases, 
 | Area | Source Of Truth | Notes |
 | --- | --- | --- |
 | Place identity | `places` | Rekkus canonical identity. |
-| User-created places | `places.created_by`, `create_user_restaurant`, `restaurant_sources` | First-party place creation with provenance and audit evidence. Note: `create_user_restaurant` and `restaurant_sources` retain historical naming. |
-| Provider IDs | `restaurant_sources` | Google/OSM/provider mappings and provenance. |
-| Provider snapshots | `restaurant_provider_cache` | TTL, attribution, retention, and cacheability metadata. |
-| Google-selected places | `places`, `restaurant_sources`, `restaurant_provider_cache`, `restaurant_audit_events` | Selection promotes the place into the local graph with provider provenance; autocomplete suggestions that are merely displayed are not durable canonical data. Note: `restaurant_sources`, `restaurant_provider_cache`, and `restaurant_audit_events` retain historical naming. |
-| User/system observations | `restaurant_observations` | Candidate facts awaiting trust or promotion. |
-| Duplicate aliases | `restaurant_aliases` | Alternate names, old IDs, and duplicate hints. |
-| Restaurant audit | `restaurant_audit_events` | Append-only restaurant graph change evidence. |
-| Ownership history | `restaurant_ownership_events` | Claim, approval, rejection, transfer, and removal history. |
-| Merge history | `restaurant_merge_events` | Canonical/merged ID evidence and rollback references. |
+| User-created places | `places.created_by`, `create_user_place`, `place_provenance` | First-party place creation with provenance and audit evidence. |
+| Provider IDs | `place_provenance` | Google/OSM/provider mappings, data rights, attribution, and provenance. |
+| Provider snapshots | `place_provider_cache` | TTL, attribution, retention, and cacheability metadata. |
+| Google-selected places | `places`, `place_provenance`, `place_provider_cache`, `place_audit_events` | Selection promotes the place into the local graph with provider provenance; autocomplete suggestions that are merely displayed are not durable canonical data. |
+| User/system observations | `place_observations` | Candidate facts awaiting trust or promotion. |
+| Provider ID / name mappings | `place_provider_links` | External provider ID mappings, alternate names, and address variants from providers. Distinct from `place_aliases` (search text aliases). |
+| Place ownership (current) | `place_owners` | Canonical current ownership state. Many-to-many; at most one approved `owner` per place. |
+| Place audit | `place_audit_events` | Append-only place graph change evidence. |
+| Ownership history | `place_ownership_events` | Claim, approval, rejection, transfer, and removal history. |
+| Merge history | `place_merge_events` | Canonical/merged ID evidence and rollback references. |
 | Repair history | `data_repair_events` | Malformed place, post, dish, and user repair reports. |
 | Analytics | `analytics_events` | Privacy-safe event log only. |
 | Post edit audit | `post_edit_events` | Privacy-minimized owner edit evidence; field names/count only. |
@@ -44,7 +45,7 @@ Canonical entity IDs are immutable UUIDs. A real-world entity can gain aliases, 
 - Duplicate cleanup must preserve alias and merge history so old links and references remain explainable.
 - Repair workflows should record actor, reason, affected entity, before/after categories, and rollback path.
 - B-283 canonicalisation backfills only posts with a canonical place and non-empty `best_dish`, and records bounded `dish_audit_events` context; UI never guesses links from display text.
-- Admin platform place actions must use `restaurant_merge_events`, `restaurant_ownership_events`, `restaurant_audit_events`, and `data_repair_events` as the operational evidence path before any custom dashboard writes directly to canonical data. Note: these audit tables retain their historical `restaurant_` prefix naming.
+- Admin platform place actions must use `place_merge_events`, `place_ownership_events`, `place_audit_events`, and `data_repair_events` as the operational evidence path before any custom dashboard writes directly to canonical data.
 - `scripts/ops/check-audit.js` validates audit/history table coverage, service helper evidence, and the absence of broad update/delete policies on append-only history tables.
 
 ## Display Precedence

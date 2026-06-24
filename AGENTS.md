@@ -244,5 +244,48 @@ When a backlog command is vague, inspect `PRODUCT.md`, `BACKLOG.md`, `AGENTS.md`
 - `npm run check:darkmode` — any colour, background, or overlay value
 - `npm run check:a11y` — adding or modifying any interactive element
 - `npm run check:architecture` — code in `features/`, `lib/hooks/`, `components/`, or `lib/services/`
+- `npm run check:schema-drift` — after editing any file in `supabase/schema/` (already in hygiene chain)
 
 Run `npm run validate` before committing. Run `npm run validate:full` before opening a PR.
+
+## Database Architecture
+
+### Schema change workflow
+
+1. Edit the relevant file in `supabase/schema/<domain>/`
+2. Run `./scripts/build-schema.sh > supabase/schema.sql`
+3. Run `supabase db diff --use-migra -f <migration_name>` to generate migration
+4. Review the generated migration — fix if wrong
+5. Run `supabase migration up --include-all` (local)
+6. Run `npm run check:schema-drift` — must pass before PR
+7. Add a DATA_DICTIONARY entry if it is a new table
+8. Run `npm run check:supabase-types`
+
+**Never edit `supabase/schema.sql` directly.** Never edit generated migrations (data migrations are the only exception).
+
+### Governance rules
+
+- **No new root-level schema files.** All tables go inside a domain subdirectory. `supabase/schema/new_feature.sql` is never allowed.
+- **No global triggers file.** Triggers live in `functions/<domain>.sql` next to the functions they invoke.
+- **`schema.sql` is generated and committed.** Never gitignore it; never edit it by hand. Regenerate by running `scripts/build-schema.sh`.
+- **Split domain subdirectories at ~200 lines.** Create `places/`, `posts/`, etc. proactively.
+- **Every table must have a DATA_DICTIONARY entry** (`supabase/schema/DATA_DICTIONARY.md`).
+- **No new enums without ADR review.** Enums become schema debt when values change. Prefer `text` columns with `CHECK` constraints or lookup tables.
+- **No JSONB without inline comment** explaining why structure is genuinely unknown at design time.
+- **Soft-delete all recoverable user-generated content** (`deleted_at`). Posts, comments, collections, dishes. Places: `place_status` + `deleted_at`.
+- **Every FK must have an index** on the referencing column. Verify before merging.
+
+### Architecture Invariants
+
+Never violate these without an ADR:
+
+1. **Core entities stay small.** `places` and `users` must not accumulate analytics, search signals, or provider payloads as columns.
+2. **Derived data is not stored in source-of-truth tables.** Scores, search ranks, and popularity signals live in their own tables.
+3. **Search tables must be rebuildable.** Document source tables and rebuild procedure in DATA_DICTIONARY.
+4. **Analytics tables must be rebuildable.** Same rule.
+5. **Provider data stays isolated.** `place_provider_cache` / `place_observations` never feed columns directly into `places`.
+6. **No new root-level schema files.**
+7. **No cross-domain function dependencies without ADR.**
+8. **No JSONB without inline comment** justifying why structure is genuinely unknown.
+9. **No new enums without ADR review.**
+10. **Every table must have a DATA_DICTIONARY owner.**

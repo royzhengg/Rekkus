@@ -41,14 +41,10 @@ export async function blockUser(
   blockedId: string,
   reason = 'user_requested'
 ): Promise<string | null> {
-  const { error } = await supabase.from('user_blocks').upsert(
-    {
-      blocker_id: blockerId,
-      blocked_id: blockedId,
-      reason,
-    },
-    { onConflict: 'blocker_id,blocked_id' }
-  )
+  const { error } = await supabase.rpc('block_user', {
+    p_blocked_id: blockedId,
+    p_reason: reason,
+  })
 
   void analytics.abuseSignal(blockerId, 'user_blocked', 'user', reason)
   return error?.message ?? null

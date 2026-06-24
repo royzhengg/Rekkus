@@ -65,10 +65,41 @@ export async function updateSettingValue<K extends keyof Settings>(
   key: K,
   value: Settings[K]
 ): Promise<void> {
+  if (key === 'private_account' && typeof value === 'boolean') {
+    await updatePrivateAccount(value)
+    return
+  }
+  if (key === 'show_activity_status' && typeof value === 'boolean') {
+    const { error } = await supabase.rpc('set_activity_visibility', { p_show: value })
+    if (error) throw error
+    return
+  }
   const { error } = await supabase.from('user_settings').upsert({
     id: userId,
     [key]: value,
     updated_at: new Date().toISOString(),
   } as never, { onConflict: 'id' })
   if (error) throw error
+}
+
+export type PrivateAccountUpdateResult = {
+  privateAccount: boolean
+  approvedRequesterIds: string[]
+  approvedCount: number
+}
+
+export async function updatePrivateAccount(privateAccount: boolean): Promise<PrivateAccountUpdateResult> {
+  const { data, error } = await supabase.rpc('set_account_privacy', { p_private: privateAccount })
+  if (error) throw error
+  if (!isRecord(data)) {
+    return { privateAccount, approvedRequesterIds: [], approvedCount: 0 }
+  }
+  const approvedRequesterIds = Array.isArray(data.approved_requester_ids)
+    ? data.approved_requester_ids.filter((id): id is string => typeof id === 'string')
+    : []
+  return {
+    privateAccount: data.private_account === true,
+    approvedRequesterIds,
+    approvedCount: typeof data.approved_count === 'number' ? data.approved_count : approvedRequesterIds.length,
+  }
 }

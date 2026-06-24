@@ -36,3 +36,48 @@ The architecture review recommended unifying 7 audit tables into a single `audit
 ## `conversation_participants` split increases, not decreases, schema complexity
 
 Splitting request/preference columns into separate tables sounds clean but: the request columns (`request_status`, `requested_by`) are used as membership guards in 20+ SQL functions. Splitting them forces every RLS policy and function to JOIN two tables. The schema visualizer would gain 2 new nodes and many new edges. Deferred until there is a clear product trigger (e.g., request lifecycle requires its own audit log or the preferences table needs per-row RLS independent of membership).
+
+## Generic taxonomy engine beats domain-specific duplication
+
+When building the first classification system (cuisines), building a generic `taxonomy_nodes(slug, name, taxonomy_type, parent_id, path)` table with a `taxonomy_type` enum costs ~30% more upfront work but means every future classification (food categories, venue types, dietary tags, styles) reuses the same tables, helpers, and RLS policies. Domain-specific tables (`cuisines`, `food_categories`, etc.) would diverge within 2–3 migrations.
+
+**Rule**: when the second use case is clearly foreseeable (even if deferred), build the generic version from the start — tables are harder to merge than to split.
+
+## Materialised path beats recursive CTE for taxonomy hierarchy
+
+Storing `path text` (e.g. `'asian/japanese'`) on each taxonomy node lets `get_taxonomy_family` and `get_taxonomy_ancestors` use `path LIKE prefix || '/%'` — a single indexed scan. A recursive CTE on `parent_id` requires a sequential scan per depth level. The tradeoff: path must be set by trigger on INSERT and is immutable (UPDATE raises exception). This is fine for reference data that changes only via migrations.
+
+## Immutable reference tables need no `updated_at`
+
+`taxonomy_nodes` is append-only — an UPDATE/DELETE trigger raises immediately. Shipping `updated_at` on such a table implies mutability that doesn't exist. Omit it and document the constraint clearly so callers don't expect it.
+
+## Backfill and trigger must use identical split logic
+
+When a trigger splits a compound value (e.g. `regexp_split_to_table(cuisine_slug, '\s*;\s*')`), the historical backfill must use the exact same expression. If the backfill uses a simpler path (e.g. treat the whole slug as a single value), places with compound slugs like `japanese;asian` will be silently under-mapped. Enforce this by code-reviewing the backfill against the trigger before running.
+
+## Schema-first architecture: domain files are cheaper than migrations
+
+When a schema grows beyond ~50 tables, a monolithic `schema.sql` becomes impossible to review and gradually drifts from the running database (tables added in migrations are never backported). The fix: split into domain files under `supabase/schema/`; generate `schema.sql` from them; enforce sync in CI.
+
+**Key tradeoffs learned:**
+- `schema.sql` must be *committed* (not gitignored) so `git diff` shows readable schema diffs on PRs. Gitignoring it removes the most useful review surface.
+- The build script must emit section banners so humans can find tables in the generated file. Silent concatenation with no markers is unreadable.
+- CI drift detection (`build-schema.sh | diff - schema.sql`) must run on every PR, not just main — schema edits happen on feature branches.
+
+## Table naming conflicts when renaming entity prefixes
+
+When renaming `restaurant_*` → `place_*`, two tables had name conflicts: `restaurant_sources` vs `place_sources` and `restaurant_aliases` vs `place_aliases`. They were *not* the same table — the `restaurant_*` variants were governance/audit tables with rights and provenance tracking; the `place_*` variants were simpler data caches.
+
+**Rule**: before renaming a table family, read the column lists of both the old and new names. If they serve different purposes, pick a semantically distinct new name rather than merging. Merging dissimilar tables adds phantom nullable columns and obscures intent.
+
+**Names chosen:**
+- `restaurant_sources` → `place_provenance` (data rights/governance, distinct from `place_sources` payload cache)
+- `restaurant_aliases` → `place_provider_links` (provider ID mappings, distinct from `place_aliases` search text aliases)
+
+## place_owners vs place_ownership_events: canonical state vs audit log
+
+Two separate tables are needed for ownership:
+- `place_owners` — canonical *current* state (many-to-many, `PRIMARY KEY (place_id, owner_id)`)
+- `place_ownership_events` — append-only *history* of what changed and when
+
+The audit table must NOT reference canonical state (reverse reference creates circular dependency in rebuild order). The canonical table must NOT embed history. The audit table references the canonical table, not the reverse.

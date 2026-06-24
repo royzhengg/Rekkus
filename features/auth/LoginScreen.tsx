@@ -1,5 +1,6 @@
+import * as AppleAuthentication from 'expo-apple-authentication'
 import { useRouter } from 'expo-router'
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -99,7 +100,7 @@ function GoogleIcon() {
 
 export default function LoginScreen() {
   const router = useRouter()
-  const { signInWithEmail, signInWithGoogle } = useAuth()
+  const { signInWithEmail, signInWithProvider } = useAuth()
   const { requireOnline } = useConnectivity()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
@@ -110,8 +111,28 @@ export default function LoginScreen() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [appleLoading, setAppleLoading] = useState(false)
+  const [appleAvailable, setAppleAvailable] = useState(false)
 
   const canSubmit = email.trim().length > 0 && isValidPassword(password)
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') {
+      setAppleAvailable(false)
+      return
+    }
+    let cancelled = false
+    void AppleAuthentication.isAvailableAsync()
+      .then(available => {
+        if (!cancelled) setAppleAvailable(available)
+      })
+      .catch(() => {
+        if (!cancelled) setAppleAvailable(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function handleSignIn() {
     if (!canSubmit || loading) return
@@ -130,22 +151,12 @@ export default function LoginScreen() {
     }
   }
 
-  async function handleGoogle() {
-    setError('')
-    if (!requireOnline()) {
-      setError('Reconnect to sign in with Google.')
-      return
-    }
-    setGoogleLoading(true)
-    const err = await signInWithGoogle()
+  async function finishProviderSignIn(err: string | null) {
     if (err) {
-      setGoogleLoading(false)
       setError(err)
       return
     }
-    // New Google OAuth users have no username yet — route them to onboarding
     const currentUser = await getCurrentUser()
-    setGoogleLoading(false)
     if (currentUser) {
       const profile = await fetchProfile(currentUser.id)
       if (!profile?.username) {
@@ -154,6 +165,30 @@ export default function LoginScreen() {
       }
     }
     router.replace('/(tabs)/feed')
+  }
+
+  async function handleGoogle() {
+    setError('')
+    if (!requireOnline()) {
+      setError('Reconnect to sign in with Google.')
+      return
+    }
+    setGoogleLoading(true)
+    const err = await signInWithProvider('google')
+    setGoogleLoading(false)
+    await finishProviderSignIn(err)
+  }
+
+  async function handleApple() {
+    setError('')
+    if (!requireOnline()) {
+      setError('Reconnect to sign in with Apple.')
+      return
+    }
+    setAppleLoading(true)
+    const err = await signInWithProvider('apple')
+    setAppleLoading(false)
+    await finishProviderSignIn(err)
   }
 
   return (
@@ -241,9 +276,11 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.googleBtn}
+            style={[styles.googleBtn, !appleAvailable && styles.lastProviderBtn]}
             onPress={handleGoogle}
             disabled={googleLoading}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
           >
             {googleLoading ? (
               <ActivityIndicator color={colors.text} />
@@ -254,6 +291,22 @@ export default function LoginScreen() {
               </>
             )}
           </TouchableOpacity>
+
+          {appleAvailable ? (
+            appleLoading ? (
+              <View style={[styles.appleBtn, styles.appleLoadingBtn]}>
+                <ActivityIndicator color={colors.text} />
+              </View>
+            ) : (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={radius.pill}
+                style={styles.appleBtn}
+                onPress={handleApple}
+              />
+            )
+          ) : null}
 
           <View style={styles.switchRow}>
             <Text style={styles.switchText}>Don't have an account? </Text>
@@ -332,9 +385,22 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingVertical: spacing.px15,
       borderWidth: 0.5,
       borderColor: c.border2,
-      marginBottom: spacing.px28,
+      marginBottom: spacing.px10,
     },
     googleBtnText: { fontSize: fontSize.lg, fontWeight: fontWeight.medium, color: c.text },
+    lastProviderBtn: { marginBottom: spacing.px28 },
+    appleBtn: {
+      height: spacing.px50,
+      marginBottom: spacing.px28,
+    },
+    appleLoadingBtn: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.surface,
+      borderRadius: radius.pill,
+      borderWidth: 0.5,
+      borderColor: c.border2,
+    },
     switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
     switchText: { fontSize: fontSize.base, color: c.text3 },
     switchLink: { fontSize: fontSize.base, color: c.info, fontWeight: fontWeight.medium },

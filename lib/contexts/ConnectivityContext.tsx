@@ -17,11 +17,12 @@ import {
   type DeferredMutationInput,
 } from '@/lib/services/deferredMutations'
 import { syncUnsyncedDraftMedia } from '@/lib/services/postDrafts'
+import type { FollowRelationshipState } from '@/lib/services/users'
 
 export type ConnectivityState = 'checking' | 'online' | 'offline' | 'degraded'
 export type ConnectivitySyncState = 'idle' | 'syncing' | 'synced' | 'failed'
 
-type DeferredResult = { queued: boolean }
+type DeferredResult = { queued: boolean; followState?: FollowRelationshipState }
 
 type ConnectivityValue = {
   state: ConnectivityState
@@ -181,8 +182,11 @@ export function ConnectivityProvider({ children }: { children: React.ReactNode }
       return { queued: true }
     }
     try {
-      await executeDeferredMutation(mutation)
-      return { queued: false }
+      const result = await executeDeferredMutation(mutation)
+      return {
+        queued: false,
+        ...(input.kind === 'follow' && (result === 'requested' || result === 'following') ? { followState: result } : {}),
+      }
     } catch (reason: unknown) {
       if (!isRetryableDeferredMutationError(reason)) throw reason
       await enqueueDeferredMutation(mutation)

@@ -1,6 +1,19 @@
 import { supabase } from '@/lib/supabase'
+import type { AuthProvider, OAuthProvider } from '@/lib/utils/authProviders'
 import { track, searchAttributionMetadata } from './core'
 import type { SearchAttribution, PlaceSelectionSource, ProviderCacheState } from './core'
+
+export type AuthFailureReason =
+  | 'cancelled'
+  | 'missing_token'
+  | 'network'
+  | 'provider_error'
+  | 'session_error'
+  | 'unknown'
+
+// Bounded enum for reconnect failures — never use raw error strings (cardinality protection).
+// DO NOT add: OAuth tokens, identity payloads, full error messages, or user emails to these events.
+export type ReconnectFailureReason = 'cancelled' | 'oauth_failure' | 'network' | 'unknown'
 
 export const analytics = {
   // Post events
@@ -59,6 +72,32 @@ export const analytics = {
     void track(userId, {
       event_type: 'offline_mutation_sync',
       metadata: { mutation_kind: mutationKind, outcome },
+    }),
+
+  followRequestStateChanged: (
+    userId: string | null,
+    action:
+      | 'sent'
+      | 'approved'
+      | 'declined'
+      | 'approved_immediate'
+      | 'approved_bulk'
+      | 'declined_bulk'
+      | 'approved_auto_public'
+  ): void =>
+    void track(userId, {
+      event_type: 'follow_request_state_changed',
+      metadata: { action },
+    }),
+
+  privacySettingChanged: (
+    userId: string | null,
+    setting: 'private_account' | 'show_activity_status',
+    enabled: boolean
+  ): void =>
+    void track(userId, {
+      event_type: 'privacy_setting_changed',
+      metadata: { setting, enabled },
     }),
 
   dwellPost: (userId: string | null, postId: string, durationMs: number): void =>
@@ -497,6 +536,31 @@ export const analytics = {
   onboardingAnomaly: (userId: string | null, step: string, reason: string): void =>
     void track(userId, { event_type: 'onboarding_anomaly', metadata: { step, reason } }),
 
+  loginOAuthStarted: (userId: string | null, provider: OAuthProvider): void =>
+    void track(userId, { event_type: 'login_oauth_started', metadata: { provider } }),
+
+  loginOAuthSuccess: (userId: string | null, provider: OAuthProvider): void =>
+    void track(userId, { event_type: 'login_oauth_success', metadata: { provider } }),
+
+  loginOAuthFailed: (userId: string | null, provider: OAuthProvider, reason: AuthFailureReason): void =>
+    void track(userId, { event_type: 'login_oauth_failed', metadata: { provider, reason } }),
+
+  accountLinked: (userId: string | null, provider: AuthProvider): void =>
+    void track(userId, { event_type: 'account_linked', metadata: { provider } }),
+
+  accountUnlinked: (userId: string | null, provider: AuthProvider): void =>
+    void track(userId, { event_type: 'account_unlinked', metadata: { provider } }),
+
+  // Fires only on connected → revoked transition; never on revoked → revoked (transition-based, not state-based).
+  providerRevoked: (userId: string | null, provider: OAuthProvider): void =>
+    void track(userId, { event_type: 'provider_revoked_detected', metadata: { provider } }),
+
+  providerReconnected: (userId: string | null, provider: OAuthProvider): void =>
+    void track(userId, { event_type: 'provider_reconnected', metadata: { provider } }),
+
+  providerReconnectFailed: (userId: string | null, provider: OAuthProvider, reason: ReconnectFailureReason): void =>
+    void track(userId, { event_type: 'provider_reconnect_failed', metadata: { provider, reason } }),
+
   dishTagOnboardingShown: (userId: string | null): void =>
     void track(userId, { event_type: 'dish_tag_onboarding_shown', entity_type: 'dish' }),
 
@@ -658,4 +722,24 @@ export const analytics = {
       },
     })
   },
+
+  viewClosureBanner: (
+    userId: string | null,
+    placeId: string,
+    status: string,
+    source: string | null,
+    provider?: string | null,
+    signalAgeDays?: number | null,
+  ): void =>
+    void track(userId, {
+      event_type: 'place_closure_banner_impression',
+      entity_type: 'place',
+      entity_id: placeId,
+      metadata: {
+        closure_status: status,
+        closure_source: source,
+        provider: provider ?? null,
+        signal_age_days: signalAgeDays ?? null,
+      },
+    }),
 }

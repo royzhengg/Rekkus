@@ -19,6 +19,9 @@ Do not store emails, phone numbers, addresses, secrets, raw provider payloads, p
 
 Metadata should be categorical, bounded, and useful for product decisions or ranking diagnostics.
 
+Private-account and activity-visibility events may record only categorical state changes:
+`follow_request_state_changed.action` (`sent`, `approved`, `declined`, `approved_immediate`, `approved_bulk`, `declined_bulk`, `approved_auto_public`) and `privacy_setting_changed.{setting, enabled}`. Do not include profile names, requester/target usernames, captions, places, tags, media URLs, or message presence timestamps.
+
 ## Saved Library Events
 
 - `dish_view` and `dish_save` use canonical `dish.id` only and do not carry dish text, location, or provider data.

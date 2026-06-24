@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
   isNotificationActorRow,
+  isNotificationCommentRow,
   isNotificationSettingsRow,
   isNotificationUserIdRow,
   isPushTokenRow,
@@ -37,7 +38,7 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(supabaseUrl, serviceKey)
     const payload = parseNotifyPayload(await req.json().catch(() => null))
     if (!payload) return new Response('Bad request', { status: 400 })
-    const { type, postId, followedId, commentId, conversationId, messageId } = payload
+    const { type, postId, followedId, targetId, requesterId, commentId, conversationId, messageId } = payload
     const actorId = user.id
 
     const { data: actorData, error: actorError } = await admin
@@ -70,6 +71,13 @@ Deno.serve(async (req: Request) => {
         .single()
       if (postError) return new Response('OK', { status: 200 })
       recipientId = isNotificationUserIdRow(postData) ? postData.user_id : null
+      if (recipientId) {
+        const { data: canView } = await admin.rpc('can_view_user_content', {
+          viewer_id: actorId,
+          target_id: recipientId,
+        })
+        if (canView !== true) return new Response('OK', { status: 200 })
+      }
     } else if (type === 'follow') {
       if (!followedId || typeof followedId !== 'string') {
         return new Response('Bad request', { status: 400 })
@@ -82,17 +90,58 @@ Deno.serve(async (req: Request) => {
         .maybeSingle()
       if (!follow) return new Response('OK', { status: 200 })
       recipientId = followedId ?? null
+    } else if (type === 'follow_request') {
+      if (!targetId || typeof targetId !== 'string') {
+        return new Response('Bad request', { status: 400 })
+      }
+      const { data: request } = await admin
+        .from('follow_requests')
+        .select('id')
+        .eq('requester_id', actorId)
+        .eq('target_id', targetId)
+        .eq('status', 'pending')
+        .maybeSingle()
+      if (!request) return new Response('OK', { status: 200 })
+      recipientId = targetId
+    } else if (type === 'follow_request_approved') {
+      if (!requesterId || typeof requesterId !== 'string') {
+        return new Response('Bad request', { status: 400 })
+      }
+      const { data: follow } = await admin
+        .from('follows')
+        .select('id')
+        .eq('follower_id', requesterId)
+        .eq('following_id', actorId)
+        .maybeSingle()
+      if (!follow) return new Response('OK', { status: 200 })
+      recipientId = requesterId
     } else if (type === 'comment_reply') {
       if (!commentId || typeof commentId !== 'string') {
         return new Response('Bad request', { status: 400 })
       }
       const { data: parentCommentData, error: parentCommentError } = await admin
         .from('comments')
-        .select('user_id')
+        .select('user_id, post_id')
         .eq('id', commentId)
         .single()
       if (parentCommentError) return new Response('OK', { status: 200 })
-      recipientId = isNotificationUserIdRow(parentCommentData) ? parentCommentData.user_id : null
+      const parentComment = isNotificationCommentRow(parentCommentData) ? parentCommentData : null
+      recipientId = parentComment?.user_id ?? null
+      if (parentComment?.post_id && recipientId) {
+        const { data: postData } = await admin
+          .from('posts')
+          .select('user_id')
+          .eq('id', parentComment.post_id)
+          .single()
+        const postOwnerId = isNotificationUserIdRow(postData) ? postData.user_id : null
+        if (postOwnerId) {
+          const [{ data: actorCanView }, { data: recipientCanView }] = await Promise.all([
+            admin.rpc('can_view_user_content', { viewer_id: actorId, target_id: postOwnerId }),
+            admin.rpc('can_view_user_content', { viewer_id: recipientId, target_id: postOwnerId }),
+          ])
+          if (actorCanView !== true || recipientCanView !== true) return new Response('OK', { status: 200 })
+        }
+      }
     } else if (type === 'message') {
       if (
         !conversationId ||
@@ -142,9 +191,11 @@ Deno.serve(async (req: Request) => {
             ? (settings?.notif_comments ?? true)
             : type === 'follow'
               ? (settings?.notif_followers ?? true)
-              : type === 'message'
-                ? (settings?.notif_messages ?? true)
-                : true
+              : type === 'follow_request' || type === 'follow_request_approved'
+                ? (settings?.notif_followers ?? true)
+                : type === 'message'
+                  ? (settings?.notif_messages ?? true)
+                  : true
 
     if (!notificationAllowed) return new Response('OK', { status: 200 })
 
@@ -162,6 +213,8 @@ Deno.serve(async (req: Request) => {
     if (type === 'like') body = `${actorName} liked your post`
     else if (type === 'comment') body = `${actorName} commented on your post`
     else if (type === 'follow') body = `${actorName} started following you`
+    else if (type === 'follow_request') body = `${actorName} requested to follow you`
+    else if (type === 'follow_request_approved') body = `${actorName} approved your follow request`
     else if (type === 'comment_reply') body = `${actorName} replied to your comment`
     else if (type === 'message') body = 'You have a new message'
 

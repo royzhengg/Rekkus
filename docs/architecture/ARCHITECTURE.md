@@ -265,6 +265,11 @@ The canonical food-establishment entity is `places` (renamed from `restaurants` 
 | `conversation_participants`   | Participant membership and read state for private conversations                                |
 | `messages`                    | Participant-only private message bodies                                                        |
 | `user_settings`               | Per-user toggle preferences (notifications, privacy, theme, media autoplay)                    |
+| `follow_requests`             | Private-account follow request workflow; `follows` remains approved access only                |
+| `follow_request_audit_events` | Append-only audit evidence for follow request transitions                                      |
+| `social_events`               | Canonical user-facing activity ledger for Alerts; not relationship truth                       |
+| `notification_deliveries`     | Push delivery/retry state for social events; not notification preference truth                  |
+| `privacy_audit_events`        | Append-only privacy transition audit evidence                                                  |
 | `push_tokens`                 | Expo push tokens for notifications                                                             |
 | `analytics_events`            | Raw event log (event_type, event_version, entity_type, entity_id) with 90-day retention        |
 | `feature_flag_overrides`      | Service-role emergency overrides for code-defined feature flags                                |
@@ -348,6 +353,9 @@ All tables have RLS enabled. Policies follow the pattern: public SELECT, authent
 | `20260602000002_search_freshness_v1.sql`             | `search_freshness_scores` materialized view and `get_search_freshness` RPC; powers freshness signal in candidate ranking (B-574) |
 | `20260602000003_search_quality_metrics.sql`          | `search_quality_events` table and `log_search_quality_event` RPC; audit trail for quality governance and automated ratchets (B-585) |
 | `20260622000000_seed_mock_post_covers.sql`           | Backfills cover `post_photos` rows for fixed local seed posts so DB-hydrated seed content has thumbnails |
+| `20260626000002_private_account_activity_visibility.sql` | Private-account follow requests, central `can_view_user_content()` authority, notification/search/feed privacy filtering, and activity visibility last-seen clearing (B-621) |
+| `20260626000007_social_platform_foundation.sql`      | Canonical social activity ledger, delivery state, privacy audit, follow-request bulk/auto-approval RPCs, and social source-of-truth constraints (B-629) |
+| `20260626000008_social_request_rate_guard.sql`       | Re-applies the B-629 follow-request rate guard for local databases that applied an earlier foundation draft        |
 
 ---
 

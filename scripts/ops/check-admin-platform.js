@@ -43,10 +43,10 @@ requireTerms(adminDoc, [
   'Moderation queue',
   'Ban/suspend users',
   'Hide/remove posts',
-  'Merge duplicate restaurants',
-  'Edit restaurant metadata',
+  'Merge duplicate places',
+  'Edit place metadata',
   'Feature flag tooling',
-  'Restaurant verification tooling',
+  'Place verification tooling',
   'User lookup',
   'Content repair tooling',
   'Abuse tooling',
@@ -60,8 +60,8 @@ requireTerms(adminDoc, [
   'content_reports',
   'moderation_actions',
   'user_trust_profiles',
-  'restaurant_merge_events',
-  'restaurant_ownership_events',
+  'place_merge_events',
+  'place_ownership_events',
   'data_repair_events',
   'lib/featureFlags.ts',
   'npm run check:admin-platform',
@@ -77,7 +77,7 @@ requireTerms(moderationDoc, [
 
 requireTerms(dashboardDoc, ['Admin operations', 'operations/ADMIN_PLATFORM.md', 'content_reports'])
 requireTerms(featureFlagDoc, ['Admin platform', 'operations/ADMIN_PLATFORM.md'])
-requireTerms(dataDoc, ['Admin platform', 'data_repair_events', 'restaurant_merge_events'])
+requireTerms(dataDoc, ['Admin platform', 'data_repair_events', 'place_merge_events'])
 
 const backlog = source('BACKLOG.md')
 const completedItems = source('COMPLETED_ITEMS.md')

@@ -14,15 +14,15 @@ export async function recordPlaceSource(
   } = {}
 ) {
   if (!placeId || !sourceId) return
-  await supabase.from('restaurant_sources').upsert(
+  await supabase.from('place_provenance').upsert(
     {
-      restaurant_id: placeId,
+      place_id: placeId,
       source_type: sourceType,
       source_id: sourceId,
       source_rights: options.source_rights ?? 'first_party',
       attribution_required: options.attribution_required ?? false,
       cacheability: options.cacheability ?? 'permanent_identifier',
-      retention_policy: options.retention_policy ?? 'retain_until_unlinked_or_restaurant_deleted',
+      retention_policy: options.retention_policy ?? 'retain_until_unlinked_or_place_deleted',
       confidence: options.confidence ?? 0.5,
       updated_at: new Date().toISOString(),
     },
@@ -39,8 +39,8 @@ export async function recordPlaceProviderCache(
   if (!placeId || !sourceId) return
   const now = new Date()
   const staleAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
-  await supabase.rpc('record_restaurant_provider_snapshot', {
-    p_restaurant_id: placeId,
+  await supabase.rpc('record_place_provider_snapshot', {
+    p_place_id: placeId,
     p_source_type: sourceType,
     p_source_id: sourceId,
     p_field_mask: [
@@ -79,7 +79,7 @@ export async function recordPlaceProviderCache(
     p_retention_policy:
       sourceType === 'google_places'
         ? 'retain_place_id_refresh_content_by_terms'
-        : 'retain_until_source_or_restaurant_deleted',
+        : 'retain_until_source_or_place_deleted',
     p_stale_at: staleAt,
   })
 }

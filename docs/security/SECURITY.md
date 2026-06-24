@@ -15,8 +15,13 @@ This document tracks Rekkus security controls, risks, and ISO 27001-readiness. I
 
 | Data | Classification | Notes |
 | --- | --- | --- |
-| Public posts, place metadata, public profiles | Public app data | Publicly readable by design |
+| Public posts, place metadata, public profile shells | Public app data | Publicly readable by design; private profile shells still expose avatar/name/handle and follower/following/review counts |
+| Private account content | User-private/shareable | Posts/media, collections, Top Spots, location, cuisine interests, captions, tags, and place associations require owner access or approved follow access through `can_view_user_content()` |
 | Saves (`saves`, `saved_places`, `saved_dishes`), collections, topic follows, settings, push tokens, auth identities | User-private/shareable | RLS scoped to owner; collection rows may be unlisted/public-readable only when visibility allows |
+| Follow requests | User-private social workflow | Pending/approved/declined/cancelled request history is visible only to requester/target; mutations go through idempotent SECURITY DEFINER RPCs |
+| Social events | User activity history | Alerts ledger for one target user; users can select only their own target rows and update only `read_at` |
+| Notification deliveries | Operational delivery state | Service-role/worker state only; never a source for preferences, relationship state, or user-visible activity |
+| Privacy audit events | Compliance evidence | Private/public transitions; direct client access denied and visible only through compliance surfaces |
 | Analytics events | Internal telemetry | Avoid sensitive content in metadata |
 | Place observations, sources, aliases, provider cache | Source-attributed data | Must preserve provenance, retention, attribution, and audit rules. Note: underlying tables retain historical `restaurant_` prefix. |
 | Place audit events and privacy requests | Compliance evidence | Minimized, access-controlled, and retained by policy. Note: `restaurant_audit_events` retains historical naming. |
@@ -46,12 +51,17 @@ This document tracks Rekkus security controls, risks, and ISO 27001-readiness. I
 - Authentication events (login, logout, OAuth) must be recorded in `auth_audit_events` via SECURITY DEFINER RPC — not only in `analytics_events` (90-day retention is insufficient for ISO compliance).
 - `auth_audit_events.context` must include device metadata (`device_os`, `device_version`) on login events. Client-side calls pass these from `Platform.OS`/`Platform.Version`. Server-side sessions capture `ip_hash` (SHA-256 of client IP, pseudonymised) and `device_os` (from user-agent) via the `auth-audit-hook` Edge Function (B-520). Raw IP is never stored.
 - `check:risk-guardrails` enforces that every `recordAuthAuditEvent` login call includes a context argument — bare login audit calls fail CI. Login, password-change, and account-deletion events are additionally captured server-side by a PostgreSQL trigger on `auth.users` (B-519) — atomic with the auth transaction and immune to client crashes. `logout` is client-only (intentional: session invalidation does not update `auth.users` rows). Duplicate records from both paths are acceptable.
+- Apple Sign-In is iOS-only and uses the native Apple sheet plus Supabase ID-token auth. The app sends a SHA-256 nonce to Apple and the raw nonce to Supabase for verification; raw Apple identity tokens are never persisted or logged. Apple relay emails (`@privaterelay.appleid.com`) are valid account emails and must not be rejected, normalized, or replaced.
+- Provider revocation detection (B-620, ADR-0024): Apple and Google identities revoked externally are detected on app startup and foreground by calling `supabase.auth.getUser()`. Detection is advisory UX only — it must never gate authentication, authorisation, permissions, or content access. Existing Rekkus sessions remain valid until expiry or explicit sign-out, independent of OAuth revocation. Revocation state is persisted in AsyncStorage (`auth:provider_state:v1`) as a non-sensitive derived signal; this is not a security control.
 - Self-serve account deletion is wired via `delete_own_account()` SECURITY DEFINER RPC (B-522): atomically bulk-inserts `content_lifecycle_events` for all live owned posts (with `reason: 'account_deleted'`), then `DELETE FROM auth.users` fires `auth_audit_delete_trigger` to write the `account_deleted` event. Called via `deleteAccount()` in `lib/services/auth.ts`; `AuthContext.deleteAccount` also sends a client-side belt-and-suspenders audit call. `check:audit` enforces the RPC cannot be silently removed.
 - Content creation and deletion events must be recorded in `content_lifecycle_events` via SECURITY DEFINER RPC — entity_id carries no FK so records survive cascade deletes.
 - Runtime feature flag overrides must be recorded in `feature_flag_audit_events` by the fail-closed trigger on `feature_flag_overrides`; operational control changes must not depend on a UI write path for audit coverage.
 - All domain audit tables are unified under `platform_audit_events_view` (ADR 0011). The `check:audit` guardrail enforces that every `*_audit_events` table is present in the view.
 - New data/provider features must pass the compliance, data inventory, RLS, audit, provider, privacy, and ISO checks before release.
 - Saved-library writes use owner-scoped rows. Collection adds atomically establish the target save; confirmed unsave removes owned memberships and the save together so private intent does not drift.
+- Private account access is centralized in `can_view_user_content(viewer_id, target_id)` (`STABLE SECURITY DEFINER SET search_path = public`). Feed, post detail, profile content, search/recommendation RPCs, collections, Top Spots, saved/liked joins, dish/place post lists, notification fanout, and materialized/index/cache reads must use it instead of copying privacy logic.
+- Blocks in either direction prevent follow requests, follows, and private content access. `block_user()` atomically removes follow access and cancels pending requests.
+- Social graph mutations must use the follow/privacy RPCs. `follows` and `follow_requests` are relationship truth; `social_events` is append-only activity history except `read_at`; `notification_deliveries` is service-role delivery state.
 - Offline write recovery persists only strictly validated reversible desired-state intents in `AsyncStorage`. Authored posts/comments/messages, safety reports/blocks, profile/auth/account writes, collection creation/sharing/deletion, and publishing require explicit retry while online.
 - Public beta requires a monitored vulnerability disclosure path with scope, expected response time, and escalation to incident handling.
 
@@ -87,7 +97,7 @@ For highest-risk writes, prefer these backend controls before public beta scale:
 | --- | --- | --- |
 | Auth/email | Supabase/Resend provider limits plus app cooldowns | Review provider dashboard limits before external beta |
 | Comments/replies | Authenticated insert, owner/public RLS, moderation report path | Add RPC or Edge Function throttle if abuse appears |
-| Saves/collections/likes/reactions/follows | Authenticated RLS plus unique constraints/upserts | Keep idempotent writes; add RPC throttle only if spam appears |
+| Saves/collections/likes/reactions/follows/follow requests | Authenticated RLS plus unique constraints/upserts/RPCs | Keep idempotent writes; add RPC throttle only if spam appears |
 | Uploads | Picker validation, on-device media preparation/compression, storage ownership/path rules, processing-status metadata, media release gates | Move full normalization/validation into trusted server worker before broad public media scale |
 | Analytics | Allowlisted metadata, 15-second client dedupe, RLS insert ownership | Add server aggregation or Edge Function intake if event volume becomes abusive |
 | Provider APIs | Centralized services, minimum query length, dedupe, cache, field masks | Provider quota alerts and kill switch before production |

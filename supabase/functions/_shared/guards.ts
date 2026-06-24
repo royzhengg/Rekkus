@@ -1,9 +1,18 @@
-export type NotificationType = 'like' | 'comment' | 'follow' | 'comment_reply' | 'message'
+export type NotificationType =
+  | 'like'
+  | 'comment'
+  | 'follow'
+  | 'follow_request'
+  | 'follow_request_approved'
+  | 'comment_reply'
+  | 'message'
 
 export type NotifyPayload = {
   type: NotificationType
   postId?: string
   followedId?: string
+  targetId?: string
+  requesterId?: string
   commentId?: string
   conversationId?: string
   messageId?: string
@@ -25,6 +34,7 @@ export type ProcessPostMediaPayload = { mediaIds: string[] }
 export type FeatureFlagOverrideRow = { flag_name: string; enabled: boolean; expires_at: string | null }
 export type NotificationActorRow = { username: string; full_name: string | null }
 export type NotificationUserIdRow = { user_id: string | null }
+export type NotificationCommentRow = { user_id: string | null; post_id: string | null }
 export type PushTokenRow = { token: string }
 export type NotificationSettingsRow = {
   notif_likes: boolean | null
@@ -45,6 +55,8 @@ export function parseNotifyPayload(value: unknown): NotifyPayload | null {
     type !== 'like' &&
     type !== 'comment' &&
     type !== 'follow' &&
+    type !== 'follow_request' &&
+    type !== 'follow_request_approved' &&
     type !== 'comment_reply' &&
     type !== 'message'
   ) return null
@@ -52,6 +64,8 @@ export function parseNotifyPayload(value: unknown): NotifyPayload | null {
   const payload: NotifyPayload = { type }
   if (typeof value.postId === 'string') payload.postId = value.postId
   if (typeof value.followedId === 'string') payload.followedId = value.followedId
+  if (typeof value.targetId === 'string') payload.targetId = value.targetId
+  if (typeof value.requesterId === 'string') payload.requesterId = value.requesterId
   if (typeof value.commentId === 'string') payload.commentId = value.commentId
   if (typeof value.conversationId === 'string') payload.conversationId = value.conversationId
   if (typeof value.messageId === 'string') payload.messageId = value.messageId
@@ -130,6 +144,12 @@ export function isNotificationActorRow(value: unknown): value is NotificationAct
 
 export function isNotificationUserIdRow(value: unknown): value is NotificationUserIdRow {
   return isRecord(value) && (value.user_id === null || typeof value.user_id === 'string')
+}
+
+export function isNotificationCommentRow(value: unknown): value is NotificationCommentRow {
+  return isRecord(value) &&
+    (value.user_id === null || typeof value.user_id === 'string') &&
+    (value.post_id === null || typeof value.post_id === 'string')
 }
 
 export function isPushTokenRow(value: unknown): value is PushTokenRow {

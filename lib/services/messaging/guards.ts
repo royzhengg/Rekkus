@@ -93,6 +93,6 @@ export function parseConversationParticipant(value: unknown): ConversationPartic
     full_name: nullableString(users.full_name) ? users.full_name : null,
     avatar_url: nullableString(users.avatar_url) ? users.avatar_url : null,
     is_admin: typeof value.is_admin === 'boolean' ? value.is_admin : false,
-    last_seen_at: nullableString(users.last_seen_at) ? users.last_seen_at : null,
+    last_seen_at: null,
   }
 }

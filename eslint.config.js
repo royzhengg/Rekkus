@@ -18,6 +18,8 @@ module.exports = [
       'coverage/**',
       'scripts/**',
       'eslint.config.js',
+      'types/database.ts',
+      'types/database.aliases.ts',
     ],
   },
 

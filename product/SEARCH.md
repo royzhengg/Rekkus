@@ -4,6 +4,8 @@ How search works in Rekkus. Update this file whenever scoring weights, pipeline 
 
 Event tracking, trending data, and the `analytics_events` table are documented in [../docs/analytics/ANALYTICS.md](../docs/analytics/ANALYTICS.md).
 
+Private-account content is never a public search source. Search RPCs, recommendation reads, materialized/index/cache structures, dish/place post lists, and derived result payloads must filter user-owned posts through `can_view_user_content(viewer_id, target_id)` before exposing titles, captions, tags, places, media, or aggregate evidence.
+
 ---
 
 ## Search Index Governance
@@ -358,6 +360,37 @@ Measured by number of Rekkus posts linked to that place (`post.placeId`).
 | ≥ 2 posts  | +0.75 |
 | ≥ 1 post   | +0.25 |
 
+### Trending score (places)
+
+**Boundary:** `place_stats` = raw factual counters only. `place_search_index` = derived signals. `trending_score` exists only in `place_search_index`; never in `place_stats`.
+
+Computed by `refresh_place_search_index()` from `place_stats` counters + `last_activity_at`. Signal weights and decay constant are declared as PL/pgSQL constants in that function — tune there only.
+
+Formula (decay constant = 30 days):
+
+```
+trending_score = min(999.999,
+  (post_count × 2.0 + save_count × 1.0 + collection_count × 0.5)
+  × exp(−Δt / 2 592 000)
+)
+```
+
+Δt = seconds since `last_activity_at`. Score ≈ 37 % at 30 days, ≈ 5 % at 90 days.
+
+**Accuracy:** Exact on any positive activity event (trigger → index refresh). Nightly pg_cron (30-day active window) keeps decaying scores within 24 h of correct for inactive places. Intentionally stops refreshing beyond 30 days — places outside this window are nearly-zero-scored and don't affect meaningful ranking.
+
+**Ranking boost:** `least(2.0, ln(1 + trending_score))` — continuous, no step cliffs. Cap is deliberately conservative so relevance wins on specific queries ("best Japanese omakase"); trending breaks ties. Raise cap if discovery data shows viral places need stronger separation.
+
+**`last_activity_at` semantics:** Reflects the most recent positive engagement event (insert / undelete). Deletes decrement counters but leave the timestamp unchanged — score stays anchored to last real engagement. The timestamp uses the event's own `created_at` (not `now()`) so historical imports produce correct decay timestamps.
+
+**Collection inflation:** `collection_items` has `UNIQUE (collection_id, target_type, target_id)`, so the same place cannot appear twice in one collection. `count(*) = count(distinct collection_id)` for place memberships — no double-counting.
+
+**Overlap with popularity boost:** `post_count` contributes to both the all-time popularity boost above and `trending_score`. Intentional for MVP. Future work: separate all-time popularity (post_count / save_count / collection_count) from recent-window trending (last-30d variants).
+
+**Future signals:** Additional signals (likes, views, clicks, shares) should flow through a unified `place_events` table (`place_id`, `event_type`, `created_at`) rather than new counter columns on `place_stats`. See B-6xx in backlog.
+
+**Place merges:** `merge_places()` must merge `place_stats` rows to preserve accumulated popularity across duplicates. Tracked in backlog alongside B-6xx.
+
 ### Rekkus avg food rating boost (places)
 
 Average `food_rating` across all linked posts for this place.
@@ -450,6 +483,147 @@ Examples:
 Synonym expansion only applies when no direct match was found for that word (i.e., it's a fallback, not an addition to a direct match score).
 
 The store should stay intentionally small. Long-tail dishes such as "tiramisu" should not be added one-by-one unless they become product-critical exceptions.
+
+## Cuisine Taxonomy (B-600)
+
+### Architecture
+
+Generic taxonomy engine — one schema covers cuisines now, food categories / venue types / dietary tags / styles in future migrations.
+
+| Table | Purpose |
+|---|---|
+| `taxonomy_nodes` | Canonical hierarchy nodes. Immutable after insert; changes require a migration. |
+| `taxonomy_aliases` | Alternate spellings/nicknames → `node_id`. Unique per `(alias, taxonomy_type)`. |
+| `place_taxonomies` | Many-to-many: place → taxonomy node. `source` tracks origin (`osm`, `manual`, `ai`, `user`). |
+| `taxonomy_unmapped` | Raw cuisine values that didn't resolve. Drives future taxonomy scope. |
+
+### Taxonomy types
+
+| Type | Defines | Node count |
+| --- | --- | --- |
+| `cuisine` | Cultural/geographic origin | 57 |
+| `food_category` | Dish or product type — what you eat, not where it's from | 33 |
+| `venue_type` | Establishment category | 23 |
+| `dietary` | Suitability tag | 5 |
+
+`fusion` and `modern-australian` remain as `cuisine` for V1 search compatibility. Future migration moves them to `taxonomy_type = 'style'` once style nodes are warranted.
+
+### Taxonomy governance
+
+**Cross-type slug policy (Option A):** the same slug may exist across taxonomy types when the concepts are genuinely parallel. Examples: `venue_type:cafe` + (future) `food_category:cafe`, `venue_type:bakery` + (future) `food_category:bakery`. Nodes are uniquely identified by `(taxonomy_type, slug)` — not slug alone. Do not add artificial naming workarounds (e.g. `cafe-drinks`) to avoid cross-type overlap.
+
+**Multi-tag:** a single place may have multiple `place_taxonomies` rows across any mix of types (izakaya + japanese + yakitori + vegetarian is expected and correct).
+
+**When to add a node:** slug appears ≥ 10 times in `taxonomy_unmapped` OR product team explicitly approves. Do not auto-create nodes during import.
+
+**When to add an alias:** only when truly synonymous. Do not use aliases for parent-child relationships — use the hierarchy instead.
+
+**When to add hierarchy:** only when the parent group meaningfully expands search (querying the parent surfaces all children). Do not create parents purely for organisational tidiness.
+
+**Hierarchy accuracy note:** `food_category` parent groups are search-convenience groupings. The `grills` group (bbq, yakitori, shawarma, kebab) is not a culinary claim — it exists to make "grills" expand usefully in search.
+
+### Cuisine hierarchy (57 nodes)
+
+**Root groups:** asian, european, middle-eastern, latin-american, african
+
+**Standalone:** american, mediterranean, modern-australian, fusion
+
+**asian (20):** chinese, japanese, korean, thai, vietnamese, malaysian, indonesian, filipino, taiwanese, cambodian, laotian, singaporean, burmese, hong-kong + south-asian subtree below
+
+**south-asian (under asian, 6 total):** south-asian, indian, sri-lankan, nepalese, pakistani, bangladeshi
+
+**european (11):** italian, french, spanish, greek, german, british, portuguese, polish, russian, ukrainian, scandinavian
+
+**middle-eastern (8):** lebanese, turkish, persian, moroccan, israeli, egyptian, syrian, afghan
+
+**latin-american (6):** mexican, brazilian, peruvian, argentinian, colombian, caribbean
+
+**african (3):** ethiopian, west-african, north-african
+
+`get_taxonomy_family('asian', 'cuisine')` returns 20 nodes (asian + 14 direct children + south-asian + 5 south-asian children).
+
+### Food category hierarchy (33 nodes)
+
+**noodles (6):** noodles, ramen, pho, laksa, udon, soba
+
+**dumplings (4):** dumplings, gyoza, xiao-long-bao, dim-sum
+
+**grills (5):** grills, bbq, yakitori, shawarma, kebab — search convenience grouping only, not a culinary claim
+
+**beverages (4):** beverages, coffee, tea, bubble-tea
+
+**dessert (2):** dessert, ice-cream
+
+**Standalone roots (12):** pizza, burger, tacos, curry, pasta, salad, sandwich, sushi, hotpot, bento, banh-mi, fried-chicken
+
+### Venue type nodes (23, flat)
+
+cafe, bakery, restaurant, bar, pub, brewery, wine-bar, cocktail-bar, fast-food, food-truck, takeaway, buffet, food-court, food-hall, market, deli, dessert-shop, ice-cream-shop, bubble-tea-shop, roastery, izakaya, steakhouse, brunch-spot
+
+Hierarchy (bar → pub/wine-bar/cocktail-bar) deferred until import data volume justifies it.
+
+### Dietary nodes (5)
+
+```text
+vegetarian (root)
+  └─ vegan
+
+gluten-free (root)
+halal       (root)
+kosher      (root)
+```
+
+`get_taxonomy_family('vegetarian', 'dietary')` returns `{vegetarian, vegan}` — searching "vegetarian" surfaces vegan-friendly places too.
+
+### SQL helpers
+
+- `resolve_taxonomy_slug(p_input, p_type) → text` — canonical slug lookup + alias fallback; returns NULL when unmapped
+- `get_taxonomy_family(p_slug, p_type) → setof text` — slug + all descendants via materialised `path` column (no recursive CTE)
+- `get_taxonomy_ancestors(p_slug, p_type) → setof text` — slug + all ancestors
+- `resolve_all_taxonomy_matches(p_query) → table` — resolves query across all taxonomy types simultaneously; returns one row per matching type with `family_slugs[]` and `match_weight`. A query may return multiple rows when the same slug exists across types (Option A).
+
+Example: `get_taxonomy_family('asian', 'cuisine')` → 20 slugs. `resolve_all_taxonomy_matches('vegetarian')` → `{dietary, vegetarian, {vegetarian,vegan}, 0.62}`.
+
+### Search scoring tiers
+
+| Score | Condition |
+|---|---|
+| 0.90 | Exact name match |
+| 0.80 | Prefix name match |
+| 0.70 | Substring name match |
+| 0.65 | cuisine: direct taxonomy match |
+| 0.63 | food_category: taxonomy match via `resolve_all_taxonomy_matches` |
+| 0.62 | venue_type / dietary: taxonomy match |
+| 0.55 | Suburb ilike match |
+
+Taxonomy score is one signal. Distance, rating, post count, and engagement weights remain dominant for within-set ranking. Weights are hardcoded constants; see B-626 to move them to a config table.
+
+### Alias notes
+
+Dish-level cuisine aliases (ramen → japanese, bbq → american) were V1 pragmatic shortcuts. These have been removed now that `food_category` nodes exist. Remaining cuisine aliases are etymological synonyms only.
+
+### Unmapped tracking
+
+`taxonomy_unmapped` records every `cuisine_slug` value that didn't resolve. Top entries by `occurrences` drive the next taxonomy migration. Review quarterly; promote slugs with `occurrences ≥ 10` to a formal node via migration. Archive rows with `occurrences < 3` after review.
+
+### Bulk import
+
+For batches > 1k places: disable the `sync_place_taxonomies` trigger, run the backfill query directly, re-enable. Do not rely on per-row trigger for batch loads.
+
+### Taxonomy evolution policy
+
+- New types require a migration + SEARCH.md update + BACKLOG.md entry
+- Weight changes require a re-run of the benchmark suite (B-628) against top-50 search queries before shipping
+- Auto-creation of nodes during import is prohibited
+
+### Future taxonomy work
+
+- `style` nodes: fusion, modern-australian (migrate from cuisine)
+- ltree / materialised paths for faceted filter performance at scale
+- B-625: taxonomy assignment pipeline — places acquire food_category, venue_type, dietary tags
+- B-626: `taxonomy_types` config table for tunable weights without migrations
+- B-627: group node concept (`is_searchable` flag) to hide parent grouping nodes from direct UI resolution
+- B-628: search benchmark suite
 
 ## Data-driven cuisine expansion
 
@@ -561,7 +735,11 @@ Search quality is measured via `search_session_end` events (fired on `SearchScre
 | 2026-06-03 | Search governance pass shipped (B-581-B-584): `lib/search/health.ts` summarizes aggregate health thresholds; `rankSearchCandidates()` adds exact/nearby/popular/trending explanation badges, keyword-stuffing penalty, and provider-ID duplicate suppression; ranking governance now requires metric, rollback, owner, review date, tests, and tuning-log evidence. | Search ranking changes need operational visibility and trust controls without a new dashboard dependency, ML system, or parallel experiment framework. Rollback: bypass `buildSearchHealthReport()`, remove trust adjustments from `trustSignal()`, or return raw candidates before `rankSearchCandidates()`. |
 | 2026-06-12 | Create-post place tagging now requests 12 DB rows, tops up eligible thin local lists with Google when fewer than 6 local rows exist, caps the merged list at 10, and records top-up fallback as `thin_local_results`. | Location tagging felt sparse when 1-2 local DB rows blocked provider fallback entirely. The fix gives users more options while keeping DB-first ranking, no-location food-query suppression, strictbounded locality, and selected-result provider-cache flywheel behavior. |
 | 2026-06-22 | Entire FTS pipeline replaced with Supabase `gte-small` HNSW vector search as primary retrieval (B-595). `useSearch.ts` rewired to `embedQuery` + `searchSemantic`; blended score `0.7 × semantic_similarity + 0.3 × taste_similarity`. `search_semantic` RPC with `dish_embeddings` side table. Search screen redesigned: Instagram-style tab underline, hero card for first result, `DiscoveryPage` editorial card grid, `NoResultsCard` rewrite. | Semantic similarity outperforms FTS for dish-first discovery ("something creamy and rich" → relevant dishes) where keyword matching fails. FTS RPCs remain for text fallback but are no longer the primary path. |
+| 2026-06-25 | Place popularity + recency signals live (B-603): triggers on `posts`, `saved_places`, `collection_items` maintain `place_stats` counters (bigint, concurrency-safe arithmetic). `refresh_place_search_index()` computes `trending_score` dynamically from `last_activity_at` with declared weight/decay constants. `search_text_fallback` and `search_semantic` apply `least(2.0, ln(1 + trending_score))` boost. Nightly pg_cron refreshes decaying scores for places active in the last 30 days. `repair_place_stats()` and `validate_place_stats()` added for drift recovery and diagnostics. | `place_stats` counters were always 0 — place popularity never influenced search. Architectural boundary established: `place_stats` = facts only, `place_search_index` = derived signals. Future signals (likes, views, clicks) should flow through a unified `place_events` table rather than new counter columns. |
 | 2026-06-23 | `place_search_index` materialised (B-596): pre-computed `search_name` (lower+unaccent), `search_tsv`, `cuisine_slug`, `suburb`, `verification_score`, `lat/lng`, `post_count`, `save_count`, `trending_score`. Async triggers on `places`/`place_stats` keep it current. `search_text_fallback` place branch and `search_semantic` display_data both read from this table. | Every search query was joining 7+ tables live; the index eliminates those joins and pre-materialises `verification_score` so community trust tier affects ranking without per-query computation. |
+| 2026-06-26 | B-607: `south-asian` re-parented under `asian` in taxonomy_nodes. `get_taxonomy_family('asian','cuisine')` now returns 20 nodes. | Searching "asian" previously did not expand to Indian/Pakistani/Sri Lankan restaurants. Single DO-block migration with immutable trigger override. |
+| 2026-06-26 | B-608: 33 food_category nodes seeded (5 groups + 16 children + 12 standalone roots). `resolve_all_taxonomy_matches(p_query)` added — covers all taxonomy types dynamically with per-type match_weight. `search_text_fallback` updated: taxonomy_matches CTE + matched_places LEFT JOIN replaces repeated correlated EXISTS. `expand_search_cuisines` gains food_category_expansion CTE. Cuisine aliases bbq/barbeque/barbecue removed from cuisine type. | food_category taxonomy is now searchable. Searching "ramen", "bubble tea", "dim sum" resolves via taxonomy hierarchy rather than ilike string match. |
+| 2026-06-26 | B-609: 23 venue_type flat nodes and 5 dietary nodes (vegan ⊂ vegetarian) seeded. No search RPC changes needed — `resolve_all_taxonomy_matches` picks up new types automatically. Searching "vegetarian" now expands to both vegetarian + vegan places. | venue_type and dietary are now searchable without any additional code change — resolving the "God Function" problem via the helper pattern. |
 
 ---
 

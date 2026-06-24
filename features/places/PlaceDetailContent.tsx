@@ -24,6 +24,7 @@ import { imgColors } from '@/constants/Colors'
 import { spacing } from '@/constants/Spacing'
 import type { ColorTokens } from '@/lib/contexts/ThemeContext'
 import { routes } from '@/lib/routes'
+import { formatProviderName, formatTimeAgo } from '@/lib/utils/format'
 import type { Post } from '@/types/domain'
 import {
   formatCategory,
@@ -66,6 +67,10 @@ type Props = {
   openSortSheet: () => void
   openPlaceActions: () => void
   onPhotoPress: (index: number) => void
+  placeStatus?: string | undefined
+  closureSource?: string | null
+  closureSignalAt?: string | null
+  closureSignalMetadata?: Record<string, unknown> | null
 }
 
 export function PlaceDetailContent({
@@ -99,6 +104,10 @@ export function PlaceDetailContent({
   openSortSheet,
   openPlaceActions,
   onPhotoPress,
+  placeStatus,
+  closureSource,
+  closureSignalAt,
+  closureSignalMetadata,
 }: Props) {
   const router = useRouter()
   const googleRating = detail?.rating
@@ -149,6 +158,26 @@ export function PlaceDetailContent({
         <TouchableOpacity style={styles.improveButton} onPress={openPlaceActions} activeOpacity={0.78} accessibilityRole="button">
           <Text style={styles.improveButtonText}>Improve this place</Text>
         </TouchableOpacity>
+
+        {(placeStatus === 'temporarily_closed' || placeStatus === 'permanently_closed' || placeStatus === 'unverified') && (
+          <View style={styles.closureBanner}>
+            <Text style={styles.closureBannerText}>
+              {placeStatus === 'permanently_closed'
+                ? 'This place is permanently closed.'
+                : placeStatus === 'temporarily_closed'
+                  ? 'This place may be temporarily closed.'
+                  : "This place hasn't been verified recently."}
+            </Text>
+            <Text style={styles.closureBannerSource}>
+              {closureSource === 'provider_status'
+                ? `Source: ${formatProviderName(closureSignalMetadata?.provider as string | undefined)}`
+                : closureSource === 'community_reports' ? 'Reported by the community'
+                : closureSource === 'inactivity' ? 'No recent activity detected'
+                : 'Status updated by admin'}
+              {closureSignalAt ? ` · ${formatTimeAgo(closureSignalAt)}` : ''}
+            </Text>
+          </View>
+        )}
 
         {(hasGoogleRating || hasRekkusRatings) && (
           <View style={styles.ratingsCard}>

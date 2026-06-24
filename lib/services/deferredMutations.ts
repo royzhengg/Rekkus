@@ -20,7 +20,7 @@ import {
   togglePostSave,
 } from '@/lib/services/posts'
 import { updateSettingValue, type Settings } from '@/lib/services/settings'
-import { followUser, unfollowUser } from '@/lib/services/users'
+import { followUser, unfollowUser, type FollowRelationshipState } from '@/lib/services/users'
 import { isRecord, parseJsonWithGuard } from '@/lib/utils/safeJson'
 
 // Phase 1 scope: saves, likes, follows, settings.
@@ -124,6 +124,7 @@ export function isDeferredMutation(value: unknown): value is DeferredMutation {
         typeof value.setting === 'string' && value.setting in {
         notif_likes: true, notif_comments: true, notif_followers: true, notif_mentions: true,
         notif_messages: true, private_account: true, allow_comments: true, allow_tags: true,
+        show_activity_status: true,
         autoplay_videos: true, theme_mode: true,
       } && isSettingValue(value.setting, value.value)
     case 'message_reaction':
@@ -254,7 +255,7 @@ export function isRetryableDeferredMutationError(reason: unknown): boolean {
   return /network|fetch|offline|timeout|timed out|connection|socket/i.test(message)
 }
 
-export async function executeDeferredMutation(mutation: DeferredMutation): Promise<void> {
+export async function executeDeferredMutation(mutation: DeferredMutation): Promise<void | FollowRelationshipState> {
   switch (mutation.kind) {
     case 'post_save':
       if (mutation.targetState) await togglePostSave(
@@ -275,7 +276,7 @@ export async function executeDeferredMutation(mutation: DeferredMutation): Promi
       else await unsaveTarget('place', mutation.placeId, mutation.removeCollectionMemberships ?? false)
       return
     case 'follow':
-      if (mutation.targetState) await followUser(mutation.userId, mutation.targetUserId)
+      if (mutation.targetState) return followUser(mutation.userId, mutation.targetUserId)
       else await unfollowUser(mutation.userId, mutation.targetUserId)
       return
     case 'post_like':

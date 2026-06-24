@@ -6,6 +6,7 @@ import {
   parseNotifyPayload,
   parseProcessPostMediaPayload,
   isFeatureFlagOverrideRow,
+  isNotificationCommentRow,
   isNotificationSettingsRow,
   postToText,
   placeToText,
@@ -39,6 +40,8 @@ export function runEdgeFunctionGuardTests(assert: StrictAssert) {
   assert.equal(parseProcessPostMediaPayload({ mediaIds: ['m1', 2] }), null)
   assert.equal(isFeatureFlagOverrideRow({ flag_name: 'search', enabled: true, expires_at: null }), true)
   assert.equal(isFeatureFlagOverrideRow({ flag_name: 'search', enabled: 'yes', expires_at: null }), false)
+  assert.equal(isNotificationCommentRow({ user_id: 'u1', post_id: 'p1' }), true)
+  assert.equal(isNotificationCommentRow({ user_id: 'u1', post_id: 42 }), false)
   assert.equal(isNotificationSettingsRow({
     notif_likes: true, notif_comments: null, notif_followers: false, notif_mentions: true, notif_messages: true,
   }), true)

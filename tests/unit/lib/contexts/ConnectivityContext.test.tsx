@@ -75,15 +75,20 @@ const fakeAuthContext = {
   user: fakeUser,
   session: null,
   loading: false,
+  pendingAppleFullName: null,
   signInWithEmail: async () => null,
   signUpWithEmail: async () => null,
   updateProfile: async () => null,
   signInWithGoogle: async () => null,
+  signInWithProvider: async () => null,
   resetPasswordForEmail: async () => null,
   linkGoogle: async () => null,
+  linkIdentity: async () => null,
   unlinkIdentity: async () => null,
   signOut: async () => undefined,
   deleteAccount: async () => null,
+  providerState: { apple: 'connected' as const, google: 'connected' as const },
+  reconnectProvider: async () => null,
 } as ReturnType<typeof useAuth>
 
 function makePostLikeMutation(userId: string, postId = 'post-1') {

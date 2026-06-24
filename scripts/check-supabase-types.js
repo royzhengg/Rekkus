@@ -42,7 +42,19 @@ if (generated.status !== 0) {
 }
 
 fs.writeFileSync(generatedPath, generated.stdout)
-const current = fs.readFileSync(databasePath, 'utf8')
+const HEADER_SENTINEL = '/* eslint-disable */'
+function stripHeader(content) {
+  if (!content.startsWith(HEADER_SENTINEL)) return content
+  const lines = content.split('\n')
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    if (line.startsWith('/*') || line.startsWith(' *') || line.startsWith('//') || line.trim() === '') { i++; continue }
+    break
+  }
+  return lines.slice(i).join('\n')
+}
+const current = stripHeader(fs.readFileSync(databasePath, 'utf8'))
 if (current !== generated.stdout) {
   console.error('Supabase type check failed: types/database.ts is stale.')
   console.error('Run npm run typegen:supabase:local and commit the updated generated types.')

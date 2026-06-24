@@ -1,5 +1,13 @@
 # Lessons: Search
 
+## Taxonomy hierarchy expansion via materialised path
+
+Cuisine (and any future taxonomy type) search uses a 3-tier scoring model: 0.70 for direct slug match, 0.60 for hierarchy/alias expansion (searching "asian" returns Japanese/Korean places), 0.50 for ilike fallback on unmapped OSM values. The key insight: `get_taxonomy_family('asian')` returns all descendants using `path LIKE 'asian/%'` — a single index scan. Scoring tiers ensure users who search a specific cuisine ("japanese") are not penalised relative to users searching a parent ("asian").
+
+**Apply when:** adding any filter that has a parent/child relationship (venue types, dietary tags, etc.) — wire into the same `place_taxonomies` junction table and extend the scoring CASE in `search_text_fallback`.
+
+---
+
 ## Geographic reference data belongs in the database, not in TypeScript
 
 We initially planned a hardcoded `SUBURB_ALIASES` TS map for suburb resolution. This fails because: (1) adding a new suburb requires a code deploy, (2) the list is always incomplete, (3) there is no fuzzy matching for typos. The right approach is a DB table seeded from an authoritative source (`schappim/australian-postcodes`, ~16k rows) with a pg_trgm index for fuzzy matching, plus a small curated `suburb_aliases` table for colloquialisms ("CBD", "darlo"). The client caches the small alias table on startup for zero-latency common lookups; the comprehensive table is queried via an indexed DB function (`resolve_suburb_query`).
@@ -292,3 +300,46 @@ A single `Promise.all` with no error handling means any service failure (persona
 **Pattern (B-595):** wrap each source in `safeFetch(fn, fallback, label)` — logs `[search] <label> failed` to the console, returns the empty fallback, and lets other sources proceed. Each failure is independently observable in monitoring without affecting user experience.
 
 **Apply when:** adding new data sources to the pipeline, or debugging user-facing "search is broken" reports where the cause is a single downstream RPC.
+
+---
+
+## resolve_all_taxonomy_matches: the "God Function" prevention pattern
+
+When `search_text_fallback` needed to expand queries across cuisine, food_category, venue_type, and dietary types, the naive approach was N separate correlated EXISTS subqueries — one per type — inside the WHERE clause. That's both a performance problem (N×per-row evaluation) and a maintenance problem (the function becomes a God Function that needs updating for every new taxonomy type).
+
+The pattern that solved both: extract a helper `resolve_all_taxonomy_matches(p_query)` that dynamically scans `select distinct taxonomy_type from taxonomy_nodes` and returns one row per matching type. `search_text_fallback` then uses a single `matched_places` CTE with one LEFT JOIN — instead of correlated EXISTS. A new taxonomy type (e.g. `occasion`) is automatically picked up with a default weight of 0.60 without touching `search_text_fallback` at all.
+
+Key detail: use `GROUP BY` not `DISTINCT` in the `matched_places` CTE — GROUP BY + `max(match_weight)` resolves the "which type wins when multiple match" question in one pass; DISTINCT does not.
+
+**Apply when:** a search/filter function is growing a new EXISTS or IN block for every new entity type — extract a per-type resolver and join once.
+
+---
+
+## Trigger-disable migrations: one DO block or bust
+
+B-607 needed to temporarily disable an immutability trigger (`taxonomy_nodes_immutable`) to re-parent a taxonomy node. The naive pattern is:
+
+```sql
+do $$ begin ... if already_done then return; end if; end $$;
+alter table ... disable trigger ...;
+update ...;
+alter table ... enable trigger ...;
+```
+
+This is wrong: `RETURN` inside a DO block only exits that DO block, not the subsequent SQL statements. If the guard triggers and returns, the `alter table disable trigger` still runs.
+
+The correct pattern: **put ALL logic — guard, disable, DML, enable, verification — inside one DO block using `execute` for DDL**. `RETURN` at the guard then exits the entire block and nothing executes.
+
+No EXCEPTION handler is needed to re-enable the trigger on failure: Postgres transactional DDL means a rollback (on any error) automatically reverts the `disable trigger` state. An EXCEPTION handler adds complexity and can mask the real error if the `enable` itself fails.
+
+**Apply when:** writing any migration that temporarily disables a constraint trigger or RLS policy — guard and all mutations in one block.
+
+---
+
+## Cross-type slug policy: allow, don't force unique names
+
+When adding taxonomy types (food_category, venue_type), the instinct is to add a global `unique(slug)` index to prevent collisions. This is wrong: `cafe` is legitimately both a `venue_type` and a (plausible) `food_category`. Forcing `cafe-drinks` as the food_category name degrades search quality.
+
+**Option A** (adopted): same slug allowed across taxonomy types. `unique(slug, taxonomy_type)` is the enforcement boundary — a node is identified by `(type, slug)`, not slug alone. `resolve_all_taxonomy_matches('cafe')` returns one row per type that matches; search unions them. Document this explicitly so contributors don't add naming workarounds.
+
+**Apply when:** adding a new taxonomy type — resist any temptation to add global slug uniqueness.

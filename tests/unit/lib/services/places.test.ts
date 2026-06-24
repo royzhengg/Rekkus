@@ -192,11 +192,11 @@ describe('fetchNearbyPlaces', () => {
 // ── recordPlaceProviderCache (30-day TTL) ────────────────────────────────
 
 describe('recordPlaceProviderCache', () => {
-  it('calls record_restaurant_provider_snapshot with stale_at ~30 days from now', async () => {
+  it('calls record_place_provider_snapshot with stale_at ~30 days from now', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
     const before = Date.now()
     await recordPlaceProviderCache(
-      'restaurant-1',
+      'place-1',
       'google_places',
       'ChIJxxx',
       {
@@ -209,11 +209,11 @@ describe('recordPlaceProviderCache', () => {
     const after = Date.now()
 
     expect(mockRpc).toHaveBeenCalledWith(
-      'record_restaurant_provider_snapshot',
-      expect.objectContaining({ p_restaurant_id: 'restaurant-1' })
+      'record_place_provider_snapshot',
+      expect.objectContaining({ p_place_id: 'place-1' })
     )
 
-    const call = mockRpc.mock.calls.find(c => c[0] === 'record_restaurant_provider_snapshot')
+    const call = mockRpc.mock.calls.find(c => c[0] === 'record_place_provider_snapshot')
     const staleAt = new Date(call?.[1]?.p_stale_at as string).getTime()
     const thirtyDays = 30 * 24 * 60 * 60 * 1000
     expect(staleAt).toBeGreaterThanOrEqual(before + thirtyDays - 1000)

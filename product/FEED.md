@@ -8,6 +8,8 @@ How the home feed and discovery page work in Rekkus. Update this file when feed 
 
 Both tabs render from `PostsContext`, which fetches Supabase posts first in live data mode and uses demo data only when the configured data mode allows mock fallback. Feed rows are normalized through `lib/services/posts.ts` so post detail, search, profile, saved, and liked surfaces share the same post shape.
 
+All live feed/post-detail reads must respect `can_view_user_content(viewer_id, target_id)`. Private-account content is excluded from Following, Discover, post detail, saved/liked joins, dish/place post lists, and notification fanout unless the viewer is the owner or an approved follower.
+
 The split is:
 
 - **Following**: filters to followed usernames from Supabase and ranks by recency-decayed likes, quality, and post completeness.

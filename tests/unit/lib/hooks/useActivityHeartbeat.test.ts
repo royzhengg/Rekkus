@@ -68,4 +68,10 @@ describe('useActivityHeartbeat', () => {
     expect(mockUpdateLastSeen).not.toHaveBeenCalled()
     expect(AppState.addEventListener).not.toHaveBeenCalled()
   })
+
+  it('does not record activity when activity status is disabled', () => {
+    renderHook(() => useActivityHeartbeat('user-1', false))
+    expect(mockUpdateLastSeen).not.toHaveBeenCalled()
+    expect(AppState.addEventListener).not.toHaveBeenCalled()
+  })
 })
