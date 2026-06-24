@@ -7,7 +7,7 @@
  * Regenerate via:
  *   npm run typegen:supabase:local
  *
- * Source hash: c58f6f72
+ * Source hash: 5d50cc67
  */
 import type { Database } from './database'
 
@@ -316,9 +316,17 @@ export type TaxonomyAliasRow = Database['public']['Tables']['taxonomy_aliases'][
 export type TaxonomyAliasInsert = Database['public']['Tables']['taxonomy_aliases']['Insert']
 export type TaxonomyAliasUpdate = Database['public']['Tables']['taxonomy_aliases']['Update']
 
+export type TaxonomyAssignmentEventRow = Database['public']['Tables']['taxonomy_assignment_events']['Row']
+export type TaxonomyAssignmentEventInsert = Database['public']['Tables']['taxonomy_assignment_events']['Insert']
+export type TaxonomyAssignmentEventUpdate = Database['public']['Tables']['taxonomy_assignment_events']['Update']
+
 export type TaxonomyNodeRow = Database['public']['Tables']['taxonomy_nodes']['Row']
 export type TaxonomyNodeInsert = Database['public']['Tables']['taxonomy_nodes']['Insert']
 export type TaxonomyNodeUpdate = Database['public']['Tables']['taxonomy_nodes']['Update']
+
+export type TaxonomySuggestionRow = Database['public']['Tables']['taxonomy_suggestions']['Row']
+export type TaxonomySuggestionInsert = Database['public']['Tables']['taxonomy_suggestions']['Insert']
+export type TaxonomySuggestionUpdate = Database['public']['Tables']['taxonomy_suggestions']['Update']
 
 export type TaxonomyUnmappedRow = Database['public']['Tables']['taxonomy_unmapped']['Row']
 export type TaxonomyUnmappedInsert = Database['public']['Tables']['taxonomy_unmapped']['Insert']
@@ -361,7 +369,13 @@ export type UserInsert = Database['public']['Tables']['users']['Insert']
 export type UserUpdate = Database['public']['Tables']['users']['Update']
 
 // ─── Views ───────────────────────────────────────────────────────────────────
+export type PlaceTaxonomiesAcceptedRow = Database['public']['Views']['place_taxonomies_accepted']['Row']
+
 export type PlatformAuditEventsViewRow = Database['public']['Views']['platform_audit_events_view']['Row']
+
+export type TaxonomyReviewPerformanceRow = Database['public']['Views']['taxonomy_review_performance']['Row']
+
+export type TaxonomyReviewQueueStatsRow = Database['public']['Views']['taxonomy_review_queue_stats']['Row']
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 export type EventOrigin = Database['public']['Enums']['event_origin']
@@ -374,6 +388,9 @@ export type PrivacyAuditEventType = Database['public']['Enums']['privacy_audit_e
 export type SocialEventEntityType = Database['public']['Enums']['social_event_entity_type']
 export type SocialEventSourceType = Database['public']['Enums']['social_event_source_type']
 export type SocialEventType = Database['public']['Enums']['social_event_type']
+export type TaxonomyReviewReason = Database['public']['Enums']['taxonomy_review_reason']
+export type TaxonomySource = Database['public']['Enums']['taxonomy_source']
+export type TaxonomySuggestionStatus = Database['public']['Enums']['taxonomy_suggestion_status']
 export type VerificationLevel = Database['public']['Enums']['verification_level']
 
 // ─── RPC Args / Returns ──────────────────────────────────────────────────────
@@ -388,6 +405,9 @@ export type ApproveAllFollowRequestsReturns = Database['public']['Functions']['a
 
 export type ApproveFollowRequestArgs = Database['public']['Functions']['approve_follow_request']['Args']
 export type ApproveFollowRequestReturns = Database['public']['Functions']['approve_follow_request']['Returns']
+
+export type AssignTaxonomyAdminArgs = Database['public']['Functions']['assign_taxonomy_admin']['Args']
+export type AssignTaxonomyAdminReturns = Database['public']['Functions']['assign_taxonomy_admin']['Returns']
 
 export type BlockUserArgs = Database['public']['Functions']['block_user']['Args']
 export type BlockUserReturns = Database['public']['Functions']['block_user']['Returns']
@@ -464,6 +484,9 @@ export type GetTaxonomyAncestorsReturns = Database['public']['Functions']['get_t
 export type GetTaxonomyFamilyArgs = Database['public']['Functions']['get_taxonomy_family']['Args']
 export type GetTaxonomyFamilyReturns = Database['public']['Functions']['get_taxonomy_family']['Returns']
 
+export type GetTaxonomyReviewQueueArgs = Database['public']['Functions']['get_taxonomy_review_queue']['Args']
+export type GetTaxonomyReviewQueueReturns = Database['public']['Functions']['get_taxonomy_review_queue']['Returns']
+
 export type HasUserBlockBetweenArgs = Database['public']['Functions']['has_user_block_between']['Args']
 export type HasUserBlockBetweenReturns = Database['public']['Functions']['has_user_block_between']['Returns']
 
@@ -490,6 +513,9 @@ export type PlacesWithinRadiusReturns = Database['public']['Functions']['places_
 
 export type ProfileVisibilityStateArgs = Database['public']['Functions']['profile_visibility_state']['Args']
 export type ProfileVisibilityStateReturns = Database['public']['Functions']['profile_visibility_state']['Returns']
+
+export type PromoteTaxonomySuggestionArgs = Database['public']['Functions']['promote_taxonomy_suggestion']['Args']
+export type PromoteTaxonomySuggestionReturns = Database['public']['Functions']['promote_taxonomy_suggestion']['Returns']
 
 export type PurgeSoftDeletedContentArgs = Database['public']['Functions']['purge_soft_deleted_content']['Args']
 export type PurgeSoftDeletedContentReturns = Database['public']['Functions']['purge_soft_deleted_content']['Returns']
@@ -526,6 +552,12 @@ export type RefreshPlaceSearchIndexReturns = Database['public']['Functions']['re
 
 export type RefreshTrendingQueriesArgs = Database['public']['Functions']['refresh_trending_queries']['Args']
 export type RefreshTrendingQueriesReturns = Database['public']['Functions']['refresh_trending_queries']['Returns']
+
+export type RejectTaxonomySuggestionArgs = Database['public']['Functions']['reject_taxonomy_suggestion']['Args']
+export type RejectTaxonomySuggestionReturns = Database['public']['Functions']['reject_taxonomy_suggestion']['Returns']
+
+export type RemoveTaxonomyAssignmentArgs = Database['public']['Functions']['remove_taxonomy_assignment']['Args']
+export type RemoveTaxonomyAssignmentReturns = Database['public']['Functions']['remove_taxonomy_assignment']['Returns']
 
 export type ReopenPlaceArgs = Database['public']['Functions']['reopen_place']['Args']
 export type ReopenPlaceReturns = Database['public']['Functions']['reopen_place']['Returns']
@@ -571,6 +603,9 @@ export type SetAccountPrivacyReturns = Database['public']['Functions']['set_acco
 
 export type SetActivityVisibilityArgs = Database['public']['Functions']['set_activity_visibility']['Args']
 export type SetActivityVisibilityReturns = Database['public']['Functions']['set_activity_visibility']['Returns']
+
+export type SubmitTaxonomySuggestionArgs = Database['public']['Functions']['submit_taxonomy_suggestion']['Args']
+export type SubmitTaxonomySuggestionReturns = Database['public']['Functions']['submit_taxonomy_suggestion']['Returns']
 
 export type SuggestSearchesArgs = Database['public']['Functions']['suggest_searches']['Args']
 export type SuggestSearchesReturns = Database['public']['Functions']['suggest_searches']['Returns']

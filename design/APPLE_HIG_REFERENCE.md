@@ -15,7 +15,7 @@ Apple's [Human Interface Guidelines](https://developer.apple.com/design/human-in
 - Interactive controls provide an effective 44pt target, useful accessibility semantics, system text scaling, dark-mode contrast, and reduced-motion behavior.
 - Apply system-familiar behavior through Rekkus primitives and feature ownership; do not make Android imitate Apple-only visual APIs.
 - B-531 tests a disabled-by-default iOS tab material backdrop only in development/staging; Reduce Transparency, Android, beta, and production retain opaque navigation until physical-device acceptance exists.
-- Keep the product dish-first: images, dishes, saves, collections, and local food decisions lead over generic directory or social chrome.
+- Keep the product food-first and discovery-first: images, dishes, places, saves, collections, and local food decisions lead over generic directory or social chrome.
 
 ## Status Key
 

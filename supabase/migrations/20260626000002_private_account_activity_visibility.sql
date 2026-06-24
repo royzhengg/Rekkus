@@ -922,18 +922,18 @@ create or replace view public.platform_audit_events_view as
     created_at
   from public.post_edit_events
   union all
-  select id, 'restaurant_audit_events'::text as source_table,
-    coalesce(entity_type, 'restaurant')::text as entity_type,
-    coalesce(entity_id, restaurant_id) as entity_id,
+  select id, 'place_audit_events'::text as source_table,
+    coalesce(entity_type, 'place')::text as entity_type,
+    coalesce(entity_id, place_id) as entity_id,
     actor_id as user_id, action as event_type,
     jsonb_strip_nulls(jsonb_build_object(
       'actor_type', actor_type, 'source_type', source_type, 'reason', reason,
       'before_summary', before_summary, 'after_summary', after_summary,
-      'compliance_category', compliance_category, 'restaurant_id', restaurant_id,
+      'compliance_category', compliance_category, 'place_id', place_id,
       'request_id', request_id, 'job_id', job_id, 'rollback_reference', rollback_reference
     )) as context,
     created_at
-  from public.restaurant_audit_events
+  from public.place_audit_events
   union all
   select id, 'user_profile_audit_events'::text as source_table,
     'user_profile'::text as entity_type, user_id as entity_id,

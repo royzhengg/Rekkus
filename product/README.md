@@ -7,7 +7,7 @@ Product docs describe shipped behavior, product surfaces, and domain-specific pr
 - [FEATURES.md](FEATURES.md): shipped feature inventory
 - [FEED.md](FEED.md): feed behavior, ranking notes, and tuning log
 - [SEARCH.md](SEARCH.md): search behavior, query expansion, and tuning log
-- [DISCOVERY.md](DISCOVERY.md): dish-first local discovery surfaces, signals, and guardrails
+- [DISCOVERY.md](DISCOVERY.md): food-first local discovery surfaces, signals, and guardrails
 - [RETENTION.md](RETENTION.md): repeat-use loops around saves, revisits, alerts, and saved places
 - [ACTIVATION.md](ACTIVATION.md): first-session and first-useful-intent moments
 - [NETWORK_EFFECTS.md](NETWORK_EFFECTS.md): taste, dish, and local-density compounding loops

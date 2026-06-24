@@ -8,6 +8,7 @@ import PrivacySocialSettingsScreen from '@/features/settings/PrivacySocialSettin
 import SettingsScreen from '@/features/settings/SettingsScreen'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useSettings } from '@/lib/contexts/SettingsContext'
+import { fetchBlockedAccountCount } from '@/lib/services/moderation'
 import { fetchProfile } from '@/lib/services/users'
 
 const mockPush = jest.fn()
@@ -31,9 +32,15 @@ const defaultSettings = {
   theme_mode: 'system' as const,
 }
 
-jest.mock('expo-router', () => ({
-  useRouter: () => ({ back: mockBack, push: mockPush, replace: mockReplace }),
-}))
+jest.mock('expo-router', () => {
+  const ReactActual = jest.requireActual('react')
+  return {
+    useRouter: () => ({ back: mockBack, push: mockPush, replace: mockReplace }),
+    useFocusEffect: (callback: () => void | (() => void)) => {
+      ReactActual.useEffect(() => callback(), [callback])
+    },
+  }
+})
 
 jest.mock('expo-apple-authentication', () => ({
   isAvailableAsync: jest.fn(),
@@ -55,6 +62,10 @@ jest.mock('@/lib/contexts/ConnectivityContext', () => ({
 
 jest.mock('@/lib/services/users', () => ({
   fetchProfile: jest.fn(),
+}))
+
+jest.mock('@/lib/services/moderation', () => ({
+  fetchBlockedAccountCount: jest.fn(),
 }))
 
 jest.mock('@/lib/analytics', () => ({
@@ -132,6 +143,7 @@ describe('Settings screens', () => {
       country: null,
     })
     mockSignOut.mockResolvedValue(undefined)
+    jest.mocked(fetchBlockedAccountCount).mockResolvedValue(0)
     jest.mocked(useAuth).mockReturnValue({
       user: {
         id: 'user-1',
@@ -219,8 +231,10 @@ describe('Settings screens', () => {
     expect(mockUpdateSetting).toHaveBeenCalledWith('notif_messages', false)
   })
 
-  it('updates privacy and social settings from inline switches', () => {
+  it('updates privacy and social settings from inline switches', async () => {
     render(<PrivacySocialSettingsScreen />)
+
+    expect(await screen.findByText('None')).toBeTruthy()
 
     fireEvent.press(screen.getByLabelText('Private account'))
     fireEvent.press(screen.getByLabelText('Allow comments'))
@@ -231,6 +245,26 @@ describe('Settings screens', () => {
     expect(mockUpdateSetting).toHaveBeenCalledWith('allow_comments', false)
     expect(mockUpdateSetting).toHaveBeenCalledWith('allow_tags', false)
     expect(mockUpdateSetting).toHaveBeenCalledWith('show_activity_status', false)
+  })
+
+  it('shows blocked account count and opens blocked accounts management', async () => {
+    jest.mocked(fetchBlockedAccountCount).mockResolvedValueOnce(2)
+    render(<PrivacySocialSettingsScreen />)
+
+    expect(await screen.findByText('2 blocked')).toBeTruthy()
+
+    fireEvent.press(screen.getByLabelText('Blocked accounts, 2 blocked'))
+    expect(mockPush).toHaveBeenCalledWith('/settings/blocked-accounts')
+  })
+
+  it('keeps blocked accounts navigable when count fails', async () => {
+    jest.mocked(fetchBlockedAccountCount).mockRejectedValueOnce(new Error('count failed'))
+    render(<PrivacySocialSettingsScreen />)
+
+    expect(await screen.findByText('Open')).toBeTruthy()
+
+    fireEvent.press(screen.getByLabelText('Blocked accounts, Open'))
+    expect(mockPush).toHaveBeenCalledWith('/settings/blocked-accounts')
   })
 
   it('updates appearance and playback settings without a bottom sheet', () => {

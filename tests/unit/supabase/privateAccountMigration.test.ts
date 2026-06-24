@@ -5,6 +5,7 @@ const migration = readFileSync(
   join(process.cwd(), 'supabase/migrations/20260626000002_private_account_activity_visibility.sql'),
   'utf8'
 )
+const adminRls = readFileSync(join(process.cwd(), 'supabase/schema/rls/admin.sql'), 'utf8')
 
 describe('private account migration contract', () => {
   it('keeps one active pending request per requester and target', () => {
@@ -42,6 +43,13 @@ describe('private account migration contract', () => {
     expect(blockBody).toContain('delete from public.follows')
     expect(blockBody).toContain("set status = 'cancelled'")
     expect(blockBody).toContain("where status = 'pending'")
+  })
+
+  it('keeps user block access owner-scoped by blocker', () => {
+    expect(adminRls).toContain('on public.user_blocks')
+    expect(adminRls).toContain('for all using (auth.uid() = blocker_id) with check (auth.uid() = blocker_id)')
+    expect(adminRls).toContain('for select using (auth.uid() = blocker_id)')
+    expect(adminRls).not.toContain('auth.uid() = blocked_id')
   })
 
   it('activity visibility clears stored last_seen_at when disabled', () => {

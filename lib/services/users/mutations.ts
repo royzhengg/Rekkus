@@ -1,10 +1,11 @@
+import { blockUser as blockUserViaModeration } from '@/lib/services/moderation'
 import type { ProfileInfo } from '@/lib/services/users'
 import { supabase } from '@/lib/supabase'
 import type { UserId } from '@/lib/types/branded'
 
 export async function blockUser(blockedId: UserId): Promise<void> {
-  const { error } = await supabase.rpc('block_user', { p_blocked_id: blockedId })
-  if (error) throw error
+  const error = await blockUserViaModeration(null, blockedId)
+  if (error) throw new Error(error)
 }
 
 export async function updateUserProfile(

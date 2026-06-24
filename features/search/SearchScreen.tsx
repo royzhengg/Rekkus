@@ -7,7 +7,7 @@ import { Chip } from '@/components/ui/Chip'
 import { IconButton } from '@/components/ui/IconButton'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontFamily, fontSize, fontWeight, letterSpacing, maxFontSizeMultiplier } from '@/constants/Typography'
+import { fontSize, fontWeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
@@ -366,12 +366,6 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.topBar}>
-        <Text style={styles.wordmark} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-          rekkus<Text style={styles.wordmarkDot}>.</Text>
-        </Text>
-      </View>
-
       <View style={styles.searchTop}>
         <View style={styles.searchWrap}>
           <SearchIcon />
@@ -606,20 +600,6 @@ export default function SearchScreen() {
 function makeStyles(c: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
-    topBar: {
-      height: 56,
-      justifyContent: 'center',
-      paddingHorizontal: spacing[4],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
-    },
-    wordmark: {
-      fontFamily: fontFamily.serif,
-      fontSize: fontSize['3xl'],
-      color: c.text,
-      letterSpacing: letterSpacing.none,
-    },
-    wordmarkDot: { color: c.accent },
     searchTop: {
       paddingHorizontal: spacing[4],
       paddingTop: spacing.px10,

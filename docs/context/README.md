@@ -1,6 +1,6 @@
 # Context: Agent Orientation
 
-Rekkus is a dish-first social food discovery app built with Expo React Native + Supabase. Users review dishes, save places, and follow friends to see their activity. The core product loop is: discover a dish → visit the place → post a review → friends see it in their feed.
+Rekkus is a food-first social discovery app built with Expo React Native + Supabase. Users review dishes, save places, curate collections, and follow friends to see their activity. The core product loop is: discover something worth eating or visiting → save or visit the place → post a review → friends see it in their feed.
 
 ## Five Domain Areas
 

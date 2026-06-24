@@ -2,11 +2,11 @@
 
 Owner: Product
 
-Discovery helps people decide what to eat nearby through dish-first, save-friendly, locally relevant surfaces.
+Discovery helps people decide what to eat and where to go through food-first, save-friendly, locally relevant surfaces.
 
 ## Principles
 
-- Dish-first evidence beats generic restaurant popularity.
+- Food-specific evidence beats generic restaurant popularity.
 - Local relevance beats global vanity metrics.
 - Google can enrich results, but Rekkus content should become the serving truth.
 - Search, feed, saved places, and restaurant pages should reinforce each other.
@@ -31,4 +31,3 @@ Discovery helps people decide what to eat nearby through dish-first, save-friend
 - Do not become a generic restaurant directory.
 - Ranking changes belong in [SEARCH.md](SEARCH.md) or [FEED.md](FEED.md).
 - Local discovery expansion should update analytics and observability docs when new signals are added.
-

@@ -116,8 +116,8 @@ export default function PrivacyDataScreen() {
         <View style={styles.infoCard}>
           <Text style={styles.body}>
             Rekkus uses your posts, saves, ratings, searches, and place corrections to improve
-            dish-first discovery. Place provider data is used as fallback or enrichment and is
-            kept source-attributed.
+            food-first discovery. Place provider data is used as fallback or enrichment and is kept
+            source-attributed.
           </Text>
           <Text style={styles.body}>
             Location, photos, notifications, and provider data should only be used for the feature

@@ -25,7 +25,7 @@ Naming conventions keep routes, tables, events, files, and domain types predicta
 - Use `post` for a user-generated content unit and `dish` only for dish-level tags, names, or graph work.
 - Use `save` / `saved` (not "bookmark") for the action of saving a place, dish, or post.
 - Use `Collections` (not "Lists") for user-organised groups of saved content.
-- Do not introduce generic review-platform terms that blur the dish-first direction.
+- Do not introduce generic review-platform terms that blur the food-first, discovery-first direction.
 
 ## Historical Infrastructure Exception
 

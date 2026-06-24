@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router'
-import React, { useMemo, useState } from 'react'
+import { useFocusEffect, useRouter } from 'expo-router'
+import React, { useCallback, useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { BellIcon, LockIcon, MessageIcon, TagIcon, UserIcon, EyeIcon } from '@/components/icons'
@@ -8,17 +8,35 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader'
 import { spacing } from '@/constants/Spacing'
 import { fontSize, lineHeight, maxFontSizeMultiplier } from '@/constants/Typography'
 import { BackButton, ControlRow, Divider, SettingsGroup, SettingsSwitchRow } from '@/features/settings/SettingsControlDock'
+import { useAuth } from '@/lib/contexts/AuthContext'
 import { useSettings } from '@/lib/contexts/SettingsContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useToast } from '@/lib/contexts/ToastContext'
+import { fetchBlockedAccountCount } from '@/lib/services/moderation'
 
 export default function PrivacySocialSettingsScreen() {
   const router = useRouter()
+  const { user } = useAuth()
   const { settings, updateSetting, updatePrivateAccountSetting } = useSettings()
   const { showToast } = useToast()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
   const [confirmPublicVisible, setConfirmPublicVisible] = useState(false)
+  const [blockedCount, setBlockedCount] = useState<number | null>(null)
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true
+      if (!user?.id) {
+        setBlockedCount(null)
+        return () => { active = false }
+      }
+      void fetchBlockedAccountCount(user.id)
+        .then(count => { if (active) setBlockedCount(count) })
+        .catch(() => { if (active) setBlockedCount(null) })
+      return () => { active = false }
+    }, [user?.id])
+  )
 
   async function makeAccountPublic() {
     setConfirmPublicVisible(false)
@@ -109,10 +127,10 @@ export default function PrivacySocialSettingsScreen() {
           <Divider />
           <ControlRow
             label="Blocked accounts"
-            summary="Profiles"
-            sublabel="Block or report from a profile"
+            summary={blockedCount === null ? 'Open' : blockedCount === 0 ? 'None' : blockedCount === 1 ? '1 blocked' : `${blockedCount} blocked`}
+            sublabel="Review accounts you have blocked"
             icon={<LockIcon size={18} color={colors.text} />}
-            planned
+            onPress={() => router.push('/settings/blocked-accounts')}
           />
           <Divider />
           <ControlRow
