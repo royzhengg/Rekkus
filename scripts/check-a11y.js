@@ -7,6 +7,7 @@ const legacyImageAllowlist = new Set([
   'components/post-create/DraggableMediaStrip.tsx',
   'components/post-create/DraggablePhotoStrip.tsx',
   'components/post-create/StepMedia.tsx',
+  'features/settings/Enable2FAScreen.tsx', // QR code is a data-URI SVG; no caching needed; onError fallback required
 ])
 
 // B-534: all screens remediated — allowlist now empty.

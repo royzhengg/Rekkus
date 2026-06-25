@@ -1,6 +1,6 @@
 import { useFonts } from 'expo-font'
 import * as Linking from 'expo-linking'
-import { Stack, useRouter } from 'expo-router'
+import { Stack, useRouter, useSegments } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import { Platform } from 'react-native'
@@ -30,6 +30,30 @@ export const unstable_settings = {
 
 void SplashScreen.preventAutoHideAsync()
 initializeCrashReporting()
+
+// MFA gate: intercepts deep links and subsequent mfaRequired state changes.
+// This is a belt-and-suspenders guard — app/index.tsx also gates at boot.
+// Together they ensure mfaRequired=true blocks ALL authenticated routes,
+// not just the initial landing. This invariant must survive future routing changes.
+//
+// The challenge screen exits ONLY on successful verification or sign-out.
+// A session alone is not sufficient to exit; AAL must be satisfied.
+function MFAGate() {
+  const { authBootstrapping, session, mfaRequired } = useAuth()
+  const router = useRouter()
+  const segments = useSegments()
+
+  useEffect(() => {
+    if (authBootstrapping || !session || !mfaRequired) return
+    const alreadyOnChallenge =
+      segments[0] === '(auth)' && segments[1] === 'mfa-challenge'
+    if (!alreadyOnChallenge) {
+      router.replace('/(auth)/mfa-challenge')
+    }
+  }, [authBootstrapping, session, mfaRequired, segments, router])
+
+  return null
+}
 
 function PushRegistrar() {
   const { user } = useAuth()
@@ -101,6 +125,7 @@ function RootLayout() {
     {loaded ? <AuthProvider>
       <ConnectivityProvider>
       <UserLocationProvider>
+      <MFAGate />
       <FeatureFlagOverrideRefresher />
       <SearchSynonymCacheLoader />
       <PushRegistrar />

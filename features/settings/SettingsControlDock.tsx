@@ -55,7 +55,7 @@ export function ControlRow({
   planned,
 }: {
   label: string
-  summary: string
+  summary?: string
   sublabel?: string
   icon?: React.ReactNode
   onPress?: () => void
@@ -85,9 +85,11 @@ export function ControlRow({
         ) : null}
       </View>
       <View style={styles.rowValueWrap}>
-        <Text style={styles.rowValue} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
-          {summary}
-        </Text>
+        {summary ? (
+          <Text style={styles.rowValue} maxFontSizeMultiplier={maxFontSizeMultiplier.layout}>
+            {summary}
+          </Text>
+        ) : null}
         {onPress ? <ChevronRight /> : null}
       </View>
     </>
@@ -105,7 +107,7 @@ export function ControlRow({
       onPressOut={press.onPressOut}
       activeOpacity={1}
       accessibilityRole="button"
-      accessibilityLabel={`${label}, ${summary}`}
+      accessibilityLabel={summary ? `${label}, ${summary}` : label}
     >
       <Animated.View style={[styles.rowPressScale, press.animatedStyle]}>{content}</Animated.View>
     </TouchableOpacity>

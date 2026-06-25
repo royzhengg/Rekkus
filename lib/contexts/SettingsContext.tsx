@@ -85,6 +85,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     if (!user) return
     if (key === 'private_account' || key === 'show_activity_status') {
       analytics.privacySettingChanged(user.id, key, Boolean(value))
+    } else if (
+      key === 'notif_likes' || key === 'notif_comments' || key === 'notif_followers' ||
+      key === 'notif_mentions' || key === 'notif_messages'
+    ) {
+      analytics.notificationSettingChanged(user.id, key, Boolean(value))
     }
     try {
       await runDeferredMutation({ kind: 'setting', setting: key, value })

@@ -6,6 +6,9 @@ export type NotificationType =
   | 'follow_request_approved'
   | 'comment_reply'
   | 'message'
+  | 'mention'
+
+export type MentionEntityType = 'post' | 'comment'
 
 export type NotifyPayload = {
   type: NotificationType
@@ -16,6 +19,13 @@ export type NotifyPayload = {
   commentId?: string
   conversationId?: string
   messageId?: string
+  // mention-specific fields (set by pg_net from enqueue_social_event_delivery)
+  mentionedUserId?: string
+  entityId?: string
+  entityType?: MentionEntityType
+  notificationId?: string
+  // actor override for service-role calls (pg_net from DB trigger)
+  actorId?: string
 }
 
 export type EmbedTable = 'posts' | 'places' | 'dishes'
@@ -58,7 +68,8 @@ export function parseNotifyPayload(value: unknown): NotifyPayload | null {
     type !== 'follow_request' &&
     type !== 'follow_request_approved' &&
     type !== 'comment_reply' &&
-    type !== 'message'
+    type !== 'message' &&
+    type !== 'mention'
   ) return null
 
   const payload: NotifyPayload = { type }
@@ -69,6 +80,11 @@ export function parseNotifyPayload(value: unknown): NotifyPayload | null {
   if (typeof value.commentId === 'string') payload.commentId = value.commentId
   if (typeof value.conversationId === 'string') payload.conversationId = value.conversationId
   if (typeof value.messageId === 'string') payload.messageId = value.messageId
+  if (typeof value.mentionedUserId === 'string') payload.mentionedUserId = value.mentionedUserId
+  if (typeof value.entityId === 'string') payload.entityId = value.entityId
+  if (value.entityType === 'post' || value.entityType === 'comment') payload.entityType = value.entityType
+  if (typeof value.notificationId === 'string') payload.notificationId = value.notificationId
+  if (typeof value.actorId === 'string') payload.actorId = value.actorId
   return payload
 }
 

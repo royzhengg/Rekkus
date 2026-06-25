@@ -1,9 +1,11 @@
 import { supabase } from '@/lib/supabase'
-import type { TaxonomyAssignment, TaxonomyReviewReason } from '@/lib/types/taxonomy'
+import type { TaxonomyReviewReason } from '@/lib/types/taxonomy'
 import type { Database } from '@/types/database'
 
 type ReviewQueueItem =
   Database['public']['Functions']['get_taxonomy_review_queue']['Returns'][number]
+
+type PlaceTaxonomyAcceptedRow = Database['public']['Views']['place_taxonomies_accepted']['Row']
 
 export async function submitUserTaxonomySuggestion(
   placeId: string,
@@ -73,13 +75,13 @@ export async function removeAdminTaxonomy(
   if (error) throw error
 }
 
-export async function getPlaceAcceptedTaxonomies(placeId: string): Promise<TaxonomyAssignment[]> {
+export async function getPlaceAcceptedTaxonomies(placeId: string): Promise<PlaceTaxonomyAcceptedRow[]> {
   const { data, error } = await supabase
     .from('place_taxonomies_accepted')
     .select('*')
     .eq('place_id', placeId)
   if (error) throw error
-  return (data ?? []) as unknown as TaxonomyAssignment[]
+  return data ?? []
 }
 
 export async function getTaxonomyReviewQueue(

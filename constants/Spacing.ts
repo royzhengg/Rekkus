@@ -35,6 +35,7 @@ export const spacing = {
   px34: 34,
   px36: 36,
   px40: 40,
+  px44: 44,
   px50: 50,
   px56: 56,
   px60: 60,

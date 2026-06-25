@@ -82,6 +82,14 @@ const flags = {
     reviewAt: '2026-08-01',
     description: 'Enables push notification registration and sends.',
   },
+  mentionNotifications: {
+    enabled: true,
+    owner: 'Social',
+    state: 'active',
+    createdAt: '2026-06-25',
+    reviewAt: '2026-10-01',
+    description: 'Client UI exposure for mention notification settings. Does not gate DB trigger or push delivery — use app_config.mention_notifications_enabled for that.',
+  },
 
   locationGeocodeFallback: {
     enabled: false,

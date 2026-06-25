@@ -1,0 +1,556 @@
+{
+  "_generated": "Do not edit. Regenerate: ./scripts/build-schema.sh > supabase/schema.sql",
+  "schemaVersion": 1,
+  "owners": {
+    "analytics_events": {
+      "file": "analytics/events.sql",
+      "domain": "Analytics",
+      "lifecycle": "Core"
+    },
+    "auth_audit_events": {
+      "file": "audit/audit_tables.sql",
+      "domain": "Audit",
+      "lifecycle": "Core"
+    },
+    "collection_audit_events": {
+      "file": "audit/audit_tables.sql",
+      "domain": "Audit",
+      "lifecycle": "Core"
+    },
+    "collection_items": {
+      "file": "social/collections.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "collections": {
+      "file": "social/collections.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "comments": {
+      "file": "core/posts/comments.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "content_lifecycle_events": {
+      "file": "audit/audit_tables.sql",
+      "domain": "Audit",
+      "lifecycle": "Core"
+    },
+    "content_reports": {
+      "file": "moderation/moderation.sql",
+      "domain": "Moderation",
+      "lifecycle": "Core"
+    },
+    "conversation_participants": {
+      "file": "social/messaging.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "conversation_pinned_messages": {
+      "file": "social/messaging.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "conversations": {
+      "file": "social/messaging.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "cuisine_aliases": {
+      "file": "search/taxonomy.sql",
+      "domain": "Search",
+      "lifecycle": "Core"
+    },
+    "data_repair_events": {
+      "file": "audit/audit_tables.sql",
+      "domain": "Audit",
+      "lifecycle": "Core"
+    },
+    "dish_audit_events": {
+      "file": "audit/audit_tables.sql",
+      "domain": "Audit",
+      "lifecycle": "Core"
+    },
+    "dishes": {
+      "file": "core/dishes/dishes.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "feature_flag_audit_events": {
+      "file": "audit/audit_tables.sql",
+      "domain": "Audit",
+      "lifecycle": "Core"
+    },
+    "feature_flag_overrides": {
+      "file": "governance/governance.sql",
+      "domain": "Governance",
+      "lifecycle": "Core"
+    },
+    "follows": {
+      "file": "social/follows.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "hashtags": {
+      "file": "core/posts/post_hashtags.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "likes": {
+      "file": "core/posts/post_hashtags.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "message_deliveries": {
+      "file": "social/messaging.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "message_reactions": {
+      "file": "social/messaging.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "messages": {
+      "file": "social/messaging.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "moderation_actions": {
+      "file": "moderation/moderation.sql",
+      "domain": "Moderation",
+      "lifecycle": "Core"
+    },
+    "moderation_appeals": {
+      "file": "moderation/moderation.sql",
+      "domain": "Moderation",
+      "lifecycle": "Core"
+    },
+    "osm_import_runs": {
+      "file": "provider/imports.sql",
+      "domain": "Provider",
+      "lifecycle": "Provider-managed"
+    },
+    "place_aliases": {
+      "file": "core/places/place_aliases.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "place_audit_events": {
+      "file": "audit/place_ownership_events.sql",
+      "domain": "Audit",
+      "lifecycle": "Core"
+    },
+    "place_contact": {
+      "file": "core/places/place_contact.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "place_features": {
+      "file": "core/places/place_features.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "place_merge_events": {
+      "file": "provider/merges.sql",
+      "domain": "Provider",
+      "lifecycle": "Core"
+    },
+    "place_merge_log": {
+      "file": "core/places/place_aliases.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "place_observations": {
+      "file": "provider/observations.sql",
+      "domain": "Provider",
+      "lifecycle": "Core"
+    },
+    "place_opening_hours": {
+      "file": "core/places/place_hours.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "place_owners": {
+      "file": "core/places/place_owners.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "place_ownership_events": {
+      "file": "audit/place_ownership_events.sql",
+      "domain": "Audit",
+      "lifecycle": "Core"
+    },
+    "place_popularity_cache": {
+      "file": "search/popularity_cache.sql",
+      "domain": "Search",
+      "lifecycle": "Derived"
+    },
+    "place_provenance": {
+      "file": "audit/place_ownership_events.sql",
+      "domain": "Audit",
+      "lifecycle": "Core"
+    },
+    "place_provider_cache": {
+      "file": "provider/cache.sql",
+      "domain": "Provider",
+      "lifecycle": "Provider-managed"
+    },
+    "place_provider_links": {
+      "file": "audit/place_ownership_events.sql",
+      "domain": "Audit",
+      "lifecycle": "Core"
+    },
+    "place_provider_metadata": {
+      "file": "core/places/place_provider_metadata.sql",
+      "domain": "Core",
+      "lifecycle": "Provider-managed"
+    },
+    "place_sources": {
+      "file": "core/places/place_sources.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "place_stats": {
+      "file": "core/places/place_stats.sql",
+      "domain": "Core",
+      "lifecycle": "Derived"
+    },
+    "place_stubs": {
+      "file": "core/places/place_sources.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "place_traits": {
+      "file": "core/places/place_traits.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "places": {
+      "file": "core/places/places.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "post_draft_media": {
+      "file": "core/posts/post_edits.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "post_drafts": {
+      "file": "core/posts/post_edits.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "post_edit_events": {
+      "file": "core/posts/post_edits.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "post_embeddings": {
+      "file": "core/posts/post_photos.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "post_hashtags": {
+      "file": "core/posts/post_hashtags.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "post_photos": {
+      "file": "core/posts/post_photos.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "post_reactions": {
+      "file": "core/posts/post_reactions.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "posts": {
+      "file": "core/posts/posts.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "privacy_requests": {
+      "file": "governance/governance.sql",
+      "domain": "Governance",
+      "lifecycle": "Core"
+    },
+    "push_tokens": {
+      "file": "social/interactions.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "saved_dishes": {
+      "file": "core/dishes/dishes.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "saved_places": {
+      "file": "social/interactions.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "saved_search_audit_events": {
+      "file": "search/saved_searches.sql",
+      "domain": "Search",
+      "lifecycle": "Core"
+    },
+    "saved_searches": {
+      "file": "search/saved_searches.sql",
+      "domain": "Search",
+      "lifecycle": "Core"
+    },
+    "saves": {
+      "file": "core/posts/post_hashtags.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "search_analytics": {
+      "file": "search/search_events.sql",
+      "domain": "Search",
+      "lifecycle": "Core"
+    },
+    "search_events": {
+      "file": "search/search_events.sql",
+      "domain": "Search",
+      "lifecycle": "Core"
+    },
+    "search_synonyms": {
+      "file": "search/synonyms.sql",
+      "domain": "Search",
+      "lifecycle": "Core"
+    },
+    "suburb_aliases": {
+      "file": "search/suburb_data.sql",
+      "domain": "Search",
+      "lifecycle": "Core"
+    },
+    "suburb_lookups": {
+      "file": "search/suburb_data.sql",
+      "domain": "Search",
+      "lifecycle": "Core"
+    },
+    "trending_searches": {
+      "file": "search/trending.sql",
+      "domain": "Search",
+      "lifecycle": "Temporary"
+    },
+    "user_blocks": {
+      "file": "moderation/moderation.sql",
+      "domain": "Moderation",
+      "lifecycle": "Core"
+    },
+    "user_profile_audit_events": {
+      "file": "audit/audit_tables.sql",
+      "domain": "Audit",
+      "lifecycle": "Core"
+    },
+    "user_settings": {
+      "file": "core/users/users.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "user_top_spots": {
+      "file": "social/interactions.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "user_topic_follows": {
+      "file": "social/follows.sql",
+      "domain": "Social",
+      "lifecycle": "Core"
+    },
+    "user_trust_profiles": {
+      "file": "core/users/users.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    },
+    "users": {
+      "file": "core/users/users.sql",
+      "domain": "Core",
+      "lifecycle": "Core"
+    }
+  },
+  "domains": {
+    "Analytics": {
+      "dependsOn": [],
+      "files": [
+        "analytics/events.sql"
+      ],
+      "tables": [
+        "analytics_events"
+      ]
+    },
+    "Audit": {
+      "dependsOn": [
+        "core/dishes/dishes.sql",
+        "core/users/users.sql"
+      ],
+      "files": [
+        "audit/audit_tables.sql",
+        "audit/place_ownership_events.sql",
+        "audit/views.sql"
+      ],
+      "tables": [
+        "auth_audit_events",
+        "collection_audit_events",
+        "content_lifecycle_events",
+        "data_repair_events",
+        "dish_audit_events",
+        "feature_flag_audit_events",
+        "place_audit_events",
+        "place_ownership_events",
+        "place_provenance",
+        "place_provider_links",
+        "user_profile_audit_events"
+      ]
+    },
+    "Core": {
+      "dependsOn": [],
+      "files": [
+        "core/dishes/dishes.sql",
+        "core/places/place_aliases.sql",
+        "core/places/place_contact.sql",
+        "core/places/place_features.sql",
+        "core/places/place_hours.sql",
+        "core/places/place_owners.sql",
+        "core/places/place_provider_metadata.sql",
+        "core/places/place_sources.sql",
+        "core/places/place_stats.sql",
+        "core/places/place_traits.sql",
+        "core/places/places.sql",
+        "core/posts/comments.sql",
+        "core/posts/post_edits.sql",
+        "core/posts/post_hashtags.sql",
+        "core/posts/post_photos.sql",
+        "core/posts/post_reactions.sql",
+        "core/posts/posts.sql",
+        "core/users/user_stats.sql",
+        "core/users/users.sql"
+      ],
+      "tables": [
+        "comments",
+        "dishes",
+        "hashtags",
+        "likes",
+        "place_aliases",
+        "place_contact",
+        "place_features",
+        "place_merge_log",
+        "place_opening_hours",
+        "place_owners",
+        "place_provider_metadata",
+        "place_sources",
+        "place_stats",
+        "place_stubs",
+        "place_traits",
+        "places",
+        "post_draft_media",
+        "post_drafts",
+        "post_edit_events",
+        "post_embeddings",
+        "post_hashtags",
+        "post_photos",
+        "post_reactions",
+        "posts",
+        "saved_dishes",
+        "saves",
+        "user_settings",
+        "user_trust_profiles",
+        "users"
+      ]
+    },
+    "Governance": {
+      "dependsOn": [],
+      "files": [
+        "governance/governance.sql"
+      ],
+      "tables": [
+        "feature_flag_overrides",
+        "privacy_requests"
+      ]
+    },
+    "Moderation": {
+      "dependsOn": [],
+      "files": [
+        "moderation/moderation.sql"
+      ],
+      "tables": [
+        "content_reports",
+        "moderation_actions",
+        "moderation_appeals",
+        "user_blocks"
+      ]
+    },
+    "Provider": {
+      "dependsOn": [],
+      "files": [
+        "provider/cache.sql",
+        "provider/imports.sql",
+        "provider/merges.sql",
+        "provider/observations.sql"
+      ],
+      "tables": [
+        "osm_import_runs",
+        "place_merge_events",
+        "place_observations",
+        "place_provider_cache"
+      ]
+    },
+    "Search": {
+      "dependsOn": [
+        "core/places/places.sql"
+      ],
+      "files": [
+        "search/popularity_cache.sql",
+        "search/saved_searches.sql",
+        "search/search_events.sql",
+        "search/search_index.sql",
+        "search/suburb_data.sql",
+        "search/synonyms.sql",
+        "search/taxonomy.sql",
+        "search/trending.sql"
+      ],
+      "tables": [
+        "cuisine_aliases",
+        "place_popularity_cache",
+        "saved_search_audit_events",
+        "saved_searches",
+        "search_analytics",
+        "search_events",
+        "search_synonyms",
+        "suburb_aliases",
+        "suburb_lookups",
+        "trending_searches"
+      ]
+    },
+    "Social": {
+      "dependsOn": [
+        "core/users/users.sql"
+      ],
+      "files": [
+        "social/collections.sql",
+        "social/follows.sql",
+        "social/interactions.sql",
+        "social/messaging.sql"
+      ],
+      "tables": [
+        "collection_items",
+        "collections",
+        "conversation_participants",
+        "conversation_pinned_messages",
+        "conversations",
+        "follows",
+        "message_deliveries",
+        "message_reactions",
+        "messages",
+        "push_tokens",
+        "saved_places",
+        "user_top_spots",
+        "user_topic_follows"
+      ]
+    }
+  }
+}

@@ -56,6 +56,11 @@ jest.mock('@/lib/services/auth/providerStorage', () => ({
   clearPersistedProviderState: jest.fn().mockResolvedValue(undefined),
 }))
 
+jest.mock('@/lib/services/auth/mfa', () => ({
+  getAssuranceLevel: jest.fn().mockResolvedValue({ currentLevel: 'aal1', nextLevel: 'aal1' }),
+  isMFARequired: jest.fn().mockReturnValue(false),
+}))
+
 jest.mock('@/lib/services/users', () => ({
   fetchProfile: jest.fn(),
   updateProfile: jest.fn(),

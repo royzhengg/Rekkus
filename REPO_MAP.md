@@ -18,6 +18,7 @@ Use this file to navigate Rekkus quickly.
 - Product behavior: `product/README.md`, `product/FEATURES.md`, `product/SEARCH.md`, `product/FEED.md`
 - Design: `design/README.md`, `design/DESIGN_SPEC.md`, `design/UI_LIBRARY.md`, `design/UX_Copywriting_Guide.md`
 - Analytics behavior: `docs/analytics/ANALYTICS.md`, `lib/analytics.ts`, `supabase/functions/analytics-retention`
+- Database schema: `docs/database/SCHEMA_ARCHITECTURE.md` (guide), `docs/database/schema-index.json` (machine-readable table→file map)
 
 ## Code Ownership
 

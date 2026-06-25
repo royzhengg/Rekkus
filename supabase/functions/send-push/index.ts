@@ -39,16 +39,19 @@ Deno.serve(async (req: Request) => {
     const payload = parseNotifyPayload(await req.json().catch(() => null))
     if (!payload) return new Response('Bad request', { status: 400 })
     const { type, postId, followedId, targetId, requesterId, commentId, conversationId, messageId } = payload
-    const actorId = user.id
 
-    const { data: actorData, error: actorError } = await admin
+    // For service-role calls (pg_net from DB triggers), user.id is the service account, not the actor.
+    // In that case, the payload carries actorId directly. Client calls use user.id as before.
+    const actorId = (payload.actorId && user.app_metadata?.role === 'service_role')
+      ? payload.actorId
+      : user.id
+
+    const { data: actorData } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', actorId)
-      .single()
-    if (actorError) return new Response('OK', { status: 200 })
-    if (!isNotificationActorRow(actorData)) return new Response('OK', { status: 200 })
-    const actor = actorData
+      .maybeSingle()
+    const actor = isNotificationActorRow(actorData) ? actorData : null
 
     let recipientId: string | null = null
     if (type === 'like' || type === 'comment') {
@@ -142,6 +145,10 @@ Deno.serve(async (req: Request) => {
           if (actorCanView !== true || recipientCanView !== true) return new Response('OK', { status: 200 })
         }
       }
+    } else if (type === 'mention') {
+      const { mentionedUserId } = payload
+      if (!mentionedUserId || typeof mentionedUserId !== 'string') return new Response('OK', { status: 200 })
+      recipientId = mentionedUserId
     } else if (type === 'message') {
       if (
         !conversationId ||
@@ -195,7 +202,9 @@ Deno.serve(async (req: Request) => {
                 ? (settings?.notif_followers ?? true)
                 : type === 'message'
                   ? (settings?.notif_messages ?? true)
-                  : true
+                  : type === 'mention'
+                    ? (settings?.notif_mentions ?? true)
+                    : true
 
     if (!notificationAllowed) return new Response('OK', { status: 200 })
 
@@ -208,21 +217,34 @@ Deno.serve(async (req: Request) => {
 
     if (!tokens?.length) return new Response('OK', { status: 200 })
 
-    const actorName = actor.full_name ?? `@${actor.username}`
+    const actorLabel = actor ? (actor.full_name ?? `@${actor.username}`) : 'Someone'
     let body = ''
-    if (type === 'like') body = `${actorName} liked your post`
-    else if (type === 'comment') body = `${actorName} commented on your post`
-    else if (type === 'follow') body = `${actorName} started following you`
-    else if (type === 'follow_request') body = `${actorName} requested to follow you`
-    else if (type === 'follow_request_approved') body = `${actorName} approved your follow request`
-    else if (type === 'comment_reply') body = `${actorName} replied to your comment`
+    if (type === 'like') body = `${actorLabel} liked your post`
+    else if (type === 'comment') body = `${actorLabel} commented on your post`
+    else if (type === 'follow') body = `${actorLabel} started following you`
+    else if (type === 'follow_request') body = `${actorLabel} requested to follow you`
+    else if (type === 'follow_request_approved') body = `${actorLabel} approved your follow request`
+    else if (type === 'comment_reply') body = `${actorLabel} replied to your comment`
     else if (type === 'message') body = 'You have a new message'
+    else if (type === 'mention') {
+      body = payload.entityType === 'comment'
+        ? `${actorLabel} mentioned you in a comment`
+        : `${actorLabel} mentioned you in a post`
+    }
 
     const messages = tokens.map(({ token }) => ({
       to: token,
       title: 'Rekkus',
       body,
-      data: { type, postId, commentId, conversationId },
+      data: {
+        type,
+        postId,
+        commentId,
+        conversationId,
+        entityId: payload.entityId,
+        entityType: payload.entityType,
+        notificationId: payload.notificationId,
+      },
       sound: 'default',
     }))
 

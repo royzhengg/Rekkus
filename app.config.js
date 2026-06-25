@@ -64,7 +64,6 @@ export default {
     },
     web: {
       bundler: "metro",
-      output: "static",
       favicon: "./assets/images/favicon.png",
     },
     plugins: [
@@ -78,6 +77,7 @@ export default {
         },
       ],
       "expo-sqlite",
+      "expo-secure-store",
       "react-native-compressor",
       [
         "expo-notifications",
@@ -123,6 +123,12 @@ export default {
         },
       ],
     ],
+    updates: {
+      url: "https://u.expo.dev/e5fdfa50-263d-4b18-b095-193d912a6b56",
+    },
+    runtimeVersion: {
+      policy: "appVersion",
+    },
     experiments: {
       typedRoutes: true,
     },

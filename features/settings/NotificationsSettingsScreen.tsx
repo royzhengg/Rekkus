@@ -8,12 +8,14 @@ import { fontSize, lineHeight, maxFontSizeMultiplier } from '@/constants/Typogra
 import { BackButton, Divider, SettingsGroup, SettingsSwitchRow } from '@/features/settings/SettingsControlDock'
 import { useSettings } from '@/lib/contexts/SettingsContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
+import { useFeatureFlag } from '@/lib/featureFlags'
 
 export default function NotificationsSettingsScreen() {
   const router = useRouter()
   const { settings, updateSetting } = useSettings()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const mentionNotificationsEnabled = useFeatureFlag('mentionNotifications')
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -44,13 +46,17 @@ export default function NotificationsSettingsScreen() {
             value={settings.notif_followers}
             onValueChange={value => { void updateSetting('notif_followers', value) }}
           />
-          <Divider />
-          <SettingsSwitchRow
-            label="Mentions and tags"
-            sublabel="When people mention or tag you"
-            value={settings.notif_mentions}
-            onValueChange={value => { void updateSetting('notif_mentions', value) }}
-          />
+          {mentionNotificationsEnabled && (
+            <>
+              <Divider />
+              <SettingsSwitchRow
+                label="Mentions"
+                sublabel="When someone mentions you in a post or comment"
+                value={settings.notif_mentions}
+                onValueChange={value => { void updateSetting('notif_mentions', value) }}
+              />
+            </>
+          )}
           <Divider />
           <SettingsSwitchRow
             label="Messages"

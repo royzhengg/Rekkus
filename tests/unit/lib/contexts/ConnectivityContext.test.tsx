@@ -89,6 +89,9 @@ const fakeAuthContext = {
   deleteAccount: async () => null,
   providerState: { apple: 'connected' as const, google: 'connected' as const },
   reconnectProvider: async () => null,
+  authBootstrapping: false,
+  mfaRequired: false,
+  setMfaRequired: () => undefined,
 } as ReturnType<typeof useAuth>
 
 function makePostLikeMutation(userId: string, postId = 'post-1') {

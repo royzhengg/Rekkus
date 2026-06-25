@@ -28,7 +28,6 @@ import { useAuth } from '@/lib/contexts/AuthContext'
 import { useSettings } from '@/lib/contexts/SettingsContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { fetchProfile, type ProfileInfo } from '@/lib/services/users'
-import { formatLinkedAuthProviders } from '@/lib/utils/authProviders'
 
 type ThemeMode = 'light' | 'dark' | 'system'
 
@@ -182,7 +181,7 @@ export default function SettingsScreen() {
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Account and security">
+        <SettingsGroup title="Account">
           <ControlRow
             label="Email"
             summary={email}
@@ -192,27 +191,10 @@ export default function SettingsScreen() {
           />
           <Divider />
           <ControlRow
-            label="Password"
-            summary="Protected"
-            sublabel="Update your password"
+            label="Security"
+            sublabel="Password, connected accounts, two-factor authentication"
             icon={<LockIcon size={18} color={colors.text} />}
-            onPress={() => router.push('/settings/change-password')}
-          />
-          <Divider />
-          <ControlRow
-            label="Connected accounts"
-            summary={formatLinkedAuthProviders(user)}
-            sublabel="Manage linked sign-in methods"
-            icon={<UserIcon size={18} color={colors.text} />}
-            onPress={() => router.push('/settings/connected-accounts')}
-          />
-          <Divider />
-          <ControlRow
-            label="Login sessions"
-            summary="This device"
-            sublabel="Device management is planned"
-            icon={<LockIcon size={18} color={colors.text} />}
-            planned
+            onPress={() => router.push('/settings/security')}
           />
           <Divider />
           <ControlRow

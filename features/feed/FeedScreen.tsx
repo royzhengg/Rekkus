@@ -20,6 +20,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { LedgerPrompt } from '@/components/discovery'
 import { BellIcon, SaveIcon, HeartIcon, MessageIcon, PlusIcon, ShareIcon } from '@/components/icons'
 import { PostCard as RekkusPostCard } from '@/components/post/PostCard'
 import { PostCardSkeleton } from '@/components/post/PostCardSkeleton'
@@ -31,7 +32,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { RekkusActionSheet } from '@/components/ui/RekkusActionSheet'
 import { radius } from '@/constants/Radius'
 import { spacing } from '@/constants/Spacing'
-import { fontFamily, fontSize, fontWeight, letterSpacing, lineHeight, maxFontSizeMultiplier } from '@/constants/Typography'
+import { fontFamily, fontSize, fontWeight, letterSpacing, maxFontSizeMultiplier } from '@/constants/Typography'
 import { analytics } from '@/lib/analytics'
 import { SPRING_SNAPPY } from '@/lib/animations'
 import { useAuth } from '@/lib/contexts/AuthContext'
@@ -75,6 +76,10 @@ export default function FeedScreen() {
   const isFocused = useIsFocused()
   const [visiblePostId, setVisiblePostId] = useState<string | null>(null)
   const cardLayouts = useRef<Record<string, { y: number; height: number }>>({})
+  const tabScrollOffsets = useRef<Record<'Following' | 'Discover', number>>({
+    Following: 0,
+    Discover: 0,
+  })
 
   // B-410: scroll-to-top when feed tab is re-tapped
   const scrollRef = useRef<ScrollView>(null)
@@ -111,6 +116,7 @@ export default function FeedScreen() {
     setVisibleCount(FEED_PAGE_SIZE)
     cardLayouts.current = {}
     setVisiblePostId(null)
+    scrollRef.current?.scrollTo({ y: tabScrollOffsets.current[activeTab], animated: false })
   }, [activeTab])
 
   const visiblePosts = useMemo(
@@ -155,6 +161,7 @@ export default function FeedScreen() {
 
   function handleScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent
+    tabScrollOffsets.current[activeTab] = contentOffset.y
     const viewportCenter = contentOffset.y + layoutMeasurement.height / 2
     const visibleCard = visiblePosts.find(post => {
       const layout = cardLayouts.current[String(post.dbId || post.id)]
@@ -262,41 +269,31 @@ export default function FeedScreen() {
           accessibilityElementsHidden
         />
       </View>
+      <View style={styles.contextLine}>
+        <Text style={styles.contextText} maxFontSizeMultiplier={maxFontSizeMultiplier.body}>
+          {activeTab === 'Following'
+            ? 'From people whose taste you trust'
+            : 'Local saves, new posts, and useful food signals'}
+        </Text>
+      </View>
 
       {showNewUserNudge && (
-        <View style={styles.nudgeBanner}>
-          <View style={styles.nudgeText}>
-            <Text style={styles.nudgeTitle} maxFontSizeMultiplier={1.3}>Welcome to Rekkus.</Text>
-            <Text style={styles.nudgeSubtitle} maxFontSizeMultiplier={1.5}>Post a dish or explore what's nearby.</Text>
-          </View>
-          <View style={styles.nudgeActions}>
-            <TouchableOpacity
-              style={styles.nudgeBtn}
-              onPress={() => { dismissNewUserNudge('post'); router.push(routes.createPost()) }}
-              accessibilityRole="button"
-              accessibilityLabel="Post a dish review"
-            >
-              <Text style={styles.nudgeBtnText}>Post a dish</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.nudgeBtn, styles.nudgeBtnSecondary]}
-              onPress={() => { dismissNewUserNudge('explore'); setActiveTab('Discover') }}
-              accessibilityRole="button"
-              accessibilityLabel="Explore nearby dishes"
-            >
-              <Text style={[styles.nudgeBtnText, styles.nudgeBtnTextSecondary]}>Explore nearby</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-            style={styles.nudgeDismiss}
-            onPress={() => dismissNewUserNudge('dismiss')}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss welcome message"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={styles.nudgeDismissText}>✕</Text>
-          </TouchableOpacity>
-        </View>
+        <LedgerPrompt
+          colors={colors}
+          title="Welcome to your Taste Ledger."
+          subtitle="Post a dish, save what matters, or explore what people nearby keep coming back to."
+          primaryAction={{
+            label: 'Post a dish',
+            accessibilityLabel: 'Post a dish review',
+            onPress: () => { dismissNewUserNudge('post'); router.push(routes.createPost()) },
+          }}
+          secondaryAction={{
+            label: 'Explore nearby',
+            accessibilityLabel: 'Explore nearby dishes',
+            onPress: () => { dismissNewUserNudge('explore'); setActiveTab('Discover') },
+          }}
+          onDismiss={() => dismissNewUserNudge('dismiss')}
+        />
       )}
 
       <ScrollView
@@ -426,8 +423,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: spacing[4],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
     },
     wordmark: {
       fontFamily: fontFamily.serif,
@@ -441,8 +436,6 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       flexDirection: 'row',
       paddingHorizontal: spacing[4],
       gap: spacing[6],
-      borderBottomWidth: 0.5,
-      borderBottomColor: c.border,
     },
     tab: { paddingVertical: spacing.px10, position: 'relative' },
     tabText: { fontSize: fontSize.base, color: c.text3 },
@@ -454,6 +447,16 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       backgroundColor: c.text,
       borderRadius: radius.micro,
     },
+    contextLine: {
+      paddingHorizontal: spacing[4],
+      paddingBottom: spacing[3],
+      borderBottomWidth: spacing.hairline,
+      borderBottomColor: c.border,
+    },
+    contextText: {
+      fontSize: fontSize.bodySm,
+      color: c.text3,
+    },
     scroll: { flex: 1 },
     actionError: { marginHorizontal: spacing[4], marginTop: spacing[3] },
     newPostsChip: {
@@ -464,7 +467,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
     suggestedRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      borderBottomWidth: 0.5,
+      borderBottomWidth: spacing.hairline,
       borderBottomColor: c.border,
       paddingVertical: spacing.px11,
     },
@@ -478,66 +481,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       paddingVertical: spacing.px10,
     },
     discoverCtaText: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: c.bg },
-    grid: { flexDirection: 'row', gap: spacing.px6, padding: spacing[2], alignItems: 'flex-start' },
     feedList: { paddingTop: spacing[2] },
     loadingFooter: { paddingVertical: spacing[5], alignItems: 'center' },
-    col: { gap: spacing.px6 },
-    card: {
-      borderRadius: radius.md,
-      overflow: 'hidden',
-      backgroundColor: c.surface,
-      borderWidth: 0.5,
-      borderColor: c.border,
-    },
-    cardImg: { alignItems: 'center', justifyContent: 'center' },
-    videoFallback: {
-      flex: 1,
-      alignSelf: 'stretch',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: c.surface2,
-    },
-    cardInfo: { padding: spacing.px7, paddingHorizontal: spacing.px9, paddingBottom: spacing[2] },
-    cardTitle: { fontSize: fontSize.sm2, color: c.text, lineHeight: lineHeight.tight, marginBottom: spacing.px6 },
-    cardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    creatorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
-    avatarSm: {
-      width: 16,
-      height: 16,
-      borderRadius: radius.sm3,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    avatarSmText: { fontSize: fontSize.micro, fontWeight: fontWeight.semibold },
-    creatorName: { fontSize: fontSize.xs, color: c.text2 },
-    likeCount: { flexDirection: 'row', alignItems: 'center', gap: spacing.px3 },
-    likeText: { fontSize: fontSize.xs, color: c.text3 },
-    nudgeBanner: {
-      marginHorizontal: spacing[4],
-      marginTop: spacing[3],
-      backgroundColor: c.surface,
-      borderRadius: radius.lg,
-      padding: spacing[4],
-      borderWidth: 0.5,
-      borderColor: c.border,
-    },
-    nudgeText: { marginBottom: spacing[3] },
-    nudgeTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text, marginBottom: spacing[1] },
-    nudgeSubtitle: { fontSize: fontSize.bodySm, color: c.text2 },
-    nudgeActions: { flexDirection: 'row', gap: spacing[2] },
-    nudgeBtn: {
-      flex: 1,
-      backgroundColor: c.text,
-      borderRadius: radius.pill,
-      paddingVertical: spacing.px10,
-      alignItems: 'center',
-      minHeight: 44,
-      justifyContent: 'center',
-    },
-    nudgeBtnSecondary: { backgroundColor: c.bg, borderWidth: 0.5, borderColor: c.border2 },
-    nudgeBtnText: { fontSize: fontSize.bodySm, fontWeight: fontWeight.medium, color: c.bg },
-    nudgeBtnTextSecondary: { color: c.text },
-    nudgeDismiss: { position: 'absolute', top: spacing[3], right: spacing[3], minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-    nudgeDismissText: { fontSize: fontSize.bodySm, color: c.text3 },
   })
 }

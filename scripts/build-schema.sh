@@ -73,8 +73,10 @@ emit "search/taxonomy.sql"
 emit "search/search_index.sql"
 emit "search/search_events.sql"
 emit "search/saved_searches.sql"
+emit "search/synonyms.sql"
 emit "search/suburb_data.sql"
 emit "search/trending.sql"
+emit "search/popularity_cache.sql"
 
 # 8. Analytics
 emit "analytics/events.sql"
@@ -115,3 +117,8 @@ emit "rls/search.sql"
 emit "rls/provider.sql"
 emit "rls/admin.sql"
 emit "rls/storage.sql"
+
+# 15. Generate schema-index.json from ownership headers in domain files.
+# Written to docs/database/schema-index.json. Stderr-redirected so it does not
+# pollute the SQL stdout stream (used in: build > schema.sql, diff - schema.sql).
+node "$(dirname "$0")/generate-schema-index.js" >&2

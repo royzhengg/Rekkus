@@ -21,6 +21,8 @@ Feed pagination uses a first Supabase page plus client-visible paging in a singl
 
 The feed now renders shared post surfaces through `components/post/PostCard.tsx`, `PostMediaCarousel`, and `PostPicksSummary` so mixed media, Rekkus Picks, and legacy posts share one display path. The hierarchy is media, creator, dish/title/body, Rekkus Picks, place, tags, then actions. `PostUploadProgress` appears above the feed while a create-post job is preparing/uploading/publishing, then shows posted success or failed dismiss state.
 
+The Feed tab uses the Taste Ledger header contract: wordmark/actions, Following/Discover tabs, a short context line, then feed content. Following explains that posts come from people whose taste the user trusts; Discover explains that it mixes local saves, new posts, and useful food signals. The first-visit onboarding prompt uses the shared ledger prompt pattern with Post a dish as the primary action and Explore nearby as the secondary action.
+
 Post detail is the canonical post action surface. Owners can edit/delete from the Rekkus options sheet; viewers can like, comment, save, save location, share to messages, follow the creator, react, report the post, or report/block the creator. Optimistic write failures roll back and show a notice. Hashtags route to Search, and `post_share` message cards route back to Post Detail. The visible rating language is Rekkus Picks; Food/Vibe/Cost remain compatibility fields only.
 
 ---
@@ -67,6 +69,8 @@ Creator interaction weighting remains deferred until there is enough engagement 
 ### Intent
 
 Surface interesting content from across the platform — not limited to who the user follows. Emphasises variety, trending dishes, and local relevance.
+
+Discover should feel like a living taste journal, not a restaurant catalogue. Food evidence, save intent, and provenance should be more prominent than venue metadata.
 
 ### Pool curation strategy
 

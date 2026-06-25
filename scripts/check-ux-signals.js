@@ -30,6 +30,7 @@ const warnings = []
 const funnelAllowlist = new Map([
   // Example:
   // ['features/onboarding/OnboardingScreen.tsx', 'B-999 — onboarding funnel deferred until B-999'],
+  ['features/settings/Enable2FAScreen.tsx', 'B-638 — 2FA enrollment funnel covered by per-step events (twoFactorSetupStarted/QrShown/Completed/Abandoned); no aggregate createFunnel call needed'],
 ])
 
 // ── Rule 1: multi-step screen coverage ──────────────────────────────────────

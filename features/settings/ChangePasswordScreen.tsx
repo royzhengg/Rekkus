@@ -17,8 +17,10 @@ import { fontSize, fontWeight } from '@/constants/Typography'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useToast } from '@/lib/contexts/ToastContext'
+import { useMFA } from '@/lib/hooks/useMFA'
 import { getCurrentUser, reauthenticate, updatePassword } from '@/lib/services/auth'
 import { hasCurrentPassword, isValidPassword, passwordMinLengthMessage, passwordsMatch as doPasswordsMatch } from '@/lib/utils/validation'
+import { MFAReauthModal } from './MFAReauthModal'
 
 export default function ChangePasswordScreen() {
   const router = useRouter()
@@ -26,6 +28,7 @@ export default function ChangePasswordScreen() {
   const { showToast } = useToast()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const { mfaEnabled, verifiedFactors } = useMFA()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -34,6 +37,7 @@ export default function ChangePasswordScreen() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mfaModalVisible, setMfaModalVisible] = useState(false)
 
   const passwordsMatch = doPasswordsMatch(newPassword, confirmPassword)
   const canSave = hasCurrentPassword(currentPassword) && isValidPassword(newPassword) && passwordsMatch
@@ -65,6 +69,17 @@ export default function ChangePasswordScreen() {
       setLoading(false)
       return
     }
+    setLoading(false)
+    // If MFA is enabled, require TOTP challenge as second factor
+    if (mfaEnabled) {
+      setMfaModalVisible(true)
+      return
+    }
+    await doUpdatePassword()
+  }
+
+  async function doUpdatePassword() {
+    setLoading(true)
     try {
       await updatePassword(newPassword)
     } catch (updateError) {
@@ -75,6 +90,11 @@ export default function ChangePasswordScreen() {
     setLoading(false)
     showToast('Password updated')
     router.back()
+  }
+
+  async function handleMFASuccess() {
+    setMfaModalVisible(false)
+    await doUpdatePassword()
   }
 
   return (
@@ -193,6 +213,14 @@ export default function ChangePasswordScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <MFAReauthModal
+        visible={mfaModalVisible}
+        hasEmailIdentity={false}
+        factorId={verifiedFactors[0]?.id}
+        onSuccess={handleMFASuccess}
+        onCancel={() => setMfaModalVisible(false)}
+      />
     </SafeAreaView>
   )
 }

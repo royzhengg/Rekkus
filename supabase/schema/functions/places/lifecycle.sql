@@ -116,3 +116,84 @@ begin
   return v_place_id;
 end;
 $$;
+
+-- get_places_for_google_sync
+create or replace function public.get_places_for_google_sync(
+  batch_size integer default 25
+)
+returns table (
+  id              uuid,
+  google_place_id text,
+  place_status    public.place_status
+)
+  language sql
+  stable
+  security definer
+  set search_path = public
+as $$
+  select p.id, p.google_place_id, p.place_status
+  from   public.places p
+  left join public.place_provider_cache c
+    on  c.place_id    = p.id
+    and c.source_type = 'google_places'
+  where  p.google_place_id is not null
+    and  p.status_locked = false
+    and  (
+      p.place_status != 'permanently_closed'
+      or c.stale_at is null
+      or c.stale_at < now() - interval '90 days'
+    )
+  order by c.stale_at asc nulls first, p.id
+  limit batch_size;
+$$;
+
+-- acquire_google_sync_lock
+create or replace function public.acquire_google_sync_lock()
+returns boolean
+  language sql
+  security definer
+  set search_path = public
+as $$
+  select pg_try_advisory_lock(hashtext('rekkus:google-operational-sync')::bigint);
+$$;
+
+-- release_google_sync_lock
+create or replace function public.release_google_sync_lock()
+returns void
+  language sql
+  security definer
+  set search_path = public
+as $$
+  select pg_advisory_unlock(hashtext('rekkus:google-operational-sync')::bigint);
+$$;
+
+-- trigger_google_operational_sync
+create or replace function public.trigger_google_operational_sync()
+returns void
+  language plpgsql
+  security definer
+  set search_path = public, net
+as $$
+declare
+  v_url text;
+  v_key text;
+begin
+  select value into v_url from public.app_config where key = 'supabase_url';
+  select value into v_key from public.app_config where key = 'service_role_key';
+
+  if v_url is null or v_key is null then
+    raise warning 'trigger_google_operational_sync: missing app_config keys (supabase_url / service_role_key)';
+    return;
+  end if;
+
+  perform net.http_post(
+    url     := v_url || '/functions/v1/google-operational-sync',
+    headers := jsonb_build_object(
+      'Content-Type',  'application/json',
+      'Authorization', 'Bearer ' || v_key,
+      'x-cron-key',    v_key
+    ),
+    body    := '{}'::jsonb
+  );
+end;
+$$;

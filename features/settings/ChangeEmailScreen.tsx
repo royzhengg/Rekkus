@@ -18,8 +18,10 @@ import { useAuth } from '@/lib/contexts/AuthContext'
 import { useConnectivity } from '@/lib/contexts/ConnectivityContext'
 import { useThemeColors } from '@/lib/contexts/ThemeContext'
 import { useToast } from '@/lib/contexts/ToastContext'
+import { useMFA } from '@/lib/hooks/useMFA'
 import { getCurrentUser, reauthenticate, updateEmail } from '@/lib/services/auth'
 import { hasCurrentPassword } from '@/lib/utils/validation'
+import { MFAReauthModal } from './MFAReauthModal'
 
 export default function ChangeEmailScreen() {
   const router = useRouter()
@@ -28,12 +30,15 @@ export default function ChangeEmailScreen() {
   const { showToast } = useToast()
   const colors = useThemeColors()
   const styles = useMemo(() => makeStyles(colors), [colors])
+  const { mfaEnabled, verifiedFactors } = useMFA()
   const [newEmail, setNewEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mfaModalVisible, setMfaModalVisible] = useState(false)
 
   const canSave = newEmail.trim().includes('@') && hasCurrentPassword(password)
+  const hasEmailIdentity = user?.identities?.some(i => i.provider === 'email') ?? false
 
   async function handleSave() {
     setError(null)
@@ -62,6 +67,17 @@ export default function ChangeEmailScreen() {
       setLoading(false)
       return
     }
+    setLoading(false)
+    // If MFA is enabled, require TOTP challenge before proceeding
+    if (mfaEnabled) {
+      setMfaModalVisible(true)
+      return
+    }
+    await doUpdateEmail()
+  }
+
+  async function doUpdateEmail() {
+    setLoading(true)
     try {
       await updateEmail(newEmail)
     } catch (updateError) {
@@ -72,6 +88,11 @@ export default function ChangeEmailScreen() {
     setLoading(false)
     showToast('Verification email sent', { type: 'info' })
     router.back()
+  }
+
+  async function handleMFASuccess() {
+    setMfaModalVisible(false)
+    await doUpdateEmail()
   }
 
   return (
@@ -146,6 +167,14 @@ export default function ChangeEmailScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <MFAReauthModal
+        visible={mfaModalVisible}
+        hasEmailIdentity={hasEmailIdentity}
+        factorId={verifiedFactors[0]?.id}
+        onSuccess={handleMFASuccess}
+        onCancel={() => setMfaModalVisible(false)}
+      />
     </SafeAreaView>
   )
 }

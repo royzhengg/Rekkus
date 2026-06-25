@@ -121,3 +121,7 @@ export const imgColors: Record<string, string> = {
   clay: '#E8D8CC',
   sage: '#D6E2D6',
 }
+
+export function getImgColor(key: string): string {
+  return imgColors[key] ?? imgColors.warm ?? '#EDE4DA'
+}
