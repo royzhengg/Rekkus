@@ -505,6 +505,8 @@ Active: `c.text`. Inactive: `c.text3`. Floating Create button: 56x56 circle, `bg
 Single-column, media-first post cards. Tabs: Following (chronological) · Discover (algorithmic).
 Card hierarchy: media → creator → dish/title → body preview → Rekkus Picks → place → tags → actions. Use white/light surfaces, hairline dividers, compact metadata, and accent only for active/selected states.
 
+Feed and Search zero-query Discovery now share the Taste Ledger design system. The implementation contract for rails, module headers, provenance chips, card anatomy, empty states, motion, extension rules, and review checklist lives in [DISCOVERY_COMPONENT_GUIDE.md](DISCOVERY_COMPONENT_GUIDE.md). Feed keeps a fixed header contract: safe area, wordmark/actions, tabs, context line, divider, then content. No additional content belongs above the tabs.
+
 ### Post Detail
 
 56px top bar → media carousel → compact action bar → Rekkus Picks → creator → title/body → location/save-location pill → tappable hashtags → reaction chips → comments → pinned comment input.
@@ -521,6 +523,8 @@ Post detail action states:
 Default: search bar + category chips + trending list.
 Active: result count label + 2-col grid (same as feed).
 Zero-results: `NoResultsCard` (`features/search/NoResultsCard.tsx`) — heading "No results for X" + 3 alternative `Chip` actions from local taste signals with `CHIPS` as static fallback. Never show a blank screen.
+
+Zero-query Discovery uses Taste Ledger modules from `features/search/discoveryModules.ts`: personal memory, recent intent, community momentum, local options, editorial inspiration, and social graph expansion. Module composition stays in `features/search/`; reusable presentation stays in `components/discovery/` and must remain hook-free, provider-free, analytics-free, and ranking-free.
 
 ### Create Post
 

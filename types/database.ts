@@ -4475,6 +4475,10 @@ export type Database = {
         Args: { p_target_id: string }
         Returns: undefined
       }
+      count_remaining_recovery_codes: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       create_group_conversation: {
         Args: { p_avatar_url?: string; p_member_ids: string[]; p_name: string }
         Returns: string
@@ -4579,6 +4583,10 @@ export type Database = {
       follow_relationship_state: {
         Args: { p_target_id: string }
         Returns: string
+      }
+      generate_recovery_codes: {
+        Args: { p_codes: string[] }
+        Returns: undefined
       }
       get_or_create_direct_conversation: {
         Args: { target_user_id: string }
@@ -4981,6 +4989,10 @@ export type Database = {
           place_id: string
           stored_value: number
         }[]
+      }
+      verify_recovery_code: {
+        Args: { p_code: string }
+        Returns: boolean
       }
       visible_last_seen_at: {
         Args: { p_user_ids: string[] }

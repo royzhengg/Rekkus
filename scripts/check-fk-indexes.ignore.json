@@ -1,0 +1,4 @@
+{
+  "_comment": "FK constraints intentionally without a covering index. Key: \"table.fk_name\", value: reason.",
+  "data_repair_events.data_repair_events_audit_event_id_fkey": "append-only audit trail; FK queried exclusively via primary-key path, never via audit_event_id alone"
+}

@@ -68,6 +68,7 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 - Wordmark top bar with Messages and notification buttons
 - Following / Discover tab switcher backed by shared `PostsContext`
 - Single-column food-first post cards using shared hierarchy: media → creator → title/body → Rekkus Picks → place → tags → actions.
+- Taste Ledger header contract: wordmark/actions, tabs, context line, divider, then feed content. First-visit prompt uses the shared ledger prompt with Post a dish and Explore nearby actions.
 - Mixed photo/video posts show carousel count and video badges without forcing masonry compromises; profile grids show video/carousel affordances.
 - Feed shows `PostUploadProgress` for background publish jobs with thumbnail, stronger status hierarchy, progress, posted success, and failed dismiss state.
 - An app-wide connectivity notice marks offline state and pending/synced reversible actions; feed content already in memory remains visible while disconnected.
@@ -84,7 +85,7 @@ Feature areas with their own design docs: [Feed](FEED.md) · [Search](SEARCH.md)
 - Search input with clear button
 - Live results and compact suggestions update as users type; suggestions use the `suggest_searches` RPC plus recent/cuisine fallbacks without taking over the results page.
 - Compact search header with a trailing filter button for Nearby, cuisine, occasion, value, media, open-now, and sort filters
-- Discovery page (no query): time-aware Quick starts row with recent-search cuisine affinity, compact Trending now suggestions, Popular places, staff-pick collections when available, and lower-priority Creators you may like
+- Discovery page (no query): Taste Ledger context bar and product-owned module order for saved searches, recent intent, trending suggestions/dishes, popular nearby places, staff-pick collections, and taste guides
 - Signed-in users can promote repeated recent queries to persistent saved searches; saved searches render above recent searches and rerun the query when tapped.
 - Results page: Top / Dishes / People / Places tabs; Top shows the best available places, dish posts, and people from the existing ranked result sets
 - Active filters render as quiet tokens; permanent filter rails stay hidden until the user searches or opens the sheet
@@ -297,6 +298,12 @@ Existing email login paths are unchanged.
 - Location-powered flows use contextual permission and manual suburb/postcode fallback; precise coordinates stay out of analytics.
 - Privacy/data requests are email-routed through the privacy screen until full self-serve deletion/export automation ships.
 - Food safety, health inspection, and allergen claims are intentionally not a current product surface.
+
+---
+
+### Backend jobs
+
+- **Google OPERATIONAL sync** (B-611): daily pg_cron job at 03:30 UTC polls Google Places `business_status` for all non-locked places. Calls `reopen_place(p_source='google_operational')` for OPERATIONAL status, inserts a `provider_status` closure signal for CLOSED_PERMANENTLY or CLOSED_TEMPORARILY, and updates `place_provider_cache`. Permanently closed places re-enter the queue after 90 days to self-heal for ownership transfers and Google corrections. Implemented as Edge Function `google-operational-sync` with advisory locking, 5-concurrent batch processing, 3-attempt retry with jitter, and circuit breaker at 20 consecutive errors. See [ADR-0033](../docs/adr/ADR-0033-google-operational-sync-strategy.md).
 
 ---
 

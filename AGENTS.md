@@ -252,16 +252,18 @@ Run `npm run validate` before committing. Run `npm run validate:full` before ope
 
 ### Schema change workflow
 
-1. Edit the relevant file in `supabase/schema/<domain>/`
-2. Run `./scripts/build-schema.sh > supabase/schema.sql`
-3. Run `supabase db diff --use-migra -f <migration_name>` to generate migration
-4. Review the generated migration — fix if wrong
-5. Run `supabase migration up --include-all` (local)
-6. Run `npm run check:schema-drift` — must pass before PR
-7. Add a DATA_DICTIONARY entry if it is a new table
-8. Run `npm run check:supabase-types`
+1. Edit the relevant file in `supabase/schema/<domain>/` — use `docs/database/schema-index.json` (`owners` map) to locate the correct file instantly.
+2. Update the `-- Owned tables:` line in the file's ownership header (single line, comma-separated).
+3. Run `./scripts/build-schema.sh > supabase/schema.sql` — this also regenerates `docs/database/schema-index.json`.
+4. Run `supabase db diff --use-migra -f <migration_name>` to generate migration.
+5. Review the generated migration — fix if wrong.
+6. Run `supabase migration up --include-all` (local).
+7. Run `npm run check:schema` — must pass before PR.
+8. Run `npm run check:supabase-types`.
 
 **Never edit `supabase/schema.sql` directly.** Never edit generated migrations (data migrations are the only exception).
+
+**Schema-migration pairing rule:** Any migration introducing `CREATE TABLE`, `ALTER TABLE ADD COLUMN`, `CREATE TYPE`, `CREATE FUNCTION`, or `CREATE VIEW` must modify the corresponding `supabase/schema/` domain file AND rebuild `schema-index.json` in the same PR. Enforced by `check:schema-completeness`.
 
 ### Governance rules
 
@@ -273,7 +275,8 @@ Run `npm run validate` before committing. Run `npm run validate:full` before ope
 - **No new enums without ADR review.** Enums become schema debt when values change. Prefer `text` columns with `CHECK` constraints or lookup tables.
 - **No JSONB without inline comment** explaining why structure is genuinely unknown at design time.
 - **Soft-delete all recoverable user-generated content** (`deleted_at`). Posts, comments, collections, dishes. Places: `place_status` + `deleted_at`.
-- **Every FK must have an index** on the referencing column. Verify before merging.
+- **Every FK must have an index** on the referencing column. Enforced by `check:fk-indexes`; add intentional exceptions to `scripts/check-fk-indexes.ignore.json`.
+- **`schema-index.json` is the AI routing surface.** Use `docs/database/schema-index.json` `owners` map to locate the correct domain file for any table — O(1) lookup, no SQL parsing needed. See `docs/database/SCHEMA_ARCHITECTURE.md` for full guide.
 
 ### Architecture Invariants
 

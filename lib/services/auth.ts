@@ -155,9 +155,37 @@ export interface AuthAuditContext extends Record<string, Json | undefined> {
   device_version?: string
 }
 
+// MFA audit metadata — never include OTP values, recovery codes, TOTP secrets, or QR SVG.
+export interface MFAAuditMetadata {
+  factor_id?: string
+  remaining_codes_before?: number  // for mfa_recovery_codes_regenerated
+  attempt_number?: number          // for mfa_challenge_failed, mfa_recovery_code_failed
+  generation_id?: string           // for mfa_recovery_codes_regenerated; links to code batch
+}
+
+export type AuthAuditEventType =
+  | 'login_email_success'
+  | 'login_oauth_success'
+  | 'logout'
+  | 'password_changed'
+  | 'account_deleted'
+  | 'mfa_enrolled'
+  | 'mfa_enroll_failed'
+  | 'mfa_unenrolled'
+  | 'mfa_challenge_started'
+  | 'mfa_verified'
+  | 'mfa_challenge_failed'
+  | 'mfa_recovery_code_used'
+  | 'mfa_recovery_code_failed'
+  | 'mfa_recovery_codes_regenerated'
+  | 'mfa_disable_attempted'
+  | 'mfa_disable_cancelled'
+
+// Audit events are best-effort — auth must never fail because audit logging failed.
+// Callers wrap in try/catch or use this function which swallows errors internally.
 export async function recordAuthAuditEvent(
-  eventType: 'login_email_success' | 'login_oauth_success' | 'logout' | 'password_changed' | 'account_deleted',
-  context?: AuthAuditContext | null
+  eventType: AuthAuditEventType,
+  context?: (AuthAuditContext & MFAAuditMetadata) | null
 ): Promise<void> {
   await supabase.rpc('record_auth_audit_event', {
     p_event_type: eventType,

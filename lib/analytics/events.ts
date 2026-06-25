@@ -101,6 +101,16 @@ export const analytics = {
       metadata: { setting, enabled },
     }),
 
+  notificationSettingChanged: (
+    userId: string | null,
+    setting: 'notif_likes' | 'notif_comments' | 'notif_followers' | 'notif_mentions' | 'notif_messages',
+    enabled: boolean
+  ): void =>
+    void track(userId, {
+      event_type: 'notification_setting_changed',
+      metadata: { setting, enabled },
+    }),
+
   dwellPost: (userId: string | null, postId: string, durationMs: number): void =>
     void track(userId, {
       event_type: 'post_dwell',
@@ -861,4 +871,58 @@ export const analytics = {
       event_type: 'taxonomy_assignment_removed',
       metadata: { source },
     }),
+
+  // MFA events
+  // Privacy invariant: never include OTP values, recovery codes, TOTP secrets, or QR SVG payloads.
+  // Only event names, timestamps, and non-sensitive metadata (factor_id, attempt_number).
+  twoFactorSetupStarted: (userId: string | null): void =>
+    void track(userId, { event_type: 'two_factor_setup_started' }),
+
+  twoFactorSetupQrShown: (userId: string | null): void =>
+    void track(userId, { event_type: 'two_factor_setup_qr_shown' }),
+
+  twoFactorSetupVerificationFailed: (userId: string | null, attemptNumber: number): void =>
+    void track(userId, {
+      event_type: 'two_factor_setup_verification_failed',
+      metadata: { attempt_number: attemptNumber },
+    }),
+
+  twoFactorSetupCompleted: (userId: string | null): void =>
+    void track(userId, { event_type: 'two_factor_setup_completed' }),
+
+  twoFactorSetupAbandoned: (userId: string | null): void =>
+    void track(userId, { event_type: 'two_factor_setup_abandoned' }),
+
+  twoFactorRemoved: (userId: string | null): void =>
+    void track(userId, { event_type: 'two_factor_removed' }),
+
+  twoFactorDisableStarted: (userId: string | null): void =>
+    void track(userId, { event_type: 'two_factor_disable_started' }),
+
+  twoFactorDisableCancelled: (userId: string | null): void =>
+    void track(userId, { event_type: 'two_factor_disable_cancelled' }),
+
+  twoFactorChallengePresented: (userId: string | null): void =>
+    void track(userId, { event_type: 'two_factor_challenge_presented' }),
+
+  twoFactorChallengeSucceeded: (userId: string | null): void =>
+    void track(userId, { event_type: 'two_factor_challenge_succeeded' }),
+
+  twoFactorChallengeFailed: (userId: string | null, attemptNumber: number): void =>
+    void track(userId, {
+      event_type: 'two_factor_challenge_failed',
+      metadata: { attempt_number: attemptNumber },
+    }),
+
+  twoFactorRecoveryCodeUsed: (userId: string | null): void =>
+    void track(userId, { event_type: 'two_factor_recovery_code_used' }),
+
+  twoFactorRecoveryCodeFailed: (userId: string | null, attemptNumber: number): void =>
+    void track(userId, {
+      event_type: 'two_factor_recovery_code_failed',
+      metadata: { attempt_number: attemptNumber },
+    }),
+
+  twoFactorRecoveryCodesRegenerated: (userId: string | null): void =>
+    void track(userId, { event_type: 'two_factor_recovery_codes_regenerated' }),
 }

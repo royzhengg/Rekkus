@@ -169,18 +169,76 @@ Client-side event log. Raw signals; do not query directly for product metrics.
 
 ---
 
-## Tables defined only in migrations (drift backlog)
+## Search Domain (additional tables)
 
-These tables exist in the database (added via migrations) but are not yet fully represented
-in the domain files. Add them to the appropriate domain in future schema work.
+### cuisine_aliases
 
-| Table | Migration | Target Domain |
-|---|---|---|
-| `cuisine_aliases` | 20260626000004 | search/ |
-| `data_repair_events` | 20240204000000 | audit/ |
-| `conversation_pinned_messages` | migration | social/ |
-| `message_deliveries` | migration | social/ |
-| `message_reactions` | migration | social/ |
-| `user_topic_follows` | migration | social/ |
-| `place_popularity_cache` | migration | search/ |
-| `search_synonyms` | migration | search/ |
+Domain: Search | Owner: Search / Discovery | Classification: Reference | Lifecycle: Core | Source of Truth: Yes
+
+Alias mapping for cuisine types used in search faceting (e.g. "japanese" → "Japanese"). Populated by taxonomy migration.
+
+---
+
+### search_synonyms
+
+Domain: Search | Owner: Search / Discovery | Classification: Reference | Lifecycle: Core | Source of Truth: Yes
+
+Term-to-canonical synonym table for cuisine, occasion, and dietary search terms. Powers query expansion. `enabled` flag allows soft-disabling without deletion.
+**Rebuild:** Re-run seed migration `20260601000003`.
+
+---
+
+### place_popularity_cache
+
+Domain: Search | Owner: Search / Discovery | Classification: Derived | Lifecycle: Derived | Source of Truth: No
+
+Materialised popularity signals per place: post count, 30-day interactions, avg food rating. Refreshed by scheduled Edge Function.
+**Rebuild:** Truncate and re-run the popularity backfill Edge Function.
+
+---
+
+## Social Domain (additional tables)
+
+### user_topic_follows
+
+Domain: Social | Owner: Social / Follows | Classification: User data | Lifecycle: Core | Source of Truth: Yes
+
+User-declared topic interest signals (cuisine types, occasions). Used for personalised feed ranking. Source: onboarding, profile settings, search.
+
+---
+
+### message_reactions
+
+Domain: Social | Owner: Messaging | Classification: User data | Lifecycle: Core | Source of Truth: Yes
+
+Per-message emoji reactions. One reaction per user per message (unique constraint). Cascade-deletes with message.
+
+---
+
+### message_deliveries
+
+Domain: Social | Owner: Messaging | Classification: Derived | Lifecycle: Core | Source of Truth: No
+
+Per-message delivery and read receipts. Upserted by recipient on delivery/read events. Composite PK (message_id, user_id).
+
+---
+
+### conversation_pinned_messages
+
+Domain: Social | Owner: Messaging | Classification: User data | Lifecycle: Core | Source of Truth: Yes
+
+Multiple pinned messages per conversation. Unique constraint on (conversation_id, message_id). `pinned_by` uses SET NULL on user deletion to preserve history.
+
+---
+
+## Audit Domain (additional tables)
+
+### data_repair_events
+
+Domain: Audit | Owner: Platform / Compliance | Classification: Audit | Lifecycle: Core | Source of Truth: Yes
+
+Tracks manual and automated data corrections across entity types. `restaurant_id` FK references legacy `restaurants` table (pre-rename) — preserved to maintain history. Append-only; status transitions via controlled update only.
+
+---
+
+> No undocumented tables. Completeness enforced by `check:schema-completeness`. Every migration introducing `CREATE TABLE` must add a domain file entry, a DATA_DICTIONARY section, and rebuild `schema-index.json` in the same PR.

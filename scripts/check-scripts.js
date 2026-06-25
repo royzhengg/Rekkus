@@ -79,7 +79,8 @@ for (const file of topLevelScripts) {
   if (SILENT_BY_DESIGN.has(name)) continue
 
   const source = fs.readFileSync(file, 'utf8')
-  if (!source.includes('console.log(') && !source.includes('process.stdout.write(')) {
+  // printResult() from scripts/ops/lib/policy-checks.js internally calls process.stdout.write
+  if (!source.includes('console.log(') && !source.includes('process.stdout.write(') && !source.includes('printResult(')) {
     failures.push(
       `FAIL [SCRIPTS] ${path.relative(ROOT, file)} has no console.log — scripts must acknowledge completion.`
     )

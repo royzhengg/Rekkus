@@ -1,17 +1,10 @@
 import { fireEvent, render } from '@testing-library/react-native'
 import React from 'react'
+import { DISCOVERY_MODULES } from '@/features/search/discoveryModules'
 import { DiscoveryPage } from '@/features/search/DiscoveryPage'
 
 jest.mock('@/lib/contexts/ThemeContext', () => ({
-  useThemeColors: () => ({
-    accent: '#0066cc',
-    bg: '#ffffff',
-    border: '#dddddd',
-    surface: '#f5f5f5',
-    text: '#111111',
-    text2: '#555555',
-    text3: '#777777',
-  }),
+  useThemeColors: () => jest.requireActual('@/constants/Colors').lightColors,
 }))
 
 jest.mock('@/lib/hooks/useContextualQuickStarts', () => ({
@@ -80,9 +73,9 @@ describe('DiscoveryPage saved searches', () => {
     const screen = render(<DiscoveryPage {...baseProps} />)
     const rendered = JSON.stringify(screen.toJSON())
 
-    expect(screen.getByText('Saved searches')).toBeTruthy()
-    expect(screen.getByText('Recent searches')).toBeTruthy()
-    expect(rendered.indexOf('Saved searches')).toBeLessThan(rendered.indexOf('Recent searches'))
+    expect(screen.getByText('Recently saved')).toBeTruthy()
+    expect(screen.getByText('Recent intent')).toBeTruthy()
+    expect(rendered.indexOf('Recently saved')).toBeLessThan(rendered.indexOf('Recent intent'))
   })
 
   it('reruns saved and recent searches from their row taps', () => {
@@ -110,7 +103,39 @@ describe('DiscoveryPage saved searches', () => {
   it('hides saved-search controls for signed-out users', () => {
     const screen = render(<DiscoveryPage {...baseProps} userId={undefined} />)
 
-    expect(screen.queryByText('Saved searches')).toBeNull()
+    expect(screen.queryByText('Recently saved')).toBeNull()
     expect(screen.queryByLabelText('Save search ramen')).toBeNull()
+  })
+
+  it('shows the ledger prompt when every module is empty', () => {
+    const screen = render(
+      <DiscoveryPage
+        {...baseProps}
+        recentSearches={[]}
+        savedSearches={[]}
+        trendingItems={[]}
+        trendingDishes={[]}
+        suggestedPeople={[]}
+        popularPlaces={[]}
+        staffPicks={[]}
+      />
+    )
+
+    expect(screen.getByText("Today's Taste Ledger")).toBeTruthy()
+    expect(screen.getByLabelText('Search ramen')).toBeTruthy()
+  })
+})
+
+describe('Discovery module registry', () => {
+  it('keeps product-owned module order stable', () => {
+    expect(DISCOVERY_MODULES.map(module => module.id)).toEqual([
+      'saved_searches',
+      'recent_searches',
+      'trending_now',
+      'trending_dishes',
+      'popular_places',
+      'staff_picks',
+      'taste_guides',
+    ])
   })
 })

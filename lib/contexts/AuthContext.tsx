@@ -27,6 +27,7 @@ import {
   type AuthSession,
   type AuthUser,
 } from '@/lib/services/auth'
+import { getAssuranceLevel, isMFARequired } from '@/lib/services/auth/mfa'
 import {
   buildInitialProviderState,
   classifyReconnectError,
@@ -55,6 +56,9 @@ interface AuthContextValue {
   user: AuthUser | null
   session: AuthSession | null
   loading: boolean
+  authBootstrapping: boolean  // true until AAL check completes after session load
+  mfaRequired: boolean        // true when nextLevel=aal2 and currentLevel=aal1
+  setMfaRequired: (required: boolean) => void  // session-local override after recovery code; never persist
   pendingAppleFullName: string | null
   providerState: ProviderStateRecord
   signInWithEmail: (email: string, password: string) => Promise<string | null>
@@ -77,6 +81,9 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   session: null,
   loading: true,
+  authBootstrapping: true,
+  mfaRequired: false,
+  setMfaRequired: () => {},
   pendingAppleFullName: null,
   providerState: EMPTY_PROVIDER_STATE,
   signInWithEmail: async () => null,
@@ -135,6 +142,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [session, setSession] = useState<AuthSession | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authBootstrapping, setAuthBootstrapping] = useState(true)
+  const [mfaRequired, setMfaRequired] = useState(false)
   const [pendingAppleFullName, setPendingAppleFullName] = useState<string | null>(null)
   const [providerState, setProviderState] = useState<ProviderStateRecord>(() => buildInitialProviderState([]))
 
@@ -159,16 +168,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       providerStateRef.current = cached
     })
 
-    void getSession().then(nextSession => {
+    void getSession().then(async nextSession => {
       setSession(nextSession)
       setUser(nextSession?.user ?? null)
       setLoading(false)
+      if (nextSession) {
+        try {
+          const aal = await getAssuranceLevel()
+          if (mountedRef.current) setMfaRequired(isMFARequired(aal))
+        } catch {
+          // Non-fatal: default mfaRequired=false if AAL check fails (fail open for UX)
+        }
+      }
+      if (mountedRef.current) setAuthBootstrapping(false)
       void refreshProviderState(true)
     })
 
-    const unsubscribe = subscribeToAuthStateChange(newSession => {
+    const unsubscribe = subscribeToAuthStateChange(async newSession => {
       setSession(newSession)
       setUser(newSession?.user ?? null)
+      // Re-check AAL on every session change (login, token refresh, MFA verify).
+      // setMfaRequired(false) is reset here so recovery-code overrides clear on new sessions.
+      if (newSession) {
+        try {
+          const aal = await getAssuranceLevel()
+          if (mountedRef.current) setMfaRequired(isMFARequired(aal))
+        } catch {
+          // Non-fatal
+        }
+      } else {
+        if (mountedRef.current) setMfaRequired(false)
+      }
     })
 
     const appStateSub = AppState.addEventListener('change', state => {
@@ -482,6 +512,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const empty = buildInitialProviderState([])
     providerStateRef.current = empty   // reset ref immediately so any in-flight refresh reads clean state
     setProviderState(empty)
+    setMfaRequired(false)
     void clearPersistedProviderState()
     void recordAuthAuditEvent('logout')
     await endSession()
@@ -509,6 +540,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         session,
         loading,
+        authBootstrapping,
+        mfaRequired,
+        setMfaRequired,
         pendingAppleFullName,
         providerState,
         signInWithEmail,

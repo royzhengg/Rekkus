@@ -789,11 +789,15 @@ create index if not exists comments_parent_id_idx on public.comments (parent_id)
 -- ---------------------------------------------------------------------------
 -- social/follows.sql
 -- ---------------------------------------------------------------------------
--- Domain: Social
--- Owner: Growth
--- Classification: Relationship
--- Lifecycle: Core
--- Source of Truth: Yes
+-- ============================================================================
+-- Domain:       Social
+-- Owner:        Growth
+-- Canonical:    Yes
+-- Lifecycle:    Core
+-- Owned tables: follows, user_topic_follows
+-- Dependencies: core/users/users.sql
+-- Included by:  scripts/build-schema.sh
+-- ============================================================================
 
 -- follows
 create table if not exists public.follows (
@@ -803,6 +807,20 @@ create table if not exists public.follows (
   created_at   timestamptz not null default now(),
   unique (follower_id, following_id)
 );
+
+-- user_topic_follows: topic interest signals captured at onboarding, profile, or search.
+create table if not exists public.user_topic_follows (
+  id         uuid default gen_random_uuid() primary key,
+  user_id    uuid references public.users on delete cascade not null,
+  topic      text not null check (char_length(topic) between 2 and 40),
+  source     text not null default 'onboarding'
+             check (source in ('onboarding', 'profile', 'search', 'system')),
+  created_at timestamptz not null default now(),
+  unique (user_id, topic)
+);
+
+create index if not exists user_topic_follows_user_topic_idx
+  on public.user_topic_follows (user_id, topic);
 
 -- ---------------------------------------------------------------------------
 -- social/collections.sql
@@ -890,11 +908,15 @@ create index if not exists user_top_spots_user_position on public.user_top_spots
 -- ---------------------------------------------------------------------------
 -- social/messaging.sql
 -- ---------------------------------------------------------------------------
--- Domain: Social
--- Owner: Messaging
--- Classification: Entity
--- Lifecycle: Core
--- Source of Truth: Yes
+-- ============================================================================
+-- Domain:       Social
+-- Owner:        Messaging
+-- Canonical:    Yes
+-- Lifecycle:    Core
+-- Owned tables: conversations, conversation_participants, messages, message_reactions, message_deliveries, conversation_pinned_messages
+-- Dependencies: core/users/users.sql
+-- Included by:  scripts/build-schema.sh
+-- ============================================================================
 
 -- conversations
 create table if not exists public.conversations (
@@ -950,16 +972,60 @@ create index if not exists conversations_updated_at_idx on public.conversations 
 create index if not exists conversation_participants_user_idx on public.conversation_participants (user_id, conversation_id);
 create index if not exists messages_conversation_created_idx on public.messages (conversation_id, created_at desc);
 
+-- message_reactions: per-message emoji reactions; one reaction per user per message.
+create table if not exists public.message_reactions (
+  id         uuid default gen_random_uuid() primary key,
+  message_id uuid references public.messages(id) on delete cascade not null,
+  user_id    uuid references public.users(id) on delete cascade not null,
+  emoji      text not null check (char_length(emoji) between 1 and 8),
+  created_at timestamptz not null default now(),
+  unique (message_id, user_id)
+);
+
+create index if not exists message_reactions_message_idx
+  on public.message_reactions (message_id);
+
+-- message_deliveries: per-message read receipts; upserted by the recipient.
+create table if not exists public.message_deliveries (
+  message_id   uuid references public.messages(id) on delete cascade not null,
+  user_id      uuid references public.users(id) on delete cascade not null,
+  delivered_at timestamptz,
+  read_at      timestamptz,
+  primary key (message_id, user_id)
+);
+
+-- conversation_pinned_messages: multiple pinned messages per conversation.
+create table if not exists public.conversation_pinned_messages (
+  id              uuid default gen_random_uuid() primary key,
+  conversation_id uuid references public.conversations(id) on delete cascade not null,
+  message_id      uuid references public.messages(id) on delete cascade not null,
+  pinned_by       uuid references public.users(id) on delete set null,
+  pinned_at       timestamptz not null default now(),
+  unique (conversation_id, message_id)
+);
+
 -- ---------------------------------------------------------------------------
 -- search/taxonomy.sql
 -- ---------------------------------------------------------------------------
--- Domain: Search
--- Owner: Search / Discovery
--- Classification: Metadata
--- Lifecycle: Core
--- Source of Truth: Yes
+-- ============================================================================
+-- Domain:       Search
+-- Owner:        Search / Discovery
+-- Canonical:    Yes
+-- Lifecycle:    Core
+-- Owned tables: cuisine_aliases
+-- Dependencies: (none)
+-- Included by:  scripts/build-schema.sh
+-- Note:         taxonomy_nodes, taxonomy_aliases added via migration only.
+--               See supabase/migrations/20260624000004_cuisine_taxonomy.sql
+-- ============================================================================
 
--- Tables added via migrations. See supabase/migrations/20260624000004_cuisine_taxonomy.sql
+-- cuisine_aliases: legacy per-cuisine alias vocabulary. See also taxonomy_aliases (migration-only).
+create table if not exists public.cuisine_aliases (
+  cuisine_type text not null,
+  alias        text not null,
+  created_at   timestamptz not null default now(),
+  primary key (cuisine_type, alias)
+);
 
 -- ---------------------------------------------------------------------------
 -- search/search_index.sql
@@ -1053,6 +1119,40 @@ create index if not exists saved_search_audit_events_user_id_idx on public.saved
 create index if not exists saved_search_audit_events_created_at_idx on public.saved_search_audit_events (created_at desc);
 
 -- ---------------------------------------------------------------------------
+-- search/synonyms.sql
+-- ---------------------------------------------------------------------------
+-- ============================================================================
+-- Domain:       Search
+-- Owner:        Search / Discovery
+-- Canonical:    Yes
+-- Lifecycle:    Core
+-- Owned tables: search_synonyms
+-- Dependencies: (none)
+-- Included by:  scripts/build-schema.sh
+-- ============================================================================
+
+-- search_synonyms: DB-backed synonym vocabulary for cuisine, occasion, and dietary filters.
+-- Public-read reference data; operator/admin writes happen outside client scope.
+create table if not exists public.search_synonyms (
+  id         bigserial primary key,
+  term       text not null,
+  canonical  text not null,
+  type       text not null check (type in ('cuisine', 'occasion', 'dietary')),
+  enabled    boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint search_synonyms_non_empty check (
+    btrim(term) <> '' and btrim(canonical) <> ''
+  )
+);
+
+create unique index if not exists search_synonyms_type_term_canonical_uidx
+  on public.search_synonyms (type, lower(term), lower(canonical));
+
+create index if not exists search_synonyms_enabled_type_term_idx
+  on public.search_synonyms (enabled, type, lower(term));
+
+-- ---------------------------------------------------------------------------
 -- search/suburb_data.sql
 -- ---------------------------------------------------------------------------
 -- Domain: Search
@@ -1105,6 +1205,30 @@ create table if not exists public.trending_searches (
 
 -- Indexes
 create index if not exists trending_searches_score_idx on public.trending_searches (score desc);
+
+-- ---------------------------------------------------------------------------
+-- search/popularity_cache.sql
+-- ---------------------------------------------------------------------------
+-- ============================================================================
+-- Domain:       Search
+-- Owner:        Search / Discovery
+-- Canonical:    No
+-- Lifecycle:    Derived
+-- Owned tables: place_popularity_cache
+-- Dependencies: core/places/places.sql
+-- Included by:  scripts/build-schema.sh
+-- ============================================================================
+
+-- place_popularity_cache: derived ranking signals refreshed by refresh_place_popularity_cache().
+-- Rebuild: truncate and re-run refresh_place_popularity_cache(). Source tables: posts, post_reactions.
+create table if not exists public.place_popularity_cache (
+  place_id              uuid primary key references public.places(id) on delete cascade,
+  post_count            integer not null default 0,
+  interaction_count_30d integer not null default 0,
+  avg_food_rating       numeric(3,2),
+  food_rating_count     integer not null default 0,
+  updated_at            timestamptz not null default now()
+);
 
 -- ---------------------------------------------------------------------------
 -- analytics/events.sql
@@ -1317,11 +1441,15 @@ create index if not exists content_reports_target_idx on public.content_reports 
 -- ---------------------------------------------------------------------------
 -- audit/audit_tables.sql
 -- ---------------------------------------------------------------------------
--- Domain: Audit
--- Owner: Platform / Compliance
--- Classification: Audit
--- Lifecycle: Core
--- Source of Truth: Yes
+-- ============================================================================
+-- Domain:       Audit
+-- Owner:        Platform / Compliance
+-- Canonical:    Yes
+-- Lifecycle:    Core
+-- Owned tables: auth_audit_events, content_lifecycle_events, dish_audit_events, user_profile_audit_events, collection_audit_events, feature_flag_audit_events, data_repair_events
+-- Dependencies: core/users/users.sql, core/dishes/dishes.sql
+-- Included by:  scripts/build-schema.sh
+-- ============================================================================
 
 -- auth_audit_events (ISO A.12.4.1)
 create table if not exists public.auth_audit_events (
@@ -1410,6 +1538,33 @@ create index if not exists collection_audit_events_created_at_idx on public.coll
 create index if not exists feature_flag_audit_events_flag_name_idx on public.feature_flag_audit_events (flag_name, created_at desc);
 create index if not exists feature_flag_audit_events_user_id_idx on public.feature_flag_audit_events (user_id);
 create index if not exists feature_flag_audit_events_created_at_idx on public.feature_flag_audit_events (created_at desc);
+
+-- data_repair_events: tracks manual and automated data corrections.
+-- restaurant_id FK references the legacy restaurants table (pre-rename); left as-is to preserve history.
+create table if not exists public.data_repair_events (
+  id             uuid default gen_random_uuid() primary key,
+  entity_type    text not null check (entity_type in ('restaurant', 'post', 'dish', 'user')),
+  entity_id      uuid,
+  restaurant_id  uuid references public.restaurants(id) on delete set null,
+  actor_id       uuid references public.users(id) on delete set null,
+  repair_type    text not null,
+  source_type    text not null default 'user_report',
+  issue_summary  text not null,
+  before_summary jsonb not null default '{}'::jsonb,
+  after_summary  jsonb not null default '{}'::jsonb,
+  status         text not null default 'reported'
+                 check (status in ('reported', 'in_review', 'repaired', 'rejected', 'superseded')),
+  audit_event_id uuid references public.restaurant_audit_events(id) on delete set null,
+  created_at     timestamptz not null default now(),
+  reviewed_at    timestamptz,
+  reviewed_by    uuid references public.users(id) on delete set null
+);
+
+create index if not exists idx_data_repair_events_entity
+  on public.data_repair_events (entity_type, entity_id, created_at desc);
+
+create index if not exists idx_data_repair_events_restaurant
+  on public.data_repair_events (restaurant_id, created_at desc);
 
 -- ---------------------------------------------------------------------------
 -- audit/place_ownership_events.sql
@@ -4253,6 +4408,87 @@ begin
   );
 
   return v_place_id;
+end;
+$$;
+
+-- get_places_for_google_sync
+create or replace function public.get_places_for_google_sync(
+  batch_size integer default 25
+)
+returns table (
+  id              uuid,
+  google_place_id text,
+  place_status    public.place_status
+)
+  language sql
+  stable
+  security definer
+  set search_path = public
+as $$
+  select p.id, p.google_place_id, p.place_status
+  from   public.places p
+  left join public.place_provider_cache c
+    on  c.place_id    = p.id
+    and c.source_type = 'google_places'
+  where  p.google_place_id is not null
+    and  p.status_locked = false
+    and  (
+      p.place_status != 'permanently_closed'
+      or c.stale_at is null
+      or c.stale_at < now() - interval '90 days'
+    )
+  order by c.stale_at asc nulls first, p.id
+  limit batch_size;
+$$;
+
+-- acquire_google_sync_lock
+create or replace function public.acquire_google_sync_lock()
+returns boolean
+  language sql
+  security definer
+  set search_path = public
+as $$
+  select pg_try_advisory_lock(hashtext('rekkus:google-operational-sync')::bigint);
+$$;
+
+-- release_google_sync_lock
+create or replace function public.release_google_sync_lock()
+returns void
+  language sql
+  security definer
+  set search_path = public
+as $$
+  select pg_advisory_unlock(hashtext('rekkus:google-operational-sync')::bigint);
+$$;
+
+-- trigger_google_operational_sync
+create or replace function public.trigger_google_operational_sync()
+returns void
+  language plpgsql
+  security definer
+  set search_path = public, net
+as $$
+declare
+  v_url text;
+  v_key text;
+begin
+  select value into v_url from public.app_config where key = 'supabase_url';
+  select value into v_key from public.app_config where key = 'service_role_key';
+
+  if v_url is null or v_key is null then
+    raise warning 'trigger_google_operational_sync: missing app_config keys (supabase_url / service_role_key)';
+    return;
+  end if;
+
+  perform net.http_post(
+    url     := v_url || '/functions/v1/google-operational-sync',
+    headers := jsonb_build_object(
+      'Content-Type',  'application/json',
+      'Authorization', 'Bearer ' || v_key,
+      'x-cron-key',    v_key
+    ),
+    body    := '{}'::jsonb
+  );
 end;
 $$;
 

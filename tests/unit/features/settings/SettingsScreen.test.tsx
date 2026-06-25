@@ -106,6 +106,11 @@ jest.mock('@/features/settings/PrivacyDataScreen', () => ({
   TERMS_URL: 'https://rekkus.com/terms',
 }))
 
+jest.mock('@/lib/featureFlags', () => ({
+  useFeatureFlag: jest.fn(() => true),
+  isEnabled: jest.fn(() => true),
+}))
+
 jest.mock('@/components/icons', () => ({
   ArrowLeft: () => null,
   BellIcon: () => null,
@@ -181,8 +186,8 @@ describe('Settings screens', () => {
     fireEvent.press(screen.getByLabelText('Appearance and playback, System'))
     expect(mockPush).toHaveBeenCalledWith('/settings/appearance-playback')
 
-    fireEvent.press(screen.getByLabelText('Connected accounts, Email, Google'))
-    expect(mockPush).toHaveBeenCalledWith('/settings/connected-accounts')
+    fireEvent.press(screen.getByLabelText('Security'))
+    expect(mockPush).toHaveBeenCalledWith('/settings/security')
   })
 
   it('keeps planned rows inert on the settings hub', async () => {
